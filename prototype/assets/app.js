@@ -41,10 +41,11 @@
     opts = opts || {};
     var meta = [ev.end ? TR.dateText(ev) : '', ev.s || !opts.noTime ? TR.slotText(ev) : '', ev.place, ev.target].filter(Boolean).join(' · ');
     return '<div class="ev ' + ev.type + (TR.isRel(ev) ? ' rel' : '') + (ev.changed ? ' changed' : '') + '" data-ev="' + ev.id + '" title="' + esc(ev.title) + '">' +
-      '<div class="t"><i class="dt" aria-hidden="true"></i><span class="psym">' + TR.typeSym[ev.type] + '</span><span class="sr">' + TR.typeLabel[ev.type] + '</span><span>' + esc(ev.title) + '</span>' + (ev.changed ? TR.chgIcon : '') + '</div>' +
+      '<div class="t"><i class="dt" aria-hidden="true"></i><span class="psym">' + TR.typeSym[ev.type] + '</span><span class="sr">' + TR.typeLabel[ev.type] + '</span><span>' + esc(ev.title) + '</span>' + (ev.changed ? TR.chgIcon : '') + attMark(ev) + '</div>' +
       (opts.compact ? (opts.time || opts.range ? '<div class="m">' + esc([opts.range ? TR.dateText(ev) : '', opts.time ? TR.slotText(ev) : ''].filter(Boolean).join(' · ')) + '</div>' : '') : '<div class="m">' + esc(meta) + (ev.note ? ' · ' + esc(ev.note) : '') + '</div>') +
       (ev.type === 'duty' ? '' : '<div class="by">' + esc(TR.byline(ev.by || TR.me.name)) + '</div>') + '</div>';
   }
+  function attMark(ev) { return (ev.body ? '<span class="att" title="내용 있음">≡</span>' : '') + (ev.files ? '<span class="att" title="첨부 ' + ev.files.length + '개">📎' + ev.files.length + '</span>' : ''); }
   function legendHtml(extra) {
     return '<span class="legend">' + ['event', 'work', 'meet'].map(function (t) { return '<span><i class="dt ' + t + '"></i>' + TR.typeLabel[t] + '</span>'; }).join('') +
       '<span><i class="relsw"></i>나와 관련</span><span class="lg-chg">' + TR.chgIcon + ' 최근 변경</span>' + (extra || '') + '</span>';
@@ -81,6 +82,55 @@
     TR.save();
     TR.toast('「' + ev.title + '」 ' + (bD !== aD ? aD + ' ' : '') + aT + (parts.length ? ' · 관련 선생님 「바뀐 것」에 알려요' : ''));
   }
+  // 칸에 바로 쓰기(오늘·주간·월간 공통): 칸의 [＋ 추가]를 누르면 그 자리에 2줄 입력창이 열린다.
+  // Enter = 저장, Shift+Enter = 줄바꿈, Esc = 취소, 바깥을 누르면 저장. 우하단 [파일첨부]·[내용입력]은 필요한 사람만.
+  function cellInput(o) {
+    var box = document.createElement('div'), files = [], fin = false;
+    box.className = 'newbox no-print' + (o.cls ? ' ' + o.cls : '');
+    box.innerHTML = '<textarea class="nb-t" rows="2" placeholder="' + esc(o.ph) + '"></textarea>' +
+      '<textarea class="nb-b" rows="4" placeholder="내용 — 준비물·참고 사항 등 (Ctrl+Enter 저장)" hidden></textarea><div class="nb-f"></div>' +
+      '<div class="nb-bar"><span class="nb-k">Enter 저장 · Esc 취소</span><label class="nb-btn">파일첨부<input type="file" multiple hidden></label><button type="button" class="nb-btn" data-body>내용입력</button></div>';
+    o.place(box);
+    var t = $('.nb-t', box), bd = $('.nb-b', box);
+    t.focus();
+    function chips() {
+      $('.nb-f', box).innerHTML = files.map(function (f, i) { return '<span class="fchip">📎 ' + esc(f.name) + ' <small>' + f.size + '</small><button type="button" data-rm="' + i + '" aria-label="빼기">×</button></span>'; }).join('');
+      $$('[data-rm]', box).forEach(function (b) { b.onclick = function () { files.splice(+b.dataset.rm, 1); chips(); t.focus(); }; });
+    }
+    function end(save) {
+      if (fin) return; fin = true; document.removeEventListener('pointerdown', outside, true);
+      var title = t.value.replace(/\s+/g, ' ').trim(), body = bd.value.trim();
+      if (!title && body) title = body.split('\n')[0].slice(0, 40);
+      if (save && title) o.save({ text: title, body: body, files: files }); else o.cancel();
+    }
+    function outside(e) { if (!box.contains(e.target)) end(true); }
+    document.addEventListener('pointerdown', outside, true);
+    t.onkeydown = function (e) {
+      if (e.isComposing) return; // 한글 조합 중 Enter는 글자 확정
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); end(true); }
+      if (e.key === 'Escape') { e.stopPropagation(); end(false); }
+    };
+    bd.onkeydown = function (e) {
+      if (e.isComposing) return;
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); end(true); }
+      if (e.key === 'Escape') { e.stopPropagation(); end(false); }
+    };
+    $('[data-body]', box).onclick = function () { bd.hidden = !bd.hidden; this.classList.toggle('on', !bd.hidden); (bd.hidden ? t : bd).focus(); };
+    $('input[type=file]', box).onchange = function () {
+      [].forEach.call(this.files, function (f) { files.push({ name: f.name, size: f.size < 1048576 ? Math.max(1, Math.round(f.size / 1024)) + 'KB' : (f.size / 1048576).toFixed(1) + 'MB' }); });
+      this.value = ''; chips(); t.focus();
+    };
+  }
+  // 입력한 문장으로 일정 만들기. 문장에 날짜·블록이 있으면 그것이 이기고, 없으면 누른 칸의 날짜·블록.
+  function addEvent(r, date, slot) {
+    var p = TR.parse(r.text), ev = { id: 'u' + Date.now().toString(36), date: p.date || date, end: p.end, title: p.title || r.text, place: p.place || '', target: p.target || '', type: p.type === 'duty' ? 'work' : p.type, by: TR.me.name, mine: true };
+    if (!ev.end) delete ev.end;
+    if (p.s) { ev.s = p.s; ev.e = p.e || p.s; if (p.time) ev.time = p.time; } else if (slot !== null) { ev.s = ev.e = TR.slots[slot].k; }
+    if (r.body) ev.body = r.body;
+    if (r.files.length) ev.files = r.files;
+    S().events.push(ev); TR.save();
+    return ev;
+  }
   function openEvent(id) {
     var ev = S().events.find(function (x) { return x.id === id; }); if (!ev) return;
     var conf = TR.conflicts(ev), edit = TR.canEdit(ev);
@@ -88,19 +138,22 @@
     var opt = function (sel) { return TR.slots.map(function (s, i) { return '<option value="' + i + '"' + (i === sel ? ' selected' : '') + '>' + s.label + '</option>'; }).join(''); };
     var dIn = function (id, v) { return '<input type="date" id="' + id + '" class="btn sm" value="' + v + '">'; };
     var dateDd = edit ? '<div class="row" style="flex-wrap:wrap">' + dIn('mD', ev.date) + '~' + dIn('mDE', TR.lastDay(ev)) + '<span class="small muted">하루짜리는 두 날짜를 같게</span></div>' : esc(TR.dateText(ev));
-    var timeDd = edit ? '<div class="row" style="flex-wrap:wrap"><label class="toggle"><input type="checkbox" id="mAll"' + (ev.s ? '' : ' checked') + '> 시간 미정(전일)</label><span id="mRange" class="row"' + (ev.s ? '' : ' hidden') + '><select id="mS" class="btn sm">' + opt(a) + '</select>~<select id="mE" class="btn sm">' + opt(b) + '</select></span></div><div class="row" style="margin-top:9px"><button class="btn sm pri" id="mSave">날짜·시간 저장</button><span class="small muted">「오늘」·「일정」에서 카드를 끌어 옮기거나, 끝을 끌어 늘리고 줄여도 됩니다.</span></div>'
+    var timeDd = edit ? '<div class="row" style="flex-wrap:wrap"><label class="toggle"><input type="checkbox" id="mAll"' + (ev.s ? '' : ' checked') + '> 시간 미정(전일)</label><span id="mRange" class="row"' + (ev.s ? '' : ' hidden') + '><select id="mS" class="btn sm">' + opt(a) + '</select>~<select id="mE" class="btn sm">' + opt(b) + '</select></span></div><div class="small muted" style="margin-top:7px">「오늘」·「일정」에서 카드를 끌어 옮기거나, 끝을 끌어 늘리고 줄여도 됩니다.</div>'
       : esc(TR.slotText(ev)) + (ev.s ? '' : ' <span class="small muted">· 작성자·같은 그룹 선생님이 정할 수 있어요</span>');
     modal('<div class="card-h"><h2>' + esc(ev.title) + '</h2><span class="badge">' + TR.typeLabel[ev.type] + '</span></div><div class="card-b">' +
       '<dl class="kv"><dt>날짜</dt><dd>' + dateDd + '</dd><dt>시간</dt><dd>' + timeDd + '</dd>' +
       (ev.place ? '<dt>장소</dt><dd>' + esc(ev.place) + '</dd>' : '') + (ev.target ? '<dt>대상</dt><dd>' + esc(ev.target) + '</dd>' : '') +
-      '<dt>등록</dt><dd>' + esc(TR.byline(ev.by || ev.who || TR.me.name)) + '</dd>' + (ev.note ? '<dt>메모</dt><dd>' + esc(ev.note) + '</dd>' : '') + '</dl>' +
+      '<dt>등록</dt><dd>' + esc(TR.byline(ev.by || ev.who || TR.me.name)) + '</dd>' + (ev.note ? '<dt>메모</dt><dd>' + esc(ev.note) + '</dd>' : '') +
+      (edit ? '<dt>내용</dt><dd><textarea id="mBody" class="mbody" rows="3" placeholder="준비물·참고 사항 등">' + esc(ev.body || '') + '</textarea></dd>' : ev.body ? '<dt>내용</dt><dd style="white-space:pre-wrap">' + esc(ev.body) + '</dd>' : '') +
+      (ev.files ? '<dt>첨부</dt><dd>' + ev.files.map(function (f) { return '<span class="fchip">📎 ' + esc(f.name) + ' <small>' + esc(f.size) + '</small></span>'; }).join(' ') + '</dd>' : '') + '</dl>' +
       (ev.changed ? '<div class="diff" style="margin-top:14px"><b>바뀐 부분</b><div>' + ev.change + '</div></div>' : '') +
       (conf.length ? '<div class="warn">장소가 겹쳐요: ' + conf.map(function (c) { return esc(c.title) + '(' + esc(TR.slotText(c)) + ')'; }).join(', ') + '</div>' : '') +
-      '<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn sm" data-copy>메신저용 문구 복사</button><button class="btn sm" data-close>닫기</button></div></div>');
+      '<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn sm" data-copy>메신저용 문구 복사</button><button class="btn sm" data-close>닫기</button>' + (edit ? '<button class="btn sm pri" id="mSave">저장</button>' : '') + '</div></div>');
     $('[data-copy]', $('#modal')).onclick = function () { TR.copy('[티로드] ' + TR.dateText(ev) + ' ' + TR.slotText(ev) + ' ' + ev.title + (ev.place ? ' · ' + ev.place : '') + '\nhttps://t.road/s/' + ev.id); };
     if (edit) {
       $('#mAll').onchange = function () { $('#mRange').hidden = this.checked; };
       $('#mSave').onclick = function () {
+        var body = $('#mBody').value.trim(); if (body) ev.body = body; else delete ev.body; TR.save();
         var d = $('#mD').value || ev.date, de = $('#mDE').value || d; if (de < d) { var t = d; d = de; de = t; }
         setWhen(ev, $('#mAll').checked ? { date: d, end: de, a: null } : { date: d, end: de, a: +$('#mS').value, b: +$('#mE').value }); closeModal(); route();
       };
@@ -170,10 +223,10 @@
     var L = Math.max(lanes.length, 2);
     var h = '<div class="allday" id="allday"><div class="ad-l"><b>전일</b><span>시간 미정 · 종일</span></div><div class="ad-b">' +
       all.map(function (ev) { return '<div class="adw' + (TR.canEdit(ev) ? ' edit' : '') + '" data-w="' + ev.id + '">' + evCard(ev, { noTime: true }) + '</div>'; }).join('') +
-      '<button class="ad-add" id="adAdd">＋ 카드 만들기</button></div></div>';
+      '<button class="ad-add no-print" id="adAdd">＋ 추가</button></div></div>';
     h += '<div class="tlx" id="tlx" style="--lanes:' + L + ';height:' + TR.slots.length * SH + 'px">';
     TR.slots.forEach(function (s, i) {
-      h += '<div class="srow' + (i === TR.NOW_SLOT ? ' now' : '') + '" style="top:' + i * SH + 'px" data-slot="' + i + '" title="빈 곳을 두 번 누르면 이 블록에 카드를 만들어요"><span class="sl"><b>' + s.label + '</b>' + s.time + (i === TR.NOW_SLOT ? '<i class="nowtag">지금</i>' : '') + '</span></div>';
+      h += '<div class="srow' + (i === TR.NOW_SLOT ? ' now' : '') + '" style="top:' + i * SH + 'px" data-slot="' + i + '" title="빈 곳을 두 번 누르면 이 블록에 카드를 만들어요"><span class="sl"><b>' + s.label + '</b>' + s.time + (i === TR.NOW_SLOT ? '<i class="nowtag">지금</i>' : '') + '</span><button class="cell-add sa no-print" data-slot="' + i + '" title="' + s.label + '에 일정 추가">＋ 추가</button></div>';
     });
     timed.forEach(function (ev) {
       var a = TR.slotIdx(ev.s), b = TR.slotIdx(ev.e || ev.s), ed = TR.canEdit(ev);
@@ -227,28 +280,24 @@
         document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
       });
     });
-    // 카드 만들기: 전일의 [＋] 또는 블록 줄 빈 곳 더블클릭. 쓴 문장에 블록이 있으면 그 블록으로 들어간다.
+    // 카드 만들기: 칸마다 있는 [＋ 추가](전일 맨 끝 · 블록 이름 아래) 또는 블록 줄 빈 곳 더블클릭.
+    // [＋ 추가]는 카드 영역 밖(왼쪽 이름 칸)에 있어서 카드가 꽉 차도 가려지지 않는다. 쓴 문장에 블록이 있으면 그 블록으로 들어간다.
     function newCard(slot) {
-      var inp = document.createElement('input');
-      inp.className = 'newin'; inp.placeholder = slot === null ? '제목만 쓰고 Enter — 날짜는 오늘, 시간은 나중에' : TR.slots[slot].label + ' — 제목 쓰고 Enter';
-      if (slot === null) $('#adAdd', root).replaceWith(inp); else { inp.classList.add('abs'); inp.style.top = (slot * SH + 6) + 'px'; tlx.appendChild(inp); }
-      inp.focus();
-      var done = false;
-      function commit() {
-        if (done) return; done = true;
-        var v = inp.value.trim(); if (!v) { rerender(); return; }
-        var p = TR.parse(v), ev = { id: 'u' + Date.now().toString(36), date: p.date || TR.TODAY, end: p.end, title: p.title || v, place: p.place || '', target: p.target || '', type: p.type === 'duty' ? 'work' : p.type, by: TR.me.name, mine: true };
-        if (!ev.end) delete ev.end;
-        if (p.s) { ev.s = p.s; ev.e = p.e || p.s; if (p.time) ev.time = p.time; } else if (slot !== null) { ev.s = ev.e = TR.slots[slot].k; }
-        S().events.push(ev); TR.save();
-        TR.toast(ev.date !== TR.TODAY ? '「' + ev.title + '」 ' + TR.fmt(ev.date) + '에 만들었어요 (일정 화면에서 보여요)' : ev.s ? '「' + ev.title + '」 ' + TR.slotText(ev) + ' — 아래 끝을 끌면 길게 늘어나요' : '「' + ev.title + '」 전일에 만들었어요 — 끌어서 블록에 놓으면 시간이 정해져요');
-        rerender();
-      }
-      inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') { done = true; rerender(); } };
-      inp.onblur = commit;
+      cellInput({
+        ph: slot === null ? '제목 쓰고 Enter — 날짜는 오늘, 시간은 나중에' : TR.slots[slot].label + ' — 제목 쓰고 Enter',
+        cls: slot === null ? '' : 'abs',
+        place: function (box) { if (slot === null) $('#adAdd', root).replaceWith(box); else { box.style.top = (slot * SH + 6) + 'px'; tlx.appendChild(box); } },
+        cancel: rerender,
+        save: function (r) {
+          var ev = addEvent(r, TR.TODAY, slot);
+          TR.toast(ev.date !== TR.TODAY ? '「' + ev.title + '」 ' + TR.fmt(ev.date) + '에 만들었어요 (일정 화면에서 보여요)' : ev.s ? '「' + ev.title + '」 ' + TR.slotText(ev) + ' — 아래 끝을 끌면 길게 늘어나요' : '「' + ev.title + '」 전일에 만들었어요 — 끌어서 블록에 놓으면 시간이 정해져요');
+          rerender();
+        }
+      });
     }
     $('#adAdd', root).onclick = function () { newCard(null); };
-    $$('.srow', tlx).forEach(function (r) { r.addEventListener('dblclick', function () { newCard(+r.dataset.slot); }); });
+    $$('.srow .cell-add', tlx).forEach(function (b) { b.onclick = function () { newCard(+b.dataset.slot); }; });
+    $$('.srow', tlx).forEach(function (r) { r.addEventListener('dblclick', function (e) { if (!e.target.closest('.cell-add')) newCard(+r.dataset.slot); }); });
   }
 
   function today() {
@@ -289,7 +338,7 @@
       '<div class="grid3">' +
       '<section class="card col-tt"><div class="card-h"><h2>내 시간표</h2><span class="small muted">4-2 · 학기 초 1번 입력</span></div><div class="card-b" style="padding-top:5px"><table class="tt">' + mine + '</table></div></section>' +
       '<section class="card col-tl"><div class="card-h"><h2>학교 오늘</h2>' + legendHtml() + '</div><div class="card-b">' +
-      '<p class="board-hint">날짜만 넣은 일정은 <b>전일</b>에 모입니다' + (untimed ? ' (지금 ' + untimed + '건)' : '') + '. 내 일정과 우리 학년 일정은 <b>끌어서 블록에 놓고</b>, 카드 <b>위·아래 끝</b>을 끌어 길이를 정하세요. 빈 블록 줄을 두 번 누르면 그 블록에 카드가 생깁니다.</p>' +
+      '<p class="board-hint">날짜만 넣은 일정은 <b>전일</b>에 모입니다' + (untimed ? ' (지금 ' + untimed + '건)' : '') + '. 내 일정과 우리 학년 일정은 <b>끌어서 블록에 놓고</b>, 카드 <b>위·아래 끝</b>을 끌어 길이를 정하세요. 새 일정은 칸마다 있는 <b>＋ 추가</b>를 눌러 그 자리에서 바로 쓰세요(빈 곳을 두 번 눌러도 됩니다).</p>' +
       dayBoard(school) +
       '<h3 style="font-size:16px;margin:18px 0 9px">복무 <span class="small muted" style="font-weight:400">' + duty.length + '명 · 나이스 결재와 별개로 공유만 · 보강은 담당자가 기존대로</span></h3><div class="duty-list">' + dutyHtml + '</div></div></section>' +
       '<section class="card col-r"><div class="card-h"><div class="seg"><button data-scope="me" class="' + (inboxScope === 'me' ? 'on' : '') + '">나에게 온 것' + (open ? ' ' + open : '') + '</button><button data-scope="all" class="' + (inboxScope === 'all' ? 'on' : '') + '">학교 전체</button></div>' + (inboxScope === 'me' ? '<span class="badge ' + (open ? 'red' : 'ok') + '">' + (open ? '남은 일 ' + open : '모두 끝') + '</span>' : '<span class="small muted">마감순</span>') + '</div><div class="card-b"><div class="inbox">' + inboxHtml + '</div>' +
@@ -377,6 +426,24 @@
       });
     });
   }
+  // 일정의 칸마다 [＋ 추가] — 주간은 (날짜 × 전일/블록), 월간은 날짜. 칸이 꽉 차도 버튼은 늘 그 칸 맨 아래에 있다.
+  function bindCellAdd(root) {
+    $$('.cell-add[data-d]', root).forEach(function (b) {
+      b.onclick = function () {
+        var date = b.dataset.d, slot = b.dataset.row === 'all' ? null : +b.dataset.row, mo = b.classList.contains('mo-add'), wrap = b.parentNode;
+        cellInput({
+          ph: TR.fmt(date) + (slot === null ? '' : ' ' + TR.slots[slot].label) + ' — 제목 쓰고 Enter',
+          cls: mo ? 'mo-in' + (b.dataset.rt ? ' rt' : '') : 'wk-in',
+          place: function (box) {
+            if (mo) { $('.mo', root).classList.add('editing'); wrap.appendChild(box); b.hidden = true; return; }
+            var c = +b.style.gridColumn.split('/')[0]; box.style.gridColumn = Math.min(c, 4) + ' / span 2'; wrap.classList.add('open'); wrap.appendChild(box);
+          },
+          cancel: cal,
+          save: function (r) { var ev = addEvent(r, date, slot); TR.toast('「' + ev.title + '」 ' + TR.dateText(ev) + ' ' + (ev.s ? TR.slotText(ev) : '전일') + '에 넣었어요'); cal(); }
+        });
+      };
+    });
+  }
   function cal() {
     var st = S();
     var head = '<div class="page-h no-print"><div><h1>일정</h1><p>주간은 전일 + 블록 4칸, 월간은 월중행사표. 인쇄는 흑백 기호로 나갑니다.</p></div>' +
@@ -398,7 +465,8 @@
         var all = rw.row === 'all';
         var evs = st.events.filter(function (e) { return e.type !== 'duty' && inWeek(e) && (all ? TR.isAllDay(e) : !TR.isAllDay(e) && TR.slotIdx(e.s) === rw.row); }).sort(byStart);
         var duties = all ? days.map(function (d, i) { var ds = st.events.filter(function (e) { return e.type === 'duty' && TR.onDay(e, d); }); return ds.length ? '<div class="dutyline" style="grid-column:' + (i + 1) + '"><b>복무</b> ' + ds.map(function (x) { return esc(x.who) + ' ' + x.duty; }).join(' · ') + '</div>' : ''; }).join('') : '';
-        body += '<div class="wl' + (all ? ' all' : '') + '"><b>' + rw.label + '</b>' + rw.sub + '</div><div class="wa' + (all ? ' all' : '') + (td >= 0 ? ' has-td' : '') + '" data-row="' + rw.row + '" style="--td:' + td + '">' + evs.map(function (e) { return weekCard(e, days); }).join('') + duties + '<div class="wph" hidden></div></div>';
+        body += '<div class="wl' + (all ? ' all' : '') + '"><b>' + rw.label + '</b>' + rw.sub + '</div><div class="wa' + (all ? ' all' : '') + (td >= 0 ? ' has-td' : '') + '" data-row="' + rw.row + '" style="--td:' + td + '">' + evs.map(function (e) { return weekCard(e, days); }).join('') + duties +
+          '<div class="wadd no-print">' + days.map(function (d, i) { return '<button class="cell-add" style="grid-column:' + (i + 1) + '" data-d="' + d + '" data-row="' + rw.row + '" title="' + TR.fmt(d) + ' ' + rw.label + '에 일정 추가">＋ 추가</button>'; }).join('') + '</div><div class="wph" hidden></div></div>';
       });
       body += '</div>';
     } else {
@@ -409,20 +477,21 @@
         if (i >= 35 && dd.getMonth() !== m - 1) break;
         // 기간 일정은 날마다 다시 적되, 이어지는 날(주말 제외)에는 '↳'로 표시
         var wkend = dd.getDay() === 0 || dd.getDay() === 6;
-        var items = st.events.filter(function (e) { return TR.onDay(e, iso) && e.type !== 'duty' && (e.date === iso || !wkend); }).map(function (e) { return { t: e.title, ty: e.type, ch: e.changed, id: e.id, g: TR.groupOf(e.by), by: TR.byline(e.by), rel: TR.isRel(e), cont: e.date !== iso }; })
+        var items = st.events.filter(function (e) { return TR.onDay(e, iso) && e.type !== 'duty' && (e.date === iso || !wkend); }).map(function (e) { return { t: e.title, ty: e.type, ch: e.changed, id: e.id, ev: e, g: TR.groupOf(e.by), by: TR.byline(e.by), rel: TR.isRel(e), cont: e.date !== iso }; })
           .concat(TR.monthExtra.filter(function (x) { return x[0] === iso || (x[4] && x[0] < iso && iso <= x[4] && !wkend); }).map(function (x) { return { t: x[1], ty: x[2], g: x[3], by: x[3], rel: x[3] === TR.groupOf(TR.me.name), cont: x[0] !== iso }; }));
         var hol = TR.holidays[iso];
         var cls = [dd.getMonth() !== m - 1 ? 'out' : '', hol ? 'hol' : '', dd.getDay() === 0 ? 'sun' : '', dd.getDay() === 6 ? 'sat' : '', iso === TR.TODAY ? 'today' : ''].join(' ');
         var shown = items.slice(0, 4);
-        body += '<div class="' + cls + '"><div class="d"><span>' + dd.getDate() + '</span>' + (hol ? '<span class="small">' + hol + '</span>' : '') + '</div>' +
-          shown.map(function (it) { return '<div class="e ' + it.ty + (it.rel ? ' rel' : '') + '"' + (it.id ? ' data-ev="' + it.id + '" style="cursor:pointer"' : '') + ' title="' + esc(it.by) + '"><i class="dt"></i><span class="psym">' + TR.typeSym[it.ty] + '</span><span>' + (it.cont ? '<span class="faint">↳</span> ' : '') + (it.g && !it.cont ? '<span class="g">[' + esc(it.g) + ']</span> ' : '') + esc(it.t) + '</span>' + (it.ch ? TR.chgIcon : '') + '</div>'; }).join('') +
-          (items.length > 4 ? '<div class="e more">+' + (items.length - 4) + '건 별지</div>' : '') + '</div>';
+        body += '<div class="mc ' + cls + '"><div class="d"><span>' + dd.getDate() + '</span>' + (hol ? '<span class="small">' + hol + '</span>' : '') + '</div>' +
+          shown.map(function (it) { return '<div class="e ' + it.ty + (it.rel ? ' rel' : '') + '"' + (it.id ? ' data-ev="' + it.id + '" style="cursor:pointer"' : '') + ' title="' + esc(it.by) + '"><i class="dt"></i><span class="psym">' + TR.typeSym[it.ty] + '</span><span>' + (it.cont ? '<span class="faint">↳</span> ' : '') + (it.g && !it.cont ? '<span class="g">[' + esc(it.g) + ']</span> ' : '') + esc(it.t) + '</span>' + (it.ch ? TR.chgIcon : '') + (it.ev ? attMark(it.ev) : '') + '</div>'; }).join('') +
+          (items.length > 4 ? '<div class="e more">+' + (items.length - 4) + '건 별지</div>' : '') +
+          '<button class="cell-add mo-add no-print" data-d="' + iso + '" data-row="all"' + (dd.getDay() >= 5 ? ' data-rt="1"' : '') + ' title="' + TR.fmt(iso) + '에 일정 추가">＋ 추가</button></div>';
       }
       body += '</div>';
     }
     view.innerHTML = '<div class="page">' + head + ph + '<div class="no-print" style="margin-bottom:9px"><div class="proto-note">' + (calMode === 'week'
-      ? '시간 단위는 <b>1블록 · 2블록 · 3블록 · 방과후</b> 네 칸뿐입니다. 날짜만 넣은 일정은 맨 위 <b>전일</b>에 들어가고, 여러 날짜의 일정은 <b>긴 카드</b>로 이어집니다. 내 일정·우리 학년 일정은 카드를 <b>끌어서 다른 날·다른 블록</b>으로 옮기고, <b>좌우 끝을 끌어 기간</b>을 늘리거나 줄이세요.'
-      : '제목은 자르지 않고 줄바꿈합니다. 한 줄 입력(상단)으로 쓴 문장은 날짜 표현만 빼고 <b>그대로 제목</b>이 됩니다. 굵은 글씨는 나와 관련된 일정입니다.') + '</div></div>' + legend + body + '</div>';
+      ? '시간 단위는 <b>1블록 · 2블록 · 3블록 · 방과후</b> 네 칸뿐입니다. 날짜만 넣은 일정은 맨 위 <b>전일</b>에 들어가고, 여러 날짜의 일정은 <b>긴 카드</b>로 이어집니다. 내 일정·우리 학년 일정은 카드를 <b>끌어서 다른 날·다른 블록</b>으로 옮기고, <b>좌우 끝을 끌어 기간</b>을 늘리거나 줄이세요. 새 일정은 칸마다 아래에 있는 <b>＋ 추가</b>를 눌러 그 칸에서 바로 쓰세요.'
+      : '제목은 자르지 않고 줄바꿈합니다. 한 줄 입력(상단)으로 쓴 문장은 날짜 표현만 빼고 <b>그대로 제목</b>이 됩니다. 굵은 글씨는 나와 관련된 일정입니다. 날마다 아래의 <b>＋ 추가</b>로 그 날짜에 바로 쓸 수 있어요.') + '</div></div>' + legend + body + '</div>';
     view.firstChild.style.padding = '0';
     $$('[data-m]', view).forEach(function (b) { b.onclick = function () { calMode = b.dataset.m; cal(); }; });
     $$('[data-mv]', view).forEach(function (b) { b.onclick = function () { var d = new Date(y, m - 1 + (+b.dataset.mv), 1); calMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); view.innerHTML = ''; cal(); }; });
@@ -434,6 +503,7 @@
     };
     var wp = $('#wpaste'); if (wp) wp.onclick = weekPaste;
     bindEvClicks(view);
+    bindCellAdd(view);
     if (calMode === 'week') bindWeek(view, [0, 1, 2, 3, 4].map(function (i) { return TR.addDays(WEEK0, i); }));
   }
 

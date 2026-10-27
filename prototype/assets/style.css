@@ -376,8 +376,6 @@ canvas.qr{width:184px;height:184px;image-rendering:pixelated;border:9px solid #f
 .ph{position:absolute;left:var(--lbl);right:0;border:2px dashed var(--primary);border-radius:10px;background:color-mix(in srgb,var(--primary) 8%,transparent);pointer-events:none;z-index:0}
 .tip{position:fixed;z-index:61;background:#1B2430;color:#fff;font-size:15px;font-weight:600;padding:4px 10px;border-radius:7px;pointer-events:none;display:none}
 .tip.show{display:block}
-.newin{height:46px;border:2px solid var(--primary);border-radius:10px;padding:0 12px;background:var(--surface);box-shadow:0 0 0 3px var(--primary-soft);outline:none;width:100%}
-.newin.abs{position:absolute;left:var(--lbl);width:calc(100% - var(--lbl) - 6px);z-index:4}
 
 /* ---------- v1.3: 일정 주간 = 전일 + 블록 4칸, 기간 일정은 여러 날에 걸친 긴 카드 ---------- */
 .wk2{display:grid;grid-template-columns:118px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
@@ -543,3 +541,37 @@ body[data-zone="out"]{--primary:var(--zout);--primary-soft:var(--zout-soft)}
 .audsum.empty{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
 .duebox{margin-bottom:18px}
 .duebox.need{border:1.5px solid var(--accent);background:var(--accent-soft)}
+
+/* ---------- v1.4: 칸마다 [＋ 추가] + 그 자리 2줄 입력창 (오늘·주간·월간 공통) ---------- */
+.cell-add{display:block;border:1.5px dashed transparent;background:none;border-radius:8px;color:var(--faint);font-size:14px;font-weight:600;line-height:20px;padding:4px 8px;cursor:pointer;text-align:left;transition:.15s}
+.cell-add:hover,.cell-add:focus-visible{border-color:var(--primary);color:var(--primary);background:var(--surface);outline:none}
+.srow .cell-add.sa{position:absolute;left:6px;bottom:8px;width:108px;z-index:2;border-color:var(--line-strong);background:var(--surface);color:var(--muted)}
+.srow .cell-add.sa:hover{border-color:var(--primary);color:var(--primary)}
+.wadd{grid-column:1 / -1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:relative;z-index:2}
+.wadd>.cell-add{grid-row:1;margin:0 5px}
+.wa:hover .wadd>.cell-add{color:var(--muted)}
+.mo>.mc{display:flex;flex-direction:column;position:relative}
+.mo .mo-add{margin-top:auto;align-self:stretch;padding:2px 6px;font-size:13px}
+.mo .mc:hover .mo-add{color:var(--muted)}
+.mo.editing{overflow:visible}
+.cell-add[hidden]{display:none}
+
+.newbox{border:2px solid var(--primary);border-radius:10px;background:var(--surface);box-shadow:0 0 0 3px var(--primary-soft),var(--shadow-lg);padding:6px 8px 5px;display:grid;gap:4px;min-width:0}
+.newbox textarea{width:100%;border:0;outline:none;resize:none;background:transparent;font:inherit;font-size:15px;line-height:22px;padding:2px;color:var(--text)}
+.newbox .nb-b{border-top:1px solid var(--line);padding-top:6px;font-size:14px;line-height:20px}
+.nb-f{display:flex;flex-wrap:wrap;gap:4px}
+.nb-f:empty{display:none}
+.fchip{display:inline-flex;align-items:center;gap:4px;max-width:100%;font-size:13px;line-height:20px;padding:1px 8px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip small{color:var(--faint)}
+.fchip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:15px;line-height:1;padding:0 0 0 2px}
+.nb-bar{display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.nb-k{margin-right:auto;font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nb-btn{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;font-size:12px;font-weight:600;line-height:18px;padding:1px 7px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.nb-btn:hover,.nb-btn.on{border-color:var(--primary);color:var(--primary)}
+.newbox.abs{position:absolute;left:var(--lbl);width:calc(100% - var(--lbl) - 6px);z-index:4}
+.newbox.wk-in{grid-row:1;margin:0 5px;z-index:3}
+.newbox.mo-in{position:absolute;left:-1px;top:30px;width:300px;z-index:6}
+.newbox.mo-in.rt{left:auto;right:-1px}
+.ev .att{margin-left:4px;font-size:12px;color:var(--muted);white-space:nowrap}
+.mo .e .att{margin-left:0}
+.mbody{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:6px 9px;font:inherit;font-size:15px;line-height:22px;resize:vertical;background:var(--surface)}
