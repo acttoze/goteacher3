@@ -345,27 +345,25 @@ canvas.qr{width:184px;height:184px;image-rendering:pixelated;border:9px solid #f
   .legend{color:#000}
 }
 
-/* ---------- v1.2: 오늘 = 전일 + 교시 보드 (카드 끌기·늘리기) ---------- */
+/* ---------- v1.2→v1.3: 오늘 = 전일 + 블록 4칸 보드 (카드 끌기·늘리기) ---------- */
 .board-hint{margin:0 0 12px;font-size:15px;color:var(--muted)}
-.allday{display:grid;grid-template-columns:172px minmax(0,1fr);border:1.5px dashed var(--line-strong);border-radius:12px;background:var(--surface-2);margin-bottom:10px;min-height:64px;transition:.15s}
+.allday{display:grid;grid-template-columns:124px minmax(0,1fr);border:1.5px dashed var(--line-strong);border-radius:12px;background:var(--surface-2);margin-bottom:10px;min-height:64px;transition:.15s}
 .allday.over{border-color:var(--primary);background:var(--primary-soft)}
 .ad-l{padding:10px 12px;display:grid;align-content:start;font-size:13px;color:var(--muted);line-height:18px}
 .ad-l b{font-size:17px;color:var(--text);line-height:25px}
 .ad-b{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;padding:8px 8px 8px 0;align-items:start}
 .ad-add{border:1.5px dashed var(--line-strong);background:var(--surface);border-radius:10px;min-height:46px;padding:0 14px;color:var(--muted);cursor:pointer;font-weight:600}
 .ad-add:hover{border-color:var(--primary);color:var(--primary)}
-.tlx{position:relative}
-.srow{position:absolute;left:72px;right:0;height:56px;border-top:1px solid var(--line)}
-.srow.bstart{border-top:1px solid var(--line-strong)}
+.tlx{position:relative;--sh:92px;--lbl:124px}
+.srow{position:absolute;left:0;right:0;height:var(--sh);border-top:1px solid var(--line-strong)}
 .srow:hover{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
-.srow .sl{position:absolute;left:8px;top:7px;width:92px;font-size:13px;color:var(--muted);line-height:17px}
-.srow .sl b{display:block;font-size:15px;color:var(--text);line-height:21px}
+.srow .sl{position:absolute;left:10px;top:9px;width:104px;font-size:13px;color:var(--muted);line-height:18px}
+.srow .sl b{display:block;font-size:17px;color:var(--text);line-height:25px}
 .srow.now .sl b{color:var(--primary)}
 .srow.now{background:linear-gradient(90deg,var(--primary-soft),transparent 30%)}
-.bnd{position:absolute;left:0;width:68px;border-top:2px solid var(--line-strong);padding:6px 4px 0 2px;font-size:12px;color:var(--faint);line-height:16px;word-break:keep-all}
-.bnd b{display:block;font-size:15px;color:var(--text);line-height:23px}
-.evw{position:absolute;top:calc(var(--top) * 56px + 3px);height:calc(var(--span) * 56px - 6px);left:calc(172px + (100% - 172px) * var(--lane) / var(--lanes));width:calc((100% - 172px) / var(--lanes) - 6px);z-index:1}
-.evw .ev{height:100%;padding:5px 9px}
+.nowtag{display:inline-block;margin-top:5px;font-style:normal;font-size:12px;font-weight:700;color:var(--primary-ink);background:var(--primary);border-radius:999px;padding:0 8px;line-height:20px}
+.evw{position:absolute;top:calc(var(--top) * var(--sh) + 4px);height:calc(var(--span) * var(--sh) - 8px);left:calc(var(--lbl) + (100% - var(--lbl)) * var(--lane) / var(--lanes));width:calc((100% - var(--lbl)) / var(--lanes) - 6px);z-index:1}
+.evw .ev{height:100%;padding:7px 10px}
 .edit .ev{cursor:grab;user-select:none;-webkit-user-select:none}
 .is-dragging,.is-dragging *{cursor:grabbing!important;user-select:none}
 .hdl{position:absolute;left:10px;right:10px;height:12px;z-index:2;cursor:ns-resize}
@@ -375,11 +373,42 @@ canvas.qr{width:184px;height:184px;image-rendering:pixelated;border:9px solid #f
 .dragging{opacity:.35}
 .dragghost{position:fixed;z-index:60;pointer-events:none;box-shadow:var(--shadow-lg);transform:rotate(1.2deg);opacity:.96}
 .dragghost .hdl{display:none}
-.ph{position:absolute;left:172px;right:0;border:2px dashed var(--primary);border-radius:10px;background:color-mix(in srgb,var(--primary) 8%,transparent);pointer-events:none;z-index:0}
+.ph{position:absolute;left:var(--lbl);right:0;border:2px dashed var(--primary);border-radius:10px;background:color-mix(in srgb,var(--primary) 8%,transparent);pointer-events:none;z-index:0}
 .tip{position:fixed;z-index:61;background:#1B2430;color:#fff;font-size:15px;font-weight:600;padding:4px 10px;border-radius:7px;pointer-events:none;display:none}
 .tip.show{display:block}
 .newin{height:46px;border:2px solid var(--primary);border-radius:10px;padding:0 12px;background:var(--surface);box-shadow:0 0 0 3px var(--primary-soft);outline:none;width:100%}
-.newin.abs{position:absolute;left:172px;width:calc(100% - 178px);z-index:4}
+.newin.abs{position:absolute;left:var(--lbl);width:calc(100% - var(--lbl) - 6px);z-index:4}
+
+/* ---------- v1.3: 일정 주간 = 전일 + 블록 4칸, 기간 일정은 여러 날에 걸친 긴 카드 ---------- */
+.wk2{display:grid;grid-template-columns:118px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.wk2>.wl{padding:9px 10px;font-size:13px;color:var(--muted);background:var(--surface-2);border-right:1px solid var(--line);border-bottom:1px solid var(--line);line-height:18px}
+.wk2>.wl b{display:block;font-size:17px;color:var(--text);line-height:25px}
+.wk2>.wl.hd,.wk2>.wa.hd{padding:0;background:var(--surface-2)}
+.wa{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-flow:row dense;row-gap:6px;align-content:start;padding:7px 0;min-height:78px;border-bottom:1px solid var(--line);
+  background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:20% 100%}
+.wa.has-td::before{content:"";position:absolute;top:0;bottom:0;left:calc(var(--td) * 20%);width:20%;background:color-mix(in srgb,var(--primary-soft) 45%,transparent);pointer-events:none}
+.wa.all,.wk2>.wl.all{background-color:color-mix(in srgb,var(--surface-2) 55%,var(--surface))}
+.wa.hd>div{text-align:center;font-weight:600;padding:10px 5px;border-left:1px solid var(--line)}
+.wa.hd>div:first-child{border-left:0}
+.wa.hd>div.today{color:var(--primary)}
+.wkw{position:relative;margin:0 5px;min-width:0;z-index:1}
+.wkw .ev{padding:6px 9px;font-size:15px;line-height:21px;height:100%}
+.wkw .ev .m,.wkw .ev .by{font-size:13px;line-height:18px}
+.wkw.cl .ev{border-top-left-radius:0;border-bottom-left-radius:0;border-left-style:dashed}
+.wkw.cr .ev{border-top-right-radius:0;border-bottom-right-radius:0;border-right-style:dashed}
+.hdl.l,.hdl.r{top:6px;bottom:6px;left:auto;right:auto;width:12px;height:auto;cursor:ew-resize}
+.hdl.l{left:-5px} .hdl.r{right:-5px}
+.hdl.l::after,.hdl.r::after{left:4px;top:50%;width:4px;height:28px;margin:-14px 0 0}
+.wkw:hover .hdl::after{opacity:.7}
+.wph{position:absolute;top:4px;bottom:4px;border:2px dashed var(--primary);border-radius:10px;background:color-mix(in srgb,var(--primary) 8%,transparent);pointer-events:none;z-index:0}
+.wa .dutyline{margin:0 9px;align-self:start}
+@media print{
+  .wk2{border:1px solid #000;border-radius:0}
+  .wk2>.wl,.wa{border-color:#000;background:#fff!important}
+  .wa{background-image:linear-gradient(to right,#000 1px,transparent 1px);min-height:22mm}
+  .wa.has-td::before,.hdl,.wph{display:none}
+  .wkw .ev{border:0}
+}
 
 /* ---------- v1.2: 모으기 시트 입력 · 자주 쓰는 양식 · 행렬 ---------- */
 .sheet-wrap{overflow:auto;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface)}
@@ -490,3 +519,26 @@ body[data-role="vendor"] .zin .zt small::after{content:" (잠김)"}
 body[data-role="vendor"] .bell,body[data-role="vendor"] .bellpop{display:none}
 /* 교외에서는 버튼·선택 표시까지 남색으로 — 화면 어디를 봐도 학교 색이 안 보이게 */
 body[data-zone="out"]{--primary:var(--zout);--primary-soft:var(--zout-soft)}
+
+/* ---------- v1.3: 나에게 온 것 · 모으기 대상 · 마감(관리) ---------- */
+.it .why{font-size:13px;color:var(--primary);margin-top:3px}
+.audbox{display:grid;gap:8px}
+.amode{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:11px 14px;border:1px solid var(--line-strong);border-radius:10px;cursor:pointer;background:var(--surface)}
+.amode b{font-size:16px}
+.amode.on{border-color:var(--primary);background:var(--primary-soft)}
+.amode input{accent-color:var(--primary);width:17px;height:17px;align-self:center}
+.apane{margin:-2px 0 4px 14px;padding:12px 14px;border-left:3px solid var(--primary);background:var(--surface-2);border-radius:0 10px 10px 0}
+.gck-row{display:flex;flex-wrap:wrap;gap:7px}
+.gck,.pck{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);cursor:pointer;font-size:15px}
+.gck span,.pck span{font-size:13px;color:var(--faint)}
+.gck:has(input:checked),.pck:has(input:checked){border-color:var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:600}
+.gck input,.pck input{accent-color:var(--primary);width:16px;height:16px;margin:0}
+.psearch{width:100%;height:42px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface);font-size:15px;margin-bottom:10px}
+.plist{display:grid;gap:10px;max-height:330px;overflow:auto;padding-right:4px}
+.pg{display:grid;grid-template-columns:76px minmax(0,1fr);gap:9px;align-items:start}
+.pg>b{font-size:14px;color:var(--muted);padding-top:8px}
+.pg-l{display:flex;flex-wrap:wrap;gap:6px}
+.audsum{font-size:15px;padding:10px 14px;border-radius:9px;background:var(--rel);border:1px solid var(--rel-line)}
+.audsum.empty{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
+.duebox{margin-bottom:18px}
+.duebox.need{border:1.5px solid var(--accent);background:var(--accent-soft)}

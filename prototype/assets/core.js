@@ -53,10 +53,10 @@
   TR.fmt = function (iso) { var d = TR.d(iso); return (d.getMonth() + 1) + '/' + d.getDate() + '(' + DOW[d.getDay()] + ')'; };
 
   // ---------- 한 줄 입력 파서 ----------
-  // "내일 3~4교시 4학년 과학실 안전교육 @김민준" → {date, s, e, target, place, who, type, title}
+  // "내일 2블록 4학년 과학실 안전교육 @김민준" / "10/28~30 …" → {date, end, s, e, target, place, who, type, title}
   TR.parse = function (raw) {
     // 교사들은 제목에 내용을 길게 넣어 달력에서 바로 읽는 걸 선호 → 제목은 원문 그대로 두고,
-    // 칩(교시·장소·대상)은 검색·충돌 경고용으로만 뽑는다. 날짜 표현과 @참석자만 제목에서 뺀다.
+    // 칩(블록·장소·대상)은 검색·충돌 경고용으로만 뽑는다. 날짜 표현과 @참석자만 제목에서 뺀다.
     var text = ' ' + raw + ' ', keep = ' ' + raw + ' ', out = { raw: raw, tokens: [] };
     function take(re, fn, isDate) { var m = text.match(re); if (m) { fn(m); text = text.replace(m[0], ' '); if (isDate) keep = keep.replace(m[0], ' '); } }
     var today = TR.TODAY;

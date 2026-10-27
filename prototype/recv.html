@@ -70,35 +70,37 @@
     if (!c) { root.innerHTML = '<p>요청을 찾을 수 없어요.</p>'; return; }
     var unit = q.get('u') || c.rows[0].unit;
     var row = c.rows.find(function (r) { return r.unit === unit; }) || c.rows[0];
-    if (q.get('me')) setMe(row.who);
+    // 사람 줄은 그 사람만, 그룹 줄(그룹별 모으기)은 그 그룹 구성원 누구나
+    if (q.get('me')) setMe(row.gid ? TR.me.name : row.who);
     var me = getMe();
-    if (!me || (me !== row.who && !q.get('force'))) { setMe(''); return pickName(collect, row.who); }
+    if (!me || (!TR.rowMine(row, me) && !q.get('force'))) { setMe(''); return pickName(collect, row.gid ? '' : row.who); }
     if (c.kind === 'items') return itemsForm(c, row);
     if (c.kind === 'matrix') return matrixForm(c, row);
     var done = c.rows.filter(function (r) { return r.done; }).length;
     var others = c.rows.filter(function (r) { return r.unit !== row.unit; }).slice(0, 12).map(function (r) { return '<span class="' + (r.done ? 'd' : '') + '">' + esc(r.unit) + '</span>'; }).join('');
-    root.innerHTML = '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>마감 <b style="color:' + (c.urgent ? 'var(--danger)' : 'var(--text)') + '">' + esc(c.due) + '</b></span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + '</span></div></div>' +
-      '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + esc(row.who) + ' · 내 칸</span></span>' + (row.done ? '<span class="badge ok">제출함</span>' : '') + '</h2>' +
+    root.innerHTML = '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>' + (c.due ? '마감 <b style="color:' + (c.urgent ? 'var(--danger)' : 'var(--text)') + '">' + esc(c.due) + '</b>' : '마감 미정 · 정해지면 알려 드려요') + '</span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + '</span></div></div>' +
+      '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + (row.gid ? '그룹 칸 · ' + esc(me) + ' 선생님이 쓰는 중' : esc(row.who) + ' · 내 칸') + '</span></span>' + (row.done ? '<span class="badge ok">' + (row.by ? esc(row.by) + ' 제출' : '제출함') + '</span>' : '') + '</h2>' +
+      (row.gid ? '<p class="small muted" style="margin:-4px 0 12px">' + esc(row.unit) + ' 선생님 누구나 이 칸을 쓸 수 있어요. 한 분이 내면 그룹 전체가 제출한 것으로 처리되고, 마감 전까지 다른 분이 고칠 수 있어요.</p>' : '') +
       c.fields.map(function (f, i) {
         var v = row.v[i] || '', id = 'f' + i;
         if (f.t === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><select id="' + id + '" required><option value="">선택</option>' + (f.o || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';
         return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><input id="' + id + '" ' + (f.t === 'number' ? 'type="number" min="0"' : f.t === 'date' ? 'type="date"' : 'type="text"') + ' value="' + esc(v) + '"' + (f.n === '비고' ? '' : ' required') + ' placeholder="' + (f.n === '비고' ? '없으면 비워 두세요' : '') + '"></div>';
       }).join('') +
       '<button class="btn pri big" type="submit">' + (row.done ? '수정해서 다시 제출' : '제출하기') + '</button><p class="small muted" style="margin:9px 0 0;text-align:center">제출 후에도 마감 전까지 고칠 수 있어요.</p></form>' +
-      '<div class="m-card"><h2>다른 반 <span class="small muted" style="font-weight:400">' + done + '/' + c.rows.length + ' 제출</span></h2><div class="others">' + others + '</div><p class="small faint" style="margin:9px 0 0">다른 반이 쓴 값은 보이지 않아요. 제출 여부만 보입니다.</p></div>';
+      '<div class="m-card"><h2>' + (row.gid ? '다른 그룹' : /^\d-\d$/.test(row.unit) ? '다른 반' : '다른 분') + ' <span class="small muted" style="font-weight:400">' + done + '/' + c.rows.length + ' 제출</span></h2><div class="others">' + others + '</div><p class="small faint" style="margin:9px 0 0">다른 반이 쓴 값은 보이지 않아요. 제출 여부만 보입니다.</p></div>';
     document.getElementById('f').onsubmit = function (e) {
       e.preventDefault();
       TR.state = TR.load();
       var cc = TR.state.collections.find(function (x) { return x.id === c.id; }), rr = cc.rows.find(function (r) { return r.unit === row.unit; });
       rr.v = cc.fields.map(function (_, i) { return document.getElementById('f' + i).value; });
-      rr.done = true; var n = new Date(); rr.at = '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+      rr.done = true; if (rr.gid) rr.by = me; var n = new Date(); rr.at = '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
       TR.save(); post({ troad: 'submitted', c: c.id, u: row.unit });
       doneView(cc, rr);
     };
   }
 
   function head(c, row, sub) {
-    return '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>마감 <b>' + esc(c.due) + '</b></span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + '</span></div></div>' +
+    return '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>' + (c.due ? '마감 <b>' + esc(c.due) + '</b>' : '마감 미정 · 정해지면 알려 드려요') + '</span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + '</span></div></div>' +
       (c.guide ? '<div class="m-card"><ol class="guide-l">' + c.guide.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ol></div>' : '');
   }
   function stampNow() { var n = new Date(); return '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }
@@ -155,10 +157,10 @@
   function $$(q) { return Array.prototype.slice.call(document.querySelectorAll(q)); }
 
   function doneView(c, r) {
-    var today = TR.state.events.filter(function (e) { return e.date === TR.TODAY && e.type !== 'duty' && e.s; }).sort(function (a, b) { return TR.slotIdx(a.s) - TR.slotIdx(b.s); }).slice(0, 5);
+    var today = TR.state.events.filter(function (e) { return TR.onDay(e, TR.TODAY) && e.type !== 'duty' && e.s; }).sort(function (a, b) { return TR.slotIdx(a.s) - TR.slotIdx(b.s); }).slice(0, 5);
     root.innerHTML = '<div class="done-hero"><div class="ck">✓</div><h1 style="font-size:22px">' + (c.kind === 'matrix' && !r.done ? '저장했어요' : '제출했어요') + '</h1><p class="muted small" style="margin:5px 0 0">' + esc(c.title) + ' · ' + esc(r.unit) + '<br>' + esc(c.owner) + ' 선생님 합본에 바로 들어갔어요.</p></div>' +
       '<button class="btn big" id="edit">고치기</button>' +
-      '<div class="m-card" style="background:var(--accent-soft);border-color:transparent"><h2><span>' + TR.chgIcon + ' 오늘 바뀐 것 4건</span></h2><ul class="mini"><li><span class="p">10/29</span>학예회 리허설 장소 <del>강당</del>→<ins>체육관</ins></li><li><span class="p">5교시</span>3학년 수영교육 출발 13:10 정문 버스</li></ul></div>' +
+      '<div class="m-card" style="background:var(--accent-soft);border-color:transparent"><h2><span>' + TR.chgIcon + ' 오늘 바뀐 것 4건</span></h2><ul class="mini"><li><span class="p">10/29</span>학예회 리허설 장소 <del>강당</del>→<ins>체육관</ins></li><li><span class="p">3블록</span>3학년 수영교육 출발 13:10 정문 버스</li></ul></div>' +
       '<div class="m-card"><h2>오늘 학교 일과</h2><ul class="mini">' + today.map(function (e) { return '<li><span class="p">' + esc(TR.slotText(e)) + '</span><span>' + esc(e.title) + (e.place ? ' <span class="muted">· ' + esc(e.place) + '</span>' : '') + '</span></li>'; }).join('') + '</ul></div>' +
       '<a class="btn pri big" href="app.html#today" target="_top">내 「오늘」 화면 열기</a><p class="small faint" style="text-align:center;margin:0">쪽지 대신, 매일 아침 PC에서 이 한 장이면 됩니다.</p>';
     document.getElementById('edit').onclick = collect;

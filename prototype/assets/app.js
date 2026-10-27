@@ -56,7 +56,8 @@
       return { d: d, t: t, p: Math.round(d / t * 100), unit: '칸', people: c.rows.filter(function (r) { return r.done; }).length };
     }
     var dn = c.rows.filter(function (r) { return r.done; }).length;
-    return { d: dn, t: c.rows.length, p: Math.round(dn / c.rows.length * 100), unit: c.kind === 'items' ? '반' : '명' };
+    var a = c.aud || {};
+    return { d: dn, t: c.rows.length, p: Math.round(dn / c.rows.length * 100), unit: c.kind === 'items' || a.hrOnly ? '반' : a.mode === 'pergroup' ? '그룹' : '명' };
   }
   var dragEnd = 0;
   function bindEvClicks(root) {
@@ -237,6 +238,7 @@
         if (done) return; done = true;
         var v = inp.value.trim(); if (!v) { rerender(); return; }
         var p = TR.parse(v), ev = { id: 'u' + Date.now().toString(36), date: p.date || TR.TODAY, end: p.end, title: p.title || v, place: p.place || '', target: p.target || '', type: p.type === 'duty' ? 'work' : p.type, by: TR.me.name, mine: true };
+        if (!ev.end) delete ev.end;
         if (p.s) { ev.s = p.s; ev.e = p.e || p.s; if (p.time) ev.time = p.time; } else if (slot !== null) { ev.s = ev.e = TR.slots[slot].k; }
         S().events.push(ev); TR.save();
         TR.toast(ev.date !== TR.TODAY ? '「' + ev.title + '」 ' + TR.fmt(ev.date) + '에 만들었어요 (일정 화면에서 보여요)' : ev.s ? '「' + ev.title + '」 ' + TR.slotText(ev) + ' — 아래 끝을 끌면 길게 늘어나요' : '「' + ev.title + '」 전일에 만들었어요 — 끌어서 블록에 놓으면 시간이 정해져요');
@@ -457,7 +459,7 @@
   }
   function weekPaste() {
     modal('<div class="card-h"><h2>주간계획 표 붙여넣기</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:12px">' +
-      '<p class="muted" style="margin:0">교무부장님이 매주 만드는 주간교육계획(한글·엑셀) 표를 복사해 붙여넣으세요. <b>날짜 · 시간 · 내용 · 장소 · 담당</b> 순서면 됩니다. 시간 칸이 비면 <b>전일</b>로 들어가고, 시각(15:00)이나 예전 표의 교시가 적혀 있으면 해당 <b>블록</b>으로 바꿔 넣습니다. 날짜가 빈 줄은 위 날짜를 따라가고, <b>10/28~30</b>처럼 쓰면 기간 일정이 됩니다.</p>' +
+      '<p class="muted" style="margin:0">교무부장님이 매주 만드는 주간교육계획(한글·엑셀) 표를 복사해 붙여넣으세요. <b>날짜 · 시간 · 내용 · 장소 · 담당</b> 순서면 됩니다. 시간 칸이 비면 <b>전일</b>로 들어가고, 블록이나 시각(15:00)이 적혀 있으면 그 <b>블록</b>으로 들어갑니다. 날짜가 빈 줄은 위 날짜를 따라가고, <b>10/28~30</b>처럼 쓰면 기간 일정이 됩니다.</p>' +
       '<div class="row" style="justify-content:flex-end"><button class="btn sm" id="wsample">예시 표 넣기</button></div><textarea class="paste" id="wtext" placeholder="날짜	시간	내용	장소	담당"></textarea><div id="wprev"></div>' +
       '<div class="row" style="justify-content:flex-end"><button class="btn" data-close>취소</button><button class="btn pri" id="wadd" disabled>넣기</button></div></div>');
     $('.modal').style.width = '782px';
@@ -469,7 +471,7 @@
     }
     $('#wtext').addEventListener('input', prev);
     $('#wsample').onclick = function () { $('#wtext').value = WEEK_SAMPLE; prev(); };
-    $('#wadd').onclick = function () { list.forEach(function (e) { S().events.push(e); }); TR.save(); closeModal(); TR.toast('주간계획 ' + list.length + '건을 넣었어요. 시간 없는 ' + list.filter(function (e) { return !e.s; }).length + '건은 전일에 있어요.'); cal(); };
+    $('#wadd').onclick = function () { list.forEach(function (e) { if (!e.end) delete e.end; S().events.push(e); }); TR.save(); closeModal(); TR.toast('주간계획 ' + list.length + '건을 넣었어요. 시간 없는 ' + list.filter(function (e) { return !e.s; }).length + '건은 전일에 있어요.'); cal(); };
   }
 
   // ---------- 모으기 ----------
@@ -480,9 +482,9 @@
       var mineState = c.mine ? '<span class="badge pri">내가 보냄</span>' : r ? (r.done ? '<span class="badge ok">제출함</span>' : '<span class="badge red">내 칸 비었음</span>') : '';
       return '<a class="crow" href="#collect/' + c.id + '"><div><div class="row"><b>' + esc(c.title) + '</b>' + mineState + '</div><div class="small muted">' + esc(c.dept) + ' ' + esc(c.owner) + ' · ' + esc(c.target) + '</div></div>' +
         '<div><div class="bar' + (c.urgent ? ' red' : '') + '"><i style="width:' + p.p + '%"></i></div><div class="small muted" style="margin-top:5px"><b style="color:var(--text)">' + p.d + '</b>/' + p.t + ' 제출 · ' + p.p + '%</div></div>' +
-        '<div class="small' + (c.urgent ? ' need' : ' muted') + '">마감 ' + esc(c.due) + '</div><div class="small muted">미제출 ' + (p.t - p.d) + '명</div></a>';
+        '<div class="small' + (c.urgent ? ' need' : ' muted') + '">' + (c.due ? '마감 ' + esc(c.due) : '<span class="badge">마감 미정</span>') + '</div><div class="small muted">미제출 ' + (p.t - p.d) + p.unit + '</div></a>';
     }).join('');
-    view.innerHTML = '<div class="page-h"><div><h1>모으기</h1><p>양식 표를 붙여넣으면 끝. 받는 사람은 자기 칸만 채우고, 합본은 실시간으로 만들어집니다.</p></div><a class="btn pri" href="#collect/new">＋ 새로 모으기</a></div>' +
+    view.innerHTML = '<div class="page-h"><div><h1>모으기</h1><p>양식 표를 붙여넣으면 끝. 받는 사람은 자기 칸만 채우고, 합본은 실시간으로 만들어집니다. 마감은 만든 뒤 각 요청 화면에서 정합니다.</p></div><a class="btn pri" href="#collect/new">＋ 새로 모으기</a></div>' +
       '<div class="card">' + rows + '</div>' +
       '<div class="grid2" style="margin-top:18px"><div class="proto-note">취합 흐름: hwp에서 <b>취합할 표 부분만</b> 꺼내 칸 단위 데이터로 만들고 → 선생님별 "내 칸" 링크로 걷고 → 다 모이면 다시 hwp로 내보냅니다. MVP는 표 <b>붙여넣기</b>, v1은 <b>hwpx 파일을 올려 같은 파일에 채워 돌려주기</b>입니다.</div><div class="proto-note">합본 파일 꼬리말에 "티로드로 모았습니다"가 들어갑니다. 받는 사람이 다음 취합을 직접 만들어 보게 하는 장치입니다.</div></div>';
   }
@@ -490,11 +492,11 @@
   var SAMPLE_TABLE = '학년반\t담임\t희망 인원\t희망 프로그램\t비고\n1-1\t강지은\t\t\t\n1-2\t윤서준\t\t\t\n1-3\t장미경\t\t\t\n2-1\t최수아\t\t\t\n…';
   var TYPE_LABEL = { text: '글자', number: '숫자', select: '선택지', date: '날짜', url: '링크' };
   var newSrc = 'sheet';
-  // 자주 쓰는 양식: 누르면 바로 만들어진다(마감 기본 1주 뒤, 상세에서 고침)
+  // 자주 쓰는 양식: 누르면 바로 만들어진다. 마감은 만든 뒤 관리(상세) 화면에서 정한다.
   function makePreset(key) {
-    var c = Object.assign(TR.preset(key), { id: 'c' + Date.now().toString(36), owner: TR.me.name, mine: true, due: '11/2(월) 17:00', dueISO: '2026-11-02T17:00' });
+    var c = Object.assign(TR.preset(key), { id: 'c' + Date.now().toString(36), owner: TR.me.name, mine: true, due: '', dueISO: '' });
     S().collections.unshift(c); TR.save();
-    TR.copy('[티로드] ' + c.title + '\n마감: ' + c.due + '\n\n아래 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : '우리 반') + '만 채워 주세요.\nhttps://t.road/c/' + c.id.slice(-4) + '\n\n— ' + TR.me.name, '「' + c.title + '」을 만들고 쪽지 문구를 복사했어요. 마감·대상은 여기서 고치면 됩니다.');
+    TR.copy('[티로드] ' + c.title + '\n\n아래 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : '우리 반') + '만 채워 주세요.\nhttps://t.road/c/' + c.id.slice(-4) + '\n\n— ' + TR.me.name, '「' + c.title + '」을 만들고 쪽지 문구를 복사했어요. 마감은 이 화면 위에서 정하세요.');
     location.hash = '#collect/' + c.id;
   }
   function collectNew() {
@@ -511,20 +513,55 @@
       '<div id="srcFile" data-pane="file"><label class="drop"><input type="file" id="hwpFile" accept=".hwpx,.hwp" hidden><b>hwpx 파일을 끌어다 놓거나 눌러서 고르세요</b><span class="small muted">파일 안의 표를 찾아 취합할 표를 고르게 합니다. 본문·결재란은 그대로 두고, 다 모이면 <b>같은 파일의 그 표 칸만</b> 채워 돌려드립니다.</span></label><div id="fileRes"></div></div>' +
       '<div id="srcPaste" data-pane="paste"><div class="row" style="justify-content:flex-end;margin-bottom:7px"><button class="btn sm" id="sample">예시 표 넣기</button></div>' +
       '<textarea class="paste" id="paste" placeholder="한글에서 표를 드래그해 복사(Ctrl+C) → 여기에 붙여넣기(Ctrl+V)\n\n예) 학년반 | 담임 | 희망 인원 | 희망 프로그램 | 비고"></textarea><div id="fields" style="margin-top:14px"></div></div>' +
-      '<div id="rest"><div class="step" style="margin-top:21px"><i>2</i>누구에게 받나요</div>' +
-      '<div style="display:grid;gap:7px"><label><input type="radio" name="tg" value="hr" checked> 1~6학년 그룹 · 담임 24명 · 반별 1칸 (행 = 학년반)</label><label><input type="radio" name="tg" value="all"> 전 교원 38명 · 개인별 1칸</label><label><input type="radio" name="tg" value="g34"> 3·4학년 그룹 담임 8명</label><span class="small muted">대상은 그룹(학년·교무실·행정실…)·직책·부서로 고릅니다. 받는 선생님 「오늘」의 「나에게 온 것」에 바로 뜹니다.</span></div>' +
+      '<div id="rest"><div class="step" style="margin-top:21px"><i>2</i>누구에게 받나요</div><div id="aud"></div>' +
       '<div class="step" style="margin-top:21px"><i>3</i>받는 방식</div>' +
       '<div style="display:grid;gap:7px"><label><input type="radio" name="acc" value="in" checked> <b>티로드 안에서</b> — 쪽지 링크를 누르면 바로 내 칸. 처음 한 번 이 PC를 등록하면 그다음부터 로그인 화면이 없어요.</label><label><input type="radio" name="acc" value="ext"> <b>+ 외부 링크도 허용</b> — 명부에 없는 사람(방과후 강사·기간제 첫날·업체)용. 칸 하나 제출만 되고, 마감되면 링크가 닫힙니다.</label></div>' +
-      '<div class="step" style="margin-top:21px"><i>4</i>마감</div>' +
-      '<div class="row"><input type="date" id="dd" value="2026-10-28" style="height:39px;border:1px solid var(--line-strong);border-radius:9px;padding:0 9px;background:var(--surface)"><input type="time" id="dt" value="12:00" style="height:39px;border:1px solid var(--line-strong);border-radius:9px;padding:0 9px;background:var(--surface)"><label class="toggle"><input type="checkbox" checked> D-1 · 당일 08:20 자동 리마인드</label></div>' +
-      '<div class="row" style="margin-top:21px"><input id="title" placeholder="제목 (예: 2학기 방과후 수요조사)" style="flex:1;height:44px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface)"><button class="btn pri" id="create">만들고 링크 받기</button></div></div>' +
+      '<div class="row" style="margin-top:21px"><input id="title" placeholder="제목 (예: 2학기 방과후 수요조사)" style="flex:1;height:44px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface)"><button class="btn pri" id="create">만들고 링크 받기</button></div><p class="small muted" style="margin:9px 0 0">마감은 여기서 받지 않아요. 만든 뒤 요청 화면(관리)에서 정하면 받는 사람에게 마감과 리마인드가 갑니다.</p></div>' +
       '</div></section>' +
       '<section class="card"><div class="card-h"><h2>받는 사람에게 갈 쪽지</h2><span class="small muted">쿨메신저에 그대로 붙여넣기</span></div><div class="card-b"><div class="msg" id="msg"></div><p class="small muted">링크를 누른 선생님은 PC 브라우저에서 <b>자기 반 칸만</b> 봅니다. 티로드에 들어와 있으면 우상단 🔔에도 뜹니다.</p><div id="pii"></div></div></section></div>';
     var paste = $('#paste'), fieldsEl = $('#fields'), parsed = null;
 
-    // 시트형 직접 입력: 1행 = 항목 이름, 2행 = 형식. 앞 두 열(학년반·담임)은 대상에서 자동.
-    function lockCols() { var tg = ($('input[name=tg]:checked') || {}).value; return tg === 'all' ? ['직위', '성명'] : ['학년반', '담임']; }
-    function lockRows() { var tg = ($('input[name=tg]:checked') || {}).value; return (tg === 'all' ? TR.staff.map(function (s) { return [s.role, s.name]; }) : tg === 'g34' ? TR.homerooms.slice(8, 16) : TR.homerooms); }
+    // 2. 누구에게 받나요 — 그룹 선택(사람마다 한 줄) / 개인 선택(전 직원 중) / 그룹별(그룹마다 한 줄)
+    var GRADES = TR.groups.filter(function (g) { return g.kind === 'grade'; }).map(function (g) { return g.id; });
+    var aud = { mode: 'groups', gids: GRADES.slice(), hrOnly: true, names: [], pgids: GRADES.slice() };
+    function spec() { return aud.mode === 'pergroup' ? { mode: 'pergroup', gids: aud.pgids.slice() } : aud.mode === 'people' ? { mode: 'people', names: aud.names.slice() } : { mode: 'groups', gids: aud.gids.slice(), hrOnly: aud.hrOnly }; }
+    function audChange() { renderAud(); renderSheet(); syncSheet(); }
+    function gchips(sel, key) {
+      var ms = S().members;
+      return '<div class="gck-row">' + TR.groups.map(function (g) { var n = ms.filter(function (m) { return m.group === g.id; }).length; return '<label class="gck"><input type="checkbox" data-' + key + '="' + g.id + '"' + (sel.indexOf(g.id) >= 0 ? ' checked' : '') + '>' + esc(g.name) + '<span>' + n + '</span></label>'; }).join('') + '</div>';
+    }
+    function renderAud() {
+      var ms = S().members, sp = spec(), n = TR.audRows(sp).length;
+      var opt = function (v, t, d) { return '<label class="amode' + (aud.mode === v ? ' on' : '') + '"><input type="radio" name="am" value="' + v + '"' + (aud.mode === v ? ' checked' : '') + '><b>' + t + '</b><span class="small muted">' + d + '</span></label>'; };
+      var people = '<div class="apane"><input class="psearch" id="psq" placeholder="이름·직책으로 찾기 (예: 부장, 전담, 김)"><div class="plist">' + TR.groups.map(function (g) {
+        var gm = ms.filter(function (m) { return m.group === g.id; }); if (!gm.length) return '';
+        return '<div class="pg"><b>' + esc(g.name) + '</b><div class="pg-l">' + gm.map(function (m) { return '<label class="pck" data-q="' + esc(m.name + ' ' + TR.posText(m) + ' ' + (m.sub || '')) + '"><input type="checkbox" data-p="' + esc(m.name) + '"' + (aud.names.indexOf(m.name) >= 0 ? ' checked' : '') + '>' + esc(m.name) + '<span>' + esc(TR.posText(m).replace(g.name + ' ', '')) + '</span></label>'; }).join('') + '</div></div>';
+      }).join('') + '</div>' + (aud.names.length ? '<div class="small" style="margin-top:9px">고른 사람 ' + aud.names.length + '명: <b>' + aud.names.map(esc).join(', ') + '</b> <button class="btn sm ghost" data-pclear>모두 해제</button></div>' : '') + '</div>';
+      $('#aud').innerHTML = '<div class="audbox">' +
+        opt('groups', '그룹 선택', '고른 그룹의 사람마다 한 줄') +
+        (aud.mode === 'groups' ? '<div class="apane">' + gchips(aud.gids, 'g') + '<div class="row" style="flex-wrap:wrap;margin-top:9px"><button class="btn sm" data-gall="all">전 교직원</button><button class="btn sm" data-gall="grade">1~6학년만</button><button class="btn sm" data-gall="none">모두 해제</button><label class="toggle" style="margin-left:auto"><input type="checkbox" id="hrOnly"' + (aud.hrOnly ? ' checked' : '') + '> 담임만 · 반별 1칸</label></div></div>' : '') +
+        opt('people', '개인 선택', '전 직원 중에서 골라서') + (aud.mode === 'people' ? people : '') +
+        opt('pergroup', '그룹별', '그룹마다 한 줄 — 그룹의 의견을 물을 때') +
+        (aud.mode === 'pergroup' ? '<div class="apane">' + gchips(aud.pgids, 'pg') + '<p class="small muted" style="margin:9px 0 0">그룹 칸은 그 그룹 구성원 <b>누구나</b> 쓸 수 있고, 한 명이 내면 그 그룹은 제출 완료입니다. 다 내기 전까지는 구성원 모두의 「나에게 온 것」에 뜹니다.</p></div>' : '') +
+        '<div class="audsum' + (n ? '' : ' empty') + '">' + (n ? '받는 곳: <b>' + esc(TR.audText(sp)) + '</b> — 받는 선생님 「오늘」의 「나에게 온 것」에 바로 뜹니다.' : '받을 사람이나 그룹을 골라 주세요.') + '</div></div>';
+      $$('input[name=am]', view).forEach(function (r) { r.onchange = function () { aud.mode = r.value; audChange(); }; });
+      $$('input[data-g]', view).forEach(function (cb) { cb.onchange = function () { aud.gids = $$('input[data-g]', view).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.g; }); audChange(); }; });
+      $$('input[data-pg]', view).forEach(function (cb) { cb.onchange = function () { aud.pgids = $$('input[data-pg]', view).filter(function (x) { return x.checked; }).map(function (x) { return x.dataset.pg; }); audChange(); }; });
+      $$('[data-gall]', view).forEach(function (b) { b.onclick = function () { var k = b.dataset.gall; aud.gids = k === 'all' ? TR.groups.map(function (g) { return g.id; }) : k === 'grade' ? GRADES.slice() : []; if (k === 'all') aud.hrOnly = false; audChange(); }; });
+      var ho = $('#hrOnly'); if (ho) ho.onchange = function () { aud.hrOnly = ho.checked; audChange(); };
+      $$('input[data-p]', view).forEach(function (cb) { cb.onchange = function () { var nm = cb.dataset.p, i = aud.names.indexOf(nm), q = $('#psq').value; if (cb.checked && i < 0) aud.names.push(nm); if (!cb.checked && i >= 0) aud.names.splice(i, 1); audChange(); $('#psq').value = q; filterPeople(q); }; });
+      var pc = $('[data-pclear]', view); if (pc) pc.onclick = function () { aud.names = []; audChange(); };
+      var psq = $('#psq'); if (psq) psq.oninput = function () { filterPeople(psq.value); };
+    }
+    function filterPeople(q) {
+      q = (q || '').trim();
+      $$('.pck', view).forEach(function (l) { l.hidden = !!q && l.dataset.q.indexOf(q) < 0; });
+      $$('.pg', view).forEach(function (g) { g.hidden = !$$('.pck', g).some(function (l) { return !l.hidden; }); });
+    }
+
+    // 시트형 직접 입력: 1행 = 항목 이름, 2행 = 형식. 앞 두 열(학년반·담임 / 직위·성명 / 그룹)은 대상에서 자동.
+    function lockCols() { var sp = spec(); return sp.mode === 'pergroup' ? ['그룹', '작성'] : sp.hrOnly ? ['학년반', '담임'] : ['직위', '성명']; }
+    function lockRows() { var sp = spec(); return TR.audRows(sp).map(function (r) { return sp.mode === 'pergroup' ? [r.unit, '그룹 누구나'] : sp.hrOnly ? [r.unit, r.who] : [r.pos, r.who]; }); }
     function renderSheet() {
       var L = String.fromCharCode, lk = lockCols(), units = lockRows();
       var h = '<div class="sheet-wrap"><table class="sheet"><tr class="colh"><th class="rn"></th><th>A</th><th>B</th>' + cols.map(function (_, i) { return '<th>' + L(67 + i) + '</th>'; }).join('') + '<th class="addc" rowspan="' + (multi ? 7 : 6) + '"><button class="btn sm" id="addCol" title="항목 추가">＋ 열</button></th></tr>' +
@@ -553,7 +590,6 @@
       renderMsg();
     }
     $('#multi').onchange = function () { multi = this.checked; renderSheet(); };
-    $$('input[name=tg]', view).forEach(function (r) { r.onchange = function () { renderSheet(); syncSheet(); }; });
     $$('input[name=acc]', view).forEach(function (r) { r.onchange = renderMsg; });
 
     function analyze() {
@@ -573,8 +609,8 @@
       renderMsg();
     }
     function renderMsg() {
-      var t = $('#title').value || '(제목)', d = $('#dd').value, tm = $('#dt').value, ext = ($('input[name=acc]:checked') || {}).value === 'ext';
-      $('#msg').textContent = '[티로드] ' + t + '\n마감: ' + TR.fmt(d) + ' ' + tm + '\n\n아래 링크에서 우리 반 칸만 채워 주세요. (30초)\nhttps://t.road/c/' + (parsed ? 'k7Q2' : '····') +
+      var t = $('#title').value || '(제목)', sp = spec(), ext = ($('input[name=acc]:checked') || {}).value === 'ext';
+      $('#msg').textContent = '[티로드] ' + t + '\n\n아래 링크에서 ' + (sp.mode === 'pergroup' ? '우리 그룹 칸' : sp.hrOnly ? '우리 반 칸' : '내 칸') + '만 채워 주세요. (30초)\nhttps://t.road/c/' + (parsed ? 'k7Q2' : '····') +
         (ext ? '\n\n명부에 없는 분(강사 등)은 이 링크로 제출해 주세요. 마감 후 닫힙니다.\nhttps://t.road/x/' + (parsed ? 'P4m9' : '····') : '') + '\n\n— ' + TR.me.name + ' (방과후돌봄부)';
     }
     function showSrc(src) {
@@ -586,7 +622,7 @@
     }
     paste.addEventListener('input', analyze);
     paste.addEventListener('paste', function () { setTimeout(analyze, 0); });
-    $('#title').addEventListener('input', renderMsg); $('#dd').addEventListener('change', renderMsg); $('#dt').addEventListener('change', renderMsg);
+    $('#title').addEventListener('input', renderMsg);
     $('#sample').onclick = function () { paste.value = SAMPLE_TABLE.replace('…', TR.homerooms.slice(4).map(function (h) { return h[0] + '\t' + h[1] + '\t\t\t'; }).join('\n')).replace(/\n2-1\t최수아\t\t\t$/m, ''); analyze(); };
     $$('[data-src]', view).forEach(function (b) { b.onclick = function () { showSrc(b.dataset.src); }; });
     $$('[data-preset]', view).forEach(function (b) { b.onclick = function () { makePreset(b.dataset.preset); }; });
@@ -598,21 +634,21 @@
     };
     $('#create').onclick = function () {
       if (!parsed || !parsed.input.length) { TR.toast(newSrc === 'sheet' ? '받을 항목 이름을 하나 이상 적어 주세요 (C열부터).' : '먼저 양식 표를 붙여넣어 주세요. "예시 표 넣기"를 눌러도 돼요.'); return; }
-      var tg = $('input[name=tg]:checked').value;
-      var units = tg === 'all' ? TR.staff.map(function (s) { return [s.role, s.name]; }) : tg === 'g34' ? TR.homerooms.slice(8, 16) : TR.homerooms;
+      var sp = spec(), units = TR.audRows(sp);
+      if (!units.length) { TR.toast('받을 사람이나 그룹을 골라 주세요.'); return; }
       var fields = newSrc === 'sheet'
         ? cols.filter(function (c) { return c.n.trim(); }).map(function (c) { return { n: c.n.trim(), t: c.t, o: c.t === 'select' ? (c.o && c.o.length ? c.o : ['예', '아니오']) : undefined }; })
         : $$('.field-chip select', fieldsEl).map(function (sel, i) { var t = { '숫자': 'number', '선택지': 'select', '날짜': 'date' }[sel.value] || 'text'; return { n: parsed.input[i], t: t, o: t === 'select' ? TR.programs : undefined }; });
       var isItems = newSrc === 'sheet' && multi;
       if (isItems && fields.filter(function (f) { return f.t === 'number'; }).length >= 2) fields.push({ n: '금액', t: 'calc' });
       var id = 'c' + Date.now().toString(36);
-      S().collections.unshift({ id: id, kind: isItems ? 'items' : undefined, title: $('#title').value, owner: TR.me.name, dept: '방과후돌봄부', mine: true, due: TR.fmt($('#dd').value) + ' ' + $('#dt').value, ext: $('input[name=acc]:checked').value === 'ext',
-        target: (tg === 'all' ? '전 교원 38명' : tg === 'g34' ? '3·4학년 담임 8명' : '담임 24명') + (isItems ? ' · 여러 줄' : tg === 'all' ? ' · 개인별' : ' · 반별 1칸'), fields: fields,
-        rows: units.map(function (u) { var r = { unit: u[0], who: u[1], done: false, at: '' }; if (isItems) r.items = []; else r.v = fields.map(function () { return ''; }); return r; }) });
-      TR.save(); TR.copy($('#msg').textContent, '만들었어요. 쪽지 문구를 복사했습니다.');
+      S().collections.unshift({ id: id, kind: isItems ? 'items' : undefined, title: $('#title').value, owner: TR.me.name, dept: '방과후돌봄부', mine: true, due: '', dueISO: '', ext: $('input[name=acc]:checked').value === 'ext',
+        aud: sp, target: TR.audText(sp) + (isItems ? ' · 여러 줄' : ''), fields: fields,
+        rows: units.map(function (u) { var r = Object.assign({ done: false, at: '' }, u); if (isItems) r.items = []; else r.v = fields.map(function () { return ''; }); return r; }) });
+      TR.save(); TR.copy($('#msg').textContent, '만들었어요. 쪽지 문구를 복사했습니다. 마감은 이 화면 위에서 정하세요.');
       location.hash = '#collect/' + id;
     };
-    renderSheet(); showSrc(newSrc);
+    renderAud(); renderSheet(); showSrc(newSrc);
   }
 
   // 합본을 표 한 장으로 (엑셀·한글 내보내기 공용)
@@ -625,8 +661,14 @@
       return { head: ['학년반', '담임'].concat(c.fields.map(function (f) { return f.n; })), rows: rows };
     }
     if (c.kind === 'matrix') return { head: ['직위', '성명'].concat(c.cols.map(function (x) { return x.n; })), rows: c.rows.map(function (r) { return [r.pos, r.who].concat(r.v); }) };
-    return { head: [(/담임/.test(c.target) ? '학년반' : '구분'), '이름'].concat(c.fields.map(function (f) { return f.n; })), rows: c.rows.map(function (r) { return [r.unit, r.who].concat(r.v); }) };
+    return { head: colHead(c), rows: c.rows.map(function (r) { return [colA(c, r), colB(c, r)].concat(r.v); }) };
   }
+  // 받는 줄의 앞 두 칸: 담임 반별 = 학년반·담임 / 사람별 = 직위·성명 / 그룹별 = 그룹·쓴 사람
+  function audMode(c) { var a = c.aud || {}; return a.mode === 'pergroup' ? 'pg' : a.hrOnly || (!a.mode && /담임/.test(c.target)) ? 'hr' : 'p'; }
+  function colHead(c) { return { pg: ['그룹', '쓴 사람'], hr: ['학년반', '담임'], p: ['직위', '성명'] }[audMode(c)]; }
+  function colA(c, r) { return audMode(c) === 'p' ? r.pos || r.unit : r.unit; }
+  function colB(c, r) { return audMode(c) === 'pg' ? (r.by || '') : r.who; }
+  function rowLabel(c, r) { var m = c.kind === 'matrix' ? 'p' : audMode(c); return m === 'hr' || c.kind === 'items' ? r.unit + ' ' + r.who : m === 'pg' ? r.unit : r.who; }
 
   var phoneUnit = {};
   function collectDetail(id, _x, soft) {
@@ -675,28 +717,34 @@
       var sel = c.fields.find(function (f) { return f.t === 'select'; }), selIdx = c.fields.indexOf(sel), dist = '';
       if (sel) { var cnt = {}; c.rows.forEach(function (r) { if (r.v[selIdx]) cnt[r.v[selIdx]] = (cnt[r.v[selIdx]] || 0) + 1; }); dist = Object.keys(cnt).map(function (k) { return esc(k) + ' ' + cnt[k]; }).join(' · '); }
       kpis = '<div class="card kpi"><div class="n">' + p.d + '<span class="muted" style="font-size:21px">/' + p.t + '</span></div><div class="l">제출 · ' + p.p + '%</div><div class="bar" style="margin-top:9px"><i style="width:' + p.p + '%"></i></div></div>' +
-        '<div class="card kpi"><div class="n" style="color:var(--danger)">' + miss.length + '</div><div class="l">미제출 · 08:20 자동 리마인드 예정</div></div>' +
+        '<div class="card kpi"><div class="n" style="color:var(--danger)">' + miss.length + '</div><div class="l">미제출 · ' + (c.due ? '08:20 자동 리마인드 예정' : '마감을 정하면 리마인드') + '</div></div>' +
         '<div class="card kpi"><div class="l">실시간 합본</div><div style="margin-top:5px;font-size:15px">' + (sums || '—') + (dist ? '<br>' + dist : '') + '</div></div>';
-      table = '<tr><th>' + (/담임/.test(c.target) ? '학년반' : '구분') + '</th><th>이름</th>' + c.fields.map(function (f) { return '<th>' + esc(f.n) + '</th>'; }).join('') + '<th>제출</th></tr>' + c.rows.map(function (r) {
-        return '<tr class="' + (r.done ? '' : 'pending') + (lastAt === r.unit ? ' flash' : '') + '"><td><b>' + esc(r.unit) + '</b></td><td>' + esc(r.who) + '</td>' + r.v.map(function (v) { return '<td>' + (v ? esc(v) : '<span class="faint">—</span>') + '</td>'; }).join('') + '<td>' + stamp(r) + '</td></tr>';
+      var ch = colHead(c);
+      table = '<tr><th>' + ch[0] + '</th><th>' + ch[1] + '</th>' + c.fields.map(function (f) { return '<th>' + esc(f.n) + '</th>'; }).join('') + '<th>제출</th></tr>' + c.rows.map(function (r) {
+        return '<tr class="' + (r.done ? '' : 'pending') + (lastAt === r.unit ? ' flash' : '') + '"><td><b>' + esc(colA(c, r)) + '</b></td><td>' + (audMode(c) === 'pg' && !r.by ? '<span class="faint">그룹 누구나</span>' : esc(colB(c, r))) + '</td>' + r.v.map(function (v) { return '<td>' + (v ? esc(v) : '<span class="faint">—</span>') + '</td>'; }).join('') + '<td>' + stamp(r) + '</td></tr>';
       }).join('');
     }
 
     var missLabel = c.kind === 'matrix' ? '덜 마친 사람' : c.kind === 'items' ? '미제출 반' : '미제출';
+    var missUnit = { '반': '개 반', '그룹': '곳', '명': '명', '칸': '명' }[p.unit];
     var missShow = miss.slice(0, 18);
-    view.innerHTML = '<div class="page-h"><div><div class="small"><a href="#collect">모으기</a> /</div><h1>' + esc(c.title) + '</h1><p>' + esc(c.dept) + ' ' + esc(c.owner) + ' · ' + esc(c.target) + ' · 마감 ' + esc(c.due) + (c.ext ? ' · <span class="badge acc">외부 링크 허용</span>' : '') + '</p></div>' +
+    // 마감은 만들 때 받지 않고 여기(관리)서 정한다
+    var dueISO = (c.dueISO || '').split('T');
+    var dueBox = c.mine ? '<section class="card duebox' + (c.due ? '' : ' need') + '"><div class="card-b"><div class="row" style="flex-wrap:wrap;gap:12px"><b style="font-size:17px">' + (c.due ? '마감 ' + esc(c.due) : '마감을 아직 정하지 않았어요') + '</b><span class="small muted grow">' + (c.due ? '바꾸면 받는 선생님 「나에게 온 것」·🔔의 마감도 함께 바뀝니다.' : '만들 때는 마감을 받지 않아요. 정하면 받는 선생님께 마감과 리마인드가 갑니다.') + '</span></div>' +
+      '<div class="row" style="flex-wrap:wrap;margin-top:12px"><input type="date" id="dd" class="btn sm" value="' + (dueISO[0] || TR.addDays(TR.TODAY, 4)) + '"><input type="time" id="dt" class="btn sm" value="' + (dueISO[1] || '17:00') + '"><label class="toggle"><input type="checkbox" id="drm" checked> D-1 · 당일 08:20 자동 리마인드</label><button class="btn sm pri" id="dsave" style="margin-left:auto">' + (c.due ? '마감 바꾸기' : '마감 정하기') + '</button></div></div></section>' : '';
+    view.innerHTML = '<div class="page-h"><div><div class="small"><a href="#collect">모으기</a> /</div><h1>' + esc(c.title) + '</h1><p>' + esc(c.dept) + ' ' + esc(c.owner) + ' · ' + esc(c.target) + ' · ' + esc(c.due ? '마감 ' + c.due : '마감 미정') + (c.ext ? ' · <span class="badge acc">외부 링크 허용</span>' : '') + '</p></div>' +
       '<div class="row"><button class="btn" id="csv">엑셀로 내보내기</button><button class="btn" id="cptbl" title="한글 문서의 표 자리에 붙여넣으세요">합본 표 복사 → 한글에 붙여넣기</button>' + (c.kind ? '' : '<button class="btn" id="hwpx">원본 hwpx에 채워 받기 <span class="badge">v1</span></button>') + (c.mine ? '<button class="btn" id="lock">마감하고 잠그기</button>' : '') + '</div></div>' +
-      (c.guide ? '<div class="guide"><b>안내</b><ol>' + c.guide.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ol></div>' : '') +
+      dueBox + (c.guide ? '<div class="guide"><b>안내</b><ol>' + c.guide.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ol></div>' : '') +
       '<div class="split"><div>' +
       '<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">' + kpis + '</div>' +
-      (miss.length ? '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>' + missLabel + ' ' + miss.length + (c.kind === 'items' ? '개 반' : '명') + '</h2><button class="btn sm pri" id="remindAll">한 번에 독촉 문구 복사</button></div><div class="card-b"><div class="miss">' + missShow.map(function (r) { return '<button data-r="' + esc(r.unit) + '">' + esc(c.kind === 'matrix' ? r.who : r.unit + ' ' + r.who) + '</button>'; }).join('') + (miss.length > missShow.length ? '<span class="small muted" style="align-self:center">외 ' + (miss.length - missShow.length) + '명</span>' : '') + '</div><p class="small muted" style="margin:9px 0 0">이름을 누르면 그 선생님께 보낼 쪽지 문구가 복사됩니다' + (c.kind === 'matrix' ? ' (안 한 연수만 적어서)' : '') + '. 일일이 명단과 대조하지 않아도 돼요.</p></div></section>' : '<div class="proto-note" style="margin-bottom:18px">모두 제출했습니다. 합본을 내려받으세요.</div>') +
+      (miss.length ? '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>' + missLabel + ' ' + miss.length + missUnit + '</h2><button class="btn sm pri" id="remindAll">한 번에 독촉 문구 복사</button></div><div class="card-b"><div class="miss">' + missShow.map(function (r) { return '<button data-r="' + esc(r.unit) + '">' + esc(rowLabel(c, r)) + '</button>'; }).join('') + (miss.length > missShow.length ? '<span class="small muted" style="align-self:center">외 ' + (miss.length - missShow.length) + missUnit + '</span>' : '') + '</div><p class="small muted" style="margin:9px 0 0">' + (audMode(c) === 'pg' ? '그룹을 누르면 그 그룹 선생님들께 보낼 쪽지 문구가 복사됩니다' : '이름을 누르면 그 선생님께 보낼 쪽지 문구가 복사됩니다') + (c.kind === 'matrix' ? ' (안 한 연수만 적어서)' : '') + '. 일일이 명단과 대조하지 않아도 돼요.</p></div></section>' : '<div class="proto-note" style="margin-bottom:18px">모두 제출했습니다. 합본을 내려받으세요.</div>') +
       extra +
       '<section class="card"><div class="card-h"><h2>합본</h2><span class="small muted">제출되는 즉시 반영</span></div><div class="scroll"><table class="tbl' + (c.kind === 'matrix' ? ' mx' : '') + '">' + table + '</table></div></section>' +
-      '</div><aside class="no-print"><div class="row" style="margin-bottom:9px"><b class="grow">받는 사람 화면 (PC)</b><select id="pu" style="border:1px solid var(--line);border-radius:9px;padding:5px 7px;background:var(--surface);max-width:230px">' + c.rows.map(function (r) { return '<option value="' + esc(r.unit) + '"' + (r.unit === phoneUnit[id] ? ' selected' : '') + '>' + esc(c.kind === 'matrix' ? r.who + ' · ' + r.pos : r.unit) + '</option>'; }).join('') + '</select></div>' +
+      '</div><aside class="no-print"><div class="row" style="margin-bottom:9px"><b class="grow">받는 사람 화면 (PC)</b><select id="pu" style="border:1px solid var(--line);border-radius:9px;padding:5px 7px;background:var(--surface);max-width:230px">' + c.rows.map(function (r) { return '<option value="' + esc(r.unit) + '"' + (r.unit === phoneUnit[id] ? ' selected' : '') + '>' + esc(c.kind === 'matrix' ? r.who + ' · ' + r.pos : rowLabel(c, r)) + '</option>'; }).join('') + '</select></div>' +
       pcWin('recv.html?c=' + id + '&u=' + encodeURIComponent(phoneUnit[id]), 't.road/c/k7Q2?u=' + phoneUnit[id], 736, 'phone') + '<p class="small muted">쪽지 링크를 누른 선생님의 PC 브라우저 화면입니다. 여기서 제출하면 왼쪽 합본에 바로 들어옵니다. 직접 눌러 보세요.</p></aside></div>';
     TR._lastSubmit = null;
-    $$('.miss button', view).forEach(function (b) { b.onclick = function () { var r = c.rows.find(function (x) { return x.unit === b.dataset.r; }); var what = c.kind === 'matrix' ? '아직 이수번호가 없는 연수: ' + c.cols.filter(function (_, j) { return !r.v[j]; }).map(function (x) { return x.n; }).join(', ') : r.unit + ' 칸이 아직 비어 있어요.'; TR.copy(r.who + ' 선생님, 「' + c.title + '」 ' + what + ' 마감 ' + c.due + '\nhttps://t.road/c/k7Q2?u=' + encodeURIComponent(r.unit), r.who + ' 선생님께 보낼 문구를 복사했어요.'); }; });
-    var ra = $('#remindAll'); if (ra) ra.onclick = function () { TR.copy('[티로드] 「' + c.title + '」 아직 다 못 채운 분: ' + miss.map(function (r) { return c.kind === 'matrix' ? r.who : r.unit + ' ' + r.who; }).join(', ') + '\n마감 ' + c.due + ' · 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : '우리 반 칸') + '만 채워 주세요.\nhttps://t.road/c/k7Q2', missLabel + ' ' + miss.length + ' 독촉 문구를 복사했어요.'); };
+    $$('.miss button', view).forEach(function (b) { b.onclick = function () { var r = c.rows.find(function (x) { return x.unit === b.dataset.r; }); var what = c.kind === 'matrix' ? '아직 이수번호가 없는 연수: ' + c.cols.filter(function (_, j) { return !r.v[j]; }).map(function (x) { return x.n; }).join(', ') : (audMode(c) === 'pg' ? r.unit + ' 그룹' : audMode(c) === 'hr' ? r.unit : '선생님') + ' 칸이 아직 비어 있어요.'; TR.copy((audMode(c) === 'pg' ? r.unit + ' 선생님들' : r.who + ' 선생님') + ', 「' + c.title + '」 ' + what + ' ' + TR.dueText(c) + '\nhttps://t.road/c/k7Q2?u=' + encodeURIComponent(r.unit), rowLabel(c, r) + ' 쪽 문구를 복사했어요.'); }; });
+    var ra = $('#remindAll'); if (ra) ra.onclick = function () { TR.copy('[티로드] 「' + c.title + '」 아직 다 못 채운 ' + (audMode(c) === 'pg' ? '그룹' : '분') + ': ' + miss.map(function (r) { return rowLabel(c, r); }).join(', ') + '\n' + TR.dueText(c) + ' · 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.road/c/k7Q2', missLabel + ' ' + miss.length + ' 독촉 문구를 복사했어요.'); };
     $('#pu').onchange = function () { phoneUnit[id] = this.value; $('#phone').src = 'recv.html?c=' + id + '&u=' + encodeURIComponent(this.value); };
     $('#csv').onclick = function () {
       var sh = sheetOf(c), lines = [sh.head].concat(sh.rows);
@@ -714,6 +762,12 @@
       else TR.copy(tsv, msg);
     };
     var lk = $('#lock'); if (lk) lk.onclick = function () { TR.toast('마감했어요. 늦은 제출은 "지각" 표시와 함께 받습니다.'); };
+    var ds = $('#dsave'); if (ds) ds.onclick = function () {
+      var d = $('#dd').value, t = $('#dt').value || '17:00'; if (!d) { TR.toast('마감 날짜를 골라 주세요.'); return; }
+      var first = !c.due; c.due = (d === TR.TODAY ? '오늘 ' : TR.fmt(d) + ' ') + t; c.dueISO = d + 'T' + t; c.urgent = d === TR.TODAY; c.remind = $('#drm').checked; TR.save();
+      TR.copy('[티로드] 「' + c.title + '」 마감 ' + (first ? '안내' : '변경') + ': ' + c.due + '\n아직 안 채운 분은 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.road/c/k7Q2', '마감을 ' + c.due + '로 ' + (first ? '정했어요' : '바꿨어요') + '. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.');
+      collectDetail(id);
+    };
   }
 
   // iframe 제출 신호 → 강조 표시용
@@ -774,7 +828,7 @@
     modal('<div class="card-h"><h2>' + (info ? '정보 수리 요청' : '시설 수리 요청') + '</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:14px">' +
       '<label class="fld">위치<input id="rpl" value="' + esc(TR.me.cls) + ' 교실"></label>' +
       '<label class="fld">무엇이 안 되나요<input id="rti" placeholder="' + (info ? '예: 전자칠판 소리가 안 나요' : '예: 교실 뒷문이 잘 안 닫혀요') + '"></label>' +
-      '<label class="fld">메모 <span class="small muted">언제 오면 좋은지 등 (선택)</span><input id="rno" placeholder="예: 3교시 수업 중 말고"></label>' +
+      '<label class="fld">메모 <span class="small muted">언제 오면 좋은지 등 (선택)</span><input id="rno" placeholder="예: 2블록 수업 중 말고"></label>' +
       '<label class="drop" style="min-height:92px"><b>사진 끌어다 놓기 (선택)</b><span class="small muted">사진 한 장이 설명 열 줄보다 빠릅니다</span></label>' +
       '<label class="toggle"><input type="checkbox" id="rur"> 급함 — 오늘 수업에 지장</label>' +
       (info ? '<div class="pubwarn"><span>🛠</span><div><b>이 요청은 외부 업체(' + esc(TR.vendor.name) + ')가 봅니다.</b><br>업체에는 선생님 이름 대신 위치만 보이고, 담당자에게 문자 알림이 갑니다. 학생 이름·개인정보는 적지 마세요.</div></div>'
@@ -969,14 +1023,14 @@
     $$('[data-v]', view).forEach(function (b) { b.onclick = function () { $$('[data-v]', view).forEach(function (x) { x.classList.toggle('on', x === b); }); var v = n.versions[+b.dataset.v - 1]; $('#kv').innerHTML = Object.keys(v.fields).map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(v.fields[k]) + '</dd>'; }).join(''); }; });
     var ack = $('#ack'); if (ack) ack.onclick = function () { st.acked[n.id] = true; n.seen = Math.min(n.total, n.seen + 1); TR.save(); TR.toast('확인했어요. 보낸 분 화면에 바로 반영됩니다.'); noticeDetail(id); updateDots(); };
     $('#cp').onclick = function () { TR.copy('[티로드] ' + n.title + (n.ver > 1 ? ' (v' + n.ver + ' 수정: 장소·시간 변경)' : '') + '\nhttps://t.road/n/' + n.id); };
-    var rem = $('#rem'); if (rem) rem.onclick = function () { TR.copy('[티로드] 「' + n.title + '」 v2에서 장소(체육관)·시간(6교시)이 바뀌었어요. 확인 부탁드립니다.\nhttps://t.road/n/' + n.id, '미확인 ' + TR.unseenN2.length + '명께 보낼 문구를 복사했어요.'); };
+    var rem = $('#rem'); if (rem) rem.onclick = function () { TR.copy('[티로드] 「' + n.title + '」 v2에서 장소(체육관)·시간(3블록)이 바뀌었어요. 확인 부탁드립니다.\nhttps://t.road/n/' + n.id, '미확인 ' + TR.unseenN2.length + '명께 보낼 문구를 복사했어요.'); };
   }
 
   // ---------- 학교 (전체 교사 공용 현황판) ----------
   // 교감 전용 화면이 아니다. 모든 선생님이 같은 화면으로 학년분장·업무분장·오늘 복무를 본다.
   var schoolTab = 'grade';
   function school() {
-    var st = S(), duty = st.events.filter(function (e) { return e.date === TR.TODAY && e.type === 'duty'; });
+    var st = S(), duty = st.events.filter(function (e) { return TR.onDay(e, TR.TODAY) && e.type === 'duty'; });
     var members = st.members || TR.seedMembers;
     var dutyHtml = duty.map(function (d) {
       return '<div class="duty"><span class="k">' + d.duty + '</span><div class="grow"><b>' + esc(d.who) + '</b> <span class="small muted">' + esc(TR.groupOf(d.who)) + '</span>' + (d.changed ? ' ' + TR.chgIcon : '') + '<div class="small muted">' + esc(d.time) + (d.target ? ' · ' + esc(d.target) : '') + (d.place ? ' · ' + esc(d.place) : '') + '</div></div></div>';
@@ -1033,15 +1087,15 @@
   // ---------- 시작하기 ----------
   var wizStep = 1;
   var DUTY_SAMPLE = '부서\t업무\t담당\n교무기획부\t학사일정·교육과정\t한상우\n교무기획부\t학적·전입학\t강지은\n연구부\t연수·수업공개\t오지현\n생활인성부\t학교폭력·생활지도\t박지훈\n방과후돌봄부\t방과후학교\t정하은\n방과후돌봄부\t돌봄교실\t석가영\n정보과학부\t정보보안·기기\t차민호\n체육건강부\t보건·체육행사\t노태윤\n행정실\t시설·예산\t구본석';
-  var TIME_SAMPLE = '1교시\t09:00\t09:40\n2교시\t09:50\t10:30\n중간놀이\t10:30\t10:50\n3교시\t10:50\t11:30\n4교시\t11:40\t12:20\n점심\t12:20\t13:10\n5교시\t13:10\t13:50\n6교시\t14:00\t14:40';
+  var TIME_SAMPLE = '1블록\t08:40\t10:30\n2블록\t10:30\t12:20\n3블록\t12:20\t14:40\n방과후\t14:40\t';
   function start() {
-    var steps = ['그룹·직책 확인', '업무분장 붙여넣기 (선택)', '시정표 붙여넣기', '선생님 초대'];
+    var steps = ['그룹·직책 확인', '업무분장 붙여넣기 (선택)', '블록 시각 정하기', '선생님 초대'];
     var body = '';
     if (wizStep === 1) body = '<h2 style="font-size:20px">기본 그룹이 준비돼 있어요</h2><p class="muted">모든 학교에 공통인 그룹과 직책입니다. 선생님들은 처음 들어올 때 여기서 <b>자기 그룹과 직책만 고르면</b> 됩니다. 학교에 맞게 그룹을 더하거나(예: 병설유치원, 특수학급) 직책을 직접 입력할 수 있어요.</p>' +
       '<div class="groups compact">' + TR.groups.map(function (g) { return '<div class="card gcard"><div class="card-h"><h2>' + esc(g.name) + '</h2></div><div class="card-b chips">' + TR.groupRoles(g.id).map(function (r) { return '<span class="badge">' + esc(r) + '</span>'; }).join('') + '<span class="badge" style="border:1px dashed var(--line-strong);background:none">+ 직접 입력</span></div></div>'; }).join('') + '</div>' +
       '<p class="small muted">교장·보건·사서·상담·특수·돌봄 직책은 교무실과 기타/지원 양쪽에 있습니다. 전담은 주 학년 그룹의 \'전담\'으로 들어갑니다.</p>';
     if (wizStep === 2) body = '<h2 style="font-size:20px">업무분장표를 붙여넣으세요 (선택)</h2><p class="muted">2월에 만드는 그 표 그대로. <b>부서와 담당 업무</b>가 만들어지고, 취합 대상을 "부서·업무"로 고를 수 있게 됩니다. 부서는 그룹과 별개라서, 비워 두고 나중에 넣어도 됩니다.</p><textarea class="paste" id="wp">' + DUTY_SAMPLE + '</textarea><div id="wr" style="margin-top:14px"></div>';
-    if (wizStep === 3) body = '<h2 style="font-size:20px">시정표를 붙여넣으세요</h2><p class="muted">교시 축 화면과 <b>묶음 알림 시각</b>이 여기서 정해집니다. 수업 중에는 PC 알림도 띄우지 않습니다(교실 TV·전자칠판에 화면이 송출되기 때문).</p><textarea class="paste" id="wp">' + TIME_SAMPLE + '</textarea><div id="wr" style="margin-top:14px"></div>';
+    if (wizStep === 3) body = '<h2 style="font-size:20px">블록 시각을 정하세요</h2><p class="muted">티로드의 시간 단위는 <b>1블록 · 2블록 · 3블록 · 방과후</b> 네 칸뿐입니다. 학교 시정에 맞춰 시작·끝 시각만 고치면 「오늘」·「일정」의 블록 칸과 <b>묶음 알림 시각</b>이 여기서 정해집니다. 수업 중에는 PC 알림도 띄우지 않습니다(교실 TV·전자칠판에 화면이 송출되기 때문).</p><textarea class="paste" id="wp">' + TIME_SAMPLE + '</textarea><div id="wr" style="margin-top:14px"></div>';
     if (wizStep === 4) body = '<h2 style="font-size:20px">선생님 초대</h2><p class="muted">학교 코드를 말로 전할 필요가 없습니다. 링크를 쪽지로 보내거나 교무실에 QR을 붙여 두세요. 처음 들어올 때 <b>이름 → 그룹 → 직책</b>만 고르면 됩니다.</p><div class="row" style="gap:23px;align-items:flex-start;flex-wrap:wrap"><canvas class="qr" id="qr" width="29" height="29" aria-label="초대 QR 예시"></canvas><div class="grow" style="min-width:276px"><div class="msg">[티로드] 우리 학교 티로드가 열렸어요.\n오늘 일과·바뀐 것·내 마감을 한 화면에서 봅니다.\n가입 없이 이름과 그룹(학년·교무실…)만 고르면 끝 → https://t.road/j/TRD-7Q2K</div><div class="row" style="margin-top:12px"><button class="btn pri" id="cpj">쪽지 문구 복사</button><button class="btn" onclick="window.print()">QR 인쇄</button></div><p class="small muted">학교 도메인 메일 인증은 선택입니다 (초등은 업무용 메일 보유율이 낮음).</p></div></div>';
     view.innerHTML = '<div class="page-h"><div><h1>새 학년 세팅</h1><p>2월 셋째 주, 10분이면 끝나는 4단계. 고티처처럼 엑셀 매칭·임시 비밀번호가 필요 없습니다.</p></div><a class="btn" href="#school">학교 화면으로</a></div>' +
       '<div class="wiz"><nav class="wiz-steps card" style="padding:9px">' + steps.map(function (s, i) { return '<button class="' + (wizStep === i + 1 ? 'on' : '') + '" data-s="' + (i + 1) + '"><i>' + (i + 1) + '</i>' + s + '</button>'; }).join('') + '</nav>' +
@@ -1055,8 +1109,8 @@
         var people = rows.map(function (r) { return r[2]; }).filter(function (x) { return x && x[0] !== '('; });
         $('#wr').innerHTML = '<div class="proto-note">부서 <b>' + Object.keys(depts).length + '개</b>, 업무 <b>' + rows.length + '개</b>, 담당 <b>' + people.length + '명</b>을 찾았어요. ' + Object.keys(depts).map(function (d) { return '<span class="badge pri">' + esc(d) + ' ' + depts[d] + '</span>'; }).join(' ') + '<br>담당자 이름은 선생님이 들어와 이름을 고르는 순간 연결됩니다. 그룹(학년·교무실)은 각자 고릅니다.</div>';
       } else {
-        var cls = lines.filter(function (r) { return /교시/.test(r[0]); });
-        $('#wr').innerHTML = '<div class="proto-note">수업 <b>' + cls.length + '교시</b>를 찾았어요. 묶음 알림: <b>08:20</b> · <b>12:20</b>(점심) · <b>14:50</b>(방과후). 수업 시간에는 우상단 🔔에만 쌓이고 PC 알림 창은 뜨지 않습니다.</div>';
+        var cls = lines.filter(function (r) { return /블록|방과\s?후/.test(r[0]); });
+        $('#wr').innerHTML = '<div class="proto-note">블록 <b>' + cls.length + '칸</b>을 찾았어요. 묶음 알림: <b>08:20</b> · <b>12:20</b>(2블록 끝) · <b>14:50</b>(방과후). 수업 시간에는 우상단 🔔에만 쌓이고 PC 알림 창은 뜨지 않습니다.</div>';
       }
     }
     if (wp) { wp.addEventListener('input', an); an(); }
@@ -1076,22 +1130,22 @@
     var conf = TR.conflicts(ev);
     qpop.innerHTML = '<div class="chips">' +
       chip('title', '제목(쓴 그대로)', p.title || '(제목)', 'k-type', !p.title) +
-      chip('date', '날짜', TR.fmt(p.date) + (TR.parse(qi.value).date ? '' : ' (오늘)'), 'k-date') +
-      chip('s', '시간', p.s ? TR.slotText({ s: p.s, e: p.e, time: p.time }) + (p.time && p.s !== 'pm' && p.s !== 'am' ? ' ' + p.time : '') : (p.time || '없음 → 전일'), 'k-period', !p.s && !p.time) +
+      chip('date', '날짜', TR.dateText(p) + (TR.parse(qi.value).date ? '' : ' (오늘)'), 'k-date') +
+      chip('s', '시간', p.s ? TR.slotText({ s: p.s, e: p.e, time: p.time }) : '없음 → 전일', 'k-period', !p.s) +
       chip('target', '대상', p.target || '대상 없음', 'k-target', !p.target) +
       chip('place', '장소', p.place || '장소 없음', 'k-place', !p.place) +
       (p.who ? chip('who', '참석', p.who.join(', '), 'k-who') : '') +
       chip('type', '유형', (p.duty ? '복무·' + p.duty : TR.typeLabel[p.type]), 'k-type') + '</div>' +
       (conf.length ? '<div class="warn">⚠ ' + esc(p.place) + '이(가) 겹쳐요: ' + conf.map(function (c) { return esc(c.title) + ' (' + esc(TR.slotText(c)) + ', ' + esc(TR.byline(c.by)) + ')'; }).join(', ') + '</div>' : '') +
-      '<div class="hint"><span>제목은 쓴 문장 그대로(날짜 표현만 빠짐) · 칩은 검색·충돌 경고용, 눌러서 고칠 수 있어요 · 교시/장소/대상은 학교 사전(특별실 ' + TR.rooms.length + '곳·교직원 ' + TR.staff.length + '명)으로 알아봅니다</span><span><kbd>Enter</kbd> 저장 <kbd>Esc</kbd> 닫기</span></div>';
+      '<div class="hint"><span>제목은 쓴 문장 그대로(날짜 표현만 빠짐) · 칩은 검색·충돌 경고용, 눌러서 고칠 수 있어요 · 블록/장소/대상은 학교 사전(특별실 ' + TR.rooms.length + '곳·교직원 ' + TR.staff.length + '명)으로 알아봅니다</span><span><kbd>Enter</kbd> 저장 <kbd>Esc</kbd> 닫기</span></div>';
     qpop.classList.add('show');
     $$('.chip', qpop).forEach(function (c) {
       c.onclick = function () {
         var k = c.dataset.k; if (k === 'type') { var order = ['event', 'work', 'meet', 'duty']; qOver.type = order[(order.indexOf(p.type) + 1) % 4]; renderQ(); return; }
-        var cur = k === 'date' ? p.date : k === 's' ? (p.s ? p.s + (p.e && p.e !== p.s ? '~' + p.e : '') : '') : k === 'who' ? (p.who || []).join(',') : (p[k] || '');
+        var cur = k === 'date' ? p.date : k === 's' ? (p.s ? TR.slotText({ s: p.s, e: p.e }) : '') : k === 'who' ? (p.who || []).join(',') : (p[k] || '');
         c.outerHTML = '<input class="chip" data-edit="' + k + '" value="' + esc(cur) + '" style="width:172px" aria-label="' + k + ' 수정">';
         var inp = $('[data-edit]', qpop); inp.focus(); inp.select();
-        var commit = function () { var v = inp.value.trim(); if (k === 's') { var m = v.split('~'); qOver.s = m[0]; qOver.e = m[1] || m[0]; } else if (k === 'who') qOver.who = v ? v.split(/[,\s]+/) : undefined; else qOver[k] = v || undefined; renderQ(); qi.focus(); };
+        var commit = function () { var v = inp.value.trim(); if (k === 's') { var t = TR.parse(' 오늘 ' + v + ' '); qOver.s = t.s; qOver.e = t.e; qOver.time = t.time; } else if (k === 'who') qOver.who = v ? v.split(/[,\s]+/) : undefined; else qOver[k] = v || undefined; renderQ(); qi.focus(); };
         inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); commit(); } };
         inp.onblur = commit;
       };
@@ -1102,13 +1156,14 @@
   qi.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && qi.value.trim()) {
       var p = qParsed();
-      var ev = { id: 'u' + Date.now().toString(36), date: p.date, title: p.title || '새 일정', place: p.place || '', target: p.target || '', type: p.type, by: TR.me.name, mine: true, changed: true, change: '<ins>새로 등록</ins> · ' + TR.me.name };
-      if (p.s) { ev.s = p.s; ev.e = p.e || p.s; } if (p.time) ev.time = p.time; // 교시를 안 쓰면 전일(시간 미정)
+      var ev = { id: 'u' + Date.now().toString(36), date: p.date, end: p.end, title: p.title || '새 일정', place: p.place || '', target: p.target || '', type: p.type, by: TR.me.name, mine: true, changed: true, change: '<ins>새로 등록</ins> · ' + TR.me.name };
+      if (!ev.end) delete ev.end;
+      if (p.s) { ev.s = p.s; ev.e = p.e || p.s; } if (p.time) ev.time = p.time; // 블록·시각을 안 쓰면 전일(시간 미정)
       if (p.duty) { ev.duty = p.duty; ev.who = (p.who && p.who[0]) || TR.me.name; ev.time = p.time || TR.slotText(ev); ev.title = ev.who + ' ' + p.duty; }
       S().events.push(ev); TR.save();
       qi.value = ''; qOver = {}; hideQ();
-      TR.toast(TR.fmt(ev.date) + ' ' + (ev.s ? TR.slotText(ev) : '전일') + ' 「' + ev.title + '」 등록' + (ev.s ? ' — 학교 일과와 바뀐 것에 반영' : ' — 시간은 필요할 때 「오늘」에서 끌어서 정하세요'));
-      if (ev.date === TR.TODAY) { location.hash = '#today'; route(); } else { calMode = 'week'; if (location.hash === '#cal') cal(); else location.hash = '#cal'; }
+      TR.toast(TR.dateText(ev) + ' ' + (ev.s ? TR.slotText(ev) : '전일') + ' 「' + ev.title + '」 등록' + (ev.s ? ' — 학교 일과와 바뀐 것에 반영' : ' — 시간은 필요할 때 「오늘」에서 끌어서 정하세요'));
+      if (TR.onDay(ev, TR.TODAY)) { location.hash = '#today'; route(); } else { calMode = 'week'; if (location.hash === '#cal') cal(); else location.hash = '#cal'; }
     }
   });
   document.addEventListener('click', function (e) { if (!e.target.closest('.qi')) hideQ(); });
@@ -1134,11 +1189,11 @@
   // 교사는 늘 PC 앞에 있다. 앱 안 벨 + 브라우저 웹 알림(윈도우 알림센터)으로 시작, 전용 PC 에이전트는 차후.
   function renderBell() {
     var items = myInbox().filter(function (i) { return !i.done && i.k !== 'send'; });
-    var ch = S().events.filter(function (e) { return e.changed && e.date >= TR.TODAY; });
+    var ch = S().events.filter(function (e) { return e.changed && TR.lastDay(e) >= TR.TODAY; });
     $('#bell .cnt').textContent = items.length + ch.length; $('#bell .cnt').hidden = !(items.length + ch.length);
     $('#bellpop').innerHTML = '<div class="bp-h"><b>알림</b><span class="small muted">다음 묶음 12:20 · 수업 중엔 PC 알림 창을 띄우지 않아요</span></div>' +
       items.map(function (it) { return '<a class="bp-i" href="' + (it.k === 'ack' ? '#notice/' + it.id : '#collect/' + it.id) + '"><span class="badge ' + (it.urgent ? 'red' : 'pri') + '">' + (it.k === 'ack' ? '확인' : '제출') + '</span><span class="grow">' + esc(it.title) + '<span class="small muted">' + esc(it.meta) + '</span></span></a>'; }).join('') +
-      ch.map(function (e) { return '<a class="bp-i" href="#cal">' + TR.chgIcon + '<span class="grow">' + TR.fmt(e.date) + ' ' + esc(e.title) + '<span class="small muted">바뀜 · ' + esc(TR.byline(e.by || e.who)) + '</span></span></a>'; }).join('') +
+      ch.map(function (e) { return '<a class="bp-i" href="#cal">' + TR.chgIcon + '<span class="grow">' + TR.dateText(e) + ' ' + esc(e.title) + '<span class="small muted">바뀜 · ' + esc(TR.byline(e.by || e.who)) + '</span></span></a>'; }).join('') +
       '<div class="bp-f"><button class="btn sm" id="pcnoti">PC 알림 켜기</button><span class="small muted">브라우저가 켜져 있으면 윈도우 알림센터에 뜹니다. 전용 PC 에이전트(노션 PC처럼)는 차후 개발.</span></div>';
     $('#pcnoti').onclick = function (e) { e.stopPropagation(); TR.toast('프로토타입: 실제 서비스에서는 브라우저 알림 권한을 받아 쉬는 시간 묶음으로 윈도우 알림을 보냅니다.'); };
   }
