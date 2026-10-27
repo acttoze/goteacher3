@@ -133,7 +133,7 @@
         var p = progress(c);
         inbox.push({ k: 'send', id: c.id, title: c.title, meta: '내가 보낸 요청 · ' + (c.due ? '마감 ' + c.due : '마감 미정 — 눌러서 정하기'), p: p });
         var myRow = c.rows.find(mineRow);
-        if (myRow && !myRow.done) inbox.push({ k: 'col', id: c.id, unit: myRow.unit, title: c.title + ' — 우리 반 칸', meta: TR.dueText(c) + ' · 내가 만든 요청', urgent: false });
+        if (myRow && !myRow.done) inbox.push({ k: 'col', id: c.id, unit: myRow.unit, title: c.title + ' — ' + (myRow.gid ? myRow.unit + ' 칸' : /^\d-\d$/.test(myRow.unit) ? '우리 반 칸' : '내 칸'), meta: TR.dueText(c) + ' · 내가 만든 요청', urgent: false });
       } else {
         var r = c.rows.find(mineRow);
         if (r) inbox.push({ k: 'col', id: c.id, unit: r.unit, title: c.title + (r.gid ? ' — ' + r.unit + ' 칸' : ''), meta: c.dept + ' ' + c.owner + ' · ' + (c.due ? '마감 ' + c.due : '마감 미정'), why: TR.whyMine(c, r) + (r.gid && r.done && r.by ? ' · ' + r.by + ' 선생님이 냄' : ''), urgent: c.urgent, done: r.done });
@@ -158,7 +158,7 @@
 
   // ---------- 오늘 ----------
   // 학교 오늘 = [전일] + 블록 4칸. 날짜만 넣은 일정은 전일에 쌓이고, 필요한 사람이 끌어서 블록을 정한다.
-  var SH = 92; // 블록 한 칸 높이(px) — style.css의 .tlx --sh와 맞춤
+  var SH = 120; // 블록 한 칸 높이(px) — style.css의 .tlx --sh와 맞춤
   function dayBoard(evs) {
     var all = evs.filter(TR.isAllDay), timed = evs.filter(function (e) { return !TR.isAllDay(e); });
     var lanes = [];
@@ -178,7 +178,7 @@
     timed.forEach(function (ev) {
       var a = TR.slotIdx(ev.s), b = TR.slotIdx(ev.e || ev.s), ed = TR.canEdit(ev);
       h += '<div class="evw' + (ed ? ' edit' : '') + '" data-w="' + ev.id + '" style="--top:' + a + ';--span:' + (b - a + 1) + ';--lane:' + ev._lane + '">' +
-        (ed ? '<i class="hdl t" data-h="t" title="끌어서 시작 블록 바꾸기"></i><i class="hdl b" data-h="b" title="끌어서 끝 블록 바꾸기"></i>' : '') + evCard(ev, { compact: b === a && !ev.end, time: false }) + '</div>';
+        (ed ? '<i class="hdl t" data-h="t" title="끌어서 시작 블록 바꾸기"></i><i class="hdl b" data-h="b" title="끌어서 끝 블록 바꾸기"></i>' : '') + evCard(ev, { compact: b === a, time: false }) + '</div>';
     });
     return h + '<div class="ph" id="ph" hidden></div></div>';
   }

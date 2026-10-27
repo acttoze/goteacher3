@@ -354,7 +354,7 @@ canvas.qr{width:184px;height:184px;image-rendering:pixelated;border:9px solid #f
 .ad-b{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;padding:8px 8px 8px 0;align-items:start}
 .ad-add{border:1.5px dashed var(--line-strong);background:var(--surface);border-radius:10px;min-height:46px;padding:0 14px;color:var(--muted);cursor:pointer;font-weight:600}
 .ad-add:hover{border-color:var(--primary);color:var(--primary)}
-.tlx{position:relative;--sh:92px;--lbl:124px}
+.tlx{position:relative;--sh:120px;--lbl:124px}
 .srow{position:absolute;left:0;right:0;height:var(--sh);border-top:1px solid var(--line-strong)}
 .srow:hover{background:color-mix(in srgb,var(--surface-2) 60%,transparent)}
 .srow .sl{position:absolute;left:10px;top:9px;width:104px;font-size:13px;color:var(--muted);line-height:18px}
@@ -383,7 +383,7 @@ canvas.qr{width:184px;height:184px;image-rendering:pixelated;border:9px solid #f
 .wk2{display:grid;grid-template-columns:118px minmax(0,1fr);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
 .wk2>.wl{padding:9px 10px;font-size:13px;color:var(--muted);background:var(--surface-2);border-right:1px solid var(--line);border-bottom:1px solid var(--line);line-height:18px}
 .wk2>.wl b{display:block;font-size:17px;color:var(--text);line-height:25px}
-.wk2>.wl.hd,.wk2>.wa.hd{padding:0;background:var(--surface-2)}
+.wk2>.wl.hd,.wk2>.wa.hd{padding:0;min-height:0;background:var(--surface-2)}
 .wa{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-auto-flow:row dense;row-gap:6px;align-content:start;padding:7px 0;min-height:78px;border-bottom:1px solid var(--line);
   background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:20% 100%}
 .wa.has-td::before{content:"";position:absolute;top:0;bottom:0;left:calc(var(--td) * 20%);width:20%;background:color-mix(in srgb,var(--primary-soft) 45%,transparent);pointer-events:none}
@@ -538,6 +538,7 @@ body[data-zone="out"]{--primary:var(--zout);--primary-soft:var(--zout-soft)}
 .pg{display:grid;grid-template-columns:76px minmax(0,1fr);gap:9px;align-items:start}
 .pg>b{font-size:14px;color:var(--muted);padding-top:8px}
 .pg-l{display:flex;flex-wrap:wrap;gap:6px}
+.pck[hidden],.pg[hidden]{display:none}
 .audsum{font-size:15px;padding:10px 14px;border-radius:9px;background:var(--rel);border:1px solid var(--rel-line)}
 .audsum.empty{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
 .duebox{margin-bottom:18px}

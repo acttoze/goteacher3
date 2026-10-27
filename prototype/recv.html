@@ -73,7 +73,7 @@
     // 사람 줄은 그 사람만, 그룹 줄(그룹별 모으기)은 그 그룹 구성원 누구나
     if (q.get('me')) setMe(row.gid ? TR.me.name : row.who);
     var me = getMe();
-    if (!me || (!TR.rowMine(row, me) && !q.get('force'))) { setMe(''); return pickName(collect, row.gid ? '' : row.who); }
+    if (!me || (!TR.rowMine(row, me) && !q.get('force'))) { setMe(''); var gm = row.gid && (TR.state.members || TR.seedMembers).find(function (m) { return m.group === row.gid; }); return pickName(collect, row.gid ? (gm ? gm.name : '') : row.who); }
     if (c.kind === 'items') return itemsForm(c, row);
     if (c.kind === 'matrix') return matrixForm(c, row);
     var done = c.rows.filter(function (r) { return r.done; }).length;
