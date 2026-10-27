@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>티로드</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  body{background:var(--surface)}
+  .m-top{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+  .m-top b{font-size:15px}
+  .m-wrap{padding:16px;display:grid;gap:14px}
+  .m-h h1{font-size:19px;line-height:26px}
+  .m-meta{font-size:13px;color:var(--muted);margin-top:4px;display:grid;gap:2px}
+  .m-card{border:1px solid var(--line);border-radius:12px;padding:14px}
+  .m-card h2{font-size:15px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+  .f{display:grid;gap:5px;margin-bottom:12px}
+  .f label{font-size:13px;font-weight:600}
+  .f input,.f select{height:46px;border:1px solid var(--line-strong);border-radius:10px;padding:0 12px;background:var(--surface);font-size:16px}
+  .f input:focus,.f select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .big{height:50px;width:100%;font-size:16px;border-radius:12px}
+  .others{display:flex;gap:4px;flex-wrap:wrap}
+  .others span{font-size:11px;padding:2px 6px;border-radius:5px;background:var(--surface-2);color:var(--muted)}
+  .others span.d{background:var(--ok-soft);color:var(--ok)}
+  .done-hero{text-align:center;padding:18px 8px}
+  .done-hero .ck{width:56px;height:56px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:28px;margin:0 auto 10px}
+  .mini li{list-style:none;display:flex;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+  .mini{margin:0;padding:0}
+  .mini li:first-child{border-top:0}
+  .mini .p{width:52px;color:var(--muted);flex:none}
+</style>
+</head>
+<body>
+<div class="m-top"><img src="assets/logo.svg" width="22" height="22" alt=""><b>티로드</b><span class="small muted">· 티로드초등학교</span></div>
+<main class="m-wrap" id="m"></main>
+<script src="assets/data.js"></script>
+<script src="assets/core.js"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search), esc = TR.esc, root = document.getElementById('m');
+  var meKey = 'troad.me';
+  function getMe() { try { return localStorage.getItem(meKey); } catch (e) { return null; } }
+  function setMe(n) { try { localStorage.setItem(meKey, n); } catch (e) {} }
+  function post(msg) { try { parent.postMessage(msg, '*'); } catch (e) {} }
+
+  function pickName(next, guess) {
+    root.innerHTML = '<div class="m-h"><h1>누구신가요?</h1><div class="m-meta">처음 한 번만 고르면 이 휴대폰이 기억해요. 가입·비밀번호는 없습니다.</div></div>' +
+      '<div class="f"><label for="nm">학교 명부에서 이름 선택</label><select id="nm">' + TR.staff.map(function (s) { return '<option value="' + esc(s.name) + '"' + (s.name === guess ? ' selected' : '') + '>' + esc(s.name) + ' · ' + esc(s.role) + '</option>'; }).join('') + '</select></div>' +
+      '<button class="btn pri big" id="go">계속</button><p class="small faint">학교 관리자가 붙여넣은 업무분장표로 만든 명부입니다.</p>';
+    document.getElementById('go').onclick = function () { setMe(document.getElementById('nm').value); next(); };
+  }
+
+  function collect() {
+    var c = TR.state.collections.find(function (x) { return x.id === q.get('c'); });
+    if (!c) { root.innerHTML = '<p>요청을 찾을 수 없어요.</p>'; return; }
+    var unit = q.get('u') || c.rows[0].unit;
+    var row = c.rows.find(function (r) { return r.unit === unit; }) || c.rows[0];
+    if (q.get('me')) setMe(row.who);
+    var me = getMe();
+    if (!me || (me !== row.who && !q.get('force'))) { setMe(''); return pickName(collect, row.who); }
+    var done = c.rows.filter(function (r) { return r.done; }).length;
+    var others = c.rows.filter(function (r) { return r.unit !== row.unit; }).slice(0, 12).map(function (r) { return '<span class="' + (r.done ? 'd' : '') + '">' + esc(r.unit) + '</span>'; }).join('');
+    root.innerHTML = '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>마감 <b style="color:' + (c.urgent ? 'var(--danger)' : 'var(--text)') + '">' + esc(c.due) + '</b></span><span>요청 ' + esc(c.dept) + ' ' + esc(c.owner) + '</span></div></div>' +
+      '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + esc(row.who) + ' · 내 칸</span></span>' + (row.done ? '<span class="badge ok">제출함</span>' : '') + '</h2>' +
+      c.fields.map(function (f, i) {
+        var v = row.v[i] || '', id = 'f' + i;
+        if (f.t === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><select id="' + id + '" required><option value="">선택</option>' + (f.o || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';
+        return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><input id="' + id + '" ' + (f.t === 'number' ? 'type="number" inputmode="numeric" min="0"' : f.t === 'date' ? 'type="date"' : 'type="text"') + ' value="' + esc(v) + '"' + (f.n === '비고' ? '' : ' required') + ' placeholder="' + (f.n === '비고' ? '없으면 비워 두세요' : '') + '"></div>';
+      }).join('') +
+      '<button class="btn pri big" type="submit">' + (row.done ? '수정해서 다시 제출' : '제출하기') + '</button><p class="small muted" style="margin:8px 0 0;text-align:center">제출 후에도 마감 전까지 고칠 수 있어요.</p></form>' +
+      '<div class="m-card"><h2>다른 반 <span class="small muted" style="font-weight:400">' + done + '/' + c.rows.length + ' 제출</span></h2><div class="others">' + others + '</div><p class="small faint" style="margin:8px 0 0">다른 반이 쓴 값은 보이지 않아요. 제출 여부만 보입니다.</p></div>';
+    document.getElementById('f').onsubmit = function (e) {
+      e.preventDefault();
+      TR.state = TR.load();
+      var cc = TR.state.collections.find(function (x) { return x.id === c.id; }), rr = cc.rows.find(function (r) { return r.unit === row.unit; });
+      rr.v = cc.fields.map(function (_, i) { return document.getElementById('f' + i).value; });
+      rr.done = true; var n = new Date(); rr.at = '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+      TR.save(); post({ troad: 'submitted', c: c.id, u: row.unit });
+      doneView(cc, rr);
+    };
+  }
+
+  function doneView(c, r) {
+    var today = TR.state.events.filter(function (e) { return e.date === TR.TODAY && e.type !== 'duty'; }).sort(function (a, b) { return TR.slotIdx(a.s) - TR.slotIdx(b.s); }).slice(0, 5);
+    root.innerHTML = '<div class="done-hero"><div class="ck">✓</div><h1 style="font-size:19px">제출했어요</h1><p class="muted small" style="margin:4px 0 0">' + esc(c.title) + ' · ' + esc(r.unit) + '<br>' + esc(c.owner) + ' 선생님 합본에 바로 들어갔어요.</p></div>' +
+      '<button class="btn big" id="edit">고치기</button>' +
+      '<div class="m-card" style="background:var(--accent-soft);border-color:transparent"><h2><span><span class="chg"></span> 오늘 바뀐 것 4건</span></h2><ul class="mini"><li><span class="p">10/29</span>학예회 리허설 장소 <del>강당</del>→<ins>체육관</ins></li><li><span class="p">5교시</span>3학년 수영교육 출발 13:10</li></ul></div>' +
+      '<div class="m-card"><h2>오늘 학교 일과</h2><ul class="mini">' + today.map(function (e) { return '<li><span class="p">' + esc(TR.slotText(e)) + '</span><span>' + esc(e.title) + (e.place ? ' <span class="muted">· ' + esc(e.place) + '</span>' : '') + '</span></li>'; }).join('') + '</ul></div>' +
+      '<a class="btn pri big" href="app.html#today" target="_top">내 「오늘」 화면 열기</a><p class="small faint" style="text-align:center;margin:0">쪽지 대신, 매일 아침 이 한 장이면 됩니다.</p>';
+    document.getElementById('edit').onclick = collect;
+  }
+
+  function notice() {
+    var n = TR.state.notices.find(function (x) { return x.id === q.get('n'); });
+    if (!n) { root.innerHTML = '<p>공지를 찾을 수 없어요.</p>'; return; }
+    var cur = n.versions[n.versions.length - 1], prev = n.versions[n.versions.length - 2];
+    var changed = prev ? Object.keys(cur.fields).filter(function (k) { return prev.fields[k] !== cur.fields[k]; }) : [];
+    root.innerHTML = '<div class="m-h"><h1>' + esc(n.title) + (n.ver > 1 ? ' <span class="badge acc">v' + n.ver + '</span>' : '') + '</h1><div class="m-meta"><span>' + esc(n.dept) + ' · ' + esc(n.updated) + ' 수정</span></div></div>' +
+      (changed.length ? '<div class="diff"><b style="font-size:14px"><span class="chg"></span> 바뀐 부분</b><dl class="kv" style="margin-top:8px;grid-template-columns:56px 1fr">' + changed.map(function (k) { return '<dt>' + esc(k) + '</dt><dd><del>' + esc(prev.fields[k]) + '</del> → <ins>' + esc(cur.fields[k]) + '</ins></dd>'; }).join('') + '</dl></div>' : '') +
+      '<div class="m-card"><dl class="kv" style="grid-template-columns:56px 1fr">' + Object.keys(cur.fields).map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(cur.fields[k]) + '</dd>'; }).join('') + '</dl><details style="margin-top:10px"><summary class="small muted" style="cursor:pointer">본문 펼치기</summary><p style="font-size:14px">' + esc(n.body) + '</p></details></div>' +
+      (n.must ? (TR.state.acked[n.id] ? '<div class="btn big" style="pointer-events:none;color:var(--ok);border-color:var(--ok)">✓ 확인함</div>' : '<button class="btn pri big" id="ack">확인했어요</button>') : '<p class="small faint" style="text-align:center">이 화면을 2초 이상 보면 확인한 것으로 처리돼요.</p>');
+    var a = document.getElementById('ack');
+    if (a) a.onclick = function () { TR.state = TR.load(); TR.state.acked[n.id] = true; var nn = TR.state.notices.find(function (x) { return x.id === n.id; }); nn.seen = Math.min(nn.total, nn.seen + 1); TR.save(); post({ troad: 'acked', n: n.id }); notice(); };
+  }
+
+  if (q.get('c')) collect(); else if (q.get('n')) notice(); else root.innerHTML = '<p class="muted">링크가 올바르지 않아요.</p>';
+})();
+</script>
+</body>
+</html>

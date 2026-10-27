@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>티로드 — 오늘</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <nav class="zone" aria-label="공간 선택">
+      <a class="zbtn zin" href="#today" id="zin" title="우리 학교 교직원만 들어오는 공간">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M5 21V10l7-5 7 5v11M10 21v-5h4v5"/></svg>
+        <span class="zt"><b>티로드초</b><small>교내 · 교직원만</small></span><i class="zlock" aria-hidden="true">🔒</i>
+      </a>
+      <a class="zbtn zout" href="#out/forms" id="zout" title="다른 학교 교사·업체도 들어오는 공간">
+        <img src="assets/logo.svg" width="22" height="22" alt="">
+        <span class="zt"><b>티로드</b><small>교외 · 공개</small></span>
+      </a>
+    </nav>
+    <nav class="nav nav-in" aria-label="교내 메뉴">
+      <a href="#today" data-r="today">오늘</a>
+      <a href="#cal" data-r="cal">일정</a>
+      <a href="#collect" data-r="collect">모으기<span class="dot" hidden></span></a>
+      <a href="#board" data-r="board">게시판<span class="dot" hidden></span></a>
+      <a href="#school" data-r="school">학교</a>
+    </nav>
+    <nav class="nav nav-out" aria-label="교외 메뉴">
+      <a href="#out/forms" data-r="out/forms">양식 자료실</a>
+      <a href="#out/vendors" data-r="out/vendors">협력업체</a>
+      <a href="#out/it" data-r="out/it">정보 수리요청</a>
+    </nav>
+    <div class="qi">
+      <svg class="ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      <label for="qi" class="sr">한 줄로 일정 추가</label>
+      <input id="qi" autocomplete="off" placeholder="한 줄로 추가 — 날짜만 써도 돼요. 예: 내일 4학년 학예회 연습 / 모레 3~4교시 과학실1 안전교육">
+      <kbd>N</kbd>
+      <div class="qpop" id="qpop" aria-live="polite"></div>
+    </div>
+    <div class="who">
+      <button class="bell" id="bell" aria-label="알림"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="cnt" hidden>0</span></button>
+      <div class="bellpop" id="bellpop" role="dialog" aria-label="알림 목록"></div>
+      <label for="who" class="sr">시연 역할</label>
+      <select id="who"><option value="teacher">정하은 · 4학년 2반</option><option value="vp">이정민 · 교감</option><option value="vendor">누리정보통신 · 유지보수 업체</option></select>
+      <span class="avatar" aria-hidden="true">정</span>
+      <button class="btn sm ghost" id="reset" title="시연 데이터 초기화">↺</button>
+      <a class="btn sm ghost" href="index.html" title="기획서로">기획서</a>
+    </div>
+  </div>
+  <div class="zstrip" id="zstrip" aria-live="polite"></div>
+</header>
+<main class="page" id="view"></main>
+<div class="modal-bg" id="modal"></div>
+<script src="assets/data.js"></script>
+<script src="assets/forms.js"></script>
+<script src="assets/vendors.js"></script>
+<script src="assets/core.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
