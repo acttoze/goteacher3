@@ -5,7 +5,8 @@
 //                 · 원산지(ORPLC_INFO, 학교 공통 표시 목록) · 급식 인원(MLSV_FGR) · 학교 이름(schoolInfo)
 // [날짜로 자동 순환] 위생 교육 주제 · 영양 교육 표어 (같은 날엔 모든 TV가 같은 내용)
 // [영양사 매일 입력] 오늘의 식사 사진 — 당일 찍은 사진을 올리는 것이 규정
-// [영양사 선택 입력] 주제·표어 고정 · 식품군 분류 수정 · 영양 기준값
+// [영양사 선택 입력] 화면 순서 · 화면별 노출 시간 · 화면 켜고 끄기 · 위생 주제 고정
+// [표준값 내장] 영양 기준 = 학교급식법 시행규칙 별표3(2021.1.29 개정) 초등 4~6학년 남녀 평균
 //
 // NEIS 오픈API는 CORS를 허용해 브라우저에서 바로 부른다. 인증키 없이는 한 번에 5건까지라
 // 한 주(월~금) 점심만 부른다. 키를 넣으면(설정 또는 ?key=) 제한이 풀린다.
@@ -74,8 +75,32 @@ window.TR = window.TR || {};
     return set && M.hygiene[set.hygiene] ? set.hygiene : keys[M.dayNo(ymd) % keys.length];
   };
   M.sloganOf = function (ymd, set) { return (set && set.slogan) || M.SLOGANS[M.dayNo(ymd) % M.SLOGANS.length]; };
-  // 영양 기준값을 넣을 수 있는 항목(단위는 NEIS 표기 그대로)
-  M.NUTR_KEYS = [['에너지', 'kcal'], ['탄수화물', 'g'], ['단백질', 'g'], ['지방', 'g'], ['비타민A', 'R.E'], ['티아민', 'mg'], ['리보플라빈', 'mg'], ['비타민C', 'mg'], ['칼슘', 'mg'], ['철분', 'mg']];
+  // 한 끼 영양 기준(권장섭취량) — 별표3 초등 4~6학년 남·여 평균. 이름은 NEIS NTR_INFO 표기에 맞춤.
+  // 남 670kcal·16.7g·200·0.30·0.37·23.4·267·3.7 / 여 600·15.0·184·0.30·0.34·23.4·267·3.4
+  M.BASE = { '에너지': 635, '단백질': 15.9, '비타민A': 192, '티아민': 0.3, '리보플라빈': 0.36, '비타민C': 23.4, '칼슘': 267, '철분': 3.6 };
+  M.BASE_NAME = '초등 4~6학년 한 끼 기준';
+
+  // 현황판 화면 목록. 순서 · 켜고 끄기 · 노출 시간(초)은 영양사가 바꿀 수 있다.
+  M.SCREENS = [
+    { key: 'menu', name: '오늘의 메뉴', what: '메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원', src: 'auto' },
+    { key: 'allergy', name: '알레르기', what: '19종 가운데 그날 들어간 식품과 해당 메뉴', src: 'auto' },
+    { key: 'cal', name: '칼로리 · 영양', what: '칼로리 · 영양 9종 · 초등 4~6학년 표준 기준과 비교', src: 'auto' },
+    { key: 'origin', name: '원산지', what: '학교 공통 원산지 표시 (학교가 NEIS에 올린 목록 그대로)', src: 'auto' },
+    { key: 'hygiene', name: '위생 교육', what: '손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며', src: 'rot' },
+    { key: 'eat', name: '골고루 먹어요', what: '식품군(메뉴 이름으로 자동 분류) · 표어(날마다 돌아가며)', src: 'rot' },
+    { key: 'photo', name: '오늘의 식사', what: '그날 식판 사진 (당일 찍은 사진)', src: 'me' },
+    { key: 'week', name: '이번 주 메뉴', what: '월~금 메뉴 · 알레르기 번호 · 칼로리', src: 'auto' }
+  ];
+  M.SEC = 7; M.SEC_MIN = 3; M.SEC_MAX = 60;
+  // 저장된 순서에 없는 화면은 뒤에 붙인다(화면이 늘어나도 깨지지 않게)
+  M.screens = function (set) {
+    var keys = M.SCREENS.map(function (x) { return x.key; }), order = (set.order || []).filter(function (k) { return keys.indexOf(k) >= 0; });
+    keys.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
+    return order.map(function (k) {
+      var sc = M.SCREENS[keys.indexOf(k)], sec = +(set.sec || {})[k] || M.SEC;
+      return { key: k, name: sc.name, what: sc.what, src: sc.src, on: !(set.off || {})[k], sec: Math.min(M.SEC_MAX, Math.max(M.SEC_MIN, sec)) };
+    });
+  };
 
   // ---------- 날짜 ----------
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -135,7 +160,7 @@ window.TR = window.TR || {};
   // ---------- 저장 (프로토타입: 이 브라우저) ----------
   M.read = function (k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
   M.store = function (k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
-  M.settings = function (s) { var v = M.read('troad.meal.set.' + s) || {}; v.groups = v.groups || {}; v.base = v.base || {}; return v; };
+  M.settings = function (s) { var v = M.read('troad.meal.set.' + s) || {}; v.groups = v.groups || {}; v.sec = v.sec || {}; v.off = v.off || {}; return v; };
   M.saveSettings = function (s, v) { return M.store('troad.meal.set.' + s, v); };
   M.photo = function (s, ymd) { return M.read('troad.meal.photo.' + s + '.' + ymd); };
   M.savePhoto = function (s, ymd, data) {

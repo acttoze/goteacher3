@@ -163,7 +163,7 @@
 (function () {
   var M = TR.meal, q = new URLSearchParams(location.search);
   var S = q.get('s') || M.DEFAULT, FIXED = q.get('date'); // ?date=20261026 으로 그날처럼 보기
-  var SEC = 7, DUR = SEC * 1000, REFRESH = 30 * 60 * 1000;
+  var REFRESH = 30 * 60 * 1000;
   var data = null, set = M.settings(S);
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function $(s) { return document.querySelector(s); }
@@ -195,7 +195,7 @@
     if (meal) meal.dishes.forEach(function (d) { d.a.forEach(function (n) { (used[n] = used[n] || []).push(d.n); }); });
     var usedN = Object.keys(used).length;
     var hy = M.hygiene[M.hygieneOf(today, set)];
-    var base = set.base || {};
+    var base = M.BASE;
 
     return [
       { key: 'menu', label: '오늘의 메뉴', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
@@ -218,7 +218,7 @@
       { key: 'cal', label: '칼로리', k: '#C2580A', ks: '#FDEEE2', html: function () {
         if (!meal) return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1></div>' + none;
         var r = 240, c = 2 * Math.PI * r, kb = +base['에너지'] || 0, pct = kb ? Math.min(meal.kcal / kb, 1) : 1;
-        return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1><p>' + when + ' 점심 한 끼' + (kb ? ' · 우리 학교 기준과 비교' : '') + '</p>' + nx + '</div><div class="cal">' +
+        return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1><p>' + when + ' 점심 한 끼' + ' · ' + M.BASE_NAME + '과 비교' + '</p>' + nx + '</div><div class="cal">' +
           '<div class="ring"><svg viewBox="0 0 540 540"><circle cx="270" cy="270" r="' + r + '" fill="none" stroke="#FDEEE2" stroke-width="40"/><circle cx="270" cy="270" r="' + r + '" fill="none" stroke="#F08C00" stroke-width="40" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg>' +
           '<div class="c"><b>' + meal.kcal + '</b><span>kcal</span>' + (kb ? '<small>기준 ' + kb + ' kcal</small>' : '') + '</div></div>' +
           '<div class="nt">' + meal.nutr.map(function (x) {
@@ -266,17 +266,22 @@
       } }
     ];
   }
+  // 영양사가 정한 순서 · 켜진 화면 · 노출 시간대로 고른다
+  function arrange(list) {
+    var by = {}; list.forEach(function (p) { by[p.key] = p; });
+    var r = M.screens(set).filter(function (c) { return c.on; }).map(function (c) { by[c.key].sec = c.sec; return by[c.key]; });
+    return r.length ? r : list.map(function (p) { p.sec = M.SEC; return p; });
+  }
 
   var pagesEl = $('#pages'), footEl = $('#foot'), PAGES = [], pgs = [], sts = [];
-  var cur = Math.max(0, (+q.get('p') || 1) - 1), timer = null, paused = false, startedAt = 0, left = DUR;
+  var cur = Math.max(0, (+q.get('p') || 1) - 1), timer = null, paused = false, startedAt = 0, left = 0;
 
   function render() {
     set = M.settings(S);
-    PAGES = pages();
+    PAGES = arrange(pages());
     $('#sch').innerHTML = esc(data.name || '학교') + '<small>급식소</small>';
     pagesEl.innerHTML = PAGES.map(function (p) { return '<section class="pg" style="--k:' + p.k + ';--k-soft:' + p.ks + '" data-k="' + p.key + '">' + p.html() + '</section>'; }).join('');
-    footEl.style.setProperty('--dur', SEC + 's');
-    footEl.innerHTML = PAGES.map(function (p, i) { return '<div class="st"><i></i><span><b>' + (i + 1) + '</b>' + esc(p.label) + '</span></div>'; }).join('') +
+    footEl.innerHTML = PAGES.map(function (p, i) { return '<div class="st" style="--dur:' + p.sec + 's"><i></i><span><b>' + (i + 1) + '</b>' + esc(p.label) + '</span></div>'; }).join('') +
       '<span class="src' + (data.stale ? ' bad' : '') + '">' + (data.stale ? 'NEIS 연결 안 됨<br>' + hm(data.at) + ' 저장본' : 'NEIS 급식 연동<br>' + hm(data.at) + ' 불러옴') + '</span>';
     pgs = pagesEl.children; sts = footEl.querySelectorAll('.st');
     show(cur);
@@ -290,7 +295,7 @@
     }
     void sts[cur].offsetWidth; // 진행 막대 애니메이션을 처음부터 다시
     sts[cur].classList.add('on'); if (paused) sts[cur].classList.add('paused');
-    left = DUR; schedule();
+    left = PAGES[cur].sec * 1000; schedule();
   }
   function schedule() { clearTimeout(timer); if (paused) return; startedAt = Date.now(); timer = setTimeout(function () { show(cur + 1); }, left); }
   function togglePause() {
@@ -304,7 +309,7 @@
   var loadedFor = '', retry = null;
   function load() {
     clearTimeout(retry); loadedFor = M.ymd(now());
-    M.load(S, q.get('key') || M.settings(S).key, M.monday(now())).then(function (d) { data = d; render(); }).catch(function (e) {
+    M.load(S, q.get('key'), M.monday(now())).then(function (d) { data = d; render(); }).catch(function (e) {
       if (!data) pagesEl.innerHTML = '<div class="boot">NEIS 급식 정보를 불러오지 못했어요<small>' + esc(e.message || e) + ' · 1분 뒤 다시 시도해요</small></div>';
       retry = setTimeout(load, 60 * 1000);
     });

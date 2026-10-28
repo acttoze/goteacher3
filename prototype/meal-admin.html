@@ -39,12 +39,25 @@
   .opt input{display:none}
   .opt b{font-size:17px}
   .opt ol{margin:0;padding-left:20px;font-size:15px;color:var(--muted)}
-  .gtab td.c input{width:20px;height:20px;accent-color:var(--primary)}
-  .gtab tr.fix td:first-child::after{content:"고침";margin-left:8px;font-size:13px;color:var(--meet);background:var(--meet-soft);padding:1px 7px;border-radius:6px}
-  .base{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-  .base label{display:grid;gap:4px;font-size:15px;font-weight:600}
-  .base input,.fld2 input{height:42px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface);font-size:16px;width:100%}
-  .fld2{display:grid;gap:6px;font-size:15px;font-weight:600}
+  .scr td{vertical-align:middle}
+  .scr td:nth-child(3){white-space:nowrap}
+  .scr tr.off td:not(.keep){opacity:.4}
+  .scr tr.drag{opacity:.35}
+  .scr tr.ab td{box-shadow:inset 0 3px 0 var(--primary)}
+  .scr tr.bl td{box-shadow:inset 0 -3px 0 var(--primary)}
+  .handle{cursor:grab;color:var(--faint);font-size:22px;line-height:1;user-select:none;padding:4px 6px;border-radius:6px}
+  .handle:hover{background:var(--surface-2);color:var(--text)}
+  .ord{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface-2);font-weight:700;font-size:15px}
+  .secw{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .secw input{width:64px;height:38px;border:1px solid var(--line-strong);border-radius:8px;text-align:center;font-size:17px;font-weight:600;background:var(--surface)}
+  .secw button{width:38px;height:38px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);font-size:20px;cursor:pointer}
+  .secw button:hover{background:var(--surface-2)}
+  .sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap;font-size:15px;font-weight:600}
+  .sw input{display:none}
+  .sw i{width:48px;height:28px;border-radius:14px;background:var(--line-strong);position:relative;transition:background .15s}
+  .sw i::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+  .sw input:checked+i{background:var(--primary)}
+  .sw input:checked+i::after{left:23px}
   .toast2{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1B2430;color:#fff;padding:12px 20px;border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;pointer-events:none}
   .toast2.show{opacity:1}
   .drop{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;border:2px dashed var(--line-strong);border-radius:14px;padding:24px;cursor:pointer;background:var(--surface-2);min-height:200px}
@@ -58,7 +71,6 @@
   .drop .dtx b{font-size:20px}
   .drop label input{display:none}
   .warn{margin:12px 0 0;padding:10px 14px;border-radius:9px;background:var(--danger-soft);color:var(--danger);font-size:15px}
-  h2 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--meet);color:#fff;font-size:14px;margin-right:8px}
 </style>
 </head>
 <body>
@@ -77,17 +89,7 @@
   function save(msg) { if (!M.saveSettings(S, set)) return toast('저장하지 못했어요 (브라우저 저장 공간이 막혀 있어요)'); toast(msg || '저장했어요 · 현황판에 바로 반영돼요'); }
   document.getElementById('openTv').href = 'tv.html?s=' + encodeURIComponent(S) + (FIXED ? '&date=' + FIXED : '');
 
-  var PLAN = [
-    ['1 오늘의 메뉴', '메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원', 'auto', '없음'],
-    ['2 알레르기', '19종 가운데 그날 들어간 식품과 해당 메뉴', 'auto', '없음'],
-    ['3 칼로리 · 영양', '칼로리 · 영양 9종 (기준 대비 %는 기준값을 넣었을 때만)', 'auto', '없음 · 기준값은 선택'],
-    ['4 원산지', '학교 공통 원산지 표시 (메뉴별이 아니라 학교가 NEIS에 올린 목록 그대로)', 'auto', '없음'],
-    ['5 위생 교육', '손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며', 'rot', '없음 · 고정하고 싶을 때만'],
-    ['6 골고루 먹어요', '식품군(메뉴 이름으로 자동 분류) · 표어(7가지가 날마다 돌아가며)', 'rot', '없음 · 분류가 틀릴 때만 고침'],
-    ['7 오늘의 식사', '그날 식판 사진 (당일 찍은 사진을 올리는 것이 규정)', 'me', '<b>매일 배식 전 1장</b>'],
-    ['8 이번 주 메뉴', '월~금 메뉴 · 알레르기 번호 · 칼로리', 'auto', '없음']
-  ];
-  var SRC = { auto: '<span class="src auto">NEIS 자동</span>', me: '<span class="src me">영양사 입력</span>', mix: '<span class="src mix">자동 + 영양사</span>', rot: '<span class="src auto">자동 순환</span>' };
+  var SRC = { auto: '<span class="src auto">NEIS 자동</span>', me: '<span class="src me">영양사 입력</span>', rot: '<span class="src auto">자동 순환</span>' };
 
   function render() {
     set = M.settings(S);
@@ -97,26 +99,29 @@
     badge.hidden = !data.meals[today];
     badge.className = 'src ' + (M.photo(S, today) ? 'auto' : 'me');
     badge.textContent = M.photo(S, today) ? '오늘 사진 ✓ 올림' : '오늘 사진 아직';
-    // 이번 주 메뉴 이름(중복 없이)
-    var names = []; days.forEach(function (d) { var x = data.meals[d]; if (x) x.dishes.forEach(function (m) { if (names.indexOf(m.n) < 0) names.push(m.n); }); });
+    var scr = M.screens(set), onN = scr.filter(function (c) { return c.on; }), loop = onN.reduce(function (a, c) { return a + c.sec; }, 0);
 
     root.innerHTML =
       '<div class="page-h"><div><h1>급식소 현황판</h1><p>' + esc(data.name) + ' · NEIS 교육청 ' + esc(M.split(S).atpt) + ' / 학교 ' + esc(M.split(S).code) + ' · 현황판 주소 <b>t.road/tv/' + esc(S) + '</b></p></div></div>' +
       '<div class="note">시연용 프로토타입이라 여기서 넣은 값은 <b>이 브라우저에만</b> 저장됩니다. 같은 PC에서 연 현황판에는 바로 반영됩니다. 실제 서비스에서는 티로드 서버에 저장되어 급식소 TV에 바로 뜹니다.</div>' +
 
       todayPhotoHtml(today) +
-      '<section class="card"><div class="card-h"><h2>무엇이 자동이고, 무엇을 입력하나요</h2><span class="small muted">8개 화면 · 7초씩</span></div><div class="card-b"><table class="t"><thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>영양사 할 일</th></tr></thead><tbody>' +
-      PLAN.map(function (p) { return '<tr><td><b>' + p[0] + '</b></td><td>' + esc(p[1]) + '</td><td>' + SRC[p[2]] + '</td><td>' + p[3] + '</td></tr>'; }).join('') +
-      '</tbody></table><p class="small muted" style="margin:12px 0 0">나이스에 식단을 올리면 나머지는 자동입니다. 영양사가 <b>매일 할 일은 식판 사진 한 장</b>뿐이고, 그 밖의 입력은 모두 선택입니다. 현황판은 30분마다, 그리고 날짜가 바뀌면 다시 불러옵니다.</p></div></section>' +
+      '<section class="card"><div class="card-h"><h2>무엇이 자동이고, 무엇을 입력하나요</h2><div class="row"><span class="small muted">켜진 화면 ' + onN.length + '개 · 한 바퀴 ' + loop + '초</span><button class="btn sm" id="resetScr">처음 상태로</button></div></div><div class="card-b"><table class="t scr"><thead><tr><th></th><th class="c">순서</th><th>화면</th><th>보여 주는 것</th><th>출처</th><th>노출 시간</th><th>표시</th></tr></thead><tbody id="scrBody">' +
+      scr.map(function (c, i) {
+        return '<tr data-k="' + c.key + '" class="' + (c.on ? '' : 'off') + '"><td class="keep"><span class="handle" title="끌어서 순서 바꾸기">⋮⋮</span></td><td class="c"><span class="ord">' + (i + 1) + '</span></td><td><b>' + esc(c.name) + '</b></td><td>' + esc(c.what) + '</td><td>' + SRC[c.src] + '</td>' +
+          '<td><span class="secw"><button type="button" data-dec="' + c.key + '" aria-label="1초 줄이기">−</button><input type="number" min="' + M.SEC_MIN + '" max="' + M.SEC_MAX + '" value="' + c.sec + '" data-sec="' + c.key + '"><span>초</span><button type="button" data-inc="' + c.key + '" aria-label="1초 늘리기">+</button></span></td>' +
+          '<td class="keep"><label class="sw"><input type="checkbox" data-on="' + c.key + '"' + (c.on ? ' checked' : '') + '><i></i>' + (c.on ? '켜짐' : '꺼짐') + '</label></td></tr>';
+      }).join('') +
+      '</tbody></table><p class="small muted" style="margin:12px 0 0">나이스에 식단을 올리면 나머지는 자동입니다. 영양사가 매일 할 일은 <b>식판 사진 한 장</b>뿐입니다. 왼쪽 ⋮⋮를 끌어 순서를 바꾸고, 화면마다 노출 시간(기본 ' + M.SEC + '초, ' + M.SEC_MIN + '~' + M.SEC_MAX + '초)과 표시 여부를 정하면 현황판에 바로 반영됩니다.</p></div></section>' +
 
-      '<section class="card"><div class="card-h"><h2>NEIS에서 받아 온 이번 주 급식</h2><div class="row"><span class="small muted">' + (data.stale ? '연결 안 됨 · ' + hm(data.at) + ' 저장본' : hm(data.at) + ' 불러옴') + '</span><button class="btn sm" id="reload">다시 불러오기</button></div></div><div class="card-b"><table class="t"><thead><tr><th>날짜</th><th>메뉴</th><th class="c">칼로리</th><th class="c">알레르기</th><th class="c">영양</th><th class="c">원산지</th><th class="c">인원</th><th class="c">사진</th></tr></thead><tbody>' +
+      '<section class="card"><div class="card-h"><h2>NEIS에서 받아 온 이번 주 급식</h2><span class="small muted">' + (data.stale ? '연결 안 됨 · ' + hm(data.at) + ' 저장본' : hm(data.at) + ' 불러옴') + '</span></div><div class="card-b"><table class="t"><thead><tr><th>날짜</th><th>메뉴</th><th class="c">칼로리</th><th class="c">알레르기</th><th class="c">영양</th><th class="c">원산지</th><th class="c">인원</th><th class="c">사진</th></tr></thead><tbody>' +
       days.map(function (d) {
         var w = M.label(d), x = data.meals[d], al = {};
         if (!x) return '<tr><td><b>' + w.m + '/' + w.d + ' ' + w.w + '</b></td><td colspan="7" class="no">NEIS에 식단 없음 (휴업일이거나 아직 안 올라옴)</td></tr>';
         x.dishes.forEach(function (m) { m.a.forEach(function (n) { al[n] = 1; }); });
         return '<tr><td><b>' + w.m + '/' + w.d + ' ' + w.w + '</b>' + (d === today ? ' <span class="src auto">오늘</span>' : '') + '</td><td>' + esc(x.dishes.map(function (m) { return m.n; }).join(' · ')) + '</td><td class="c">' + x.kcal + '</td><td class="c">' + Object.keys(al).length + '종</td><td class="c ok">' + x.nutr.length + '종</td><td class="c ok">' + x.origin.length + '종</td><td class="c">' + (x.count || '-') + '</td><td class="c">' + (M.photo(S, d) ? '<span class="ok">✓</span>' : '<span class="no">없음</span>') + '</td></tr>';
       }).join('') + '</tbody></table>' +
-      '<label class="fld2" style="margin-top:16px;max-width:520px">NEIS 오픈API 인증키 <span class="small muted" style="font-weight:400">선택 · 없으면 한 번에 5건까지(한 주 점심은 충분) · open.neis.go.kr에서 학교가 발급</span><input id="key" value="' + esc(set.key || '') + '" placeholder="비워 두어도 됩니다"></label></div></section>' +
+      '</div></section>' +
 
       '<section class="card"><div class="card-h"><h2>이번 주 식판 사진</h2><span class="small muted">늦게 올리거나 바꿀 때</span></div><div class="card-b"><div class="days">' +
       days.map(function (d) {
@@ -125,24 +130,12 @@
           (has ? '<div class="act"><label class="btn sm pri">사진 올리기<input type="file" accept="image/*" capture="environment" data-up="' + d + '"></label>' + (p ? '<button class="btn sm" data-del="' + d + '">지우기</button>' : '') + '</div>' : '') + '</div>';
       }).join('') + '</div></div></section>' +
 
-      '<section class="card"><div class="card-h"><h2><span class="n">5</span>위생 교육 주제</h2><span class="small muted">기본은 자동 · 오늘은 “' + esc(M.hygiene[M.hygieneOf(today, {})].title) + '”</span></div><div class="card-b"><div class="opts">' +
+      '<section class="card"><div class="card-h"><h2>위생 교육 주제</h2><span class="small muted">기본은 자동 · 오늘은 “' + esc(M.hygiene[M.hygieneOf(today, {})].title) + '”</span></div><div class="card-b"><div class="opts">' +
       '<label class="opt' + (M.hygiene[set.hygiene] ? '' : ' on') + '"><input type="radio" name="hy" value=""' + (M.hygiene[set.hygiene] ? '' : ' checked') + '><b>자동 (날마다 바뀜)</b><span class="small muted">추천 · 다섯 주제가 하루씩 돌아가요</span><ol>' + Object.keys(M.hygiene).map(function (k) { return '<li>' + esc(M.hygiene[k].name) + '</li>'; }).join('') + '</ol></label>' +
       Object.keys(M.hygiene).map(function (k) { var h = M.hygiene[k], on = set.hygiene === k; return '<label class="opt' + (on ? ' on' : '') + '"><input type="radio" name="hy" value="' + k + '"' + (on ? ' checked' : '') + '><b>' + esc(h.title) + '</b><span class="small muted">' + esc(h.tag) + '</span><ol>' + h.items.map(function (i) { return '<li>' + esc(i[0]) + '</li>'; }).join('') + '</ol></label>'; }).join('') +
       '</div></div></section>' +
 
-      '<section class="card"><div class="card-h"><h2><span class="n">6</span>골고루 먹어요 · 식품군 분류와 표어</h2><span class="small muted">메뉴 이름으로 자동 어림 · 틀린 칸만 고치세요</span></div><div class="card-b">' +
-      '<label class="fld2" style="margin-bottom:16px">표어 고정 <span class="small muted" style="font-weight:400">비워 두면 7가지가 날마다 돌아가요 · 오늘은 “' + esc(M.sloganOf(today, {})) + '”</span><input id="slogan" value="' + esc(set.slogan || '') + '" placeholder="비워 두면 자동"></label>' +
-      '<table class="t gtab"><thead><tr><th>이번 주 메뉴</th>' + M.groups.map(function (g) { return '<th class="c" style="color:' + g.color + '">' + esc(g.name.replace(/ · /g, '·')) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
-      names.map(function (n) {
-        var g = M.groupsOf(n, set), fixed = !!set.groups[n];
-        return '<tr class="' + (fixed ? 'fix' : '') + '"><td>' + esc(n) + '</td>' + M.groups.map(function (x) { return '<td class="c"><input type="checkbox" data-g="' + x.id + '" data-n="' + esc(n) + '"' + (g.indexOf(x.id) >= 0 ? ' checked' : '') + '></td>'; }).join('') +
-          '<td>' + (fixed ? '<button class="btn sm ghost" data-auto="' + esc(n) + '">자동으로</button>' : '') + '</td></tr>';
-      }).join('') + '</tbody></table></div></section>' +
-
-      '<section class="card"><div class="card-h"><h2><span class="n">3</span>영양 기준값 <span class="small muted" style="font-weight:400">(선택)</span></h2><span class="small muted">학기 초 1번 · 비워 두면 기준선 없이 NEIS 수치만 보여요</span></div><div class="card-b">' +
-      '<p class="small muted" style="margin:0 0 14px">학교급식법 시행규칙 「학교급식 영양관리기준」에서 우리 학교 학년 구성에 맞는 한 끼 기준을 넣으세요. 넣으면 칼로리 원과 영양 칸에 기준 대비 %가 나옵니다.</p><div class="base">' +
-      M.NUTR_KEYS.map(function (k) { return '<label>' + k[0] + ' <span class="small muted" style="font-weight:400">' + k[1] + '</span><input type="number" step="any" min="0" data-base="' + k[0] + '" value="' + esc(set.base[k[0]] || '') + '"></label>'; }).join('') +
-      '</div></div></section>';
+      '';
 
     bind();
   }
@@ -151,7 +144,7 @@
   function todayPhotoHtml(today) {
     var w = M.label(today), has = !!data.meals[today], p = M.photo(S, today), at = M.photoAt(S, today);
     if (!has) return '<section class="card"><div class="card-b row" style="gap:14px"><b style="font-size:18px">오늘 식판 사진</b><span class="muted">' + w.m + '/' + w.d + ' ' + w.w + '요일은 NEIS에 급식이 없어 올릴 사진이 없어요.</span></div></section>';
-    return '<section class="card"><div class="card-h"><h2><span class="n">7</span>오늘 식판 사진 · ' + w.m + '/' + w.d + ' ' + w.w + '요일</h2><span class="small muted">매일 배식 전 · 당일 찍은 사진</span></div><div class="card-b"><div class="drop' + (p ? ' done' : '') + '" id="drop" tabindex="0">' +
+    return '<section class="card"><div class="card-h"><h2>오늘 식판 사진 · ' + w.m + '/' + w.d + ' ' + w.w + '요일</h2><span class="small muted">매일 배식 전 · 당일 찍은 사진</span></div><div class="card-b"><div class="drop' + (p ? ' done' : '') + '" id="drop" tabindex="0">' +
       (p ? '<img src="' + p + '" alt="오늘 식판 사진"><div class="dtx"><b class="ok">✓ 올렸어요 · ' + hm(at || Date.now()).split(' ')[1] + '</b><span>현황판 7번 화면에 떠 있어요. 다른 사진으로 바꾸려면 여기에 다시 놓거나 붙여 넣으세요.</span><div class="row"><label class="btn">다른 사진으로 바꾸기<input type="file" accept="image/*" data-up="' + today + '"></label><button class="btn" data-del="' + today + '">지우기</button></div></div>'
         : '<div class="dtx"><b>여기를 눌러 사진을 고르거나, 사진 파일을 끌어다 놓으세요</b><span>휴대폰으로 찍은 사진을 카카오톡 PC ‘나에게 보내기’ 등에서 <b>복사한 뒤 이 화면에서 Ctrl+V</b> 해도 됩니다.</span><label class="btn pri" style="width:max-content">사진 고르기<input type="file" accept="image/*" data-up="' + today + '"></label></div>') +
       '</div><p class="warn" id="warn" hidden></p></div></section>';
@@ -187,25 +180,56 @@
       dz.ondrop = function (e) { e.preventDefault(); dz.classList.remove('over'); upPhoto(e.dataTransfer.files[0], M.ymd(now())); };
       dz.onclick = function (e) { if (!dz.classList.contains('done') && !e.target.closest('label,button')) dz.querySelector('input[type=file]').click(); };
     }
-    root.querySelector('#reload').onclick = function () { load(true); };
-    root.querySelector('#key').onchange = function () { set.key = this.value.trim(); save('인증키를 저장했어요'); load(true); };
+    bindScreens();
     root.querySelectorAll('[data-up]').forEach(function (inp) { inp.onchange = function () { upPhoto(this.files && this.files[0], this.dataset.up); this.value = ''; }; });
     root.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { M.savePhoto(S, b.dataset.del, null); toast('사진을 지웠어요'); render(); }; });
     root.querySelectorAll('input[name=hy]').forEach(function (r) { r.onchange = function () { if (r.value) set.hygiene = r.value; else delete set.hygiene; save(r.value ? '위생 교육 주제를 고정했어요' : '위생 교육 주제를 자동으로 돌려요'); render(); }; });
-    root.querySelector('#slogan').onchange = function () { set.slogan = this.value.trim(); save(set.slogan ? '표어를 고정했어요' : '표어를 자동으로 돌려요'); };
-    root.querySelectorAll('[data-g]').forEach(function (c) {
-      c.onchange = function () {
-        var n = c.dataset.n, g = M.groupsOf(n, set).slice(), i = g.indexOf(c.dataset.g);
-        if (c.checked && i < 0) g.push(c.dataset.g); if (!c.checked && i >= 0) g.splice(i, 1);
-        set.groups[n] = g; save('“' + n + '” 식품군을 고쳤어요'); render();
-      };
-    });
-    root.querySelectorAll('[data-auto]').forEach(function (b) { b.onclick = function () { delete set.groups[b.dataset.auto]; save('자동 분류로 되돌렸어요'); render(); }; });
-    root.querySelectorAll('[data-base]').forEach(function (i) { i.onchange = function () { var v = parseFloat(i.value); if (v > 0) set.base[i.dataset.base] = v; else delete set.base[i.dataset.base]; save('기준값을 저장했어요'); }; });
   }
 
-  function load(manual) {
-    M.load(S, q.get('key') || M.settings(S).key, M.monday(now())).then(function (d) { data = d; render(); if (manual) toast(d.stale ? 'NEIS 연결이 안 돼 저장본을 보여 줘요' : 'NEIS에서 다시 불러왔어요'); })
+  // 화면 순서(끌어 놓기) · 노출 시간 · 켜고 끄기
+  function bindScreens() {
+    var body = root.querySelector('#scrBody'), dragK = null;
+    function order() { return [].map.call(body.children, function (tr) { return tr.dataset.k; }); }
+    function setSec(k, v) {
+      v = Math.round(+v); if (!(v >= M.SEC_MIN)) v = M.SEC_MIN; if (v > M.SEC_MAX) v = M.SEC_MAX;
+      if (v === M.SEC) delete set.sec[k]; else set.sec[k] = v;
+      save(M.SCREENS.find(function (x) { return x.key === k; }).name + ' 화면을 ' + v + '초 동안 보여 줘요'); render();
+    }
+    body.querySelectorAll('.handle').forEach(function (h) {
+      var tr = h.closest('tr');
+      h.onmousedown = function () { tr.draggable = true; };
+      tr.ondragstart = function (e) { dragK = tr.dataset.k; tr.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragK); };
+      tr.ondragend = function () { tr.draggable = false; tr.classList.remove('drag'); body.querySelectorAll('tr').forEach(function (x) { x.classList.remove('ab', 'bl'); }); };
+    });
+    body.querySelectorAll('tr').forEach(function (tr) {
+      tr.ondragover = function (e) {
+        if (!dragK || tr.dataset.k === dragK) return; e.preventDefault();
+        var r = tr.getBoundingClientRect(), below = e.clientY > r.top + r.height / 2;
+        body.querySelectorAll('tr').forEach(function (x) { x.classList.remove('ab', 'bl'); });
+        tr.classList.add(below ? 'bl' : 'ab');
+      };
+      tr.ondrop = function (e) {
+        e.preventDefault(); if (!dragK || tr.dataset.k === dragK) return;
+        var o = order().filter(function (k) { return k !== dragK; }), i = o.indexOf(tr.dataset.k) + (tr.classList.contains('bl') ? 1 : 0);
+        o.splice(i, 0, dragK); set.order = o; dragK = null; save('화면 순서를 바꿨어요'); render();
+      };
+    });
+    body.querySelectorAll('[data-sec]').forEach(function (i) { i.onchange = function () { setSec(i.dataset.sec, i.value); }; });
+    body.querySelectorAll('[data-dec]').forEach(function (b) { b.onclick = function () { var k = b.dataset.dec; setSec(k, (+(set.sec[k]) || M.SEC) - 1); }; });
+    body.querySelectorAll('[data-inc]').forEach(function (b) { b.onclick = function () { var k = b.dataset.inc; setSec(k, (+(set.sec[k]) || M.SEC) + 1); }; });
+    body.querySelectorAll('[data-on]').forEach(function (c) {
+      c.onchange = function () {
+        var k = c.dataset.on, on = M.screens(set).filter(function (x) { return x.on; });
+        if (!c.checked && on.length <= 1) { c.checked = true; return toast('화면은 하나 이상 켜 두어야 해요'); }
+        if (c.checked) delete set.off[k]; else set.off[k] = true;
+        save(M.SCREENS.find(function (x) { return x.key === k; }).name + ' 화면을 ' + (c.checked ? '켰어요' : '껐어요')); render();
+      };
+    });
+    root.querySelector('#resetScr').onclick = function () { delete set.order; set.sec = {}; set.off = {}; save('화면 순서 · 시간 · 표시를 처음 상태로 되돌렸어요'); render(); };
+  }
+
+  function load() {
+    M.load(S, q.get('key'), M.monday(now())).then(function (d) { data = d; render(); })
       .catch(function (e) { root.innerHTML = '<div class="note">NEIS 급식 정보를 불러오지 못했어요: ' + esc(e.message || e) + '</div>'; });
   }
   load();
