@@ -248,7 +248,7 @@
               '<div class="gt' + (ds.length ? '' : ' none') + '">' + esc(ds.length ? ds.join(' · ') : nothing) + '</div></div>';
           }).join('') + '</div>' + slogan;
       } },
-      { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', skip: !(meal && M.photo(S, dy)), html: function () {
+      { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
         if (!meal) return '<div class="pg-h"><h1>오늘의 식사</h1></div>' + none;
         var p = M.photo(S, dy), n = meal.dishes.length, fs = n <= 6 ? 54 : n <= 7 ? 48 : 42;
         return '<div class="pg-h"><h1>' + (isToday ? '오늘의 식사' : '다음 급식') + '</h1><p>' + t.m + '월 ' + t.d + '일 점심은 이렇게 나와요</p></div><div class="ph"><div class="fr">' +
@@ -264,7 +264,7 @@
               (x ? '<ul>' + x.dishes.map(function (m) { return '<li>' + esc(m.n) + (m.a.length ? '<sup>' + m.a.join('.') + '</sup>' : '') + '</li>'; }).join('') + '</ul><div class="kc">' + x.kcal + ' kcal</div>' : '<div class="no">급식 없음</div>') + '</section>';
           }).join('') + '</div>';
       } }
-    ].filter(function (p) { return !p.skip; }); // 식판 사진이 없는 날은 7개 화면만 돈다
+    ];
   }
 
   var pagesEl = $('#pages'), footEl = $('#foot'), PAGES = [], pgs = [], sts = [];

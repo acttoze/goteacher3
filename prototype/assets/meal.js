@@ -4,7 +4,8 @@
 // [NEIS에서 자동] 메뉴(DDISH_NM) · 알레르기 번호(메뉴 뒤 괄호) · 칼로리(CAL_INFO) · 영양 9종(NTR_INFO)
 //                 · 원산지(ORPLC_INFO, 학교 공통 표시 목록) · 급식 인원(MLSV_FGR) · 학교 이름(schoolInfo)
 // [날짜로 자동 순환] 위생 교육 주제 · 영양 교육 표어 (같은 날엔 모든 TV가 같은 내용)
-// [영양사 선택 입력] 오늘의 식사 사진(없으면 그 화면을 건너뜀) · 주제·표어 고정 · 식품군 분류 수정 · 영양 기준값
+// [영양사 매일 입력] 오늘의 식사 사진 — 당일 찍은 사진을 올리는 것이 규정
+// [영양사 선택 입력] 주제·표어 고정 · 식품군 분류 수정 · 영양 기준값
 //
 // NEIS 오픈API는 CORS를 허용해 브라우저에서 바로 부른다. 인증키 없이는 한 번에 5건까지라
 // 한 주(월~금) 점심만 부른다. 키를 넣으면(설정 또는 ?key=) 제한이 풀린다.
@@ -137,7 +138,11 @@ window.TR = window.TR || {};
   M.settings = function (s) { var v = M.read('troad.meal.set.' + s) || {}; v.groups = v.groups || {}; v.base = v.base || {}; return v; };
   M.saveSettings = function (s, v) { return M.store('troad.meal.set.' + s, v); };
   M.photo = function (s, ymd) { return M.read('troad.meal.photo.' + s + '.' + ymd); };
-  M.savePhoto = function (s, ymd, data) { return M.store('troad.meal.photo.' + s + '.' + ymd, data); };
+  M.savePhoto = function (s, ymd, data) {
+    M.store('troad.meal.photoat.' + s + '.' + ymd, data ? Date.now() : null);
+    return M.store('troad.meal.photo.' + s + '.' + ymd, data);
+  };
+  M.photoAt = function (s, ymd) { return M.read('troad.meal.photoat.' + s + '.' + ymd); };
 
   // 식품군: 영양사가 고친 값이 있으면 그것, 없으면 이름으로 어림
   M.autoGroups = function (name) {
