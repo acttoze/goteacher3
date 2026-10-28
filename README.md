@@ -17,6 +17,7 @@
 
 ## 회의 구성
 의장 Claude + 서브에이전트 4명(일반 교사 / 생산성 전문가 / 학교업무 전문 교사 / UI/UX 전문가), 2라운드.
+페르소나는 `.claude/agents/`에 저장되어 다시 부를 수 있다: `troad-teacher`(일반 교사) · `troad-productivity`(생산성 전문가) · `troad-admin`(학교업무 전문 교사) · `troad-uiux`(UI/UX 전문가). 예: "troad-teacher 에이전트로 급식 현황판 검토해 줘".
 
 ## 운영 DB 접근
 읽기 전용 SELECT 집계만 수행했고(oci_tailscale → mysql 컨테이너 `goteacher`), 개인 식별 정보는 산출물에 넣지 않았다.
