@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>급식소 현황판</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* 1920×1080 무대 하나를 TV 화면 크기에 맞춰 늘리고 줄인다. 급식실은 밝아서 늘 밝은 화면. */
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0B1416;font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  h1,h2{margin:0}
+  body.idle{cursor:none}
+  .stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;background:#F7F8FA;color:#1B2430;display:grid;grid-template-rows:116px 1fr 104px;overflow:hidden;line-height:1.3;word-break:keep-all}
+  .tv-h{display:flex;align-items:center;gap:22px;padding:0 64px;background:#0F6E6E;color:#fff}
+  .tv-h img{width:52px;height:52px;background:#fff;border-radius:14px;padding:6px}
+  .tv-h .sch{font-size:40px;font-weight:700;letter-spacing:-.02em}
+  .tv-h .sch small{font-size:32px;font-weight:500;opacity:.8;margin-left:12px}
+  .tv-h .when{margin-left:auto;font-size:36px;font-weight:600;display:flex;align-items:center;gap:28px}
+  .tv-h .clock{font-size:48px;font-weight:700;background:rgba(255,255,255,.14);padding:4px 22px;border-radius:14px}
+
+  .pages{position:relative;overflow:hidden}
+  .pg{position:absolute;inset:0;padding:48px 64px 40px;display:flex;flex-direction:column;opacity:0;transform:translateX(40px);transition:opacity .6s ease,transform .6s ease;pointer-events:none}
+  .pg.on{opacity:1;transform:none}
+  @media (prefers-reduced-motion: reduce){.pg{transition:none;transform:none}}
+  .pg-h{display:flex;align-items:baseline;gap:28px;margin-bottom:36px}
+  .pg-h h1{font-size:76px;line-height:1.1;font-weight:800;letter-spacing:-.03em}
+  .pg-h p{margin:0;font-size:36px;color:#5B6675;font-weight:500}
+  .pg-h .tag{font-size:30px;font-weight:700;padding:6px 20px;border-radius:999px;background:var(--k-soft);color:var(--k)}
+  .pg{--k:#0F6E6E;--k-soft:#E3F1F0}
+  .pg-h h1{color:var(--k)}
+
+  /* 1 오늘의 메뉴 */
+  .menu{display:grid;grid-template-columns:1fr 520px;gap:48px;flex:1;min-height:0}
+  .menu ul{margin:0;padding:0;list-style:none;display:grid;grid-auto-rows:1fr;background:#fff;border-radius:32px;box-shadow:0 2px 8px rgba(16,24,40,.08);padding:12px 48px}
+  .menu li{display:flex;align-items:center;gap:24px;border-top:2px solid #E2E6EB}
+  .menu li:first-child{border-top:0}
+  .menu li b{font-size:76px;font-weight:700;letter-spacing:-.03em}
+  .al{display:flex;gap:10px;flex-wrap:wrap}
+  .al span{min-width:52px;height:52px;padding:0 10px;border-radius:26px;background:#FCE6EE;color:#B4235A;font-size:30px;font-weight:700;display:grid;place-items:center}
+  .side{display:grid;gap:28px;grid-template-rows:1fr 1fr}
+  .big{border-radius:32px;padding:36px 44px;display:flex;flex-direction:column;justify-content:center}
+  .big .l{font-size:34px;font-weight:600;opacity:.85}
+  .big .v{font-size:120px;font-weight:800;letter-spacing:-.04em;line-height:1.05}
+  .big .v small{font-size:48px;font-weight:700;margin-left:8px}
+  .big .s{font-size:30px;opacity:.8}
+
+  /* 2 알레르기 */
+  .alg{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(4,minmax(0,1fr));gap:16px;flex:1;min-height:0}
+  .alg>div{border-radius:24px;background:#EEF0F3;color:#A0A8B4;padding:10px 24px;min-height:0;display:flex;flex-direction:column;justify-content:center}
+  .alg>div .nm{display:flex;align-items:center;gap:16px;font-size:44px;font-weight:700}
+  .alg>div .nm i{font-style:normal;width:60px;height:60px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:34px;flex:none}
+  .alg>div .in{font-size:26px;margin-top:4px;line-height:1.25}
+  .alg>div.has{background:#FCE6EE;color:#8A1C45;box-shadow:inset 0 0 0 4px #D6336C}
+  .alg>div.has .nm i{background:#D6336C;color:#fff}
+
+  /* 3 칼로리·영양 */
+  .cal{display:grid;grid-template-columns:600px 1fr;gap:56px;flex:1;min-height:0;align-items:center}
+  .ring{position:relative;width:560px;height:560px}
+  .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ring .c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .ring .c b{font-size:150px;line-height:1;font-weight:800;letter-spacing:-.05em;color:#C2580A}
+  .ring .c span{font-size:44px;font-weight:700;color:#C2580A}
+  .ring .c small{font-size:30px;color:#5B6675;margin-top:10px}
+  .bars{display:grid;gap:26px}
+  .bar{display:grid;grid-template-columns:220px 1fr 300px;align-items:center;gap:24px}
+  .bar .n{font-size:44px;font-weight:700}
+  .bar .t{height:44px;border-radius:22px;background:#EEF0F3;position:relative;overflow:hidden}
+  .bar .t i{position:absolute;left:0;top:0;bottom:0;border-radius:22px;background:#F0A060}
+  .bar .t em{position:absolute;top:-6px;bottom:-6px;width:4px;background:#1B2430;opacity:.5}
+  .bar .v{font-size:42px;font-weight:700;text-align:right}
+  .bar .v small{font-size:28px;color:#5B6675;font-weight:500;margin-left:6px}
+
+  /* 4 원산지 */
+  .org{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:20px 40px;flex:1;min-height:0}
+  .org>div{display:grid;grid-template-columns:260px 1fr;align-items:center;background:#fff;border-radius:24px;padding:0 40px;box-shadow:0 2px 8px rgba(16,24,40,.07)}
+  .org .p{font-size:52px;font-weight:800;letter-spacing:-.02em}
+  .org .o{font-size:52px;font-weight:700;color:var(--k)}
+  .org .o small{display:block;font-size:28px;font-weight:500;color:#5B6675}
+
+  /* 5 손 씻기 */
+  .wash{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,minmax(0,1fr));gap:28px;flex:1;min-height:0}
+  .wash>div{min-height:0;background:#fff;border-radius:32px;padding:32px 40px;display:flex;flex-direction:column;justify-content:center;gap:16px;box-shadow:0 2px 8px rgba(16,24,40,.07);border-top:14px solid var(--k)}
+  .wash .hd{display:flex;align-items:center;gap:20px}
+  .wash i{font-style:normal;width:84px;height:84px;border-radius:50%;background:var(--k);color:#fff;display:grid;place-items:center;font-size:52px;font-weight:800}
+  .wash b{font-size:54px;font-weight:800;letter-spacing:-.02em}
+  .wash span{font-size:34px;line-height:1.35;color:#3D4654}
+
+  /* 6 골고루 */
+  .grp{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr;gap:24px;flex:1;min-height:0}
+  .grp>div{border-radius:28px;padding:28px 36px;display:flex;flex-direction:column;gap:8px;background:var(--g-soft);border:4px solid transparent}
+  .grp>div.has{border-color:var(--g)}
+  .grp .gn{font-size:44px;font-weight:800;color:var(--g);letter-spacing:-.02em}
+  .grp .gd{font-size:30px;font-weight:600;color:#3D4654}
+  .grp .gt{margin-top:auto;font-size:40px;font-weight:700}
+  .grp .gt.none{font-size:32px;font-weight:600;color:#5B6675}
+  .grp .ck{float:right;font-size:32px;font-weight:800;color:#fff;background:var(--g);border-radius:999px;padding:2px 18px}
+  .slogan{margin-top:24px;text-align:center;font-size:44px;font-weight:800;color:#2F9E44}
+
+  /* 7 오늘의 식사 사진 */
+  .ph{display:grid;grid-template-columns:1240px 1fr;gap:48px;flex:1;min-height:0}
+  .ph .fr{position:relative;border-radius:32px;overflow:hidden;background:#E9DCC8;box-shadow:0 6px 24px rgba(16,24,40,.18)}
+  .ph .fr img,.ph .fr svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  .ph .rib{position:absolute;left:28px;top:28px;background:rgba(27,36,48,.78);color:#fff;font-size:28px;font-weight:600;padding:8px 22px;border-radius:14px}
+  .ph ul{margin:0;padding:0;list-style:none;display:grid;gap:14px;align-content:center}
+  .ph li{font-size:56px;font-weight:700;display:flex;align-items:center;gap:20px;letter-spacing:-.02em}
+  .ph li::before{content:"";width:22px;height:22px;border-radius:50%;background:var(--k);flex:none}
+  .ph .kc{margin-top:22px;font-size:44px;font-weight:800;color:#C2580A}
+  .ph .note{font-size:28px;color:#5B6675;margin-top:8px;line-height:1.4}
+
+  /* 8 이번 주 */
+  .wk{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;flex:1;min-height:0}
+  .wk section{background:#fff;border-radius:28px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 2px 8px rgba(16,24,40,.07)}
+  .wk h2{font-size:46px;font-weight:800;padding:20px 30px;background:#EEF0F3;display:flex;align-items:baseline;justify-content:space-between}
+  .wk h2 small{font-size:30px;font-weight:600;color:#5B6675}
+  .wk ul{margin:0;padding:18px 30px;list-style:none;display:grid;gap:12px;flex:1;align-content:start}
+  .wk li{font-size:38px;font-weight:600;line-height:1.25;letter-spacing:-.02em}
+  .wk li sup{font-size:22px;color:#B4235A;font-weight:700;margin-left:4px;vertical-align:6px}
+  .wk .kc{padding:16px 30px;font-size:32px;font-weight:700;color:#C2580A;border-top:2px solid #E2E6EB}
+  .wk section.today{box-shadow:0 0 0 6px var(--k),0 8px 24px rgba(16,24,40,.15)}
+  .wk section.today h2{background:var(--k);color:#fff}
+  .wk section.today h2 small{color:#fff;opacity:.85}
+
+  /* 아래 진행 표시 */
+  .tv-f{display:flex;align-items:center;gap:14px;padding:0 64px;background:#fff;border-top:2px solid #E2E6EB}
+  .tv-f .st{position:relative;flex:1;height:64px;border-radius:16px;background:#EEF0F3;color:#5B6675;font-size:28px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;overflow:hidden}
+  .tv-f .st b{font-weight:800}
+  .tv-f .st span{position:relative}
+  .tv-f .st i{position:absolute;left:0;top:0;bottom:0;width:0;background:#B9DCD9}
+  .tv-f .st.on{color:#0B4F4F}
+  .tv-f .st.on i{animation:fill var(--dur) linear forwards}
+  .tv-f .st.on.paused i{animation-play-state:paused}
+  .tv-f .st.done{color:#0F6E6E}
+  @keyframes fill{to{width:100%}}
+  .tv-f .addr{font-size:24px;color:#8A94A3;margin-left:10px;white-space:nowrap}
+
+  /* 조작 막대 — 마우스를 움직일 때만, 화면 크기 그대로 */
+  .ctl{position:fixed;right:20px;top:20px;display:flex;gap:8px;padding:10px;border-radius:14px;background:rgba(17,20,24,.88);transition:opacity .3s;z-index:5}
+  body.idle .ctl{opacity:0;pointer-events:none}
+  .ctl button,.ctl label{height:44px;padding:0 16px;border:0;border-radius:10px;background:#2A313A;color:#E6EAF0;font-size:16px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center}
+  .ctl button:hover,.ctl label:hover{background:#3A434F}
+  .ctl input{display:none}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <header class="tv-h"><img src="assets/logo.svg" alt=""><div class="sch" id="sch"></div><div class="when"><span id="date"></span><span class="clock" id="clock"></span></div></header>
+  <main class="pages" id="pages"></main>
+  <footer class="tv-f" id="foot"></footer>
+</div>
+<div class="ctl" id="ctl">
+  <button id="prev">◀ 이전</button><button id="pause">❚❚ 멈춤</button><button id="next">다음 ▶</button>
+  <label>사진 올리기<input type="file" id="file" accept="image/*"></label><button id="clr" hidden>사진 지우기</button>
+  <button id="fs">전체 화면</button>
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/meal.js"></script>
+<script>
+(function () {
+  var M = TR.meal, q = new URLSearchParams(location.search);
+  var SEC = 7, DUR = SEC * 1000, PHOTO_KEY = 'troad.tv.photo';
+  var WD = ['일', '월', '화', '수', '목', '금', '토'];
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function $(s) { return document.querySelector(s); }
+  function dt(iso) { var d = new Date(iso + 'T00:00:00'); return { m: d.getMonth() + 1, d: d.getDate(), w: WD[d.getDay()] }; }
+  var memPhoto = null; // 저장이 막힌 브라우저에서도 이번 화면에는 보이게
+  function getPhoto() { if (memPhoto !== null) return memPhoto; try { return localStorage.getItem(PHOTO_KEY); } catch (e) { return null; } }
+  function setPhoto(v) { memPhoto = v || ''; try { v ? localStorage.setItem(PHOTO_KEY, v) : localStorage.removeItem(PHOTO_KEY); } catch (e) {} }
+
+  var day = M.days.find(function (x) { return x.date === TR.TODAY; }) || M.days[0];
+  var t = dt(day.date);
+  var used = {}; // 알레르기 번호 → 들어간 메뉴들
+  day.dishes.forEach(function (d) { d.a.forEach(function (n) { (used[n] = used[n] || []).push(d.n); }); });
+  var usedN = Object.keys(used).length;
+  function al(a) { return a.length ? '<span class="al">' + a.map(function (n) { return '<span>' + n + '</span>'; }).join('') + '</span>' : ''; }
+
+  $('#sch').innerHTML = esc(TR.school.name) + '<small>급식소</small>';
+  $('#date').textContent = t.m + '월 ' + t.d + '일 ' + t.w + '요일';
+  function tick() { var n = new Date(); $('#clock').textContent = String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0'); }
+  tick(); setInterval(tick, 10000);
+
+  // 사진이 아직 없을 때 보여 줄 식판 예시 그림
+  var tray = '<svg viewBox="0 0 1240 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="1240" height="900" fill="#E9DCC8"/>' +
+    '<rect x="70" y="90" width="1100" height="720" rx="70" fill="#DCE3EA" stroke="#C3CBD5" stroke-width="8"/>' +
+    [0, 1, 2, 3].map(function (i) { return '<rect x="' + (120 + i * 255) + '" y="140" width="235" height="270" rx="40" fill="#EEF2F6"/>'; }).join('') +
+    '<rect x="120" y="440" width="490" height="320" rx="48" fill="#EEF2F6"/><rect x="640" y="440" width="480" height="320" rx="48" fill="#EEF2F6"/>' +
+    // 시금치나물
+    [[180, 230], [230, 270], [280, 220], [200, 330], [270, 330], [310, 290]].map(function (p, i) { return '<ellipse cx="' + p[0] + '" cy="' + p[1] + '" rx="58" ry="22" transform="rotate(' + (i * 37) + ' ' + p[0] + ' ' + p[1] + ')" fill="' + (i % 2 ? '#2F7D32' : '#3E9B42') + '"/>'; }).join('') +
+    // 돈육장조림 + 달걀
+    [[420, 220], [500, 250], [450, 320], [530, 330]].map(function (p) { return '<rect x="' + (p[0] - 38) + '" y="' + (p[1] - 26) + '" width="76" height="52" rx="16" fill="#7A4A2A"/>'; }).join('') +
+    '<ellipse cx="520" cy="190" rx="44" ry="34" fill="#FFF"/><circle cx="520" cy="190" r="18" fill="#F2B705"/>' +
+    // 배추김치
+    [[680, 220], [740, 260], [690, 320], [770, 330], [800, 230]].map(function (p, i) { return '<path d="M' + (p[0] - 50) + ' ' + p[1] + ' q50 -' + (40 + i * 4) + ' 100 0 q-50 40 -100 0z" fill="' + (i % 2 ? '#D9480F' : '#E8590C') + '"/>'; }).join('') +
+    // 감귤
+    '<circle cx="1000" cy="240" r="62" fill="#F59F00"/><circle cx="1040" cy="330" r="56" fill="#F08C00"/><circle cx="992" cy="186" r="9" fill="#2F7D32"/>' +
+    // 잡곡밥
+    '<ellipse cx="365" cy="600" rx="200" ry="120" fill="#F8F3EA"/>' + Array.apply(null, Array(46)).map(function (_, i) { var a = i * 2.4, r = 18 + (i * 37) % 170; return '<ellipse cx="' + (365 + Math.cos(a) * r).toFixed(0) + '" cy="' + (600 + Math.sin(a) * r * .58).toFixed(0) + '" rx="7" ry="5" fill="' + (i % 3 ? '#5B3A5E' : '#B08968') + '"/>'; }).join('') +
+    // 쇠고기미역국
+    '<ellipse cx="880" cy="600" rx="200" ry="122" fill="#6B3E26"/><ellipse cx="880" cy="600" rx="182" ry="106" fill="#8A5A3B"/>' +
+    [[800, 570], [900, 620], [960, 560], [840, 650]].map(function (p) { return '<path d="M' + (p[0] - 50) + ' ' + p[1] + ' c20 -24 40 24 60 0 s40 24 60 0" stroke="#2B4A2A" stroke-width="12" fill="none" stroke-linecap="round"/>'; }).join('') +
+    '<rect x="930" y="610" width="34" height="22" rx="6" fill="#4A2A1A"/><rect x="860" y="540" width="30" height="20" rx="6" fill="#4A2A1A"/></svg>';
+
+  var PAGES = [
+    { key: 'menu', label: '오늘의 메뉴', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
+      return '<div class="pg-h"><h1>오늘의 메뉴</h1><p>' + t.m + '월 ' + t.d + '일 ' + t.w + '요일 점심</p></div><div class="menu"><ul>' +
+        day.dishes.map(function (d) { return '<li><b>' + esc(d.n) + '</b>' + al(d.a) + '</li>'; }).join('') + '</ul>' +
+        '<div class="side"><div class="big" style="background:#FDEEE2;color:#9A3F06"><div class="l">오늘 칼로리</div><div class="v">' + day.kcal + '<small>kcal</small></div></div>' +
+        '<div class="big" style="background:#FCE6EE;color:#8A1C45"><div class="l">알레르기 유발 식품</div><div class="v">' + usedN + '<small>가지</small></div><div class="s">메뉴 옆 분홍 번호를 확인하세요</div></div></div></div>';
+    } },
+    { key: 'allergy', label: '알레르기', k: '#D6336C', ks: '#FCE6EE', html: function () {
+      return '<div class="pg-h"><h1>알레르기 정보</h1><p>오늘 들어간 식품은 <b style="color:#D6336C">분홍색</b> · 해당 학생은 배식 전에 꼭 말해 주세요</p></div><div class="alg">' +
+        M.allergens.map(function (nm, i) { var u = used[i + 1]; return '<div class="' + (u ? 'has' : '') + '"><div class="nm"><i>' + (i + 1) + '</i>' + esc(nm) + '</div>' + (u ? '<div class="in">' + esc(u.join(' · ')) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+    } },
+    { key: 'cal', label: '칼로리', k: '#C2580A', ks: '#FDEEE2', html: function () {
+      var r = 250, c = 2 * Math.PI * r, pct = Math.min(day.kcal / day.kcalBase, 1);
+      return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1><p>초등 고학년 한 끼 기준과 비교했어요</p></div><div class="cal">' +
+        '<div class="ring"><svg viewBox="0 0 560 560"><circle cx="280" cy="280" r="' + r + '" fill="none" stroke="#FDEEE2" stroke-width="40"/><circle cx="280" cy="280" r="' + r + '" fill="none" stroke="#F08C00" stroke-width="40" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg>' +
+        '<div class="c"><b>' + day.kcal + '</b><span>kcal</span><small>기준 ' + day.kcalBase + ' kcal</small></div></div>' +
+        '<div class="bars">' + day.nutr.map(function (x) {
+          var max = Math.max(x.v, x.base) * 1.15;
+          return '<div class="bar"><span class="n">' + esc(x.n) + '</span><span class="t"><i style="width:' + (x.v / max * 100).toFixed(1) + '%"></i><em style="left:' + (x.base / max * 100).toFixed(1) + '%"></em></span><span class="v">' + x.v + '<small>' + x.u + ' · 기준 ' + x.base + '</small></span></div>';
+        }).join('') + '<p style="margin:6px 0 0;font-size:28px;color:#5B6675">막대 위 세로 선이 기준이에요</p></div></div>';
+    } },
+    { key: 'origin', label: '원산지', k: '#3B5BDB', ks: '#E8EDFD', html: function () {
+      return '<div class="pg-h"><h1>원산지 정보</h1><p>오늘 쓴 재료가 어디에서 왔는지 알려 드려요</p></div><div class="org">' +
+        day.origin.map(function (o) { return '<div><span class="p">' + esc(o[0]) + '</span><span class="o">' + esc(o[1]) + '<small>' + esc(o[2]) + '</small></span></div>'; }).join('') + '</div>';
+    } },
+    { key: 'wash', label: '손 씻기', k: '#1C7ED6', ks: '#E3F0FC', html: function () {
+      return '<div class="pg-h"><h1>손을 깨끗이 씻어요</h1><span class="tag">흐르는 물에 비누로 30초</span></div><div class="wash">' +
+        M.handwash.map(function (w, i) { return '<div><div class="hd"><i>' + (i + 1) + '</i><b>' + esc(w[0]) + '</b></div><span>' + esc(w[1]) + '</span></div>'; }).join('') + '</div>';
+    } },
+    { key: 'eat', label: '골고루', k: '#2F9E44', ks: '#E5F6E8', html: function () {
+      return '<div class="pg-h"><h1>골고루 먹어요</h1><p>오늘 식판에는 어떤 식품이 들어 있을까요?</p></div><div class="grp">' +
+        M.groups.map(function (g) {
+          var ds = day.dishes.filter(function (d) { return (d.g || []).indexOf(g.id) >= 0; }).map(function (d) { return d.n; });
+          var none = g.id === 'milk' ? '오늘은 없어요 · 우유 한 컵 더 마셔요' : g.id === 'fat' ? '조금만 들어 있어요' : '오늘은 없어요';
+          return '<div class="' + (ds.length ? 'has' : '') + '" style="--g:' + g.color + ';--g-soft:' + g.soft + '"><div class="gn">' + (ds.length ? '<span class="ck">✓ 오늘</span>' : '') + esc(g.name) + '</div><div class="gd">' + esc(g.does) + ' · ' + esc(g.ex) + '</div>' +
+            '<div class="gt' + (ds.length ? '' : ' none') + '">' + esc(ds.length ? ds.join(' · ') : none) + '</div></div>';
+        }).join('') + '</div><div class="slogan">편식하지 않고 · 꼭꼭 씹어 · 남기지 않아요</div>';
+    } },
+    { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
+      var p = getPhoto();
+      return '<div class="pg-h"><h1>오늘의 식사</h1><p>' + t.m + '월 ' + t.d + '일 점심은 이렇게 나와요</p></div><div class="ph"><div class="fr">' +
+        (p ? '<img src="' + p + '" alt="오늘 점심 식판 사진">' : tray + '<span class="rib">예시 그림 · 영양 선생님이 사진을 올리면 바뀌어요</span>') + '</div>' +
+        '<div><ul>' + day.dishes.map(function (d) { return '<li>' + esc(d.n) + '</li>'; }).join('') + '</ul><div class="kc">' + day.kcal + ' kcal</div><div class="note">배식 전에 영양 선생님이<br>휴대폰으로 찍어 올린 사진이에요</div></div></div>';
+    } },
+    { key: 'week', label: '이번 주 메뉴', k: '#8A5CF6', ks: '#F0EAFE', html: function () {
+      var a = dt(M.days[0].date), b = dt(M.days[M.days.length - 1].date);
+      return '<div class="pg-h"><h1>이번 주 급식</h1><p>' + a.m + '/' + a.d + ' ~ ' + b.m + '/' + b.d + ' · 작은 숫자는 알레르기 번호</p></div><div class="wk">' +
+        M.days.map(function (x) {
+          var w = dt(x.date);
+          return '<section class="' + (x.date === day.date ? 'today' : '') + '"><h2>' + w.w + '<small>' + w.m + '/' + w.d + (x.date === day.date ? ' 오늘' : '') + '</small></h2><ul>' +
+            x.dishes.map(function (d) { return '<li>' + esc(d.n) + (d.a.length ? '<sup>' + d.a.join('.') + '</sup>' : '') + '</li>'; }).join('') + '</ul><div class="kc">' + x.kcal + ' kcal</div></section>';
+        }).join('') + '</div>';
+    } }
+  ];
+
+  var pagesEl = $('#pages'), footEl = $('#foot');
+  pagesEl.innerHTML = PAGES.map(function (p) { return '<section class="pg" style="--k:' + p.k + ';--k-soft:' + p.ks + '" data-k="' + p.key + '">' + p.html() + '</section>'; }).join('');
+  footEl.style.setProperty('--dur', SEC + 's');
+  footEl.innerHTML = PAGES.map(function (p, i) { return '<div class="st"><i></i><span><b>' + (i + 1) + '</b> ' + esc(p.label) + '</span></div>'; }).join('') +
+    '<span class="addr">t.road/tv/' + esc(q.get('s') || M.code) + '</span>';
+  var pgs = pagesEl.children, sts = footEl.querySelectorAll('.st');
+
+  var cur = Math.max(0, Math.min(PAGES.length - 1, (+q.get('p') || 1) - 1)), timer = null, paused = false, startedAt = 0, left = DUR;
+  function show(i) {
+    cur = (i + PAGES.length) % PAGES.length;
+    for (var j = 0; j < pgs.length; j++) {
+      pgs[j].classList.toggle('on', j === cur);
+      sts[j].classList.remove('on', 'paused'); sts[j].classList.toggle('done', j < cur);
+    }
+    void sts[cur].offsetWidth; // 진행 막대 애니메이션을 처음부터 다시
+    sts[cur].classList.add('on'); if (paused) sts[cur].classList.add('paused');
+    left = DUR; schedule();
+  }
+  function schedule() { clearTimeout(timer); if (paused) return; startedAt = Date.now(); timer = setTimeout(function () { show(cur + 1); }, left); }
+  function togglePause() {
+    paused = !paused;
+    if (paused) { clearTimeout(timer); left -= Date.now() - startedAt; } else schedule();
+    sts[cur].classList.toggle('paused', paused);
+    $('#pause').textContent = paused ? '▶ 계속' : '❚❚ 멈춤';
+  }
+  function rerenderPhoto() { var i = PAGES.findIndex(function (p) { return p.key === 'photo'; }); pgs[i].innerHTML = PAGES[i].html(); $('#clr').hidden = !getPhoto(); }
+
+  // 1920×1080 무대를 창에 맞춤
+  function fit() { var s = Math.min(innerWidth / 1920, innerHeight / 1080); $('#stage').style.transform = 'translate(-50%,-50%) scale(' + s + ')'; }
+  addEventListener('resize', fit); fit();
+
+  $('#prev').onclick = function () { show(cur - 1); };
+  $('#next').onclick = function () { show(cur + 1); };
+  $('#pause').onclick = togglePause;
+  $('#fs').onclick = function () { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); };
+  $('#clr').hidden = !getPhoto();
+  $('#clr').onclick = function () { setPhoto(null); rerenderPhoto(); };
+  $('#file').onchange = function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var img = new Image(), url = URL.createObjectURL(f);
+    img.onload = function () {
+      // 저장 공간에 들어가도록 긴 변 1600px JPEG로 줄인다
+      var k = Math.min(1, 1600 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+      var data = cv.toDataURL('image/jpeg', 0.82);
+      setPhoto(data);
+      rerenderPhoto(); show(PAGES.findIndex(function (p) { return p.key === 'photo'; }));
+    };
+    img.src = url; this.value = '';
+  };
+  addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') show(cur + 1);
+    else if (e.key === 'ArrowLeft') show(cur - 1);
+    else if (e.key === ' ') { e.preventDefault(); togglePause(); }
+    else if (e.key === 'f' || e.key === 'F') $('#fs').click();
+  });
+  // 마우스를 3초 안 움직이면 조작 막대와 커서를 숨긴다
+  var idleT; function wake() { document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(function () { document.body.classList.add('idle'); }, 3000); }
+  addEventListener('mousemove', wake); wake();
+
+  show(cur);
+})();
+</script>
+</body>
+</html>
