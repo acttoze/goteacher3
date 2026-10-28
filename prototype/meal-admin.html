@@ -58,6 +58,9 @@
   .sw i::after{content:"";position:absolute;left:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
   .sw input:checked+i{background:var(--primary)}
   .sw input:checked+i::after{left:23px}
+  .sw.lock{cursor:not-allowed;color:var(--muted)}
+  .sw.lock i{background:var(--primary);opacity:.45}
+  .sw.lock i::after{left:23px}
   .toast2{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1B2430;color:#fff;padding:12px 20px;border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;pointer-events:none}
   .toast2.show{opacity:1}
   .drop{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;border:2px dashed var(--line-strong);border-radius:14px;padding:24px;cursor:pointer;background:var(--surface-2);min-height:200px}
@@ -110,7 +113,7 @@
       scr.map(function (c, i) {
         return '<tr data-k="' + c.key + '" class="' + (c.on ? '' : 'off') + '"><td class="keep"><span class="handle" title="끌어서 순서 바꾸기">⋮⋮</span></td><td class="c"><span class="ord">' + (i + 1) + '</span></td><td><b>' + esc(c.name) + '</b></td><td>' + esc(c.what) + '</td><td>' + SRC[c.src] + '</td>' +
           '<td><span class="secw"><button type="button" data-dec="' + c.key + '" aria-label="1초 줄이기">−</button><input type="number" min="' + M.SEC_MIN + '" max="' + M.SEC_MAX + '" value="' + c.sec + '" data-sec="' + c.key + '"><span>초</span><button type="button" data-inc="' + c.key + '" aria-label="1초 늘리기">+</button></span></td>' +
-          '<td class="keep"><label class="sw"><input type="checkbox" data-on="' + c.key + '"' + (c.on ? ' checked' : '') + '><i></i>' + (c.on ? '켜짐' : '꺼짐') + '</label></td></tr>';
+          '<td class="keep">' + (c.lock ? '<span class="sw lock" title="당일 식판 사진은 규정상 매일 게시해야 해서 끌 수 없어요"><i></i>항상 켜짐</span>' : '<label class="sw"><input type="checkbox" data-on="' + c.key + '"' + (c.on ? ' checked' : '') + '><i></i>' + (c.on ? '켜짐' : '꺼짐') + '</label>') + '</td></tr>';
       }).join('') +
       '</tbody></table><p class="small muted" style="margin:12px 0 0">나이스에 식단을 올리면 나머지는 자동입니다. 영양사가 매일 할 일은 <b>식판 사진 한 장</b>뿐입니다. 왼쪽 ⋮⋮를 끌어 순서를 바꾸고, 화면마다 노출 시간(기본 ' + M.SEC + '초, ' + M.SEC_MIN + '~' + M.SEC_MAX + '초)과 표시 여부를 정하면 현황판에 바로 반영됩니다.</p></div></section>' +
 

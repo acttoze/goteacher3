@@ -88,7 +88,7 @@ window.TR = window.TR || {};
     { key: 'origin', name: '원산지', what: '학교 공통 원산지 표시 (학교가 NEIS에 올린 목록 그대로)', src: 'auto' },
     { key: 'hygiene', name: '위생 교육', what: '손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며', src: 'rot' },
     { key: 'eat', name: '골고루 먹어요', what: '식품군(메뉴 이름으로 자동 분류) · 표어(날마다 돌아가며)', src: 'rot' },
-    { key: 'photo', name: '오늘의 식사', what: '그날 식판 사진 (당일 찍은 사진)', src: 'me' },
+    { key: 'photo', name: '오늘의 식사', what: '그날 식판 사진 (당일 찍은 사진)', src: 'me', lock: true }, // 규정상 매일 게시 — 끌 수 없음
     { key: 'week', name: '이번 주 메뉴', what: '월~금 메뉴 · 알레르기 번호 · 칼로리', src: 'auto' }
   ];
   M.SEC = 7; M.SEC_MIN = 3; M.SEC_MAX = 60;
@@ -98,7 +98,7 @@ window.TR = window.TR || {};
     keys.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
     return order.map(function (k) {
       var sc = M.SCREENS[keys.indexOf(k)], sec = +(set.sec || {})[k] || M.SEC;
-      return { key: k, name: sc.name, what: sc.what, src: sc.src, on: !(set.off || {})[k], sec: Math.min(M.SEC_MAX, Math.max(M.SEC_MIN, sec)) };
+      return { key: k, name: sc.name, what: sc.what, src: sc.src, lock: !!sc.lock, on: sc.lock || !(set.off || {})[k], sec: Math.min(M.SEC_MAX, Math.max(M.SEC_MIN, sec)) };
     });
   };
 
