@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>급식 현황판 입력</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .wrap{max-width:1240px;margin:0 auto;padding:28px 36px 64px;display:grid;gap:20px}
+  .top-a{display:flex;align-items:center;gap:12px;padding:14px 36px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .top-a b{font-size:19px}
+  .top-a .grow{flex:1}
+  .card-b{padding:20px 24px}
+  .note{padding:12px 16px;border-radius:10px;background:var(--accent-soft);color:var(--accent-ink);font-size:15px}
+  .src{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:7px;font-size:14px;font-weight:600;white-space:nowrap}
+  .src.auto{background:var(--primary-soft);color:var(--primary)}
+  .src.me{background:var(--meet-soft);color:var(--meet)}
+  .src.mix{background:var(--event-soft);color:var(--event)}
+  table.t{width:100%;border-collapse:collapse;font-size:16px}
+  table.t th{text-align:left;font-weight:600;color:var(--muted);padding:10px 12px;border-bottom:1px solid var(--line-strong);white-space:nowrap;font-size:15px}
+  table.t td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.t td.c,table.t th.c{text-align:center;white-space:nowrap}
+  .ok{color:var(--ok);font-weight:700}
+  .no{color:var(--faint)}
+  .days{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .day{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+  .day.today{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+  .day h3{font-size:16px;padding:10px 14px;background:var(--surface-2);display:flex;justify-content:space-between}
+  .day.today h3{background:var(--primary);color:var(--primary-ink)}
+  .day .pic{aspect-ratio:4/3;background:var(--surface-2);display:grid;place-items:center;color:var(--faint);font-size:15px;overflow:hidden}
+  .day .pic img{width:100%;height:100%;object-fit:cover}
+  .day .act{display:flex;gap:6px;padding:10px;flex-wrap:wrap}
+  .day .act label{cursor:pointer}
+  .day .act input{display:none}
+  .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .opt{border:2px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;display:grid;gap:6px}
+  .opt.on{border-color:var(--primary);background:var(--primary-soft)}
+  .opt input{display:none}
+  .opt b{font-size:17px}
+  .opt ol{margin:0;padding-left:20px;font-size:15px;color:var(--muted)}
+  .gtab td.c input{width:20px;height:20px;accent-color:var(--primary)}
+  .gtab tr.fix td:first-child::after{content:"고침";margin-left:8px;font-size:13px;color:var(--meet);background:var(--meet-soft);padding:1px 7px;border-radius:6px}
+  .base{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .base label{display:grid;gap:4px;font-size:15px;font-weight:600}
+  .base input,.fld2 input{height:42px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface);font-size:16px;width:100%}
+  .fld2{display:grid;gap:6px;font-size:15px;font-weight:600}
+  .toast2{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#1B2430;color:#fff;padding:12px 20px;border-radius:10px;font-size:16px;opacity:0;transition:opacity .25s;pointer-events:none}
+  .toast2.show{opacity:1}
+  h2 .n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--meet);color:#fff;font-size:14px;margin-right:8px}
+</style>
+</head>
+<body>
+<div class="top-a"><img src="assets/logo.svg" width="26" height="26" alt=""><b>티로드</b><span class="muted">· 급식소 현황판 · 영양사 입력</span><span class="grow"></span><b id="sch"></b><a class="btn pri" id="openTv" target="_blank" rel="noopener">현황판 열기 ↗</a></div>
+<main class="wrap" id="m"><p class="muted">NEIS 급식 정보를 불러오고 있어요…</p></main>
+<div class="toast2" id="toast"></div>
+<script src="assets/meal.js"></script>
+<script>
+(function () {
+  var M = TR.meal, q = new URLSearchParams(location.search), S = q.get('s') || M.DEFAULT, FIXED = q.get('date');
+  var root = document.getElementById('m'), data = null, set = M.settings(S);
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function now() { return FIXED ? M.fromYmd(FIXED) : new Date(); }
+  function hm(t) { var d = new Date(t); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  var tt; function toast(m) { var e = document.getElementById('toast'); e.textContent = m; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(function () { e.classList.remove('show'); }, 1800); }
+  function save(msg) { if (!M.saveSettings(S, set)) return toast('저장하지 못했어요 (브라우저 저장 공간이 막혀 있어요)'); toast(msg || '저장했어요 · 현황판에 바로 반영돼요'); }
+  document.getElementById('openTv').href = 'tv.html?s=' + encodeURIComponent(S) + (FIXED ? '&date=' + FIXED : '');
+
+  var PLAN = [
+    ['1 오늘의 메뉴', '메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원', 'auto', '없음'],
+    ['2 알레르기', '19종 가운데 그날 들어간 식품과 해당 메뉴', 'auto', '없음'],
+    ['3 칼로리 · 영양', '칼로리 · 영양 9종 / 우리 학교 기준값(선택)', 'mix', '기준값만 학기 초 1번 (선택)'],
+    ['4 원산지', '학교 공통 원산지 표시 (메뉴별이 아니라 학교가 NEIS에 올린 목록 그대로)', 'auto', '없음'],
+    ['5 위생 교육', '손 씻기 · 기침 예절 · 식중독 예방 중 고르기', 'me', '한 달에 1번'],
+    ['6 골고루 먹어요', '식품군 분류(메뉴 이름으로 자동 어림) · 표어', 'mix', '분류가 틀릴 때만 고침 · 표어는 한 달에 1번'],
+    ['7 오늘의 식사', '그날 식판 사진', 'me', '매일 배식 전'],
+    ['8 이번 주 메뉴', '월~금 메뉴 · 알레르기 번호 · 칼로리', 'auto', '없음']
+  ];
+  var SRC = { auto: '<span class="src auto">NEIS 자동</span>', me: '<span class="src me">영양사 입력</span>', mix: '<span class="src mix">자동 + 영양사</span>' };
+
+  function render() {
+    set = M.settings(S);
+    var today = M.ymd(now()), days = data.days;
+    document.getElementById('sch').textContent = data.name;
+    // 이번 주 메뉴 이름(중복 없이)
+    var names = []; days.forEach(function (d) { var x = data.meals[d]; if (x) x.dishes.forEach(function (m) { if (names.indexOf(m.n) < 0) names.push(m.n); }); });
+
+    root.innerHTML =
+      '<div class="page-h"><div><h1>급식소 현황판</h1><p>' + esc(data.name) + ' · NEIS 교육청 ' + esc(M.split(S).atpt) + ' / 학교 ' + esc(M.split(S).code) + ' · 현황판 주소 <b>t.road/tv/' + esc(S) + '</b></p></div></div>' +
+      '<div class="note">시연용 프로토타입이라 여기서 넣은 값은 <b>이 브라우저에만</b> 저장됩니다. 같은 PC에서 연 현황판에는 바로 반영됩니다. 실제 서비스에서는 티로드 서버에 저장되어 급식소 TV에 바로 뜹니다.</div>' +
+
+      '<section class="card"><div class="card-h"><h2>무엇이 자동이고, 무엇을 입력하나요</h2><span class="small muted">8개 화면 · 7초씩</span></div><div class="card-b"><table class="t"><thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>영양사 할 일</th></tr></thead><tbody>' +
+      PLAN.map(function (p) { return '<tr><td><b>' + p[0] + '</b></td><td>' + esc(p[1]) + '</td><td>' + SRC[p[2]] + '</td><td>' + esc(p[3]) + '</td></tr>'; }).join('') +
+      '</tbody></table><p class="small muted" style="margin:12px 0 0">NEIS 자동 항목은 영양사가 나이스에 식단을 올리면 따로 입력하지 않아도 현황판에 뜹니다. 현황판은 30분마다, 그리고 날짜가 바뀌면 다시 불러옵니다.</p></div></section>' +
+
+      '<section class="card"><div class="card-h"><h2>NEIS에서 받아 온 이번 주 급식</h2><div class="row"><span class="small muted">' + (data.stale ? '연결 안 됨 · ' + hm(data.at) + ' 저장본' : hm(data.at) + ' 불러옴') + '</span><button class="btn sm" id="reload">다시 불러오기</button></div></div><div class="card-b"><table class="t"><thead><tr><th>날짜</th><th>메뉴</th><th class="c">칼로리</th><th class="c">알레르기</th><th class="c">영양</th><th class="c">원산지</th><th class="c">인원</th><th class="c">사진</th></tr></thead><tbody>' +
+      days.map(function (d) {
+        var w = M.label(d), x = data.meals[d], al = {};
+        if (!x) return '<tr><td><b>' + w.m + '/' + w.d + ' ' + w.w + '</b></td><td colspan="7" class="no">NEIS에 식단 없음 (휴업일이거나 아직 안 올라옴)</td></tr>';
+        x.dishes.forEach(function (m) { m.a.forEach(function (n) { al[n] = 1; }); });
+        return '<tr><td><b>' + w.m + '/' + w.d + ' ' + w.w + '</b>' + (d === today ? ' <span class="src auto">오늘</span>' : '') + '</td><td>' + esc(x.dishes.map(function (m) { return m.n; }).join(' · ')) + '</td><td class="c">' + x.kcal + '</td><td class="c">' + Object.keys(al).length + '종</td><td class="c ok">' + x.nutr.length + '종</td><td class="c ok">' + x.origin.length + '종</td><td class="c">' + (x.count || '-') + '</td><td class="c">' + (M.photo(S, d) ? '<span class="ok">✓</span>' : '<span class="no">없음</span>') + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<label class="fld2" style="margin-top:16px;max-width:520px">NEIS 오픈API 인증키 <span class="small muted" style="font-weight:400">선택 · 없으면 한 번에 5건까지(한 주 점심은 충분) · open.neis.go.kr에서 학교가 발급</span><input id="key" value="' + esc(set.key || '') + '" placeholder="비워 두어도 됩니다"></label></div></section>' +
+
+      '<section class="card"><div class="card-h"><h2><span class="n">7</span>오늘의 식사 사진</h2><span class="small muted">매일 배식 전 · 휴대폰으로 찍어 올리기</span></div><div class="card-b"><div class="days">' +
+      days.map(function (d) {
+        var w = M.label(d), p = M.photo(S, d), has = !!data.meals[d];
+        return '<div class="day' + (d === today ? ' today' : '') + '"><h3><span>' + w.w + ' ' + w.m + '/' + w.d + '</span><span>' + (d === today ? '오늘' : '') + '</span></h3><div class="pic">' + (p ? '<img src="' + p + '" alt="">' : has ? '사진 없음' : '급식 없음') + '</div>' +
+          (has ? '<div class="act"><label class="btn sm pri">사진 올리기<input type="file" accept="image/*" capture="environment" data-up="' + d + '"></label>' + (p ? '<button class="btn sm" data-del="' + d + '">지우기</button>' : '') + '</div>' : '') + '</div>';
+      }).join('') + '</div></div></section>' +
+
+      '<section class="card"><div class="card-h"><h2><span class="n">5</span>위생 교육 주제</h2><span class="small muted">한 달에 1번 바꾸기</span></div><div class="card-b"><div class="opts">' +
+      Object.keys(M.hygiene).map(function (k) { var h = M.hygiene[k], on = (set.hygiene || 'wash') === k; return '<label class="opt' + (on ? ' on' : '') + '"><input type="radio" name="hy" value="' + k + '"' + (on ? ' checked' : '') + '><b>' + esc(h.title) + '</b><span class="small muted">' + esc(h.tag) + '</span><ol>' + h.items.map(function (i) { return '<li>' + esc(i[0]) + '</li>'; }).join('') + '</ol></label>'; }).join('') +
+      '</div></div></section>' +
+
+      '<section class="card"><div class="card-h"><h2><span class="n">6</span>골고루 먹어요 · 식품군 분류와 표어</h2><span class="small muted">메뉴 이름으로 자동 어림 · 틀린 칸만 고치세요</span></div><div class="card-b">' +
+      '<label class="fld2" style="margin-bottom:16px">이달의 표어<input id="slogan" value="' + esc(set.slogan || '') + '" placeholder="' + esc(M.SLOGAN) + '"></label>' +
+      '<table class="t gtab"><thead><tr><th>이번 주 메뉴</th>' + M.groups.map(function (g) { return '<th class="c" style="color:' + g.color + '">' + esc(g.name.replace(/ · /g, '·')) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
+      names.map(function (n) {
+        var g = M.groupsOf(n, set), fixed = !!set.groups[n];
+        return '<tr class="' + (fixed ? 'fix' : '') + '"><td>' + esc(n) + '</td>' + M.groups.map(function (x) { return '<td class="c"><input type="checkbox" data-g="' + x.id + '" data-n="' + esc(n) + '"' + (g.indexOf(x.id) >= 0 ? ' checked' : '') + '></td>'; }).join('') +
+          '<td>' + (fixed ? '<button class="btn sm ghost" data-auto="' + esc(n) + '">자동으로</button>' : '') + '</td></tr>';
+      }).join('') + '</tbody></table></div></section>' +
+
+      '<section class="card"><div class="card-h"><h2><span class="n">3</span>영양 기준값 <span class="small muted" style="font-weight:400">(선택)</span></h2><span class="small muted">학기 초 1번 · 비워 두면 기준선 없이 NEIS 수치만 보여요</span></div><div class="card-b">' +
+      '<p class="small muted" style="margin:0 0 14px">학교급식법 시행규칙 「학교급식 영양관리기준」에서 우리 학교 학년 구성에 맞는 한 끼 기준을 넣으세요. 넣으면 칼로리 원과 영양 칸에 기준 대비 %가 나옵니다.</p><div class="base">' +
+      M.NUTR_KEYS.map(function (k) { return '<label>' + k[0] + ' <span class="small muted" style="font-weight:400">' + k[1] + '</span><input type="number" step="any" min="0" data-base="' + k[0] + '" value="' + esc(set.base[k[0]] || '') + '"></label>'; }).join('') +
+      '</div></div></section>';
+
+    bind();
+  }
+
+  function bind() {
+    root.querySelector('#reload').onclick = function () { load(true); };
+    root.querySelector('#key').onchange = function () { set.key = this.value.trim(); save('인증키를 저장했어요'); load(true); };
+    root.querySelectorAll('[data-up]').forEach(function (inp) {
+      inp.onchange = function () {
+        var f = this.files && this.files[0], d = this.dataset.up; if (!f) return;
+        var img = new Image(), url = URL.createObjectURL(f);
+        img.onload = function () {
+          // 저장 공간에 들어가도록 긴 변 1600px JPEG로 줄인다
+          var k = Math.min(1, 1600 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+          cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+          if (M.savePhoto(S, d, cv.toDataURL('image/jpeg', 0.82))) { toast('사진을 올렸어요 · 현황판 7번 화면에 바로 떠요'); render(); }
+          else toast('사진을 저장하지 못했어요 (브라우저 저장 공간 부족)');
+        };
+        img.src = url;
+      };
+    });
+    root.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { M.savePhoto(S, b.dataset.del, null); toast('사진을 지웠어요'); render(); }; });
+    root.querySelectorAll('input[name=hy]').forEach(function (r) { r.onchange = function () { set.hygiene = r.value; save('위생 교육 주제를 바꿨어요'); render(); }; });
+    root.querySelector('#slogan').onchange = function () { set.slogan = this.value.trim(); save('표어를 저장했어요'); };
+    root.querySelectorAll('[data-g]').forEach(function (c) {
+      c.onchange = function () {
+        var n = c.dataset.n, g = M.groupsOf(n, set).slice(), i = g.indexOf(c.dataset.g);
+        if (c.checked && i < 0) g.push(c.dataset.g); if (!c.checked && i >= 0) g.splice(i, 1);
+        set.groups[n] = g; save('“' + n + '” 식품군을 고쳤어요'); render();
+      };
+    });
+    root.querySelectorAll('[data-auto]').forEach(function (b) { b.onclick = function () { delete set.groups[b.dataset.auto]; save('자동 분류로 되돌렸어요'); render(); }; });
+    root.querySelectorAll('[data-base]').forEach(function (i) { i.onchange = function () { var v = parseFloat(i.value); if (v > 0) set.base[i.dataset.base] = v; else delete set.base[i.dataset.base]; save('기준값을 저장했어요'); }; });
+  }
+
+  function load(manual) {
+    M.load(S, q.get('key') || M.settings(S).key, M.monday(now())).then(function (d) { data = d; render(); if (manual) toast(d.stale ? 'NEIS 연결이 안 돼 저장본을 보여 줘요' : 'NEIS에서 다시 불러왔어요'); })
+      .catch(function (e) { root.innerHTML = '<div class="note">NEIS 급식 정보를 불러오지 못했어요: ' + esc(e.message || e) + '</div>'; });
+  }
+  load();
+})();
+</script>
+</body>
+</html>
