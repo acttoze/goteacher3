@@ -1,0 +1,90 @@
+{
+ "section": "Contents/section0.xml",
+ "table_index": 0,
+ "kind": "kv",
+ "header_rows": 0,
+ "label_cols": 1,
+ "total_rows": [],
+ "inputs": [
+  {
+   "row": 0,
+   "col": 5,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "직급",
+   "unit": ""
+  },
+  {
+   "row": 1,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 5,
+   "label": "성명",
+   "unit": ""
+  },
+  {
+   "row": 3,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "직무연수",
+   "unit": ""
+  },
+  {
+   "row": 4,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "도서구입",
+   "unit": ""
+  },
+  {
+   "row": 5,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "학원 및 대학원 학비",
+   "unit": ""
+  },
+  {
+   "row": 6,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "애플리케이션 구입",
+   "unit": ""
+  },
+  {
+   "row": 7,
+   "col": 2,
+   "rowSpan": 1,
+   "colSpan": 2,
+   "label": "합 계 #1",
+   "unit": ""
+  },
+  {
+   "row": 7,
+   "col": 4,
+   "rowSpan": 1,
+   "colSpan": 3,
+   "label": "합 계 #2",
+   "unit": ""
+  },
+  {
+   "row": 8,
+   "col": 1,
+   "rowSpan": 1,
+   "colSpan": 1,
+   "label": "은행명",
+   "unit": ""
+  },
+  {
+   "row": 8,
+   "col": 4,
+   "rowSpan": 1,
+   "colSpan": 3,
+   "label": "계좌번호",
+   "unit": ""
+  }
+ ]
+}
