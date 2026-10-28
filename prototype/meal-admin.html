@@ -69,14 +69,14 @@
   var PLAN = [
     ['1 오늘의 메뉴', '메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원', 'auto', '없음'],
     ['2 알레르기', '19종 가운데 그날 들어간 식품과 해당 메뉴', 'auto', '없음'],
-    ['3 칼로리 · 영양', '칼로리 · 영양 9종 / 우리 학교 기준값(선택)', 'mix', '기준값만 학기 초 1번 (선택)'],
+    ['3 칼로리 · 영양', '칼로리 · 영양 9종 (기준 대비 %는 기준값을 넣었을 때만)', 'auto', '없음 · 기준값은 선택'],
     ['4 원산지', '학교 공통 원산지 표시 (메뉴별이 아니라 학교가 NEIS에 올린 목록 그대로)', 'auto', '없음'],
-    ['5 위생 교육', '손 씻기 · 기침 예절 · 식중독 예방 중 고르기', 'me', '한 달에 1번'],
-    ['6 골고루 먹어요', '식품군 분류(메뉴 이름으로 자동 어림) · 표어', 'mix', '분류가 틀릴 때만 고침 · 표어는 한 달에 1번'],
-    ['7 오늘의 식사', '그날 식판 사진', 'me', '매일 배식 전'],
+    ['5 위생 교육', '손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며', 'rot', '없음 · 고정하고 싶을 때만'],
+    ['6 골고루 먹어요', '식품군(메뉴 이름으로 자동 분류) · 표어(7가지가 날마다 돌아가며)', 'rot', '없음 · 분류가 틀릴 때만 고침'],
+    ['7 오늘의 식사', '그날 식판 사진 · 안 올린 날은 이 화면을 건너뛰고 7개 화면만 돌아요', 'me', '선택 · 올리면 좋아요'],
     ['8 이번 주 메뉴', '월~금 메뉴 · 알레르기 번호 · 칼로리', 'auto', '없음']
   ];
-  var SRC = { auto: '<span class="src auto">NEIS 자동</span>', me: '<span class="src me">영양사 입력</span>', mix: '<span class="src mix">자동 + 영양사</span>' };
+  var SRC = { auto: '<span class="src auto">NEIS 자동</span>', me: '<span class="src me">영양사 입력</span>', mix: '<span class="src mix">자동 + 영양사</span>', rot: '<span class="src auto">자동 순환</span>' };
 
   function render() {
     set = M.settings(S);
@@ -89,9 +89,9 @@
       '<div class="page-h"><div><h1>급식소 현황판</h1><p>' + esc(data.name) + ' · NEIS 교육청 ' + esc(M.split(S).atpt) + ' / 학교 ' + esc(M.split(S).code) + ' · 현황판 주소 <b>t.road/tv/' + esc(S) + '</b></p></div></div>' +
       '<div class="note">시연용 프로토타입이라 여기서 넣은 값은 <b>이 브라우저에만</b> 저장됩니다. 같은 PC에서 연 현황판에는 바로 반영됩니다. 실제 서비스에서는 티로드 서버에 저장되어 급식소 TV에 바로 뜹니다.</div>' +
 
-      '<section class="card"><div class="card-h"><h2>무엇이 자동이고, 무엇을 입력하나요</h2><span class="small muted">8개 화면 · 7초씩</span></div><div class="card-b"><table class="t"><thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>영양사 할 일</th></tr></thead><tbody>' +
+      '<section class="card"><div class="card-h"><h2>무엇이 자동이고, 무엇을 입력하나요</h2><span class="small muted">8개 화면(사진 없는 날 7개) · 7초씩</span></div><div class="card-b"><table class="t"><thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>영양사 할 일</th></tr></thead><tbody>' +
       PLAN.map(function (p) { return '<tr><td><b>' + p[0] + '</b></td><td>' + esc(p[1]) + '</td><td>' + SRC[p[2]] + '</td><td>' + esc(p[3]) + '</td></tr>'; }).join('') +
-      '</tbody></table><p class="small muted" style="margin:12px 0 0">NEIS 자동 항목은 영양사가 나이스에 식단을 올리면 따로 입력하지 않아도 현황판에 뜹니다. 현황판은 30분마다, 그리고 날짜가 바뀌면 다시 불러옵니다.</p></div></section>' +
+      '</tbody></table><p class="small muted" style="margin:12px 0 0">영양사가 나이스에 식단만 올리면 <b>따로 입력할 것은 없습니다.</b> 아래 입력은 모두 선택입니다. 현황판은 30분마다, 그리고 날짜가 바뀌면 다시 불러옵니다.</p></div></section>' +
 
       '<section class="card"><div class="card-h"><h2>NEIS에서 받아 온 이번 주 급식</h2><div class="row"><span class="small muted">' + (data.stale ? '연결 안 됨 · ' + hm(data.at) + ' 저장본' : hm(data.at) + ' 불러옴') + '</span><button class="btn sm" id="reload">다시 불러오기</button></div></div><div class="card-b"><table class="t"><thead><tr><th>날짜</th><th>메뉴</th><th class="c">칼로리</th><th class="c">알레르기</th><th class="c">영양</th><th class="c">원산지</th><th class="c">인원</th><th class="c">사진</th></tr></thead><tbody>' +
       days.map(function (d) {
@@ -102,19 +102,20 @@
       }).join('') + '</tbody></table>' +
       '<label class="fld2" style="margin-top:16px;max-width:520px">NEIS 오픈API 인증키 <span class="small muted" style="font-weight:400">선택 · 없으면 한 번에 5건까지(한 주 점심은 충분) · open.neis.go.kr에서 학교가 발급</span><input id="key" value="' + esc(set.key || '') + '" placeholder="비워 두어도 됩니다"></label></div></section>' +
 
-      '<section class="card"><div class="card-h"><h2><span class="n">7</span>오늘의 식사 사진</h2><span class="small muted">매일 배식 전 · 휴대폰으로 찍어 올리기</span></div><div class="card-b"><div class="days">' +
+      '<section class="card"><div class="card-h"><h2><span class="n">7</span>오늘의 식사 사진 <span class="small muted" style="font-weight:400">(선택)</span></h2><span class="small muted">휴대폰으로 찍어 올리기 · 안 올린 날은 현황판에서 이 화면을 건너뜀</span></div><div class="card-b"><div class="days">' +
       days.map(function (d) {
         var w = M.label(d), p = M.photo(S, d), has = !!data.meals[d];
         return '<div class="day' + (d === today ? ' today' : '') + '"><h3><span>' + w.w + ' ' + w.m + '/' + w.d + '</span><span>' + (d === today ? '오늘' : '') + '</span></h3><div class="pic">' + (p ? '<img src="' + p + '" alt="">' : has ? '사진 없음' : '급식 없음') + '</div>' +
           (has ? '<div class="act"><label class="btn sm pri">사진 올리기<input type="file" accept="image/*" capture="environment" data-up="' + d + '"></label>' + (p ? '<button class="btn sm" data-del="' + d + '">지우기</button>' : '') + '</div>' : '') + '</div>';
       }).join('') + '</div></div></section>' +
 
-      '<section class="card"><div class="card-h"><h2><span class="n">5</span>위생 교육 주제</h2><span class="small muted">한 달에 1번 바꾸기</span></div><div class="card-b"><div class="opts">' +
-      Object.keys(M.hygiene).map(function (k) { var h = M.hygiene[k], on = (set.hygiene || 'wash') === k; return '<label class="opt' + (on ? ' on' : '') + '"><input type="radio" name="hy" value="' + k + '"' + (on ? ' checked' : '') + '><b>' + esc(h.title) + '</b><span class="small muted">' + esc(h.tag) + '</span><ol>' + h.items.map(function (i) { return '<li>' + esc(i[0]) + '</li>'; }).join('') + '</ol></label>'; }).join('') +
+      '<section class="card"><div class="card-h"><h2><span class="n">5</span>위생 교육 주제</h2><span class="small muted">기본은 자동 · 오늘은 “' + esc(M.hygiene[M.hygieneOf(today, {})].title) + '”</span></div><div class="card-b"><div class="opts">' +
+      '<label class="opt' + (M.hygiene[set.hygiene] ? '' : ' on') + '"><input type="radio" name="hy" value=""' + (M.hygiene[set.hygiene] ? '' : ' checked') + '><b>자동 (날마다 바뀜)</b><span class="small muted">추천 · 다섯 주제가 하루씩 돌아가요</span><ol>' + Object.keys(M.hygiene).map(function (k) { return '<li>' + esc(M.hygiene[k].name) + '</li>'; }).join('') + '</ol></label>' +
+      Object.keys(M.hygiene).map(function (k) { var h = M.hygiene[k], on = set.hygiene === k; return '<label class="opt' + (on ? ' on' : '') + '"><input type="radio" name="hy" value="' + k + '"' + (on ? ' checked' : '') + '><b>' + esc(h.title) + '</b><span class="small muted">' + esc(h.tag) + '</span><ol>' + h.items.map(function (i) { return '<li>' + esc(i[0]) + '</li>'; }).join('') + '</ol></label>'; }).join('') +
       '</div></div></section>' +
 
       '<section class="card"><div class="card-h"><h2><span class="n">6</span>골고루 먹어요 · 식품군 분류와 표어</h2><span class="small muted">메뉴 이름으로 자동 어림 · 틀린 칸만 고치세요</span></div><div class="card-b">' +
-      '<label class="fld2" style="margin-bottom:16px">이달의 표어<input id="slogan" value="' + esc(set.slogan || '') + '" placeholder="' + esc(M.SLOGAN) + '"></label>' +
+      '<label class="fld2" style="margin-bottom:16px">표어 고정 <span class="small muted" style="font-weight:400">비워 두면 7가지가 날마다 돌아가요 · 오늘은 “' + esc(M.sloganOf(today, {})) + '”</span><input id="slogan" value="' + esc(set.slogan || '') + '" placeholder="비워 두면 자동"></label>' +
       '<table class="t gtab"><thead><tr><th>이번 주 메뉴</th>' + M.groups.map(function (g) { return '<th class="c" style="color:' + g.color + '">' + esc(g.name.replace(/ · /g, '·')) + '</th>'; }).join('') + '<th></th></tr></thead><tbody>' +
       names.map(function (n) {
         var g = M.groupsOf(n, set), fixed = !!set.groups[n];
@@ -149,8 +150,8 @@
       };
     });
     root.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { M.savePhoto(S, b.dataset.del, null); toast('사진을 지웠어요'); render(); }; });
-    root.querySelectorAll('input[name=hy]').forEach(function (r) { r.onchange = function () { set.hygiene = r.value; save('위생 교육 주제를 바꿨어요'); render(); }; });
-    root.querySelector('#slogan').onchange = function () { set.slogan = this.value.trim(); save('표어를 저장했어요'); };
+    root.querySelectorAll('input[name=hy]').forEach(function (r) { r.onchange = function () { if (r.value) set.hygiene = r.value; else delete set.hygiene; save(r.value ? '위생 교육 주제를 고정했어요' : '위생 교육 주제를 자동으로 돌려요'); render(); }; });
+    root.querySelector('#slogan').onchange = function () { set.slogan = this.value.trim(); save(set.slogan ? '표어를 고정했어요' : '표어를 자동으로 돌려요'); };
     root.querySelectorAll('[data-g]').forEach(function (c) {
       c.onchange = function () {
         var n = c.dataset.n, g = M.groupsOf(n, set).slice(), i = g.indexOf(c.dataset.g);

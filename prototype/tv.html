@@ -194,7 +194,7 @@
     var used = {};
     if (meal) meal.dishes.forEach(function (d) { d.a.forEach(function (n) { (used[n] = used[n] || []).push(d.n); }); });
     var usedN = Object.keys(used).length;
-    var hy = M.hygiene[set.hygiene] || M.hygiene.wash;
+    var hy = M.hygiene[M.hygieneOf(today, set)];
     var base = set.base || {};
 
     return [
@@ -238,7 +238,7 @@
           hy.items.map(function (w, i) { return '<div><div class="hd"><i>' + (i + 1) + '</i><b>' + esc(w[0]) + '</b></div><span>' + esc(w[1]) + '</span></div>'; }).join('') + '</div>';
       } },
       { key: 'eat', label: '골고루', k: '#2F9E44', ks: '#E5F6E8', html: function () {
-        var slogan = '<div class="slogan">' + esc(set.slogan || M.SLOGAN) + '</div>';
+        var slogan = '<div class="slogan">' + esc(M.sloganOf(today, set)) + '</div>';
         if (!meal) return '<div class="pg-h"><h1>골고루 먹어요</h1></div>' + none;
         return '<div class="pg-h"><h1>골고루 먹어요</h1><p>' + when + ' 식판에는 어떤 식품이 들어 있을까요?</p></div><div class="grp">' +
           M.groups.map(function (g) {
@@ -248,7 +248,7 @@
               '<div class="gt' + (ds.length ? '' : ' none') + '">' + esc(ds.length ? ds.join(' · ') : nothing) + '</div></div>';
           }).join('') + '</div>' + slogan;
       } },
-      { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
+      { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', skip: !(meal && M.photo(S, dy)), html: function () {
         if (!meal) return '<div class="pg-h"><h1>오늘의 식사</h1></div>' + none;
         var p = M.photo(S, dy), n = meal.dishes.length, fs = n <= 6 ? 54 : n <= 7 ? 48 : 42;
         return '<div class="pg-h"><h1>' + (isToday ? '오늘의 식사' : '다음 급식') + '</h1><p>' + t.m + '월 ' + t.d + '일 점심은 이렇게 나와요</p></div><div class="ph"><div class="fr">' +
@@ -264,11 +264,11 @@
               (x ? '<ul>' + x.dishes.map(function (m) { return '<li>' + esc(m.n) + (m.a.length ? '<sup>' + m.a.join('.') + '</sup>' : '') + '</li>'; }).join('') + '</ul><div class="kc">' + x.kcal + ' kcal</div>' : '<div class="no">급식 없음</div>') + '</section>';
           }).join('') + '</div>';
       } }
-    ];
+    ].filter(function (p) { return !p.skip; }); // 식판 사진이 없는 날은 7개 화면만 돈다
   }
 
   var pagesEl = $('#pages'), footEl = $('#foot'), PAGES = [], pgs = [], sts = [];
-  var cur = Math.max(0, Math.min(7, (+q.get('p') || 1) - 1)), timer = null, paused = false, startedAt = 0, left = DUR;
+  var cur = Math.max(0, (+q.get('p') || 1) - 1), timer = null, paused = false, startedAt = 0, left = DUR;
 
   function render() {
     set = M.settings(S);
