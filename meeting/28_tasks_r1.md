@@ -25,7 +25,7 @@
 | ID | 작업 | 크기 | 선행 | 끝났다는 기준 |
 |---|---|---|---|---|
 | A1 | 서버 → **확인(10/29)**: 기존 OCI 춘천 `ap-chuncheon-1` 무료 A1(2 OCPU·12GB, 여유 메모리 7.6GB·디스크 84GB), Traefik이 80·443 담당, 컨테이너 29개 공용. 베타는 여기서, 학교판 전에는 무료 등급 남은 몫(A1 2 OCPU·12GB)으로 **전용 인스턴스 분리** 권장 | 0 | — | 완료 |
-| A2 🙋 | **구글 OAuth**(acttoze@gmail.com): ① 사용자가 `gcloud auth login acttoze@gmail.com` → ② Claude가 프로젝트 생성 → ③ OAuth 동의 화면·웹 클라이언트는 **콘솔에서만** 만들 수 있음(개인 계정은 CLI·API로 못 만듦) → 사용자 5분 또는 Chrome 확장 연결 시 Claude가 진행. 리디렉션 URI `https://t.goteacher.xyz/auth/google/callback` | 0.5 | A6 | 테스트 사용자로 로그인 됨 |
+| A2 🙋 | **구글 OAuth**: 프로젝트 `troad-goteacher`(번호 332556525711, landmandev@gmail.com) **생성 완료**(Claude, 10/29). 남은 일(콘솔 전용): ① 동의 화면(외부, 앱 이름 '티로드') ② 웹 클라이언트(원본 `https://t.goteacher.xyz`, 리디렉션 `https://t.goteacher.xyz/auth/google/callback` + localhost:8000 개발용) ③ 범위는 openid·email·profile만 → 확인 심사 없이 '프로덕션'으로 게시 가능 | 0.5 | — | 클라이언트 ID·보안 비밀 JSON 확보 |
 | A3 | 도메인 → **완료**: `*.goteacher.xyz` 와일드카드가 이미 OCI 서버(168.107.34.70)를 가리킴. `t.goteacher.xyz` 바로 사용 | 0 | — | 완료 |
 | A4 ★ | **현장 실측** | 0.5 | — | **완료**(2026-10-29, 김해봉황초 1곳으로 갈음, `research/05_field_check.md`) |
 | A5 | 저장소 구조: `app/`(Django) · `hwp/`(POC 패키지화) · `web/static/`(프로토타입 CSS·JS) · `ops/`(배포) | 0.5 | — | `manage.py runserver`가 뜸 |
