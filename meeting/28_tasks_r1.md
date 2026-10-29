@@ -24,9 +24,9 @@
 
 | ID | 작업 | 크기 | 선행 | 끝났다는 기준 |
 |---|---|---|---|---|
-| A1 🙋 | 오라클 클라우드 계정·리전 → **결정: OCI 춘천, 계정 acttoze**. 남은 일: 무료 등급(Ampere A1) 쓸 수 있는지, 인스턴스 크기 | 0.5 | — | 인스턴스 크기 결정 |
-| A2 🙋 | **구글 OAuth만**(결정): Google Cloud 콘솔 OAuth 동의 화면·클라이언트 등록, 앱 확인 신청 — 서비스 이름·로고·처리방침 주소 필요 | 0.5 | A6 A3 | 테스트 사용자로 로그인 됨, 확인 신청 완료 |
-| A3 🙋 | 도메인 → **결정: 기존 goteacher.xyz**(구버전 운영 중). 동학년판은 `t.goteacher.xyz` 하위 도메인으로 DNS 추가(가정) | 0.5 | — | `t.goteacher.xyz`가 OCI 서버를 가리킴 |
+| A1 | 서버 → **확인(10/29)**: 기존 OCI 춘천 `ap-chuncheon-1` 무료 A1(2 OCPU·12GB, 여유 메모리 7.6GB·디스크 84GB), Traefik이 80·443 담당, 컨테이너 29개 공용. 베타는 여기서, 학교판 전에는 무료 등급 남은 몫(A1 2 OCPU·12GB)으로 **전용 인스턴스 분리** 권장 | 0 | — | 완료 |
+| A2 🙋 | **구글 OAuth**(acttoze@gmail.com): ① 사용자가 `gcloud auth login acttoze@gmail.com` → ② Claude가 프로젝트 생성 → ③ OAuth 동의 화면·웹 클라이언트는 **콘솔에서만** 만들 수 있음(개인 계정은 CLI·API로 못 만듦) → 사용자 5분 또는 Chrome 확장 연결 시 Claude가 진행. 리디렉션 URI `https://t.goteacher.xyz/auth/google/callback` | 0.5 | A6 | 테스트 사용자로 로그인 됨 |
+| A3 | 도메인 → **완료**: `*.goteacher.xyz` 와일드카드가 이미 OCI 서버(168.107.34.70)를 가리킴. `t.goteacher.xyz` 바로 사용 | 0 | — | 완료 |
 | A4 ★ | **현장 실측** | 0.5 | — | **완료**(2026-10-29, 김해봉황초 1곳으로 갈음, `research/05_field_check.md`) |
 | A5 | 저장소 구조: `app/`(Django) · `hwp/`(POC 패키지화) · `web/static/`(프로토타입 CSS·JS) · `ops/`(배포) | 0.5 | — | `manage.py runserver`가 뜸 |
 | A6 | 개인정보 처리방침·이용약관 초안(교직원 이름·학교·반, OAuth 식별자만 수집, 학생 정보 수집 안 함) | 0.5 | — | 공개 주소에 게시 |
@@ -36,7 +36,7 @@
 
 | ID | 작업 | 크기 | 선행 | 끝났다는 기준 |
 |---|---|---|---|---|
-| B1 ★ | OCI 서버 구성: 앱 서버(gunicorn+nginx), PostgreSQL 16, Redis, Object Storage 버킷(암호화), HTTPS | 1 | A1 A3 | 스테이징 주소에서 "hello" |
+| B1 ★ | 배포: docker compose(앱 gunicorn · 작업 큐 · PostgreSQL 17 · Redis) + **Traefik 라벨 `Host(t.goteacher.xyz)`**로 HTTPS, OCI Object Storage 버킷(암호화) | 0.5 | A5 | `https://t.goteacher.xyz`에서 "hello" |
 | B2 | CI: 테스트·린트·배포(main 푸시 → 스테이징), 백업(DB 매일, 7일 보관) | 0.5 | B1 | 푸시하면 3분 안에 스테이징 반영 |
 | B3 ★ | 모델: School · Space(grade) · Member, **공간 격리 미들웨어**(모든 조회에 space 필터) | 1 | A5 | 다른 공간 접근 테스트가 CI에서 실패 없이 돎 |
 | B4 ★ | **구글 로그인** + **기기 토큰**(쿠키 + localStorage, 1년) | 1 | B3 A2 | 구글로 로그인, 브라우저를 닫았다 열어도 유지. 앱 확인 전에는 테스트 사용자로 |
