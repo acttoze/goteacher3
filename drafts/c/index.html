@@ -3,575 +3,708 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>고티처 동학년판</title>
-<meta name="description" content="쓰던 한글 양식 그대로 동학년 취합을 걷고 돌려받는 무료 교사 업무 도구. 베타 11월 30일, 정식 12월 14일.">
-<link rel="stylesheet" href="c.css">
+<title>고티처 — 동학년이 한 양식을 동시에</title>
+<meta name="description" content="고티처는 동학년 취합 도구입니다. 한글 양식을 올리고 링크 하나를 보내면 다섯 반이 한 표를 동시에 채우고, 그 양식 그대로 돌려받습니다.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css">
+<link rel="stylesheet" href="shared.css">
 <style>
+  /* ---------- 페이지 토큰: 크기 다섯 단계 ---------- */
   :root {
     --step-small: 15px;
-    --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
-    --step-lead: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
-    --step-head: clamp(2rem, 1.3rem + 2.4vw, 3.25rem);
-    --step-display: clamp(2.5rem, 1.2rem + 4vw, 4.5rem);
-    --m: clamp(16px, 3.4vw, 48px);
+    --step-body: clamp(17px, 16px + .2vw, 19px);
+    --step-lead: clamp(21px, 18px + .6vw, 26px);
+    --step-head: clamp(40px, 22px + 4vw, 92px);
+    --step-display: clamp(54px, 9.2vw, 150px);
+    --margin: clamp(20px, 3.4vw, 56px);
     --gap: 24px;
+    --section: clamp(112px, 12vw, 200px);
   }
-  html { background: var(--bg); scroll-behavior: smooth; }
-  body { background: var(--bg); color: var(--ink); font-size: var(--step-body); line-height: 1.55; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--step-body)/1.55 var(--font); -webkit-font-smoothing: antialiased; word-break: keep-all; overflow-wrap: break-word; }
   a { color: inherit; }
-  h1, h2, h3 { font-weight: 650; letter-spacing: -0.035em; line-height: 1.08; margin: 0; }
-  p { margin: 0; }
-  .wrap { padding-left: var(--m); padding-right: var(--m); }
+  .wrap { padding: 0 var(--margin); }
   .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
-  .bt { display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 24px; border: 0; border-radius: 6px;
-    background: var(--brass); color: var(--ink); font-size: 17px; font-weight: 600; text-decoration: none; cursor: pointer;
-    transition: transform .12s ease, background-color .15s ease; }
-  .bt:hover { background: #ada112; }
-  .bt:active { transform: translateY(1px); }
-  .lk { font-weight: 500; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1.5px; transition: color .15s ease; }
-  .lk:hover { color: var(--soft); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  h1, h2, h3 { margin: 0; font-weight: 800; letter-spacing: -0.035em; }
+  p { margin: 0; }
 
-  /* 상단 막대 */
-  .top { display: flex; align-items: center; gap: 32px; height: 76px; }
-  .word { font-weight: 700; font-size: 22px; letter-spacing: -0.04em; text-decoration: none; }
-  .top nav { display: flex; gap: 28px; margin-left: auto; font-size: var(--step-small); }
-  .top nav a { text-decoration: none; color: var(--soft); transition: color .15s ease; }
-  .top nav a:hover { color: var(--ink); }
-  .top .bt { height: 44px; font-size: 15px; padding: 0 18px; }
+  /* ---------- 버튼: 한 가지 모양(알약) ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 26px; border-radius: 999px; border: 0;
+    background: var(--accent); color: #fff; font: 700 17px/1 var(--font); text-decoration: none; cursor: pointer;
+    transition: transform .15s var(--ease), background-color .15s var(--ease); }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:active { transform: scale(.97); }
+  .btn.ink { background: var(--ink); }
+  .btn.ink:hover { background: #2a2a2a; }
+  .btn.paper { background: #fff; color: var(--ink); }
+  .btn.paper:hover { background: var(--accent-soft); }
+  .tlink { font-weight: 700; text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 2px; transition: color .15s; }
+  .tlink:hover { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
-  /* 히어로 */
-  .hero { padding-top: clamp(24px, 4vw, 56px); padding-bottom: 140px; align-items: start; }
-  .hero-t { grid-column: 1 / span 5; padding-top: 12px; }
-  .hero h1 { font-size: var(--step-display); }
-  .hero h1 .ln { display: block; overflow: hidden; padding-bottom: .06em; }
-  .hero h1 .ln > span { display: block; }
-  .hero .sub { margin-top: 36px; font-size: var(--step-lead); line-height: 1.5; max-width: 30em; }
-  .hero .acts { margin-top: 36px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
-  .hero .facts { margin-top: 28px; color: var(--soft); font-size: var(--step-small); }
-  .hero-f { grid-column: 6 / span 7; }
+  /* ---------- 상단 ---------- */
+  .top { display: flex; align-items: center; justify-content: space-between; height: 80px; }
+  .mark { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; letter-spacing: -0.03em; text-decoration: none; }
+  .mark svg { display: block; }
+  .top nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 36px); font-size: var(--step-small); font-weight: 600; }
+  .top nav a:not(.btn) { text-decoration: none; transition: color .15s; }
+  .top nav a:not(.btn):hover { color: var(--accent); }
+  .top .btn { height: 44px; padding: 0 20px; font-size: 15px; }
 
-  /* 히어로 조각: 모으기 */
-  .mo { overflow: hidden; }
-  .mo .bar-h { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .mo .bar-h b { font-size: 17px; font-weight: 600; }
-  .mo .bar-h .meta { margin-left: auto; font-size: 15px; color: var(--muted); }
-  .drop { margin: 16px 20px 4px; border: 1.5px dashed var(--control); border-radius: 8px; padding: 12px 14px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 12px; align-items: center; background: #fbfbf9; } /* taste-skill-ignore: data-ui 조각 안쪽 */ /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .drop textarea { grid-column: 1 / -1; width: 100%; min-height: 44px; height: 44px; resize: none; border: 1px solid var(--control); border-radius: 6px; padding: 10px 12px; font: inherit; font-size: 15px; background: #fff; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .drop textarea::placeholder { color: var(--muted); }
-  .drop .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .drop .hint { font-size: 15px; color: var(--muted); grid-column: 1 / -1; }
-  .drop label { font-size: 16px; font-weight: 600; }
-  .sheet { padding: 4px 20px 0; overflow-x: auto; }
-  .sheet table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 16px; }
-  .sheet th { font-size: 13px; font-weight: 400; color: var(--muted); text-align: left; height: 36px; border-bottom: 1px solid var(--border); padding: 0 10px; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .sheet td { height: 48px; border-bottom: 1px solid var(--rule); padding: 0 10px; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .sheet th:first-child, .sheet td:first-child { padding-left: 0; }
-  .sheet .r { text-align: right; font-variant-numeric: tabular-nums; }
-  .sheet tr.arrive td { animation: arrive .5s cubic-bezier(.2,.7,.2,1) both; }
-  .sheet tfoot td { font-weight: 600; border-bottom: 0; }
-  @keyframes arrive { from { background: var(--data-soft); } to { background: transparent; } }
-  .mo .foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px 20px; }
-  .mo .prog { display: grid; gap: 6px; font-size: 16px; }
-  .mo .prog .cnt { display: flex; justify-content: space-between; }
-  .mo .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-  .out { margin: 0 20px 20px; padding: 14px 16px; border-radius: 6px; background: var(--raised); font-size: 16px; line-height: 1.55; display: none; }
-  .out.on { display: block; }
-  .file { display: inline-flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 6px 8px 0 0; border: 1px solid var(--border); border-radius: 6px; background: #fff; font-size: 16px; } /* taste-skill-ignore: data-ui 조각 안쪽 */ /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .file i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 4px; background: #e6eef9; color: #1d4f9b; font-style: normal; font-size: 12px; font-weight: 700; }
+  /* ---------- 히어로: 문장이 레이아웃, 슬롯이 '다섯 명' ---------- */
+  .hero { padding-top: clamp(24px, 4vh, 56px); }
+  .hero h1 { font-size: var(--step-display); line-height: .98; letter-spacing: -0.045em; }
+  .hero h1 .ln { display: flex; align-items: baseline; gap: .22em; white-space: nowrap; }
+  .slot { display: inline-flex; align-items: center; height: .82em; width: 2.7em; padding: 0 .14em; border-radius: .2em; background: var(--accent-soft);
+    align-self: center; transform: translateY(.04em); position: relative; overflow: hidden; }
+  .slot { width: 2.62em; justify-content: center; }
+  .slot i { width: .54em; height: .54em; border-radius: 50%; margin-left: -.1em; border: .04em solid var(--accent-soft); flex: none;
+    display: grid; place-items: center; font-style: normal; color: #fff; letter-spacing: 0; animation: bob 2.4s var(--ease) infinite; }
+  .slot i:first-child { margin-left: 0; }
+  .slot i span { font-size: .22em; font-weight: 800; line-height: 1; }
+  .slot i:nth-child(2) { animation-delay: .2s; } .slot i:nth-child(3) { animation-delay: .4s; } .slot i:nth-child(4) { animation-delay: .6s; } .slot i:nth-child(5) { animation-delay: .8s; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.05em); } }
+  .hero-row { margin-top: clamp(28px, 4vh, 48px); align-items: start; }
+  .hero-copy { grid-column: 1 / span 4; display: flex; flex-direction: column; gap: 24px; padding-top: 6px; }
+  .hero-copy .lead { font-size: var(--step-lead); line-height: 1.45; font-weight: 500; letter-spacing: -0.01em; }
+  .hero-copy .acts { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .hero-copy .facts { font-size: var(--step-small); color: var(--muted); }
+  .hero-ui { grid-column: 5 / span 8; }
 
-  /* 섹션 공통 */
-  .sec { padding-top: 200px; }
-  .sec h2 { font-size: var(--step-head); }
+  /* ---------- 라이브 표(제품 조각) ---------- */
+  .sheet { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 16px; overflow: visible; } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .sheet-h { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: 1px solid var(--line); } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .sheet-h .t { font-weight: 700; font-size: 17px; }
+  .sheet-h .meta { color: var(--muted); font-size: 15px; }
+  .sheet-h .stack { margin-left: auto; }
+  .stack { display: inline-flex; align-items: center; }
+  .av { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font: 800 13px/1 var(--font); border: 2px solid #fff; margin-left: -8px; flex: none; }
+  .av:first-child { margin-left: 0; }
+  .av.ink-t { color: var(--ink); }
+  .av.off { background: var(--surface) !important; color: var(--muted); }
+  table.live { width: 100%; border-collapse: collapse; font-size: 17px; font-variant-numeric: tabular-nums; }
+  table.live th { text-align: left; font-weight: 600; font-size: 15px; color: var(--muted); padding: 12px 20px 8px; }
+  table.live td { padding: 0 20px; height: 52px; border-top: 1px solid var(--line); position: relative; }
+  table.live .r { text-align: right; }
+  table.live td.cell { width: 18%; }
+  .cell .v { display: block; text-align: right; min-height: 1em; }
+  .cell input { width: 100%; height: 38px; border: 0; border-radius: 8px; background: transparent; text-align: right; font: 600 17px/1 var(--font);
+    font-variant-numeric: tabular-nums; color: var(--ink); padding: 0 10px; }
+  .cell input::placeholder { color: #9aa0aa; font-weight: 500; }
+  .cell input:hover { background: var(--surface); }
+  .cell input:focus { outline: 2px solid var(--accent); background: #fff; }
+  td.cell.editing { box-shadow: inset 0 0 0 2px var(--who); } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .tag { position: absolute; top: -11px; right: 8px; font: 700 13px/1 var(--font); color: #fff; background: var(--who); padding: 4px 6px; border-radius: 6px; white-space: nowrap; }
+  .st { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; color: var(--muted); }
+  .st.done { color: var(--positive); }
+  .st.done::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  tr.just td { animation: flash 1s var(--ease); }
+  @keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+  .sheet-f { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--line); flex-wrap: wrap; } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .prog { display: flex; align-items: center; gap: 12px; flex: 1 1 220px; }
+  .bar { flex: 1; height: 8px; border-radius: 999px; background: var(--accent-track); overflow: hidden; }
+  .bar b { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .6s var(--ease); }
+  .prog .n { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mini { height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--surface); font: 600 15px/1 var(--font); color: var(--ink); cursor: pointer; transition: background-color .15s, transform .15s; }
+  .mini:hover { background: var(--accent-soft); }
+  .mini:active { transform: scale(.97); }
+  .mini.pri { background: var(--ink); color: #fff; }
+  .mini.pri:hover { background: #2a2a2a; }
+  /* 커서 */
+  .cursor { position: absolute; left: 0; top: 0; z-index: 5; pointer-events: none; transition: transform 1.1s cubic-bezier(.5, 0, .2, 1); will-change: transform; }
+  .cursor svg { display: block; }
+  .cursor .nm { position: absolute; left: 14px; top: 14px; font: 700 13px/1 var(--font); color: #fff; background: var(--who); padding: 5px 8px; border-radius: 8px; white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(13, 13, 13, .14); } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .cursor.ink-t .nm { color: var(--ink); }
 
-  /* 한 반의 제출, 세 순간 */
-  .states h2 { grid-column: 4 / span 6; margin-bottom: 96px; }
-  .st { display: contents; }
-  .st .w { grid-column: 1 / span 3; text-align: right; font-size: var(--step-lead); color: var(--soft); align-self: center; }
-  .st .c { grid-column: 4 / span 6; }
-  .st + .st .w, .st + .st .c { margin-top: 56px; }
-  .states .note { grid-column: 10 / span 3; grid-row: 3; align-self: center; font-size: var(--step-body); }
-  .rowc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px; }
-  .rowc .t { font-weight: 600; font-size: 17px; }
-  .rowc .s { font-size: 15px; color: var(--muted); }
-  .rowc .acts { display: flex; gap: 8px; align-items: center; }
-  .rowc.hov { outline: 2px solid var(--ink); outline-offset: -1px; }
-  .rowc .vals { display: flex; gap: 16px; font-size: 16px; font-variant-numeric: tabular-nums; }
+  section { scroll-margin-top: 24px; }
+  .sec { padding-top: var(--section); }
 
-  /* 네 단계: 슬라이더 하나가 두 면을 움직인다 */
-  .steps { margin-top: 200px; display: grid; grid-template-columns: 1fr 1fr; min-height: 88svh; position: relative; }
-  .steps .lf { background: var(--field); color: var(--field-ink); padding: 72px var(--m) 160px; }
-  .steps .rf { background: var(--bg-step); display: grid; place-items: center; padding: 72px 32px 160px; }
-  .steps h2 { font-size: clamp(2rem, 1rem + 2.6vw, 3.5rem); max-width: 12em; transition: opacity .2s ease; }
-  .steps .lf p { margin-top: 28px; max-width: 26em; color: var(--field-ink); font-size: var(--step-body); transition: opacity .2s ease; }
-  .steps .ctl { position: absolute; left: var(--m); right: var(--m); bottom: 40px; }
-  .steps input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 32px; background: transparent; cursor: pointer; }
-  .steps input[type=range]::-webkit-slider-runnable-track { height: 8px; background: linear-gradient(var(--brass), var(--brass)) 0 / var(--pct, 0%) 100% no-repeat, #8d8c85; border-radius: 0; } /* taste-skill-ignore: 지나온 구간 채우기 */
-  .steps input[type=range]::-moz-range-track { height: 8px; background: #8d8c85; }
-  .steps input[type=range]::-moz-range-progress { height: 8px; background: var(--brass); }
-  .steps input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 32px; height: 32px; margin-top: -12px; background: var(--brass); border: 0; border-radius: 0; }
-  .steps input[type=range]::-moz-range-thumb { width: 32px; height: 32px; background: var(--brass); border: 0; border-radius: 0; }
-  .steps .names { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 8px; font-size: 16px; }
-  .steps .names button { all: unset; cursor: pointer; color: #77766f; }
-  .steps .names button:nth-child(2), .steps .names button:nth-child(3) { text-align: center; }
-  .steps .names button:last-child { text-align: right; }
-  .steps .names button[aria-current="true"] { color: var(--ink); font-weight: 600; }
-  .steps .names button:first-child { color: #9a998f; }
-  .steps .names button:first-child[aria-current="true"] { color: var(--field-ink); }
-  .frag { width: min(440px, 100%); transition: opacity .2s ease; }
-  .frag .ph { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 16px; display: flex; gap: 10px; align-items: center; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .frag .ph span { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 15px; }
-  .frag .pb { padding: 16px 20px 20px; display: grid; gap: 12px; font-size: 16px; }
-  .hwp { border: 1px solid var(--border); border-radius: 4px; padding: 14px; background: #fcfcfb; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .hwp .ttl { text-align: center; font-weight: 600; margin-bottom: 10px; }
-  .hwp table { width: 100%; border-collapse: collapse; font-size: 15px; }
-  .hwp td { border: 1px solid #8f8f8a; height: 28px; padding: 0 6px; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .hwp.sel table { outline: 2px solid var(--data); outline-offset: 3px; }
-  .msg { background: var(--raised); border-radius: 6px; padding: 12px 14px; line-height: 1.55; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { display: inline-grid; place-items: center; min-width: 56px; height: 40px; padding: 0 10px; border: 1px solid var(--control); border-radius: 6px; background: #fff; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .chip.on { border-color: var(--ink); background: var(--ink); color: #fff; }
-  .fld { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; }
-  .fld .in { height: 40px; border: 1px solid var(--control); border-radius: 6px; padding: 0 12px; display: flex; align-items: center; justify-content: flex-end; font-variant-numeric: tabular-nums; background: #fff; } /* taste-skill-ignore: data-ui 조각 안쪽 */
+  /* ---------- 한 줄 일정: 입력이 제목 ---------- */
+  .type { margin: var(--section) calc(var(--margin) * -1) 0; padding: clamp(72px, 8vw, 128px) var(--margin); background: var(--surface); }
+  .type .answer .card { border-color: transparent; }
+  .type .examples button { background: #fff; }
+  .type h2 { font-size: var(--step-head); line-height: 1.02; grid-column: 1 / span 9; }
+  .type .intro { grid-column: 1 / span 5; margin-top: 20px; font-size: var(--step-lead); line-height: 1.45; font-weight: 500; }
+  .typer { margin-top: 56px; }
+  .typer .line { position: relative; display: flex; align-items: center; }
+  .typer input { width: 100%; border: 0; background: transparent; padding: 0; font: 800 var(--step-display)/1.05 var(--font); letter-spacing: -0.045em; color: var(--ink); caret-color: var(--accent); }
+  .typer input:focus { outline: none; }
+  .typer input:focus-visible { outline: none; box-shadow: 0 4px 0 var(--accent); } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .typer-row { margin-top: 44px; align-items: start; }
+  .answer { grid-column: 1 / span 7; }
+  .answer .card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; grid-template-columns: auto auto auto 1fr; gap: 16px 32px; } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .answer .k { font-size: 15px; color: var(--muted); }
+  .answer .v { white-space: nowrap; font-size: var(--step-lead); font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+  .answer .v.miss { color: #9aa0aa; font-weight: 500; }
+  .answer .res { margin-top: 12px; font-size: 15px; color: var(--muted); }
+  .examples { grid-column: 9 / span 4; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .examples p { font-size: var(--step-small); color: var(--muted); margin-bottom: 4px; }
+  .examples button { border: 0; background: var(--surface); border-radius: 999px; height: 46px; padding: 0 20px; font: 600 17px/1 var(--font); color: var(--ink); cursor: pointer; transition: background-color .15s, transform .15s; text-align: left; }
+  .examples button:hover { background: var(--accent-soft); }
+  .examples button:active { transform: scale(.98); }
 
-  /* 학교의 하루 네 칸 */
-  .day4 h2 { grid-column: 1 / span 6; }
-  .day4 .lede { grid-column: 7 / span 5; font-size: var(--step-lead); line-height: 1.5; align-self: end; }
-  .ph4 { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); margin-top: 64px; }
-  .ph4 figure { margin: 0; }
-  .ph4 .im { overflow: hidden; aspect-ratio: 4 / 5; background: var(--bg-step); }
-  .ph4 img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.04); transition: transform 1.2s cubic-bezier(.2,.7,.2,1); }
-  .ph4 figure:hover img { transform: scale(1.1); }
-  .ph4 figcaption { margin-top: 14px; display: grid; gap: 2px; }
-  .ph4 figcaption b { font-size: var(--step-lead); font-weight: 650; letter-spacing: -0.02em; }
-  .ph4 figcaption span { color: var(--soft); font-size: var(--step-small); }
+  /* ---------- 걷는 법: 진행 막대가 도표 ---------- */
+  .how h2 { font-size: var(--step-head); line-height: 1.02; margin-bottom: 64px; }
+  .stages { display: flex; gap: 6px; height: 22vh; min-height: 170px; }
+  .stage { border-radius: 16px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+  .stage .d { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+  .stage .who { display: flex; gap: 0; }
+  .stage .who .av { border-color: currentColor; }
+  .s1 { flex: 12 1 0; background: var(--surface); }
+  .s2 { flex: 12 1 0; background: var(--accent-soft); color: var(--accent-ink); }
+  .s3 { flex: 58 1 0; background: var(--accent); color: #fff; }
+  .s3 .who .av { border-color: var(--accent); }
+  .s4 { flex: 18 1 0; background: var(--ink); color: #fff; }
+  .clauses { display: flex; gap: 6px; margin-top: 18px; }
+  .clauses p { font-size: var(--step-body); max-width: 24ch; padding-right: 12px; }
+  .clauses p b { font-weight: 700; }
 
-  /* 오늘 화면: 고정된 결과물 + 조작하는 열 */
-  .live { margin-top: 200px; padding-right: var(--m); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
-  .live .stage { grid-column: 1 / span 6; position: sticky; top: 0; height: 100svh; background: var(--field); display: grid; place-items: center; padding: 32px; }
-  .live .col { grid-column: 8 / span 4; padding: 72px 0 120px; max-width: 44ch; }
-  .live .col h2 { margin-bottom: 72px; font-size: clamp(2rem, 1.4rem + 1.6vw, 2.75rem); }
-  .blk { min-height: 50vh; }
-  .blk h3 { font-size: clamp(1.5rem, 1.2rem + .8vw, 2rem); letter-spacing: -0.03em; line-height: 1.2; }
-  .blk p { margin-top: 14px; }
-  .blk .ctrl { margin-top: 22px; }
-  .seg2 { display: inline-flex; background: var(--bg-step); padding: 4px; border-radius: 8px; gap: 2px; flex-wrap: wrap; }
-  .seg2 button { height: 44px; padding: 0 16px; border: 0; background: none; border-radius: 6px; font-size: 16px; cursor: pointer; color: var(--soft); transition: background-color .15s ease; }
-  .seg2 button:hover { color: var(--ink); }
-  .seg2 button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
-  .sw { display: inline-flex; align-items: center; gap: 12px; cursor: pointer; font-size: 17px; }
-  .sw input { appearance: none; -webkit-appearance: none; width: 52px; height: 30px; border-radius: 15px; background: #b9b8b1; position: relative; cursor: pointer; transition: background-color .15s ease; margin: 0; }
-  .sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .18s ease; }
-  .sw input:checked { background: var(--ink); }
-  .sw input:checked::after { transform: translateX(22px); }
-  .mini { width: min(440px, 100%); }
-  .mini .hd { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .mini .hd b { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
-  .mini .hd div { font-size: 15px; color: var(--muted); margin-top: 2px; }
-  .mini .k2 { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--border); } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .mini .k2 > div { padding: 12px 20px; }
-  .mini .k2 > div + div { border-left: 1px solid var(--border); } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .mini .k2 .l { font-size: 13px; color: var(--muted); }
-  .mini .k2 .v { font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.25; }
-  .mini .k2 .v small { font-size: 14px; color: var(--muted); }
-  .mini .ls { padding: 6px 20px 14px; }
-  .mini .ls h4 { margin: 10px 0 4px; font-size: 15px; color: var(--muted); font-weight: 500; }
-  .mini .ls ul { list-style: none; margin: 0; padding: 0; }
-  .mini .ls li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); font-size: 16px; } /* taste-skill-ignore: data-ui 조각 안쪽 */
-  .mini .ls li:last-child { border-bottom: 0; }
-  .mini .ls li span:last-child { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .mini [hidden] { display: none !important; }
+  /* ---------- 기능: 색 면 위의 진술 ---------- */
+  .fields { margin: var(--section) calc(var(--margin) * -1) 0; }
+  .field { position: relative; min-height: 64svh; padding: 28px var(--margin); display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); grid-template-rows: auto 1fr auto; }
+  .field .ex { grid-column: 8 / span 5; grid-row: 1; font-size: var(--step-lead); line-height: 1.45; font-weight: 500; max-width: 30ch; padding-top: 24px; }
+  .field h2, .field h3 { grid-column: 1 / span 7; grid-row: 3; align-self: end; font-size: var(--step-display); line-height: .92; letter-spacing: -0.05em; }
+  .field.m .ex { grid-column: 1 / span 5; }
+  .field.m h3 { grid-column: 6 / span 7; text-align: right; }
+  .f1 { background: var(--accent); color: #fff; }
+  .f2 { background: var(--ink); color: #fff; }
+  .f3 { background: var(--surface); color: var(--ink); }
+  .f4 { background: var(--accent-soft); color: var(--ink); }
+  .field .proof { grid-column: 8 / span 5; grid-row: 2 / span 2; align-self: end; margin-top: 32px; }
+  .field.m .proof { grid-column: 1 / span 5; }
+  .pf { background: #fff; color: var(--ink); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; font-size: 17px; }
+  .pf .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pf .url { font-size: 15px; color: var(--muted); background: var(--surface); border-radius: 999px; padding: 8px 14px; }
+  .pf .ttl { font-weight: 700; }
+  .pf .chip { height: 40px; padding: 0 14px; border-radius: 999px; background: var(--surface); display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; }
+  .pf .chip.on { background: var(--accent); color: #fff; }
+  .pf .fld { flex: 1 1 120px; height: 44px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: space-between; padding: 0 14px; font-size: 15px; color: var(--muted); }
+  .pf .fld b { color: var(--ink); font-size: 17px; }
+  .pf .tog { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+  .pf .sw { width: 40px; height: 24px; border-radius: 999px; background: var(--accent); position: relative; flex: none; }
+  .pf .sw::after { content: ""; position: absolute; right: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .pf .go { margin-left: auto; height: 44px; padding: 0 20px; border-radius: 999px; background: var(--ink); color: #fff; display: inline-flex; align-items: center; font-weight: 700; font-size: 15px; }
+  .pf .file { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: 12px; padding: 12px 14px; }
+  .pf .file .ext { width: 44px; height: 44px; border-radius: 10px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+  .pf .file .ext.k { background: var(--ink); }
+  .pf .file div { min-width: 0; }
+  .pf .file b { display: block; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf .file span { font-size: 15px; color: var(--muted); }
+  .pf .time { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; }
+  .pf .time + .time { border-top: 1px solid var(--line); } /* taste-skill-ignore: data-ui 조각 안 목록 구분 */
+  .pf .time b { font-variant-numeric: tabular-nums; }
+  .pf .time .q { color: var(--muted); font-size: 15px; }
+  .pf .time .c { font-size: 15px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; }
+  .pf .time.mute .c { background: var(--surface); color: var(--muted); }
+  .pf .cols { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pf .cols span { height: 40px; padding: 0 14px; border-radius: 10px; background: var(--surface); display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; }
+  .pf .cols span.warn { background: #fff1e6; color: #8a3a00; box-shadow: inset 0 0 0 2px #f08a3c; } /* taste-skill-ignore: data-ui 경고 칸 */
+  .pf .note { font-size: 15px; color: var(--ink); background: var(--surface); border-radius: 12px; padding: 12px 14px; }
 
-  /* 자주 묻는 것 */
-  .faq .list { grid-column: 1 / span 5; list-style: none; margin: 0; padding: 0; }
-  .faq .list h2 { font-size: var(--step-body); letter-spacing: 0; color: var(--soft); font-weight: 500; margin-bottom: 18px; line-height: 1.5; }
-  .faq .q { all: unset; display: flex; gap: 14px; align-items: baseline; cursor: pointer; font-size: var(--step-body); color: var(--soft); padding: 9px 0; line-height: 1.45; }
-  .faq .q::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--soft); transform: translateY(-2px); }
-  .faq .q[aria-selected="true"] { color: var(--ink); font-weight: 500; }
-  .faq .q[aria-selected="true"]::before { background: var(--brass); }
-  .faq .q:focus-visible { outline: 2px solid var(--data); }
-  .faq .a-in { display: none; }
-  .faq .pane { grid-column: 7 / span 6; position: sticky; top: 120px; align-self: start; font-size: clamp(1.5rem, 1.2rem + .7vw, 1.75rem); line-height: 1.3; max-width: 30ch; transition: opacity .15s ease; letter-spacing: -0.02em; }
+  /* ---------- 오늘 화면 미리보기 ---------- */
+  .today-sec .st-col { grid-column: 1 / span 5; display: flex; flex-direction: column; gap: 22px; }
+  .today-sec h2 { font-size: var(--step-head); line-height: 1.02; }
+  .today-sec .lead { font-size: var(--step-lead); line-height: 1.45; font-weight: 500; }
+  .today-sec ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: var(--step-body); }
+  .today-sec li { display: flex; gap: 12px; align-items: baseline; }
+  .today-sec li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; transform: translateY(-2px); }
+  .today-ui { grid-column: 6 / span 7; }
+  .tdy { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 18px; } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .tdy .find { font-size: var(--step-lead); font-weight: 800; letter-spacing: -0.02em; line-height: 1.3; }
+  .tdy .fsub { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .blocks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .blk { background: var(--surface); border-radius: 12px; padding: 12px; min-height: 108px; font-size: 16px; display: flex; flex-direction: column; gap: 6px; }
+  .blk b { font-size: 15px; color: var(--muted); font-weight: 600; }
+  .blk.now { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); } /* taste-skill-ignore: data-ui 제품 조각(표 선·편집 표시·떠 있는 커서 라벨·포커스) */
+  .blk.now b { color: var(--accent); }
+  .blk .ev { font-weight: 600; line-height: 1.35; }
+  .tdy-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tdy-card { background: var(--surface); border-radius: 12px; padding: 14px; font-size: 16px; }
+  .tdy-card .h { font-weight: 700; margin-bottom: 8px; font-size: 15px; }
+  .chk { display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; }
+  .chk .box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid #9aa0aa; flex: none; display: grid; place-items: center; transition: background-color .2s, border-color .2s; }
+  .chk.on .box { background: var(--accent); border-color: var(--accent); }
+  .chk.on .box::after { content: ""; width: 9px; height: 5px; border: solid #fff; border-width: 0 0 2px 2px; transform: rotate(-45deg) translateY(-1px); }
+  .chk.on .tx { text-decoration: line-through; color: var(--muted); }
+  .feed p { padding: 5px 0; display: flex; gap: 8px; align-items: center; line-height: 1.35; }
+  .feed .av { width: 26px; height: 26px; font-size: 13px; border: 0; margin: 0; }
+  .feed del { color: var(--muted); }
 
-  /* 빈칸이 있는 문장 */
-  .cta { background: var(--field); color: var(--field-ink); margin-top: 200px; padding-top: 160px; padding-bottom: 160px; }
-  .cta form { grid-column: 1 / span 12; }
-  .cta h2 { font-size: clamp(2.5rem, 1rem + 5.2vw, 5.75rem); line-height: 1.15; }
-  .cta input { font: inherit; letter-spacing: inherit; width: 6.4em; height: 1.15em; vertical-align: -0.12em; border: 0; border-radius: 6px; background: #34332f; color: var(--field-ink); padding: 0 .25em; color: var(--ink); }
-  .cta input::placeholder { color: #a3a29a; }
-  .cta button { font: inherit; letter-spacing: inherit; height: 1.15em; vertical-align: -0.12em; border: 0; border-radius: 6px; background: var(--brass); color: var(--ink); padding: 0 .25em; cursor: pointer; transition: transform .12s ease; }
-  .cta button:active { transform: translateY(2px); }
-  .cta .after { margin-top: 32px; color: var(--field-ink); font-size: var(--step-body); }
+  /* ---------- 질문 ---------- */
+  .faq h2 { font-size: var(--step-head); line-height: 1.02; grid-column: 1 / span 12; }
+  .faq .qs { grid-column: 5 / span 8; margin-top: 80px; display: flex; flex-direction: column; gap: 12px; }
+  .faq details { border-radius: 16px; margin: 0 -24px; padding: 12px 24px; transition: background-color .2s; }
+  .faq details[open] { background: var(--surface); }
+  .faq summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: var(--step-lead); font-weight: 600; padding: 12px 0; }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: ""; width: 12px; height: 12px; border: solid var(--ink); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-3px, -3px); transition: transform .2s; flex: none; }
+  .faq details[open] summary::after { transform: rotate(-135deg) translate(-3px, -3px); }
+  .faq summary:hover { color: var(--accent); }
+  .faq details p { font-size: var(--step-body); max-width: 48ch; padding: 4px 0 14px; }
 
-  /* 한 줄 바닥 */
-  .end { margin-top: 96px; padding-bottom: 30px; display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px; align-items: baseline; font-size: var(--step-small); }
-  .end .c { display: flex; gap: 24px; }
-  .end .c a, .end .rr a { text-decoration: none; }
-  .end .c a:hover, .end .rr a:hover { text-decoration: underline; }
-  .end .l, .end .rr { color: var(--soft); }
-  .end .rr { text-align: right; }
-  .end .rr a { color: var(--ink); }
-  .credits { margin-top: 10px; padding-bottom: 28px; font-size: 15px; color: var(--soft); line-height: 1.6; max-width: 52em; }
+  /* ---------- 마무리: 빈칸이 있는 문장 ---------- */
+  .cta h2 { font-size: var(--step-head); font-weight: 800; letter-spacing: -0.04em; line-height: 1.12; }
+  .cta .l { display: flex; align-items: center; gap: .25em; flex-wrap: nowrap; white-space: nowrap; }
+  .cta h2 { line-height: 1.12; letter-spacing: -0.04em; }
+  .cta .l { height: 1.12em; }
+  .cta input { height: 1em; width: 6.2em; border: 0; border-radius: .22em; background: var(--surface); font: 600 .62em/1 var(--font); letter-spacing: -0.02em; padding: 0 .5em; color: var(--ink); }
+  .cta input::placeholder { color: #8b919b; }
+  .cta input:focus { outline: 3px solid var(--accent); }
+  .cta button { height: 1em; border: 0; border-radius: 999px; background: var(--accent); color: #fff; font: 800 1em/1 var(--font); letter-spacing: -0.04em; padding: 0 .4em; cursor: pointer; transition: background-color .15s, transform .15s; }
+  .cta button:hover { background: var(--accent-hover); }
+  .cta button:active { transform: scale(.98); }
+  .cta .after { margin-top: 24px; font-size: var(--step-body); color: var(--muted); }
 
-  /* 움직임: 스크립트가 있을 때만 숨긴다 */
-  .js .hero h1 .ln > span { transform: translateY(105%); }
-  .js .hero.go h1 .ln > span { transform: none; transition: transform .9s cubic-bezier(.16,1,.3,1); }
-  .js .hero.go h1 .ln:nth-child(2) > span { transition-delay: .11s; }
-  .js .hero .fade { opacity: 0; transform: translateY(16px); }
-  .js .hero.go .fade { opacity: 1; transform: none; transition: opacity .6s ease .45s, transform .6s cubic-bezier(.16,1,.3,1) .45s; }
-  .js .rv { opacity: 0; transform: translateY(24px); }
-  .js .rv.in { opacity: 1; transform: none; transition: opacity .6s ease var(--d, 0s), transform .7s cubic-bezier(.16,1,.3,1) var(--d, 0s); }
+  /* ---------- 바닥 ---------- */
+  footer { margin-top: var(--section); background: var(--ink); color: #fff; min-height: 88svh; position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 72px var(--margin) 0; }
+  footer .inv { grid-column: 1 / span 7; display: flex; flex-direction: column; gap: 32px; align-items: flex-start; }
+  footer h2 { font-size: var(--step-head); line-height: 1.02; }
+  footer .links { grid-column: 10 / span 3; display: flex; flex-direction: column; gap: 10px; font-size: 17px; padding-top: 12px; }
+  footer .links a { text-decoration: none; color: #d6d8dd; transition: color .15s; }
+  footer .links a:hover { color: #fff; }
+  footer .legal { margin-top: auto; padding-top: 96px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: 15px; color: #b9bcc3; padding-bottom: 14px; position: relative; z-index: 1; }
+  footer .legal a { color: inherit; }
+  footer .word { font-size: 31vw; font-weight: 900; letter-spacing: -0.06em; line-height: .8; white-space: nowrap; margin: 0 0 0 -.03em; transform: translateY(18%); color: #fff; user-select: none; width: max-content; }
+
+  /* ---------- 등장 ---------- */
+  .rise { opacity: 0; transform: translateY(24px); transition: opacity .7s var(--ease), transform .7s var(--ease); transition-delay: var(--d, 0ms); }
+  .rise.in { opacity: 1; transform: none; }
+  .no-js .rise { opacity: 1; transform: none; }
+  .shutter { clip-path: inset(0 0 100% 0 round 16px); transition: clip-path 1.1s cubic-bezier(.7, 0, .2, 1); }
+  .shutter.in { clip-path: inset(0 0 0 0 round 16px); }
+  .shutter > .sheet { transform: scale(1.04); transform-origin: top center; transition: transform 1.1s cubic-bezier(.2, .7, .2, 1); }
+  .shutter.in > .sheet { transform: none; }
   @media (prefers-reduced-motion: reduce) {
-    .js .hero h1 .ln > span, .js .hero .fade, .js .rv { transform: none !important; opacity: 1 !important; }
+    .rise, .shutter, .shutter > .sheet { opacity: 1 !important; transform: none !important; clip-path: none !important; transition: none !important; }
+    .slot i { animation: none; }
+    .cursor { transition: none; }
   }
 
-  /* 태블릿 */
+  /* ---------- 태블릿·폰 ---------- */
   @media (max-width: 1100px) {
-    .hero-t { grid-column: 1 / -1; }
-    .hero-f { grid-column: 1 / -1; margin-top: 56px; }
-    .states .note { grid-column: 4 / span 6; grid-row: auto; margin-top: 48px; }
-    .st .w { grid-column: 1 / span 3; }
-    .st .c { grid-column: 4 / -1; }
-    .states h2 { grid-column: 4 / -1; }
-    .live .col { grid-column: 7 / span 6; }
+    .hero-copy { grid-column: 1 / span 12; }
+    .hero-ui { grid-column: 1 / span 12; margin-top: 36px; }
+    .answer { grid-column: 1 / span 12; }
+    .type h2, .type .intro { grid-column: 1 / span 12; }
+    .examples { grid-column: 1 / span 12; margin-top: 28px; flex-direction: row; flex-wrap: wrap; }
+    .examples p { width: 100%; }
+    .today-sec .st-col, .today-ui { grid-column: 1 / span 12; }
+    .today-ui { margin-top: 40px; }
+    .faq .qs { grid-column: 1 / span 12; }
+    .field .ex, .field.m .ex { grid-column: 1 / span 10; }
+    .field h3, .field h2, .field.m h3 { grid-column: 1 / span 12; text-align: left; }
+    .field .proof, .field.m .proof { grid-column: 1 / span 8; grid-row: 2; margin: 32px 0; }
   }
-  /* 폰 */
-  @media (max-width: 720px) {
-    .top nav { display: none; }
-    .top .bt { margin-left: auto; }
-    .hero { padding-bottom: 96px; }
-    .hero .sub { margin-top: 24px; }
-    .mo .foot { grid-template-columns: 1fr; }
-    .mo .btns { justify-content: flex-start; }
-    .sec { padding-top: 120px; }
-    .states h2 { grid-column: 1 / -1; margin-bottom: 40px; }
-    .st .w, .st .c { grid-column: 1 / -1; }
-    .st .w { text-align: left; font-size: 17px; order: 2; margin-top: 10px !important; }
-    .st { display: flex; flex-direction: column; grid-column: 1 / -1; }
-    .st + .st { margin-top: 48px; }
-    .st + .st .c { margin-top: 0; }
-    .states .note { grid-column: 1 / -1; }
-    .rowc { grid-template-columns: 1fr; }
-    .steps { grid-template-columns: 1fr; margin-top: 120px; }
-    .steps .rf { order: -1; min-height: 46svh; padding: 32px 16px 24px; }
-    .steps .lf { padding: 120px 16px 48px; }
-    .steps .ctl { top: calc(46svh + 16px); bottom: auto; left: 16px; right: 16px; }
-    .steps .names { grid-template-columns: 1fr 1fr; gap: 6px; font-size: 15px; }
-    .steps .names button { text-align: left !important; }
-    .steps .names button, .steps .names button:first-child { color: var(--field-soft); }
-    .steps .names button[aria-current="true"], .steps .names button:first-child[aria-current="true"] { color: var(--field-ink); }
-    .steps h2 { font-size: 8.4vw; }
-    .day4 h2, .day4 .lede { grid-column: 1 / -1; }
-    .day4 .lede { margin-top: 20px; }
-    .ph4 { grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 40px; }
-    .live { margin-top: 120px; display: block; padding-right: 0; }
-    .live .stage { position: relative; height: auto; padding: 24px 16px; }
-    .live .col { padding: 48px 16px 40px; }
-    .live .col h2 { margin-bottom: 40px; }
-    .blk { min-height: 0; margin-bottom: 64px; }
-    .blk h3 { font-size: 22px; }
-    .seg2 { display: flex; }
-    .seg2 button { flex: 1; }
-    .faq .list { grid-column: 1 / -1; }
-    .faq .pane { display: none; }
-    .faq .a-in { padding: 4px 0 14px 22px; font-size: 19px; line-height: 1.45; }
-    .faq .a-in.on { display: block; }
-    .cta form { grid-column: 1 / -1; }
-    .cta h2 { font-size: 8.2vw; }
-    .cta { margin-top: 120px; padding-top: 96px; padding-bottom: 96px; }
-    .cta input { width: 5.6em; }
-    .cta .after { font-size: 15px; }
-    .end { margin-top: 64px; grid-template-columns: 1fr; gap: 8px; padding-bottom: 24px; }
-    .end .c { flex-wrap: wrap; gap: 8px 20px; }
-    .end .rr { text-align: left; }
+  @media (max-width: 640px) {
+    .top nav a:not(.btn):not(.keep) { display: none; }
+    .hero h1 { font-size: 13vw; }
+    .hero h1 .ln { flex-wrap: wrap; white-space: normal; }
+    .hero h1 .slot { order: 3; width: 100%; height: 1.05em; margin: .14em 0; justify-content: center; }
+    .hero h1 .slot i { width: .62em; height: .62em; }
+    table.live th:nth-child(2), table.live td:nth-child(2) { display: none; }
+    table.live td, table.live th { padding-left: 12px; padding-right: 12px; }
+    .sheet-h { flex-wrap: wrap; }
+    .sheet-h .stack { margin-left: 0; }
+    .typer input { font-size: 11vw; }
+    .answer .card { grid-template-columns: 1fr 1fr; }
+    .answer .v { white-space: normal; }
+    .stages { flex-direction: column; height: auto; }
+    .stage { min-height: 96px; flex-basis: auto !important; }
+    .s3 { min-height: 220px; }
+    .clauses { display: none; }
+    .stage .cl { display: block !important; font-size: 16px; font-weight: 500; }
+    .field { min-height: 64svh; }
+    .field h3, .field h2 { font-size: 13vw; }
+    .field .proof, .field.m .proof { grid-column: 1 / span 12; grid-row: 2; margin: 28px 0; }
+    .field { grid-template-rows: auto auto auto; }
+    .blocks { grid-template-columns: 1fr 1fr; }
+    .tdy-row { grid-template-columns: 1fr; }
+    .faq details { margin: 0 calc(var(--margin) * -1); padding: 8px var(--margin); border-radius: 0; }
+    .cta h2 { font-size: 8.4vw; }
+    .cta input { width: 3.9em; padding: 0 .3em; }
+    footer .inv, footer .links { grid-column: 1 / span 12; }
+    footer .links { flex-direction: row; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
+    footer .word { font-size: 52vw; }
+    footer { min-height: 0; }
+    footer .legal { margin-top: 96px; }
   }
+  .stage .cl { display: none; }
 </style>
-<script>document.documentElement.classList.add('js');</script>
 </head>
-<body>
-<header class="wrap top">
-  <a class="word" href="#">고티처</a>
-  <nav aria-label="페이지 안내">
-    <a href="#how">걷는 방법</a>
-    <a href="#today">오늘 화면</a>
-    <a href="#faq">자주 묻는 것</a>
-    <a href="today.html">오늘 화면 미리 보기</a>
-  </nav>
-  <a class="bt" href="#join">베타 소식 받기</a>
-</header>
+<body class="no-js">
+<script>document.body.classList.remove('no-js');</script>
 
-<main>
-  <section class="wrap grid hero" id="hero">
-    <div class="hero-t">
-      <h1><span class="ln"><span>양식 그대로 걷고</span></span><span class="ln"><span>그대로 돌려받기</span></span></h1>
-      <p class="sub fade">쓰던 한글 양식을 올리고 동학년에 링크 하나만 보내세요. 다섯 반의 답이 그 양식에 채워져 돌아옵니다.</p>
-      <div class="acts fade"><a class="bt" href="#join">베타 소식 받기</a><a class="lk" href="today.html">오늘 화면 미리 보기</a></div>
-      <p class="facts fade">동학년판 무료 · 베타 11월 30일 · 정식 12월 14일(월)</p>
-    </div>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="#" aria-label="고티처 처음으로">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 3l17 8.2-7.4 2.1L10.4 21z" fill="#2251ff"/></svg>
+      고티처
+    </a>
+    <nav aria-label="주 메뉴">
+      <a href="#how">걷는 법</a>
+      <a href="#line">한 줄 일정</a>
+      <a href="#today">오늘 화면</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a class="btn keep" href="#start">구글로 시작</a>
+    </nav>
+  </header>
 
-    <div class="hero-f fade">
-      <div class="ui panel mo" data-ui id="mo" aria-label="모으기 작동 예시">
-        <div class="bar-h"><b>방과후 수요조사</b><span class="pill neutral">4학년 · 5반</span><span class="meta">마감 10/27(화) 12:00</span></div>
-        <div class="drop" id="drop">
-          <label for="paste">내 표로 해 보기: 한글이나 엑셀 표를 복사해 아래에 붙여 넣으세요</label>
-          <textarea id="paste" placeholder="Ctrl+V · 첫 줄은 제목, 첫 칸은 반. 빈칸뿐인 줄은 아직 안 낸 반으로 봅니다"></textarea><span class="hint" id="hint" hidden></span>
-          <button class="btn sm" id="sample" type="button">예시로 되돌리기</button>
-        </div>
-        <div id="board" hidden>
-          <div class="sheet"><table><thead id="thd"></thead><tbody id="tbd"></tbody><tfoot id="tft"></tfoot></table></div>
-          <div class="foot">
-            <div class="prog"><div class="cnt"><span>제출</span><span class="num" id="cnt"></span></div><div class="track"><i id="pbar" style="width:0%"></i></div></div>
-            <div class="btns"><button class="btn" id="nudge" type="button"></button><button class="btn pri" id="merge" type="button">합본 한글로 받기</button></div>
+  <main>
+    <section class="hero" aria-labelledby="h1">
+      <h1 id="h1">
+        <span class="ln">한 양식을
+          <span class="slot" aria-hidden="true" id="slot"></span><span class="sr">다섯 명이</span></span>
+        <span class="ln">동시에 채워요</span>
+      </h1>
+      <div class="grid hero-row">
+        <div class="hero-copy">
+          <p class="lead rise">고티처는 동학년 취합 도구예요. 한글 양식을 올리고 링크 하나만 보내면, 다섯 반이 한 표를 함께 채우고 그 양식 그대로 돌려받아요.</p>
+          <div class="acts rise" style="--d:80ms">
+            <a class="btn" href="#start">구글로 시작하기</a>
+            <a class="tlink" href="today.html">오늘 화면 보기</a>
           </div>
-          <div class="out" id="out" aria-live="polite"></div>
+          <p class="facts rise" style="--d:160ms">동학년판 무료 · 베타 11월 30일 · 정식 12월 14일(월)</p>
+        </div>
+        <div class="hero-ui shutter" id="heroUi">
+          <div class="sheet" data-ui id="sheet">
+            <div class="sheet-h">
+              <span class="t">학예회 반별 참가 인원</span>
+              <span class="meta">2026_학예회_참가인원.hwpx · 마감 10/27(화) 12:00</span>
+              <span class="stack" id="liveStack" aria-label="지금 같이 보는 선생님"></span>
+            </div>
+            <table class="live" id="live">
+              <caption class="sr">학예회 반별 참가 인원 취합표</caption>
+              <thead><tr><th>반</th><th>담임</th><th class="r">참가(명)</th><th class="r">불참(명)</th><th class="r">상태</th></tr></thead>
+              <tbody></tbody>
+              <tfoot><tr><td><b>합계</b></td><td></td><td class="r"><b id="sumA">0</b></td><td class="r"><b id="sumB">0</b></td><td></td></tr></tfoot>
+            </table>
+            <div class="sheet-f">
+              <div class="prog"><span>제출</span><div class="bar"><b id="progBar" style="width:0%"></b></div><span class="n" id="progN">0 / 5반</span></div>
+              <button class="mini" id="nudge" type="button">독촉 문구 복사</button>
+              <button class="mini pri" id="dl" type="button">한글 양식으로 받기</button>
+            </div>
+          </div>
         </div>
       </div>
+    </section>
+
+    <section class="type" id="line" aria-labelledby="lineH">
+      <div class="grid">
+        <h2 id="lineH" class="rise">일정은 한 줄이면 돼요</h2>
+        <p class="intro rise" style="--d:80ms">날짜·블록·장소를 아무렇게나 써도 알아서 나눠서 동학년 오늘 화면에 올려요.</p>
+      </div>
+      <div class="typer" data-ui>
+        <div class="line"><label for="q" class="sr">한 줄로 일정 쓰기</label><input id="q" value="내일 2블록 과학실 안전교육" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <div class="grid typer-row">
+        <div class="answer" data-ui>
+          <div class="card" id="ans" aria-live="polite"></div>
+          <p class="res" id="ansRes"></p>
+        </div>
+        <div class="examples">
+          <p>이렇게도 써 보세요</p>
+          <button type="button" data-q="모레 3블록 체육관 학예회 리허설">모레 3블록 체육관 학예회 리허설</button>
+          <button type="button" data-q="금요일 방과후 4-1 교실 학년협의">금요일 방과후 4-1 교실 학년협의</button>
+          <button type="button" data-q="10/30 현장체험학습">10/30 현장체험학습</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec how" id="how" aria-labelledby="howH">
+      <h2 id="howH" class="rise">올리고, 보내고, 받기</h2>
+      <div class="stages" data-ui>
+        <div class="stage s1 rise"><span class="d">양식 올리기</span><span class="cl">hwp·hwpx나 표를 붙여넣으면 칸이 돼요.</span></div>
+        <div class="stage s2 rise" style="--d:70ms"><span class="d">링크 보내기</span><span class="cl">쿨메신저에 링크 한 줄.</span></div>
+        <div class="stage s3 rise" style="--d:140ms"><span class="d">다섯 반이 함께 채우는 시간</span><span class="who" id="howWho"></span><span class="cl">로그인 없이 링크로 내고, 대신 내기도 돼요.</span></div>
+        <div class="stage s4 rise" style="--d:210ms"><span class="d">한글로 받기</span><span class="cl">올린 양식 그대로, hwpx도 함께.</span></div>
+      </div>
+      <div class="clauses">
+        <p style="flex:12 1 0">먼저 <b>hwp·hwpx</b>나 한글·엑셀 표를 붙여넣으면 칸이 돼요.</p>
+        <p style="flex:12 1 0">다음 <b>쿨메신저</b>에 링크 한 줄.</p>
+        <p style="flex:58 1 0">그다음은 선생님들 몫. 로그인 없이 링크로 내고, 바쁜 반은 <b>대신 내기</b>도 돼요. 낸 칸은 바로 합본에 들어가요.</p>
+        <p style="flex:18 1 0">끝으로 <b>올린 양식 그대로</b>, hwpx도 함께.</p>
+      </div>
+    </section>
+
+    <div class="fields" aria-label="고티처가 하는 일">
+      <section class="field f1">
+        <p class="ex rise">받는 선생님은 가입도 로그인도 필요 없어요. 링크를 열어 자기 칸에 쓰면 끝이고, 바쁜 반은 옆 반이 대신 내도 돼요.</p>
+        <h2 class="rise" style="--d:90ms">링크 하나면<br>끝</h2>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="받는 선생님이 보는 제출 화면">
+          <div class="row"><span class="url">goteacher.xyz/c/4Q2K</span><span style="font-size:15px;color:var(--muted)">로그인 없음</span></div>
+          <div class="ttl">학예회 반별 참가 인원 · 누구 칸인가요?</div>
+          <div class="row"><span class="chip">4-3</span><span class="chip on">4-4 이수빈</span><span class="chip">4-5</span></div>
+          <div class="row"><span class="fld">참가 <b>22</b></span><span class="fld">불참 <b>1</b></span></div>
+          <div class="row"><span class="tog"><span class="sw"></span>옆 반 대신 내기 · 김도윤</span><span class="go">내기</span></div>
+        </div></div>
+      </section>
+      <section class="field f2 m">
+        <p class="ex rise">hwp·hwpx 원본을 올리면 다섯 반 답을 그 양식에 채워서 돌려줘요. 올린 형식과 hwpx 두 가지로 받아요.</p>
+        <h3 class="rise" style="--d:90ms">한글 양식<br>그대로</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="올린 양식과 돌려받는 파일">
+          <div class="file"><span class="ext k">HWP</span><div><b>2026_학예회_참가인원.hwp</b><span>올린 원본 · 표 1개를 칸으로 골랐어요</span></div></div>
+          <div class="file"><span class="ext">HWP</span><div><b>2026_학예회_참가인원_합본.hwp</b><span>다섯 반 답을 원본 서식 그대로</span></div></div>
+          <div class="file"><span class="ext">HWPX</span><div><b>2026_학예회_참가인원_합본.hwpx</b><span>같은 내용, hwpx로도</span></div></div>
+        </div></div>
+      </section>
+      <section class="field f3">
+        <p class="ex rise">알림은 하루 세 번(08:20 · 12:20 · 방과후)으로 묶어서 보내요. 수업 중에는 창을 띄우지 않아요.</p>
+        <h3 class="rise" style="--d:90ms">수업 중엔<br>조용히</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="하루 세 번 묶음 알림">
+          <div class="time"><b>08:20</b><span>아침 묶음 · 오늘 마감과 바뀐 것</span><span class="c">2건</span></div>
+          <div class="time mute"><b>1·2블록</b><span class="q">수업 중 · 창 알림 없음</span><span class="c">조용</span></div>
+          <div class="time"><b>12:20</b><span>점심 묶음 · 2블록 끝</span><span class="c">3건</span></div>
+          <div class="time mute"><b>3블록</b><span class="q">수업 중 · 창 알림 없음</span><span class="c">조용</span></div>
+          <div class="time"><b>방과후</b><span>마지막 묶음 · 내일 준비</span><span class="c">1건</span></div>
+        </div></div>
+      </section>
+      <section class="field f4 m">
+        <p class="ex rise">학생 이름·연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내해요. 교직원 정보만 다루고, 데이터는 오라클 클라우드 춘천 리전에 국내 보관해요.</p>
+        <h3 class="rise" style="--d:90ms">학생 정보는<br>안 받아요</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="학생 정보 열 경고">
+          <div class="ttl">붙여넣은 표의 열</div>
+          <div class="cols"><span>반</span><span>담임</span><span class="warn">학생 이름</span><span class="warn">보호자 연락처</span><span>참가 인원</span></div>
+          <div class="note">학생 이름·연락처로 보이는 열이 2개 있어요. 이 열은 빼고 반별 인원 수로 받을까요?</div>
+          <div class="row"><span class="chip">그대로 두기</span><span class="go">인원 수로 바꾸기</span></div>
+        </div></div>
+      </section>
     </div>
-  </section>
 
-  <section class="wrap grid sec states" aria-labelledby="stH">
-    <h2 id="stH" class="rv">한 반의 제출, 세 순간</h2>
-    <div class="st"><p class="w rv">기다림</p>
-      <div class="c rv" style="--d:.08s"><div class="ui panel rowc" data-ui><div><div class="t">4-4 이수빈 · 방과후 수요조사</div><div class="s">링크 받음 10/26 08:20 · 마감 10/27(화) 12:00</div></div><span class="muted" style="font-size:15px">미제출</span></div></div></div>
-    <div class="st"><p class="w rv">손댈 때</p>
-      <div class="c rv" style="--d:.08s"><div class="ui panel rowc hov" data-ui id="liveRow"><div><div class="t">4-4 이수빈 · 방과후 수요조사</div><div class="s" id="liveSub">링크 받음 10/26 08:20 · 마감 10/27(화) 12:00</div></div><div class="acts" id="liveActs"><button class="btn sm" type="button" id="liveNudge">독촉 문구 복사</button><button class="btn sm pri" type="button" id="liveDo">대신 내기</button></div></div></div></div>
-    <p class="note rv" style="--d:.16s">받는 선생님은 로그인 없이 링크로 냅니다. 바빠서 못 내면 동학년 누구든 대신 낼 수 있어요. 가운데 줄의 「대신 내기」를 눌러 보세요.</p>
-    <div class="st"><p class="w rv">끝</p>
-      <div class="c rv" style="--d:.08s"><div class="ui panel rowc" data-ui><div><div class="t">4-4 이수빈 · 방과후 수요조사</div><div class="s">10/26 11:42 정하은 선생님이 대신 냄</div></div><div class="vals"><span>방과후 11명</span><span>돌봄 2명</span><span class="pill ok">제출</span></div></div></div></div>
-  </section>
+    <section class="sec today-sec" id="today" aria-labelledby="todayH">
+      <div class="grid">
+        <div class="st-col">
+          <h2 id="todayH" class="rise">아침엔 오늘 한 장</h2>
+          <p class="lead rise" style="--d:80ms">출근하면 가장 급한 것 하나, 지금 블록, 어제 이후 바뀐 것이 한 화면에 있어요.</p>
+          <ul class="rise" style="--d:160ms">
+            <li>NEIS 학사일정·급식은 자동으로 들어와요</li>
+            <li>동학년이 바꾼 장소·시간은 누가 바꿨는지와 함께</li>
+            <li>낼 것은 체크하면 사라지고, 보낸 것은 누가 냈는지 보여요</li>
+          </ul>
+          <p class="rise" style="--d:220ms"><a class="tlink" href="today.html">오늘 화면 크게 보기</a></p>
+        </div>
+        <div class="today-ui rise" style="--d:120ms">
+          <div class="tdy" data-ui id="tdy"></div>
+        </div>
+      </div>
+    </section>
 
-  <section class="steps" id="how" aria-label="걷는 방법 네 단계">
-    <div class="lf"><h2 id="stepH">먼저, 쓰던 한글 양식을 올립니다</h2><p id="stepP">hwp도 hwpx도 됩니다. 미리보기에서 채울 표를 한 번 누르면 칸이 정해져요.</p></div>
-    <div class="rf"><div class="ui panel frag" data-ui id="stepF"></div></div>
-    <div class="ctl">
-      <label for="stepR" class="sr">단계 고르기</label>
-      <input type="range" id="stepR" min="0" max="3" step="1" value="0">
-      <div class="names" id="stepN"><button type="button" data-i="0" aria-current="true">올리기</button><button type="button" data-i="1">보내기</button><button type="button" data-i="2">내기</button><button type="button" data-i="3">받기</button></div>
+    <section class="sec faq" id="faq" aria-labelledby="faqH">
+      <div class="grid">
+        <h2 id="faqH" class="rise">먼저 물어보시는 것</h2>
+        <div class="qs">
+          <details class="rise"><summary>정말 무료인가요?</summary><p>동학년판은 무료예요. 베타는 11월 30일, 정식은 12월 14일(월)에 열어요.</p></details>
+          <details class="rise"><summary>받는 선생님도 가입해야 하나요?</summary><p>아니요. 링크 하나로 제출해요. 로그인이 없고, 다른 선생님이 대신 내는 것도 돼요. 동학년 공간에 초대받은 선생님은 가입 없이 이름만 고르고 들어와요.</p></details>
+          <details class="rise"><summary>한글 파일이 정말 그대로 나오나요?</summary><p>hwp·hwpx 원본 양식을 올리면 그 양식에 칸을 채워 돌려드려요. 올린 형식과 hwpx 두 가지로 내려받아요.</p></details>
+          <details class="rise"><summary>학생 명단도 걷을 수 있나요?</summary><p>학생 정보는 받지 않아요. 교직원 정보만 다뤄요. 학생 이름·연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내해요.</p></details>
+          <details class="rise"><summary>알림이 수업을 방해하지 않나요?</summary><p>알림은 하루 세 번(08:20 · 12:20 · 방과후)으로 묶어서 보내고, 수업 중에는 창을 띄우지 않아요.</p></details>
+          <details class="rise"><summary>데이터는 어디에 저장되나요?</summary><p>오라클 클라우드 춘천 리전에 저장해요. 데이터는 국내에 보관돼요.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec cta" id="start" aria-labelledby="ctaH">
+      <form class="rise" action="mailto:hello@goteacher.xyz" method="get" enctype="text/plain" id="ctaForm">
+        <h2 id="ctaH"><span class="l">베타가 열리면</span>
+        <span class="l"><input id="mail" aria-label="메일 주소" name="body" type="email" placeholder="메일 주소" autocomplete="email" required>로 <button type="submit">알려 주세요</button></span></h2>
+      </form>
+      <p class="after rise" style="--d:80ms">11월 30일 베타가 열리는 날 한 번만 메일을 보내요. 구글 로그인 한 번이면 바로 시작할 수 있어요.</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="grid">
+    <div class="inv">
+      <h2>동학년을<br>초대하세요</h2>
+      <a class="btn paper" href="#start">구글로 시작하기</a>
     </div>
-  </section>
-
-  <section class="wrap grid sec day4" aria-labelledby="d4H">
-    <h2 id="d4H" class="rv">학교의 하루는 네 칸</h2>
-    <p class="lede rv" style="--d:.08s">고티처의 시간은 학교 시정 그대로 1블록, 2블록, 3블록, 방과후입니다. 알림도 그 경계에서만, 하루 세 번 묶어서 옵니다.</p>
-    <div class="ph4">
-      <figure class="rv"><div class="im"><img src="assets/inside-school-korea.jpg" width="1920" height="1440" alt="책상과 칠판이 있는 한국 학교 교무실" loading="lazy"></div><figcaption><b>1블록 08:40</b><span>08:20 첫 묶음 알림 · 교무실</span></figcaption></figure>
-      <figure class="rv" style="--d:.07s"><div class="im"><img src="assets/joong-dae-elementary-school-5477801131.jpg" width="1000" height="750" alt="벽돌로 지은 4층 초등학교 건물" loading="lazy"></div><figcaption><b>2블록 10:30</b><span>수업 중엔 알림을 띄우지 않아요</span></figcaption></figure>
-      <figure class="rv" style="--d:.14s"><div class="im"><img src="assets/a-south-korean-school-lunch.jpg" width="1920" height="1440" alt="밥, 국, 김치와 반찬이 담긴 한국 학교 급식 식판" loading="lazy"></div><figcaption><b>3블록 12:20</b><span>12:20 두 번째 묶음 · 급식은 NEIS에서</span></figcaption></figure>
-      <figure class="rv" style="--d:.21s"><div class="im"><img src="assets/korea-busan-doosong-middle-school-02.jpg" width="1920" height="1440" alt="아파트 단지 옆 학교 운동장에서 농구하는 학생들" loading="lazy"></div><figcaption><b>방과후 14:40</b><span>마지막 묶음 · 마감 리마인드</span></figcaption></figure>
+    <div class="links">
+      <a href="today.html">오늘 화면</a>
+      <a href="#how">걷는 법</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a href="mailto:hello@goteacher.xyz">hello@goteacher.xyz</a>
     </div>
-  </section>
-
-  <section class="live" id="today" aria-labelledby="lvH">
-    <div class="stage"><div class="ui panel mini" data-ui id="mini"></div></div>
-    <div class="col">
-      <h2 id="lvH" class="rv">아침에 여는 한 화면</h2>
-      <div class="blk rv"><h3>알림은 하루 세 번, 쉬는 시간에만</h3><p>교실 TV에 화면이 나가는 수업 중에는 아무것도 띄우지 않습니다. 시각을 골라 보세요.</p>
-        <div class="ctrl seg2" role="group" aria-label="묶음 알림 시각" id="cBundle"><button aria-pressed="false" data-b="0">08:20</button><button aria-pressed="true" data-b="1">12:20</button><button aria-pressed="false" data-b="2">방과후</button></div></div>
-      <div class="blk rv"><h3>어제 퇴근 이후 바뀐 것만</h3><p>장소와 시간이 바뀐 일정은 이전 값을 지운 채로 보여 줍니다. 전체를 다시 읽지 않아도 돼요.</p>
-        <label class="ctrl sw"><input type="checkbox" id="cChg" checked> 바뀐 것 보기</label></div>
-      <div class="blk rv"><h3>내가 낼 것과 내가 보낸 것</h3><p>나에게 온 취합은 마감순으로, 내가 보낸 모으기는 몇 반이 냈는지로 봅니다.</p>
-        <div class="ctrl seg2" role="group" aria-label="목록" id="cList"><button aria-pressed="true" data-l="todo">내가 낼 것</button><button aria-pressed="false" data-l="sent">내가 보낸 것</button></div></div>
-      <div class="blk rv"><h3>급식과 학사일정은 NEIS에서</h3><p>따로 입력하지 않습니다. 필요 없으면 끄세요.</p>
-        <label class="ctrl sw"><input type="checkbox" id="cMeal" checked> 급식 보이기</label>
-        <p style="margin-top:28px"><a class="lk" href="today.html">오늘 화면 전체 보기</a></p></div>
-    </div>
-  </section>
-
-  <section class="wrap grid sec faq" id="faq">
-    <ul class="list" role="tablist" aria-label="자주 묻는 것" id="qs"><li role="presentation"><h2>자주 묻는 것</h2></li></ul>
-    <div class="pane" id="pane" role="tabpanel" aria-live="polite"></div>
-  </section>
-
-  <section class="wrap grid sec cta" id="join" aria-label="베타 소식 받기">
-    <form id="joinF" novalidate>
-      <h2>11월 30일 베타 소식,<br><label class="sr" for="mail">메일 주소</label><input id="mail" type="email" placeholder="메일 주소" autocomplete="email">로 <button type="submit">받기</button></h2>
-      <p class="after" id="after">베타가 열릴 때 한 번, 정식 출시(12월 14일) 때 한 번만 보냅니다.</p>
-    </form>
-  </section>
-</main>
-
-<footer class="wrap">
-  <div class="end">
-    <span class="l">초등 교사 업무 도구 고티처</span>
-    <span class="c"><a href="today.html">오늘 화면</a><a href="#how">걷는 방법</a><a href="../../prototype/terms.html">이용약관</a></span>
-    <span class="rr">2026 · <a href="../../prototype/privacy.html">개인정보 처리방침</a></span>
   </div>
-  <p class="credits">사진: 「Inside School Korea」 CC BY 2.0 · 「Joong-Dae Elementary School 중대초등학교」 InSapphoWeTrust, CC BY-SA 2.0 · 「A South Korean school lunch」 CC BY-SA 3.0 · 「Korea-Busan-Doosong Middle School-02」 CC BY-SA 2.0, 모두 Wikimedia Commons. 시안의 학교·인물·수치는 예시입니다.</p>
+  <div class="legal">
+    <span>고티처 · 동학년판 무료 · 데이터 국내 보관(오라클 클라우드 춘천)</span>
+    <span><a href="../../prototype/privacy.html">개인정보처리방침</a> · <a href="../../prototype/terms.html">이용약관</a></span>
+  </div>
+  <p class="word" aria-hidden="true">고티처</p>
 </footer>
 
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
 <script src="../shared/today-data.js"></script>
+<script src="people.js"></script>
 <script>
 (function () {
-  var G = window.GT, $ = function (s, r) { return (r || document).querySelector(s); }, $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var G = window.GT, P = window.PEOPLE;
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function toast(t) { var el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(function () { el.classList.remove('show'); }, 2600); }
+  function av(name, cls) { var p = P.of(name); return '<span class="av' + (p.inkText ? ' ink-t' : '') + (cls ? ' ' + cls : '') + '" style="background:' + p.color + '" title="' + name + '">' + name.charAt(0) + '</span>'; }
 
-  /* ---------- 히어로: 표 붙여넣기 → 칸 → 합본 ---------- */
-  var SAMPLE = '반\t담임\t방과후 희망(명)\t돌봄 희망(명)\n4-1\t송민재\t12\t4\n4-2\t정하은\t9\t6\n4-3\t김도윤\t14\t3\n4-4\t이수빈\t\t\n4-5\t박서준\t\t';
-  var model = null;
-  function parse(tsv) {
-    var lines = tsv.replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
-    if (lines.length < 2) return null;
-    var rows = lines.map(function (l) { return l.split('\t'); });
-    var head = rows[0]; if (head.length < 2) return null;
-    var body = rows.slice(1).map(function (r) { while (r.length < head.length) r.push(''); return r.slice(0, head.length); });
-    // 첫 두 칸(반·담임)을 빼고 나머지가 모두 비면 미제출
-    var keyCols = head.length > 2 ? 2 : 1;
-    body.forEach(function (r) { r.done = r.slice(keyCols).some(function (c) { return c.trim() !== ''; }); });
-    return { head: head, body: body, keyCols: keyCols };
-  }
-  function render(m, animate) {
-    $('#thd').innerHTML = '<tr>' + m.head.map(function (h, i) { return '<th' + (i >= m.keyCols ? ' class="r"' : '') + '>' + esc(h) + '</th>'; }).join('') + '<th class="r">상태</th></tr>';
-    $('#tbd').innerHTML = m.body.map(function (r, ri) {
-      return '<tr' + (animate && r.done ? ' class="arrive" style="animation-delay:' + (ri * 0.22) + 's"' : '') + '>' + r.map(function (c, i) {
-        return '<td' + (i >= m.keyCols ? ' class="r"' : '') + '>' + (c.trim() ? esc(c) : (i >= m.keyCols ? '<span class="muted">—</span>' : '')) + '</td>';
-      }).join('') + '<td class="r">' + (r.done ? '<span class="pill ok">제출</span>' : '<span class="muted">미제출</span>') + '</td></tr>';
-    }).join('');
-    // 숫자 칸 합계는 제출한 줄에서만 센다
-    var sums = m.head.map(function (h, i) {
-      if (i < m.keyCols) return i === 0 ? '합계' : '';
-      var nums = m.body.filter(function (r) { return r.done; }).map(function (r) { return parseFloat(r[i]); });
-      return nums.every(function (n) { return !isNaN(n); }) && nums.length ? nums.reduce(function (a, b) { return a + b; }, 0) : '';
+  // 슬롯: 동학년 다섯 명
+  $('#slot').innerHTML = P.grade.map(function (n) { var p = P.of(n); return '<i style="background:' + p.color + (p.inkText ? ';color:#0d0d0d' : '') + '"><span>' + n.charAt(0) + '</span></i>'; }).join('');
+  $('#howWho').innerHTML = P.grade.map(function (n) { return av(n); }).join('');
+
+  // ---------- 라이브 표: 상태 하나에서 모두 그린다 ----------
+  var rows = [
+    { cls: '4-1', who: '송민재', a: 24, b: 1 },
+    { cls: '4-2', who: '정하은', a: 23, b: 2 },
+    { cls: '4-3', who: '김도윤', a: 25, b: 0 },
+    { cls: '4-4', who: '이수빈', a: null, b: null },
+    { cls: '4-5', who: '박서준', a: null, b: null }
+  ];
+  var state = rows.map(function (r) { return { cls: r.cls, who: r.who, a: null, b: null, by: null }; });
+  var tbody = $('#live tbody');
+  tbody.innerHTML = state.map(function (r, i) {
+    return '<tr data-i="' + i + '"><td>' + r.cls + '</td><td>' + r.who + '</td>' +
+      '<td class="cell" data-k="a"><input inputmode="numeric" aria-label="' + r.cls + ' 참가 인원" placeholder="채우기"></td>' +
+      '<td class="cell" data-k="b"><input inputmode="numeric" aria-label="' + r.cls + ' 불참 인원" placeholder="—"></td>' +
+      '<td class="r"><span class="st">미제출</span></td></tr>';
+  }).join('');
+  function paint() {
+    var done = 0, sa = 0, sb = 0;
+    state.forEach(function (r, i) {
+      var tr = tbody.children[i], ok = r.a !== null;
+      if (ok) { done++; sa += r.a; sb += (r.b || 0); }
+      var st = $('.st', tr); st.className = 'st' + (ok ? ' done' : ''); st.textContent = ok ? (r.by && r.by !== r.who ? '대신 냄' : '제출') : '미제출';
+      $$('input', tr).forEach(function (inp) { var k = inp.parentNode.dataset.k; if (document.activeElement !== inp) inp.value = r[k] === null ? '' : r[k]; });
     });
-    $('#tft').innerHTML = '<tr>' + sums.map(function (s, i) { return '<td' + (i >= m.keyCols ? ' class="r"' : '') + '>' + s + '</td>'; }).join('') + '<td></td></tr>';
-    var done = m.body.filter(function (r) { return r.done; }).length, total = m.body.length;
-    var left = m.body.filter(function (r) { return !r.done; }).map(function (r) { return r[0]; });
-    $('#cnt').innerHTML = '<b>' + done + '</b> / ' + total + '반';
-    setTimeout(function () { $('#pbar').style.width = Math.round(done / total * 100) + '%'; }, animate ? 300 : 0);
-    $('#nudge').textContent = left.length ? left.join('·') + ' 독촉 문구 복사' : '모두 냈어요';
-    $('#nudge').disabled = !left.length;
-    m.left = left; m.done = done; m.total = total;
+    $('#sumA').textContent = sa; $('#sumB').textContent = sb;
+    $('#progBar').style.width = (done / state.length * 100) + '%';
+    $('#progN').textContent = done + ' / ' + state.length + '반';
+    console.assert(sa === state.reduce(function (s, r) { return s + (r.a || 0); }, 0), '합계 불일치');
+    return done;
   }
-  function load(tsv, animate) {
-    var m = parse(tsv);
-    if (!m) { $('#hint').hidden = false; $('#hint').textContent = '표로 읽지 못했어요. 제목 줄과 한 줄 이상이 필요해요.'; return; }
-    $('#hint').hidden = true; model = m; $('#paste').value = ''; $('#board').hidden = false; $('#out').classList.remove('on'); render(m, animate);
-  }
-  $('#sample').onclick = function () { load(SAMPLE, true); };
-  load(SAMPLE, true);
-  $('#paste').addEventListener('paste', function (e) {
-    var t = (e.clipboardData || window.clipboardData).getData('text');
-    if (t) { e.preventDefault(); load(t, true); }
+  function commit(i, k, v, by) { state[i][k] = v; if (k === 'a') state[i].by = by || state[i].by; if (k === 'a' && state[i].b === null) state[i].b = 0; var tr = tbody.children[i]; tr.classList.remove('just'); void tr.offsetWidth; tr.classList.add('just'); paint(); }
+  paint();
+
+  // 방문자가 빈 칸을 채운다
+  $$('input', tbody).forEach(function (inp) {
+    inp.addEventListener('change', function () {
+      var i = +inp.closest('tr').dataset.i, k = inp.parentNode.dataset.k, v = inp.value.replace(/[^0-9]/g, '');
+      if (v === '') { if (k === 'a') { state[i].a = null; state[i].by = null; } else state[i].b = null; paint(); return; }
+      commit(i, k, Math.min(99, +v), '정하은');
+      if (k === 'a' && state.every(function (r) { return r.a !== null; })) toast('다섯 반이 다 냈어요. 한글 양식으로 받을 수 있어요.');
+    });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') inp.blur(); });
   });
-  $('#paste').addEventListener('change', function () { if (this.value.trim()) load(this.value, true); });
+
+  // 커서: 송민재·정하은·김도윤이 동시에 채우고, 이수빈은 보는 중
+  var sheet = $('#sheet');
+  var actors = [
+    { name: '송민재', row: 0 }, { name: '정하은', row: 1 }, { name: '김도윤', row: 2 }, { name: '이수빈', row: 3, idle: true }
+  ];
+  $('#liveStack').innerHTML = actors.map(function (a) { return av(a.name); }).join('') + av('박서준', 'off');
+  function cell(i, k) { return $('tr[data-i="' + i + '"] td[data-k="' + k + '"]', tbody); }
+  function at(el, dx, dy) { var s = sheet.getBoundingClientRect(), r = el.getBoundingClientRect(); return [r.left - s.left + r.width * dx, r.top - s.top + r.height * dy]; }
+  var cursors = actors.map(function (a, n) {
+    var p = P.of(a.name), c = document.createElement('div');
+    c.className = 'cursor' + (p.inkText ? ' ink-t' : ''); c.style.setProperty('--who', p.color);
+    c.innerHTML = '<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true"><path d="M2 2l15 7.4-6.6 1.9L7.4 18z" fill="' + p.color + '" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="nm">' + a.name + (a.idle ? ' · 보는 중' : '') + '</span>';
+    sheet.appendChild(c); a.el = c;
+    var s = sheet.getBoundingClientRect();
+    move(a, [s.width * (0.2 + n * 0.2), -30]);
+    return c;
+  });
+  function move(a, xy) { a.el.style.transform = 'translate(' + Math.round(xy[0]) + 'px,' + Math.round(xy[1]) + 'px)'; }
+  function type(a, k, v, done) {
+    var td = cell(a.row, k), p = P.of(a.name);
+    td.style.setProperty('--who', p.color); td.classList.add('editing');
+    var s = String(v), j = 0, inp = $('input', td);
+    (function step() {
+      j++; inp.value = s.slice(0, j);
+      if (j < s.length) setTimeout(step, 160); else setTimeout(function () { td.classList.remove('editing'); commit(a.row, k, v, a.name); done && done(); }, 300);
+    })();
+  }
+  function run() {
+    actors.forEach(function (a, n) {
+      var t0 = 150 + n * 180;
+      if (a.idle) { setTimeout(function () { move(a, at(cell(a.row, 'a'), .2, .6)); }, t0); setTimeout(function () { move(a, at(cell(4, 'b'), .4, .5)); }, t0 + 2600); return; }
+      var r = rows[a.row], first = n === 0 ? 'b' : 'a', second = first === 'a' ? 'b' : 'a';
+      setTimeout(function () { move(a, at(cell(a.row, first), .3, .5)); }, t0);
+      setTimeout(function () { type(a, first, r[first], function () {
+        move(a, at(cell(a.row, second), .3, .5));
+        setTimeout(function () { type(a, second, r[second], function () { move(a, at(cell(a.row, 'b'), 1.1, .5)); }); }, 800);
+      }); }, t0 + 1000);
+    });
+  }
+  function finishNow() { rows.forEach(function (r, i) { if (r.a !== null) { state[i].a = r.a; state[i].b = r.b; state[i].by = r.who; } }); paint(); actors.forEach(function (a, n) { move(a, at(cell(a.row, 'b'), 1.05, 0.9)); }); }
+
+  // 리마인드·내려받기
   $('#nudge').onclick = function () {
-    var msg = '[고티처] 방과후 수요조사, ' + model.left.join(', ') + ' 아직 안 내셨어요. 10/27(화) 12:00까지 링크로 내 주세요. goteacher.xyz/c/7Q2K';
-    if (navigator.clipboard) navigator.clipboard.writeText(msg).catch(function () {});
-    $('#out').innerHTML = '<b>복사했어요.</b> 쿨메신저에 붙여 넣으세요.<div class="msg" style="margin-top:8px;background:#fff">' + esc(msg) + '</div>';
-    $('#out').classList.add('on');
+    var left = state.filter(function (r) { return r.a === null; });
+    if (!left.length) { toast('모두 냈어요. 독촉할 반이 없어요.'); return; }
+    var txt = '[고티처] 학예회 반별 참가 인원, ' + left.map(function (r) { return r.cls + ' ' + r.who; }).join(' · ') + ' 선생님 칸이 비어 있어요. 10/27(화) 12:00까지 링크에서 채워 주세요.';
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { toast('독촉 문구를 복사했어요: ' + left.map(function (r) { return r.cls; }).join(' · ')); }, function () { toast(txt); });
   };
-  $('#merge').onclick = function () {
-    $('#out').innerHTML = '<b>' + model.done + '반의 답을 올린 양식에 채웠어요.</b> 안 낸 ' + model.left.length + '반 칸은 비워 둡니다.<div><span class="file"><i>HWPX</i>2026_방과후_수요조사_합본.hwpx</span><span class="file"><i>HWP</i>올린 형식(.hwp)</span></div>';
-    $('#out').classList.add('on');
-  };
+  $('#dl').onclick = function () { toast('2026_학예회_참가인원.hwpx · 올린 양식 그대로 채워서 내려받아요'); };
 
-  /* ---------- 세 순간: 가운데 줄이 진짜로 바뀐다 ---------- */
-  $('#liveDo').onclick = function () {
-    $('#liveSub').textContent = '방금 정하은 선생님이 대신 냄';
-    $('#liveActs').innerHTML = '<div class="vals"><span>방과후 11명</span><span>돌봄 2명</span><span class="pill ok">제출</span></div>';
-    $('#liveRow').classList.remove('hov');
-  };
-  $('#liveNudge').onclick = function () {
-    if (navigator.clipboard) navigator.clipboard.writeText('[고티처] 4-4 이수빈 선생님, 방과후 수요조사 10/27(화) 12:00까지 부탁드려요.').catch(function () {});
-    this.textContent = '복사했어요';
-  };
-
-  /* ---------- 네 단계 ---------- */
-  var STEPS = [
-    { h: '먼저, 쓰던 한글 양식을 올립니다', p: 'hwp도 hwpx도 됩니다. 미리보기에서 채울 표를 한 번 누르면 칸이 정해져요.',
-      f: '<div class="ph">2026_방과후_수요조사.hwpx<span>표 1개 찾음</span></div><div class="pb"><div class="hwp sel"><div class="ttl">2026학년도 방과후학교 수요조사</div><table><tr><td>반</td><td>담임</td><td>방과후 희망</td><td>돌봄 희망</td></tr><tr><td>4-1</td><td></td><td></td><td></td></tr><tr><td>4-2</td><td></td><td></td><td></td></tr><tr><td>4-3</td><td></td><td></td><td></td></tr></table></div><div style="display:flex;justify-content:space-between;align-items:center"><span class="muted">이 표에 채웁니다 · 칸 4개</span><button class="btn pri sm" type="button">이 표로 정하기</button></div></div>' },
-    { h: '다음, 링크 하나를 보냅니다', p: '받는 선생님은 가입하지 않아도 됩니다. 쿨메신저에 붙여 넣기만 하세요.',
-      f: '<div class="ph">보낼 문구<span>4학년 5반</span></div><div class="pb"><div class="msg">[고티처] 방과후 수요조사, 10/27(화) 12:00까지 반별 인원을 내 주세요. 로그인 없이 바로 열려요.<br>goteacher.xyz/c/7Q2K</div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn sm" type="button">QR 보기</button><button class="btn pri sm" type="button">문구 복사</button></div></div>' },
-    { h: '그러면 각 반이 로그인 없이 냅니다', p: '자기 반을 고르고 숫자만 적으면 끝. 못 낸 반은 동학년 누구든 대신 낼 수 있어요.',
-      f: '<div class="ph">방과후 수요조사<span>마감 10/27(화) 12:00</span></div><div class="pb"><div>어느 반이세요?</div><div class="chips"><span class="chip">4-1</span><span class="chip">4-2</span><span class="chip">4-3</span><span class="chip on">4-4</span><span class="chip">4-5</span></div><div class="fld"><span>방과후 희망(명)</span><span class="in">11</span></div><div class="fld"><span>돌봄 희망(명)</span><span class="in">2</span></div><button class="btn pri" type="button" style="width:100%">내기</button></div>' },
-    { h: '끝으로, 그 양식 그대로 받습니다', p: '올린 형식과 hwpx 두 가지로 내려받습니다. 엑셀에 붙일 표도 한 번에 복사돼요.',
-      f: '<div class="ph">합본 내려받기<span>5반 중 5반 제출</span></div><div class="pb"><div><span class="file"><i>HWPX</i>2026_방과후_수요조사_합본.hwpx</span></div><div><span class="file"><i>HWP</i>올린 형식 그대로(.hwp)</span></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span class="muted">합계 방과후 58명 · 돌봄 19명</span><button class="btn sm" type="button">엑셀용 표 복사</button></div></div>' }
-  ];
-  function setStep(i) {
-    i = +i; var s = STEPS[i], h = $('#stepH'), p = $('#stepP'), f = $('#stepF');
-    $('#stepR').value = i; $('#stepR').style.setProperty('--pct', (i / 3 * 100) + '%');
-    $$('#stepN button').forEach(function (b) { b.setAttribute('aria-current', +b.dataset.i === i); });
-    [h, p, f].forEach(function (el) { el.style.opacity = 0; });
-    setTimeout(function () { h.textContent = s.h; p.textContent = s.p; f.innerHTML = s.f; [h, p, f].forEach(function (el) { el.style.opacity = 1; }); }, 180);
+  // ---------- 한 줄 일정 해석 ----------
+  var DAY = { '오늘': '10/26(월)', '내일': '10/27(화)', '모레': '10/28(수)', '월요일': '11/2(월)', '화요일': '10/27(화)', '수요일': '10/28(수)', '목요일': '10/29(목)', '금요일': '10/30(금)' };
+  var WD = ['일', '월', '화', '수', '목', '금', '토'];
+  function parse(s) {
+    var out = { date: null, slot: null, place: null, title: s };
+    var m = s.match(/(\d{1,2})\/(\d{1,2})/);
+    if (m) { var d = new Date(2026, +m[1] - 1, +m[2]); out.date = m[1] + '/' + m[2] + '(' + WD[d.getDay()] + ')'; out.title = out.title.replace(m[0], ''); }
+    Object.keys(DAY).forEach(function (k) { if (!out.date && s.indexOf(k) > -1) { out.date = DAY[k]; out.title = out.title.replace(k, ''); } });
+    var b = s.match(/([123])블록|방과후/);
+    if (b) { var sl = b[1] ? G.slots[+b[1] - 1] : G.slots[3]; out.slot = sl.label + ' ' + sl.from + (sl.to ? '~' + sl.to : '~'); out.title = out.title.replace(b[0], ''); }
+    var p = s.match(/(\S*(?:실|관|교실|운동장|도서관))(?=\s|$)/);
+    if (p) { out.place = p[1]; out.title = out.title.replace(p[1], ''); }
+    out.title = out.title.replace(/\s+/g, ' ').trim();
+    return out;
   }
-  $('#stepF').innerHTML = STEPS[0].f;
-  $('#stepR').addEventListener('input', function () { setStep(this.value); });
-  $$('#stepN button').forEach(function (b) { b.onclick = function () { setStep(b.dataset.i); }; });
-
-  /* ---------- 오늘 화면: 오른쪽 조작이 왼쪽 결과물을 바꾼다 ---------- */
-  var BUNDLES = [
-    { at: '08:20', label: '1블록 전', what: G.changes.length + '건 바뀜 · 낼 것 ' + G.todo.length + '건' },
-    { at: '12:20', label: '2블록 끝', what: '방과후 수요조사 3/5반 · 오늘 14:00 마감 1건' },
-    { at: '14:40', label: '방과후', what: '내일 마감 · 아직 안 낸 반 리마인드' }
-  ];
-  var st = { b: 1, chg: true, list: 'todo', meal: true };
-  var sent = G.sent[0];
-  function drawMini() {
-    var B = BUNDLES[st.b];
-    var list = st.list === 'todo'
-      ? G.todo.map(function (t) { return '<li><span>' + esc(t.title) + '</span><span>' + esc(t.due) + '</span></li>'; }).join('')
-      : sent.rows.map(function (r) { return '<li><span>' + esc(r.who) + '</span><span>' + (r.done ? '제출' : '미제출') + '</span></li>'; }).join('');
-    $('#mini').innerHTML =
-      '<div class="hd"><b>오늘</b><div>' + G.date.label + ' · ' + G.me.role + '</div></div>' +
-      '<div class="k2"><div><div class="l">다음 묶음 알림 · ' + B.label + '</div><div class="v">' + B.at + '</div></div>' +
-      '<div><div class="l">' + (st.list === 'todo' ? '남은 내 일' : '내가 보낸 모으기') + '</div><div class="v"' + (st.list === 'sent' ? ' style="color:var(--data)"' : '') + '>' + (st.list === 'todo' ? G.todo.length + '<small> 건</small>' : sent.done + '<small> / ' + sent.total + '반</small>') + '</div></div></div>' +
-      '<div class="ls"><h4>' + B.at + '에 오는 것</h4><ul><li><span>' + esc(B.what) + '</span><span></span></li></ul>' +
-      '<div' + (st.chg ? '' : ' hidden') + '><h4>어제 이후 바뀐 것</h4><ul>' + G.changes.map(function (c) { return '<li><span><i class="chg"></i>' + esc(c.title) + '</span><span><del class="was">' + esc(c.from) + '</del> → <ins class="now" style="color:var(--text)">' + esc(c.to) + '</ins></span></li>'; }).join('') + '</ul></div>' +
-      '<h4>' + (st.list === 'todo' ? '내가 낼 것 · 마감순' : sent.title + ' · 반별') + '</h4><ul>' + list + '</ul>' +
-      '<div' + (st.meal ? '' : ' hidden') + '><h4>급식</h4><ul><li><span>' + esc(G.meal.slice(0, 4).join(' · ')) + '</span><span class="num">' + G.mealKcal + ' kcal</span></li></ul></div></div>';
+  function renderAns() {
+    var r = parse($('#q').value);
+    function kv(k, v, ph) { return '<div><div class="k">' + k + '</div><div class="v' + (v ? '' : ' miss') + '">' + (v || ph) + '</div></div>'; }
+    $('#ans').innerHTML = kv('날짜', r.date, '오늘') + kv('블록', r.slot, '시간 미정') + kv('장소', r.place, '—') + kv('제목', r.title, '—');
+    $('#ansRes').textContent = r.slot ? '4학년 오늘 화면 ' + r.slot.split(' ')[0] + ' 칸에 올라가요.' : '시간이 없으면 「전일」 칸에 모였다가, 필요할 때 블록으로 옮겨요.';
   }
-  $$('#cBundle button').forEach(function (b) { b.onclick = function () { st.b = +b.dataset.b; $$('#cBundle button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); drawMini(); }; });
-  $$('#cList button').forEach(function (b) { b.onclick = function () { st.list = b.dataset.l; $$('#cList button').forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); drawMini(); }; });
-  $('#cChg').onchange = function () { st.chg = this.checked; drawMini(); };
-  $('#cMeal').onchange = function () { st.meal = this.checked; drawMini(); };
-  drawMini();
+  $('#q').addEventListener('input', renderAns);
+  $$('.examples button').forEach(function (b) { b.onclick = function () { $('#q').value = b.dataset.q; renderAns(); $('#q').focus(); }; });
+  renderAns();
 
-  /* ---------- 자주 묻는 것 ---------- */
-  var F = G.facts;
-  var QA = [
-    ['정말 무료인가요?', '동학년판은 무료입니다. 원본 한글 양식에 채워 받기도 무료에 들어 있어요.'],
-    ['받는 선생님도 가입해야 하나요?', '아니요. 받는 사람은 링크 하나로 냅니다. 로그인이 없고, 다른 선생님이 대신 내도 됩니다.'],
-    ['한글 파일이 깨지지 않나요?', '올린 양식의 표에 그대로 채워서, 올린 형식과 hwpx 두 가지로 돌려드립니다.'],
-    ['엑셀이나 한글 표를 그대로 써도 되나요?', '네. 표를 복사해 붙여 넣으면 그 줄과 칸이 그대로 모으기 칸이 됩니다.'],
-    ['학생 정보도 걷을 수 있나요?', '받지 않습니다. 교직원 정보만 다루고, 학생 이름이나 연락처로 보이는 열은 경고해요.'],
-    ['데이터는 어디에 저장되나요?', '오라클 클라우드 춘천 리전, 국내에 보관합니다.'],
-    ['쓸 만한 양식은 어디서 구하나요?', '양식 자료실에 79건이 있고, 로그인 없이 보고 내려받을 수 있어요.'],
-    ['언제부터 쓸 수 있나요?', '11월 30일에 베타를 열고, 12월 14일(월) 정식으로 출시합니다.']
-  ];
-  $('#qs').insertAdjacentHTML('beforeend', QA.map(function (q, i) {
-    return '<li role="presentation"><button class="q" role="tab" id="q' + i + '" aria-selected="' + (i === 0) + '" aria-controls="pane" data-i="' + i + '">' + esc(q[0]) + '</button><div class="a-in' + (i === 0 ? ' on' : '') + '">' + esc(q[1]) + '</div></li>';
-  }).join(''));
-  function pick(i) {
-    $$('#qs .q').forEach(function (b) { b.setAttribute('aria-selected', +b.dataset.i === i); });
-    $$('#qs .a-in').forEach(function (a, j) { a.classList.toggle('on', j === i); });
-    var p = $('#pane'); p.style.opacity = 0; setTimeout(function () { p.textContent = QA[i][1]; p.style.opacity = 1; }, 120);
-  }
-  $('#pane').textContent = QA[0][1];
-  $$('#qs .q').forEach(function (b) {
-    var i = +b.dataset.i;
-    b.addEventListener('click', function () { pick(i); });
-    b.addEventListener('focus', function () { pick(i); });
-    b.addEventListener('mouseenter', function () { if (matchMedia('(min-width: 721px)').matches) pick(i); });
+  // ---------- 오늘 미리보기 ----------
+  var urgent = G.todo.filter(function (t) { return t.urgent; })[0];
+  var now = G.slots.filter(function (s) { return s.k === G.nowSlot; })[0];
+  var blocks = G.slots.map(function (s) {
+    var tt = G.timetable.filter(function (t) { return t.k === s.k; })[0];
+    var ev = G.events.filter(function (e) { return e.s === s.k; })[0];
+    return '<div class="blk' + (s.k === G.nowSlot ? ' now' : '') + '"><b>' + s.label + (s.k === G.nowSlot ? ' · 지금' : '') + '</b>' +
+      (tt ? '<span class="ev">' + tt.sub + '</span>' : '<span class="ev" style="color:var(--muted)">수업 없음</span>') + (ev ? '<span>' + ev.title + '</span>' : '') + '</div>';
+  }).join('');
+  var ch = G.changes.slice(0, 2).map(function (c) { return '<p>' + av(c.by) + '<span>' + c.title + ' ' + c.what + ' <del>' + c.from + '</del> → <b>' + c.to + '</b></span></p>'; }).join('');
+  $('#tdy').innerHTML = '<div><p class="find">' + urgent.title.replace(/ \(.*\)/, '') + ', ' + urgent.due + ' 마감</p><p class="fsub">' + G.date.label + ' · 지금 ' + now.label + ' ' + now.from + '~' + now.to + '</p></div>' +
+    '<div class="blocks">' + blocks + '</div>' +
+    '<div class="tdy-row"><div class="tdy-card"><div class="h">내가 낼 것 ' + G.todo.length + '</div>' +
+    G.todo.slice(0, 3).map(function (t) { return '<div class="chk" role="checkbox" aria-checked="false" tabindex="0"><span class="box"></span><span class="tx">' + t.title + '</span></div>'; }).join('') +
+    '</div><div class="tdy-card feed"><div class="h">어제 이후 바뀐 것</div>' + ch + '</div></div>';
+  $$('#tdy .chk').forEach(function (c) {
+    function flip() { c.classList.toggle('on'); c.setAttribute('aria-checked', c.classList.contains('on')); }
+    c.onclick = flip; c.onkeydown = function (e) { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); flip(); } };
   });
 
-  /* ---------- 베타 소식 ---------- */
-  $('#joinF').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var v = $('#mail').value.trim();
-    $('#after').textContent = /.+@.+\..+/.test(v) ? '시안이라 아직 저장하지 않아요. 정식 페이지에서 ' + v + '로 보내 드립니다.' : '메일 주소를 확인해 주세요.';
-  });
-
-  /* ---------- 움직임 ---------- */
-  requestAnimationFrame(function () { $('#hero').classList.add('go'); });
+  // ---------- 등장 ----------
+  var started = false;
+  function startLive() { if (started) return; started = true; if (reduce) finishNow(); else run(); }
   if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -8% 0px' });
-    $$('.rv').forEach(function (el) { io.observe(el); });
-  } else { $$('.rv').forEach(function (el) { el.classList.add('in'); }); }
-  // 사진 띠: 스크롤에 따라 아주 천천히 흐른다
-  var ims = $$('.ph4 img');
-  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    window.addEventListener('scroll', function () {
-      ims.forEach(function (im) { var r = im.parentNode.getBoundingClientRect(); var k = (r.top + r.height / 2 - innerHeight / 2) / innerHeight; im.style.objectPosition = '50% ' + (50 + k * 18) + '%'; });
-    }, { passive: true });
-  }
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in'); io.unobserve(e.target);
+        if (e.target.id === 'heroUi') setTimeout(startLive, reduce ? 0 : 500);
+      });
+    }, { threshold: .12 });
+    $$('.rise, .shutter').forEach(function (el) { io.observe(el); });
+  } else { $$('.rise, .shutter').forEach(function (el) { el.classList.add('in'); }); startLive(); }
+  // 캡처·인쇄용: 스크롤 없이도 항상 첫 화면이 열리게
+  setTimeout(function () { $$('.hero .rise, #heroUi').forEach(function (el) { el.classList.add('in'); }); startLive(); }, 60);
 })();
 </script>
 </body>

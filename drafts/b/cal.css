@@ -1,0 +1,99 @@
+/* 고티처 시안 B — 공통 토큰과 하루 캘린더 부품 (메인 히어로 · 오늘 화면이 같이 쓴다) */
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2.0.5/fonts/variable/woff2/SUIT-Variable.css");
+
+:root {
+  --font: "SUIT Variable", "SUIT", system-ui, sans-serif;
+  --paper: #ffffff;
+  --ground: #f4f5f7;
+  --ink: #16181d;
+  --muted: #4b5059;
+  --line: #e7e9ee;
+  --tone: #eef0f3;
+  --coral: #ff4f6d;          /* 브랜드 강조: 주 동작 · 지금 선 · 진행 막대 */
+  --coral-ink: #16181d;
+  --coral-deep: #c81e44;     /* 흰 바탕 위 글자로 쓰는 강조 */
+
+  /* 일정 종류 — 옅은 색 + 같은 색의 짙은 글자 */
+  --k-class-bg: #dcefff;  --k-class-ink: #0b3d75;   /* 내 수업 · 내 일정 */
+  --k-school-bg: #d5f4e2; --k-school-ink: #0d4d2c;  /* 동학년 · 학교 */
+  --k-todo-bg: #ffe0e6;   --k-todo-ink: #8a1530;    /* 할 일 · 마감 */
+  --k-chg-bg: #ffec8f;    --k-chg-ink: #4f3a00;     /* 바뀐 값 */
+
+  /* 장(章) 색면 — 같은 네 가지 색을 진하게 */
+  --f-sky: #8fcaff;   --f-mint: #7ddfa6;   --f-butter: #ffd84a;   --f-coral: #ff4f6d;   --f-ink: #16181d;
+
+  --r-card: 20px; --r-in: 10px; --r-chip: 8px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+}
+
+/* 로고: 하루 네 블록을 색 조각 네 개로 */
+.gt-mark { display: inline-grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 3px; width: 26px; height: 26px; flex: none; }
+.gt-mark i { border-radius: 4px; }
+.gt-mark i:nth-child(1) { background: var(--f-sky); }
+.gt-mark i:nth-child(2) { background: var(--f-mint); }
+.gt-mark i:nth-child(3) { background: var(--f-butter); }
+.gt-mark i:nth-child(4) { background: var(--f-coral); }
+
+/* ---------- 하루 캘린더 ---------- */
+.cal { --label: 112px; font-family: var(--font); color: var(--ink); }
+.cal-head, .cal-row { display: grid; grid-template-columns: var(--label) repeat(var(--lanes), minmax(0, 1fr)); gap: 8px; }
+.cal-head { padding: 0 0 8px; font-size: var(--cal-s, 14px); color: var(--muted); font-weight: 600; }
+.cal-row { position: relative; padding: 8px 0; border-top: 1px solid var(--line); min-height: var(--rowh, 92px); transition: background-color .18s var(--ease); } /* taste-skill-ignore: 앱 캘린더의 시간 구분선(data-ui) */
+.cal-row.all { min-height: 72px; }
+.cal-row .lab { display: flex; flex-direction: column; gap: 2px; padding: 4px 0 0; }
+.cal-row .lab b { font-size: var(--cal-t, 16px); font-weight: 700; }
+.cal-row .lab span { font-size: var(--cal-s, 14px); color: var(--muted); font-variant-numeric: tabular-nums; }
+.cal-row.now .lab b { color: var(--coral-deep); }
+.cal-row.now { background: #fff6f7; }
+.cal-row.over { background: var(--k-todo-bg); }
+.cal-cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; position: relative; z-index: 1; }
+.cal-row .lab { position: relative; z-index: 1; }
+
+.ev { border-radius: var(--r-in); padding: 9px 12px; font-size: var(--cal-s, 15px); line-height: 1.35; min-width: 0; }
+.ev b { display: block; font-weight: 700; font-size: var(--cal-t, 16px); }
+.ev span { display: block; font-size: var(--cal-s, 14px); opacity: .86; }
+.ev.class { background: var(--k-class-bg); color: var(--k-class-ink); }
+.ev.school { background: var(--k-school-bg); color: var(--k-school-ink); }
+.ev.todo { background: var(--k-todo-bg); color: var(--k-todo-ink); }
+.ev mark { background: var(--k-chg-bg); color: var(--k-chg-ink); border-radius: 4px; padding: 0 4px; font-weight: 700; }
+.ev s { opacity: .7; }
+.ev .warn { display: inline-block; margin-top: 4px; font-size: var(--cal-xs, 13px); font-weight: 700; background: #fff; border-radius: 6px; padding: 1px 6px; color: var(--coral-deep); }
+.ev.pop { animation: ev-pop .32s var(--ease); }
+@keyframes ev-pop { from { transform: scale(.92); opacity: .4; } to { transform: none; opacity: 1; } }
+.ev .undo { margin-left: 6px; font: inherit; font-size: var(--cal-xs, 13px); font-weight: 700; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+
+.slot-btn { display: none; height: 40px; border-radius: var(--r-in); border: 2px dashed var(--k-todo-ink); background: #fff; color: var(--k-todo-ink); font: inherit; font-size: var(--cal-s, 15px); font-weight: 700; cursor: pointer; }
+.cal.picking .slot-btn, .cal.hint .slot-btn { display: block; }
+.cal.hint:not(.picking) .slot-btn { border-color: #e3b5bf; color: #9c3f55; background: var(--paper); }
+.slot-btn:hover, .slot-btn:focus-visible { background: var(--k-todo-bg); }
+
+.nowline { position: absolute; z-index: 0; left: var(--label); right: 0; height: 2px; background: var(--coral); pointer-events: none; }
+.nowline::before { content: ""; position: absolute; left: -5px; top: -4px; width: 10px; height: 10px; border-radius: 50%; background: var(--coral); }
+.cal-row .lab .tag { font-style: normal; font-size: var(--cal-xs, 13px); font-weight: 800; margin-top: 4px; align-self: flex-start; border-radius: 6px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+.cal-row .lab .tag.now { color: #fff; background: var(--coral-deep); }
+.cal-row .lab .tag.due { color: var(--coral-deep); background: #fff; outline: 2px dashed var(--coral-deep); outline-offset: -2px; }
+.dueline { position: absolute; z-index: 0; left: var(--label); right: 0; height: 0; border-top: 2px dashed var(--coral-deep); pointer-events: none; }
+
+/* 할 일 카드(끌어다 놓는 원천) */
+.todo-list { display: flex; flex-direction: column; gap: 8px; }
+.todo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 14px; border-radius: var(--r-in); background: var(--tone); cursor: grab; transition: transform .18s var(--ease), background-color .18s var(--ease), opacity .18s; user-select: none; }
+.todo:hover { background: #e6e9ee; }
+.todo:active { cursor: grabbing; }
+.todo.dragging { opacity: .45; }
+.todo.picked { background: var(--k-todo-bg); outline: 2px solid var(--k-todo-ink); outline-offset: -2px; }
+.todo.placed { background: #fff; outline: 1px dashed var(--line); cursor: default; }
+.todo.placed .tt { color: var(--muted); }
+.todo .tt { font-size: var(--cal-t, 16px); font-weight: 700; line-height: 1.35; }
+.todo .fr { font-size: var(--cal-s, 14px); color: var(--muted); grid-column: 1; }
+.todo .due { font-size: var(--cal-s, 14px); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; }
+.todo .due.urgent { color: var(--coral-deep); }
+.todo .pick { grid-column: 2; grid-row: 2; height: 36px; padding: 0 12px; border-radius: 10px; border: 0; background: #fff; color: var(--ink); font: inherit; font-size: var(--cal-s, 14px); font-weight: 700; cursor: pointer; transition: background-color .15s, transform .1s; }
+.todo .pick:hover { background: var(--k-todo-bg); }
+.todo .pick:active { transform: scale(.96); }
+.todo.placed .pick { background: var(--tone); }
+
+.cal-toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: #fff; font: 600 var(--cal-t, 16px)/1.4 var(--font); padding: 12px 18px; border-radius: 12px; transition: opacity .2s, transform .2s var(--ease); pointer-events: none; z-index: 50; box-shadow: 0 10px 30px rgba(0,0,0,.18); } /* taste-skill-ignore: 떠 있는 알림 */
+.cal-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+:focus-visible { outline: 3px solid var(--coral-deep); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .ev.pop { animation: none; } .todo, .cal-row { transition: none; } }
