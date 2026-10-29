@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>학교 PC 점검</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* 현장 실측(구현 계획 게이트 ①②③): 파일럿 학교 선생님이 학교 PC에서 쪽지 링크로 열어 3분 안에 끝내는 점검.
+     서버가 없으므로 결과는 화면의 문구를 복사해 쪽지로 회신받는다. 입력·파일은 이 PC 밖으로 보내지 않는다. */
+  .c-top{display:flex;align-items:center;gap:10px;padding:14px 32px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .c-top b{font-size:19px}
+  .c-wrap{max-width:980px;margin:0 auto;padding:28px 28px 64px;display:grid;gap:18px}
+  .c-wrap h1{font-size:28px;line-height:38px}
+  .lead{font-size:17px;color:var(--muted);margin:6px 0 0;line-height:28px}
+  .sec{background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .sec-h{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line)}
+  .sec-h h2{font-size:19px}
+  .sec-h .n{width:30px;height:30px;border-radius:50%;background:var(--primary);color:var(--primary-ink);display:grid;place-items:center;font-weight:700;flex:none}
+  .sec-b{padding:18px 22px;display:grid;gap:12px}
+  .rowc{display:grid;grid-template-columns:230px 1fr auto;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+  .rowc:first-child{border-top:0}
+  .rowc .k{font-weight:600}
+  .rowc .v{color:var(--muted);font-size:15px;word-break:break-all}
+  .st{display:inline-flex;align-items:center;height:30px;padding:0 12px;border-radius:999px;font-size:15px;font-weight:700;white-space:nowrap}
+  .st.ok{background:var(--ok-soft);color:var(--ok)}
+  .st.no{background:var(--danger-soft);color:var(--danger)}
+  .st.wait{background:var(--surface-2);color:var(--muted)}
+  .st.warn{background:var(--accent-soft);color:var(--accent-ink)}
+  .q{display:grid;grid-template-columns:230px 1fr;gap:14px;align-items:center;padding:8px 0}
+  .q .k{font-weight:600}
+  .opts{display:flex;flex-wrap:wrap;gap:8px}
+  .opts button{height:42px;padding:0 16px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);font-size:16px;cursor:pointer}
+  .opts button.on{border-color:var(--primary);background:var(--primary);color:var(--primary-ink);font-weight:700}
+  .q input{height:44px;border:1px solid var(--line-strong);border-radius:10px;padding:0 14px;font-size:16px;background:var(--surface);max-width:360px}
+  textarea.pz{width:100%;min-height:120px;border:2px dashed var(--line-strong);border-radius:12px;padding:12px 14px;font-size:15px;background:var(--surface-2);resize:vertical}
+  .yn{display:flex;gap:8px}
+  .yn button{height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);cursor:pointer;font-size:15px}
+  .yn button.on.y{background:var(--ok);border-color:var(--ok);color:#fff}
+  .yn button.on.n{background:var(--danger);border-color:var(--danger);color:#fff}
+  .out{white-space:pre-wrap;background:#1B2430;color:#E6EAF0;border-radius:12px;padding:16px 18px;font:14px/1.6 ui-monospace,Menlo,Consolas,monospace}
+  .note{padding:12px 16px;border-radius:10px;background:var(--accent-soft);color:var(--accent-ink);font-size:15px}
+  .cmp-ck{display:inline-block;width:1px;height:1px;background:red;background:color-mix(in srgb,red 50%,blue)}
+</style>
+</head>
+<body>
+<div class="c-top"><img src="assets/logo.svg" width="26" height="26" alt=""><b>티로드</b><span class="muted">· 학교 PC 점검 (3분)</span></div>
+<main class="c-wrap">
+  <div><h1>이 PC에서 티로드가 잘 돌아갈지 점검해요</h1>
+    <p class="lead">쿨메신저 쪽지로 받은 이 링크를 <b>평소 업무 보는 학교 PC</b>에서 열어 주세요. 1번은 자동이고, 2~4번만 눌러 보시면 됩니다. 마지막에 <b>[결과 복사]</b>를 눌러 보내 주신 분께 쪽지로 붙여넣어 주세요.</p>
+    <p class="small muted" style="margin:8px 0 0">입력한 내용과 고른 파일은 이 PC 밖으로 보내지 않아요. 개인정보는 묻지 않습니다.</p></div>
+
+  <section class="sec"><div class="sec-h"><span class="n">1</span><h2>자동 점검</h2><span class="small muted">열자마자 확인해요</span></div><div class="sec-b" id="auto"></div></section>
+
+  <section class="sec"><div class="sec-h"><span class="n">2</span><h2>이 PC에 대해 알려 주세요</h2><span class="small muted">모르면 '모름'</span></div><div class="sec-b" id="ask"></div></section>
+
+  <section class="sec"><div class="sec-h"><span class="n">3</span><h2>직접 해 보기</h2></div><div class="sec-b">
+    <div><b>① 한글 표 붙여넣기</b><p class="small muted" style="margin:4px 0 8px">한글(hwp) 문서를 아무거나 열어 <b>표를 2~3칸 드래그해 복사(Ctrl+C)</b>한 뒤, 아래 칸을 누르고 <b>Ctrl+V</b> 해 주세요. 업무망·인터넷망이 나뉜 PC에서는 막힐 수 있어요.</p>
+      <textarea class="pz" id="pz" placeholder="여기를 누르고 Ctrl+V"></textarea><div id="pzr" class="small muted" style="margin-top:6px"></div></div>
+    <div class="rowc" style="border-top:1px solid var(--line)"><span class="k">② 파일 고르기</span><span class="v">한글 파일을 하나 골라 보세요(올리지 않고 종류만 확인해요). <input type="file" id="fl" accept=".hwp,.hwpx" style="margin-left:6px"></span><span class="st wait" id="flr">아직</span></div>
+    <div class="rowc"><span class="k">③ 파일 내려받기</span><span class="v">시험용 작은 파일을 내려받아요. 내려받기 막대가 뜨고 저장되면 '됐어요'.<br><button class="btn sm" id="dl" style="margin-top:6px">시험 파일 내려받기</button></span><span class="yn" data-q="download"><button class="y">됐어요</button><button class="n">안 돼요</button></span></div>
+    <div class="rowc"><span class="k">④ 알림 허용</span><span class="v">티로드는 묶음 알림(08:20·12:20·방과후)을 브라우저 알림으로 띄워요. 눌러서 허용해 보세요.<br><button class="btn sm" id="nt" style="margin-top:6px">알림 시험</button></span><span class="st wait" id="ntr">아직</span></div>
+  </div></section>
+
+  <section class="sec"><div class="sec-h"><span class="n">4</span><h2>한글에서 열어 보기</h2><span class="small muted">티로드가 채워 만든 결과 파일이에요</span></div><div class="sec-b">
+    <p class="small muted" style="margin:0">아래 두 파일을 내려받아 <b>이 PC의 한글</b>로 열어 주세요. 오류 없이 열리고, 표 칸에 '교사1-1' 같은 값이 들어 있으면 '열려요'입니다.</p>
+    <div class="rowc"><span class="k">도서 구입 희망 신청서 (.hwp)</span><span class="v"><a class="btn sm" href="assets/check/check-sample.hwp" download="티로드_점검_도서구입희망신청서.hwp">내려받기</a></span><span class="yn" data-q="hwp"><button class="y">열려요</button><button class="n">안 열려요</button></span></div>
+    <div class="rowc"><span class="k">도서 구입 희망 신청서 (.hwpx)</span><span class="v"><a class="btn sm" href="assets/check/check-sample.hwpx" download="티로드_점검_도서구입희망신청서.hwpx">내려받기</a></span><span class="yn" data-q="hwpx"><button class="y">열려요</button><button class="n">안 열려요</button></span></div>
+    <div class="q"><span class="k">이상한 점 (선택)</span><input id="memo" placeholder="예: '문서 복구' 창이 떴어요, 표가 깨졌어요" style="max-width:none;width:100%"></div>
+  </div></section>
+
+  <section class="sec"><div class="sec-h"><span class="n">5</span><h2>결과 보내기</h2></div><div class="sec-b">
+    <div class="out" id="out"></div>
+    <div class="row"><button class="btn pri" id="cp" style="height:48px;font-size:17px">결과 복사</button><span class="small muted">복사한 뒤 이 링크를 보내 주신 분께 쿨메신저 쪽지로 붙여넣어 주세요.</span></div>
+    <p class="note" id="again"></p>
+  </div></section>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  var KEY = 'troad.check', R = {}, A = {};
+  function $(s) { return document.querySelector(s); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var tt; function toast(m) { var e = $('#toast'); e.textContent = m; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(function () { e.classList.remove('show'); }, 2200); }
+  function st(cls, t) { return '<span class="st ' + cls + '">' + t + '</span>'; }
+
+  // ---------- 1. 자동 점검 ----------
+  function browser() {
+    var u = navigator.userAgent, m;
+    if ((m = u.match(/Whale\/([\d.]+)/))) return '웨일 ' + m[1];
+    if ((m = u.match(/Edg\/([\d.]+)/))) return '엣지 ' + m[1];
+    if ((m = u.match(/Chrome\/([\d.]+)/))) return '크롬 ' + m[1];
+    if ((m = u.match(/Firefox\/([\d.]+)/))) return '파이어폭스 ' + m[1];
+    return u.slice(0, 60);
+  }
+  function chromeMajor() { var m = navigator.userAgent.match(/Chrome\/(\d+)/); return m ? +m[1] : 0; }
+  // 저장 유지: 처음 연 시각을 쿠키·localStorage 두 곳에 남기고, 다시 열 때 남아 있는지 본다(복원 프로그램 확인)
+  function persist() {
+    var now = Date.now(), ls = null, ck = null;
+    try { ls = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { ls = 'blocked'; }
+    var m = document.cookie.match(/troad_check=(\d+)/); ck = m ? +m[1] : null;
+    var first = ls && ls.first ? ls.first : ck;
+    try { localStorage.setItem(KEY, JSON.stringify({ first: first || now, last: now, visits: ((ls && ls.visits) || 0) + 1 })); } catch (e) {}
+    document.cookie = 'troad_check=' + (first || now) + ';max-age=' + 3600 * 24 * 400 + ';path=/;SameSite=Lax';
+    return { first: first, ls: ls === 'blocked' ? 'blocked' : !!ls, ck: !!ck, visits: ((ls && ls.visits) || 0) + 1 };
+  }
+  function probe(url, opts) {
+    var t0 = performance.now();
+    return fetch(url, opts || { cache: 'no-store' }).then(function (r) { return { ok: r.ok || r.type === 'opaque', ms: Math.round(performance.now() - t0) }; }, function () { return { ok: false, ms: Math.round(performance.now() - t0) }; });
+  }
+  function auto() {
+    var p = persist(), dpr = window.devicePixelRatio || 1;
+    R.browser = browser(); R.chrome = chromeMajor();
+    R.screen = screen.width + '×' + screen.height + ' · 배율 ' + Math.round(dpr * 100) + '% · 창 ' + innerWidth + '×' + innerHeight;
+    R.wasm = typeof WebAssembly === 'object'; R.crypto = !!(window.crypto && crypto.subtle);
+    R.cmix = CSS.supports && CSS.supports('color', 'color-mix(in srgb, red 50%, blue)'); R.has = CSS.supports && CSS.supports('selector(:has(a))');
+    R.store = p.ls === 'blocked' ? '저장 막힘' : p.first ? '이전 방문 기록 남아 있음' : '처음 방문';
+    R.firstAt = p.first; R.visits = p.visits; R.cookie = p.ck;
+    var rows = [
+      ['브라우저', R.browser, R.chrome && R.chrome < 105 ? st('warn', '오래됨') : st('ok', '좋아요'), 'browser'],
+      ['화면', R.screen, innerWidth < 1400 ? st('warn', '좁아요') : st('ok', '좋아요'), 'screen'],
+      ['티로드 화면 열기', location.host || '로컬 파일', st('ok', '열렸어요'), 'open'],
+      ['나이스 연결(학사·급식)', 'open.neis.go.kr', st('wait', '확인 중'), 'neis'],
+      ['글꼴·도구(CDN)', 'cdn.jsdelivr.net', st('wait', '확인 중'), 'cdn'],
+      ['한글 미리보기 기술(WASM)', R.wasm ? '지원' : '미지원', R.wasm ? st('ok', '좋아요') : st('no', '안 돼요'), 'wasm'],
+      ['저장 유지(다음에 다시 열기)', p.first ? '처음 연 시각: ' + new Date(p.first).toLocaleString('ko-KR') + ' · ' + p.visits + '번째 열기' : '처음 열었어요. 내일 같은 PC에서 한 번 더 열어 주세요', p.first ? st('ok', '남아 있어요') : st('wait', '내일 확인'), 'persist']
+    ];
+    $('#auto').innerHTML = rows.map(function (r) { return '<div class="rowc"><span class="k">' + r[0] + '</span><span class="v">' + esc(r[1]) + '</span><span id="a-' + r[3] + '">' + r[2] + '</span></div>'; }).join('');
+    probe('https://open.neis.go.kr/hub/schoolInfo?Type=json&pSize=1&SCHUL_NM=' + encodeURIComponent('초등학교')).then(function (x) { R.neis = x.ok; $('#a-neis').innerHTML = x.ok ? st('ok', x.ms + 'ms') : st('no', '막혀요'); summary(); });
+    probe('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/package.json').then(function (x) { R.cdn = x.ok; $('#a-cdn').innerHTML = x.ok ? st('ok', x.ms + 'ms') : st('no', '막혀요'); summary(); });
+    $('#again').innerHTML = p.first ? '이 PC는 지난번 기록이 남아 있어요. 복원 프로그램이 있어도 티로드 로그인이 유지될 가능성이 높아요.' : '<b>내일 같은 PC에서 이 링크를 한 번 더 열어 주세요.</b> 그때 「저장 유지」가 \'남아 있어요\'로 바뀌면 복원 프로그램이 있어도 로그인이 유지돼요. 결과도 한 번 더 복사해 보내 주세요.';
+  }
+
+  // ---------- 2. 질문 ----------
+  var QS = [
+    ['office', '교육청', ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '세종', '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주']],
+    ['pc', '이 PC는', ['내 교실 PC', '교무실 내 자리', '교무실 공용', '특별실·기타']],
+    ['net', '망 구분', ['업무망(나이스·업무포털)', '인터넷망', '한 PC로 둘 다', '모름']],
+    ['restore', '복원 프로그램', ['있음(껐다 켜면 초기화)', '없음', '모름']],
+    ['hangul', '한글 버전', ['2014 이하', '2018', '2020', '2022', '2024', '한컴오피스 없음', '모름']],
+    ['how', '이 링크를 연 방법', ['쿨메신저 쪽지 링크 클릭', '주소 직접 입력', '다른 메신저', '기타']]
+  ];
+  function ask() {
+    $('#ask').innerHTML = QS.map(function (q) { return '<div class="q"><span class="k">' + q[1] + '</span><div class="opts" data-a="' + q[0] + '">' + q[2].map(function (o) { return '<button>' + esc(o) + '</button>'; }).join('') + '</div></div>'; }).join('') +
+      '<div class="q"><span class="k">학교 (선택)</span><input id="school" placeholder="예: 김해봉황초"></div>';
+    [].forEach.call(document.querySelectorAll('[data-a] button'), function (b) {
+      b.onclick = function () { var g = b.parentNode; [].forEach.call(g.children, function (x) { x.classList.toggle('on', x === b); }); A[g.dataset.a] = b.textContent; summary(); };
+    });
+    $('#school').oninput = function () { A.school = this.value.trim(); summary(); };
+  }
+
+  // ---------- 3. 직접 해 보기 ----------
+  $('#pz').addEventListener('paste', function (e) {
+    var cd = e.clipboardData || {}, types = [].slice.call(cd.types || []), html = cd.getData ? cd.getData('text/html') : '', txt = cd.getData ? cd.getData('text/plain') : '';
+    var rows = txt.split(/\r?\n/).filter(function (l) { return l.trim(); }), cols = rows.length ? Math.max.apply(null, rows.map(function (l) { return l.split('\t').length; })) : 0;
+    var tbl = /<table/i.test(html);
+    R.paste = { types: types.join(','), table: tbl, rows: rows.length, cols: cols };
+    $('#pzr').innerHTML = rows.length ? '<span style="color:var(--ok);font-weight:700">붙여넣기 됐어요</span> — ' + rows.length + '줄 × ' + cols + '칸' + (tbl ? ' · 표 서식(HTML) 있음' : ' · 글자만') : '<span style="color:var(--danger);font-weight:700">아무것도 안 들어왔어요</span> — 망 사이 복사가 막혔을 수 있어요';
+    summary();
+  });
+  $('#fl').onchange = function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    f.slice(0, 8).arrayBuffer().then(function (b) {
+      var h = [].map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+      var kind = h.indexOf('504b') === 0 ? 'hwpx(zip)' : h.indexOf('d0cf11e0') === 0 ? 'hwp(OLE)' : '알 수 없음';
+      R.file = kind + ' · ' + Math.round(f.size / 1024) + 'KB'; $('#flr').outerHTML = '<span class="st ok" id="flr">' + esc(kind) + '</span>'; summary();
+    });
+  };
+  $('#dl').onclick = function () {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['티로드 점검 파일입니다. 지워도 됩니다.\r\n'], { type: 'text/plain;charset=utf-8' })); a.download = '티로드_점검.txt'; a.click();
+    toast('내려받기를 시작했어요. 저장됐으면 \'됐어요\'를 눌러 주세요.');
+  };
+  $('#nt').onclick = function () {
+    if (!('Notification' in window)) { R.notify = '미지원'; $('#ntr').outerHTML = st('no', '미지원').replace('class="st', 'id="ntr" class="st'); summary(); return; }
+    Notification.requestPermission().then(function (p) {
+      R.notify = p; if (p === 'granted') try { new Notification('티로드 알림 시험', { body: '이렇게 떠요. 수업 중에는 띄우지 않아요.' }); } catch (e) {}
+      $('#ntr').outerHTML = (p === 'granted' ? st('ok', '허용됨') : p === 'denied' ? st('no', '막힘') : st('warn', '보류')).replace('class="st', 'id="ntr" class="st'); summary();
+    });
+  };
+  [].forEach.call(document.querySelectorAll('.yn'), function (g) {
+    [].forEach.call(g.children, function (b) { b.onclick = function () { [].forEach.call(g.children, function (x) { x.classList.toggle('on', x === b); }); A[g.dataset.q] = b.classList.contains('y') ? '예' : '아니오'; summary(); }; });
+  });
+  $('#memo').oninput = function () { A.memo = this.value.trim(); summary(); };
+
+  // ---------- 5. 결과 ----------
+  function summary() {
+    var L = [
+      '[티로드 학교 PC 점검]',
+      '학교: ' + (A.school || '-') + ' · 교육청: ' + (A.office || '-') + ' · PC: ' + (A.pc || '-'),
+      '망: ' + (A.net || '-') + ' · 복원: ' + (A.restore || '-') + ' · 한글: ' + (A.hangul || '-') + ' · 연 방법: ' + (A.how || '-'),
+      '브라우저: ' + R.browser + ' · 화면: ' + R.screen,
+      '연결: 티로드 열림 · 나이스 ' + (R.neis == null ? '확인 중' : R.neis ? 'OK' : '막힘') + ' · CDN ' + (R.cdn == null ? '확인 중' : R.cdn ? 'OK' : '막힘'),
+      '지원: WASM ' + (R.wasm ? 'O' : 'X') + ' · 암호화 ' + (R.crypto ? 'O' : 'X') + ' · color-mix ' + (R.cmix ? 'O' : 'X') + ' · :has ' + (R.has ? 'O' : 'X'),
+      '저장 유지: ' + R.store + (R.firstAt ? ' (처음 ' + new Date(R.firstAt).toLocaleDateString('ko-KR') + ', ' + R.visits + '번째)' : '') + ' · 쿠키 ' + (R.cookie ? '남음' : '없음'),
+      '붙여넣기: ' + (R.paste ? R.paste.rows + '줄×' + R.paste.cols + '칸' + (R.paste.table ? ' 표서식' : ' 글자만') : '안 해 봄') + ' · 파일 고르기: ' + (R.file || '안 해 봄') + ' · 내려받기: ' + (A.download || '-') + ' · 알림: ' + (R.notify || '안 해 봄'),
+      '한글 열기: hwp ' + (A.hwp || '-') + ' · hwpx ' + (A.hwpx || '-') + (A.memo ? ' · 메모: ' + A.memo : ''),
+      '시각: ' + new Date().toLocaleString('ko-KR')
+    ];
+    $('#out').textContent = L.join('\n');
+  }
+  $('#cp').onclick = function () {
+    var t = $('#out').textContent;
+    (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast('결과를 복사했어요. 쪽지에 붙여넣어 주세요.'); }, function () {
+      var a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); var ok = document.execCommand('copy'); a.remove();
+      toast(ok ? '결과를 복사했어요. 쪽지에 붙여넣어 주세요.' : '복사가 막혔어요. 검은 칸의 글자를 드래그해 복사해 주세요.');
+    });
+  };
+
+  auto(); ask(); summary();
+})();
+</script>
+</body>
+</html>
