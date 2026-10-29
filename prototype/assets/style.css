@@ -585,3 +585,8 @@ body[data-zone="out"]{--primary:var(--zout);--primary-soft:var(--zout-soft)}
 #zstrip[hidden]{display:none}
 .pii-badge{margin-left:10px;font-size:14px;font-weight:600;color:var(--ok);background:var(--ok-soft);border-radius:999px;padding:2px 10px;white-space:nowrap}
 .pii-note{margin-top:12px;padding:12px 14px;border-radius:10px;background:var(--ok-soft);color:var(--ok);font-size:15px;line-height:1.55}
+.sum-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.sum-k{border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:2px}
+.sum-k b{font-size:28px;line-height:34px}
+.sum-k span{font-size:15px;font-weight:600}
+.sum-k small{font-size:14px;color:var(--muted)}

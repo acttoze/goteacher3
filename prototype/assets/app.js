@@ -868,8 +868,9 @@
     var bb = $('#bbody');
     if (tab === 'notice') {
       bb.innerHTML = '<div class="card">' + st.notices.map(function (n) {
-        return '<a class="crow" href="#notice/' + n.id + '" style="grid-template-columns:minmax(0,1fr) 230px 184px"><div><div class="row"><b>' + esc(n.title) + '</b>' + (n.ver > 1 ? '<span class="badge acc">v' + n.ver + ' 바뀜</span>' : '') + (n.must ? '<span class="badge pri">확인 필수</span>' : '') + (n.must && !st.acked[n.id] ? '<span class="badge red">내 확인 전</span>' : '') + '</div><div class="small muted">' + esc(n.dept) + ' ' + esc(n.by) + ' · ' + esc(n.updated) + '</div></div>' +
-          '<div><div class="bar"><i style="width:' + Math.round(n.seen / n.total * 100) + '%"></i></div><div class="small muted" style="margin-top:5px">확인 ' + n.seen + '/' + n.total + '</div></div><div class="small muted">' + (n.real ? '실질 변경 · 재확인 ' + n.seenV2 + '명' : '—') + '</div></a>';
+        return '<a class="crow" href="#notice/' + n.id + '" style="grid-template-columns:minmax(0,1fr) 230px 184px"><div><div class="row"><b>' + esc(n.title) + '</b>' + (n.ver > 1 ? '<span class="badge acc">v' + n.ver + ' 바뀜</span>' : '') + (n.must ? '<span class="badge pri">확인 필수</span>' : '') + (n.must && !st.acked[n.id] ? '<span class="badge">아직 안 봄</span>' : '') + '</div><div class="small muted">' + esc(n.dept) + ' ' + esc(n.by) + ' · ' + esc(n.updated) + '</div></div>' +
+          (canSeeAck(n) ? '<div><div class="bar"><i style="width:' + Math.round(n.seen / n.total * 100) + '%"></i></div><div class="small muted" style="margin-top:5px">확인 ' + Math.round(n.seen / n.total * 100) + '% <span class="faint">· 보낸 사람에게만 보여요</span></div></div><div class="small muted">' + (n.real ? '바뀐 부분 재확인 ' + Math.round(n.seenV2 / n.seen * 100) + '%' : '—') + '</div></a>'
+            : '<div class="small muted">' + (n.must ? (st.acked[n.id] ? '✓ 확인함' : '열어 보면 확인돼요') : '') + '</div><div></div></a>');
       }).join('') + '</div>';
       $('#nn').onclick = function () { TR.toast('프로토타입: 공지 쓰기는 일정 한 줄 입력과 같은 방식(칩)으로 만듭니다.'); };
     }
@@ -1081,6 +1082,8 @@
     $('#fshare').onclick = function () { TR.copy('[티로드 양식] ' + f.t + '\nhttps://t.road/forms/' + f.id); };
   }
 
+  // 확인 현황(몇 명 봤는지)은 보낸 사람과 교감만 본다 — 받는 사람에겐 점검받는 느낌을 주지 않게
+  function canSeeAck(n) { return role === 'vp' || n.by === TR.me.name; }
   function noticeDetail(id) {
     var st = S(), n = st.notices.find(function (x) { return x.id === id; }); if (!n) { location.hash = '#notice'; return; }
     var cur = n.versions[n.versions.length - 1], prev = n.versions[n.versions.length - 2];
@@ -1094,16 +1097,16 @@
     view.innerHTML = '<div class="page-h"><div><div class="small"><a href="#board/notice">게시판 · 공지</a> /</div><h1>' + esc(n.title) + ' ' + (n.ver > 1 ? '<span class="badge acc" style="vertical-align:middle">v' + n.ver + '</span>' : '') + '</h1><p>' + esc(n.dept) + ' ' + esc(n.by) + ' · 최종 수정 ' + esc(n.updated) + '</p></div>' +
       '<div class="row"><button class="btn" id="cp">쪽지용 링크 복사</button>' + (n.must ? (st.acked[n.id] ? '<span class="badge ok" style="height:39px;padding:0 14px">확인함</span>' : '<button class="btn pri" id="ack">확인했어요</button>') : '') + '</div></div>' +
       '<div class="split"><div>' +
-      (prev ? '<section class="diff" style="margin-bottom:18px"><div class="row" style="margin-bottom:9px">' + TR.chgIcon + '<b>v' + prev.v + ' → v' + cur.v + '에서 바뀐 부분</b><span class="small muted">' + esc(cur.at) + '</span></div><dl class="kv">' + Object.keys(cur.fields).filter(function (k) { return prev.fields[k] !== cur.fields[k]; }).map(function (k) { return '<dt>' + esc(k) + '</dt><dd><del>' + esc(prev.fields[k]) + '</del> → <ins>' + esc(cur.fields[k]) + '</ins></dd>'; }).join('') + '</dl><p class="small" style="margin:9px 0 0">v1을 이미 본 28명에게는 <b>이 카드만</b> 「오늘 바뀐 것」에 다시 뜹니다. 전체를 다시 읽게 하지 않아요.</p></section>' : '') +
+      (prev ? '<section class="diff" style="margin-bottom:18px"><div class="row" style="margin-bottom:9px">' + TR.chgIcon + '<b>v' + prev.v + ' → v' + cur.v + '에서 바뀐 부분</b><span class="small muted">' + esc(cur.at) + '</span></div><dl class="kv">' + Object.keys(cur.fields).filter(function (k) { return prev.fields[k] !== cur.fields[k]; }).map(function (k) { return '<dt>' + esc(k) + '</dt><dd><del>' + esc(prev.fields[k]) + '</del> → <ins>' + esc(cur.fields[k]) + '</ins></dd>'; }).join('') + '</dl><p class="small" style="margin:9px 0 0">v1을 이미 본 분께는 <b>이 카드만</b> 「오늘 바뀐 것」에 다시 뜹니다. 전체를 다시 읽게 하지 않아요.</p></section>' : '') +
       '<section class="card"><div class="card-h"><h2>내용</h2><div class="seg">' + n.versions.map(function (v) { return '<button data-v="' + v.v + '" class="' + (v.v === cur.v ? 'on' : '') + '">v' + v.v + '</button>'; }).join('') + '</div></div><div class="card-b"><dl class="kv" id="kv">' + diffRows + '</dl><p style="margin:16px 0 0">' + esc(n.body) + '</p></div></section>' +
-      '<section class="card" style="margin-top:18px"><div class="card-h"><h2>보낸 사람 설정</h2></div><div class="card-b" style="display:grid;gap:12px">' +
+      (canSeeAck(n) ? '<section class="card" style="margin-top:18px"><div class="card-h"><h2>보낸 사람 설정</h2></div><div class="card-b" style="display:grid;gap:12px">' +
       '<label class="toggle"><input type="checkbox" ' + (n.real ? 'checked' : '') + ' id="real"> 실질 변경(일시·장소·대상·준비물) — 켜면 이전에 본 사람에게 바뀐 부분만 다시 알림</label>' +
       '<label class="toggle"><input type="checkbox" ' + (n.must ? 'checked' : '') + (canMust ? '' : ' disabled') + '> 확인 필수 — <span class="muted">' + (canMust ? '교감 권한으로 켤 수 있어요' : '부장·교감만 켤 수 있어요 (아무나 켜면 다시 "확인했습니다" 쪽지 30통이 됩니다)') + '</span></label>' +
-      '<p class="small muted" style="margin:0">기본값은 <b>열어 보면 확인한 것</b>으로 칩니다(2초 이상 보거나 끝까지 스크롤, 링크 미리보기 봇은 제외).</p></div></section>' +
-      '</div><aside><section class="card"><div class="card-h"><h2>확인 현황</h2><b>' + n.seen + '/' + n.total + '</b></div><div class="card-b"><div class="bar"><i style="width:' + pct + '%"></i></div>' +
+      '<p class="small muted" style="margin:0">기본값은 <b>열어 보면 확인한 것</b>으로 칩니다(2초 이상 보거나 끝까지 스크롤, 링크 미리보기 봇은 제외).</p></div></section>' : '') +
+      '</div><aside>' + (canSeeAck(n) ? '<section class="card"><div class="card-h"><h2>확인 현황 <span class="small muted" style="font-weight:400">보낸 사람만 봐요</span></h2><b>' + pct + '%</b></div><div class="card-b"><div class="bar"><i style="width:' + pct + '%"></i></div><p class="small muted" style="margin:6px 0 0">' + n.seen + '/' + n.total + '명</p>' +
       (n.ver > 1 ? '<p class="small" style="margin:12px 0 5px">v' + n.ver + ' 바뀐 부분 확인 <b>' + n.seenV2 + '/' + n.seen + '</b></p><div class="bar"><i style="width:' + Math.round(n.seenV2 / n.seen * 100) + '%;background:var(--accent)"></i></div>' : '') +
       (id === 'n2' ? '<p class="small muted" style="margin:14px 0 7px">아직 안 본 선생님</p><div class="miss">' + TR.unseenN2.map(function (x) { return '<button>' + x + '</button>'; }).join('') + '</div><button class="btn sm" style="margin-top:12px" id="rem">안 본 분께 보낼 문구 복사</button>' : '') +
-      '</div></section><div style="margin-top:18px"><div class="small muted" style="margin-bottom:7px">받는 사람 화면 (PC 브라우저)</div>' + pcWin('recv.html?n=' + id, 't.road/n/' + id, 644) + '</div></aside></div>';
+      '</div></section>' : '<section class="card"><div class="card-b"><b>' + (n.must ? (st.acked[n.id] ? '✓ 확인했어요' : '열어 보면 확인한 것으로 쳐요') : '확인이 필요 없는 공지예요') + '</b><p class="small muted" style="margin:6px 0 0">누가 봤는지는 보낸 선생님만 알 수 있어요.</p></div></section>') + '<div style="margin-top:18px"><div class="small muted" style="margin-bottom:7px">받는 사람 화면 (PC 브라우저)</div>' + pcWin('recv.html?n=' + id, 't.road/n/' + id, 644) + '</div></aside></div>';
     $$('[data-v]', view).forEach(function (b) { b.onclick = function () { $$('[data-v]', view).forEach(function (x) { x.classList.toggle('on', x === b); }); var v = n.versions[+b.dataset.v - 1]; $('#kv').innerHTML = Object.keys(v.fields).map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(v.fields[k]) + '</dd>'; }).join(''); }; });
     var ack = $('#ack'); if (ack) ack.onclick = function () { st.acked[n.id] = true; n.seen = Math.min(n.total, n.seen + 1); TR.save(); TR.toast('확인했어요. 보낸 분 화면에 바로 반영됩니다.'); noticeDetail(id); updateDots(); };
     $('#cp').onclick = function () { TR.copy('[티로드] ' + n.title + (n.ver > 1 ? ' (v' + n.ver + ' 수정: 장소·시간 변경)' : '') + '\nhttps://t.road/n/' + n.id); };
@@ -1117,7 +1120,7 @@
     var st = S(), duty = st.events.filter(function (e) { return TR.onDay(e, TR.TODAY) && e.type === 'duty'; });
     var members = st.members || TR.seedMembers;
     var dutyHtml = duty.map(function (d) {
-      return '<div class="duty"><span class="k">' + d.duty + '</span><div class="grow"><b>' + esc(d.who) + '</b> <span class="small muted">' + esc(TR.groupOf(d.who)) + '</span>' + (d.changed ? ' ' + TR.chgIcon : '') + '<div class="small muted">' + esc(d.time) + (d.target ? ' · ' + esc(d.target) : '') + (d.place ? ' · ' + esc(d.place) : '') + '</div></div></div>';
+      return '<div class="duty"><span class="k">' + d.duty + '</span><div class="grow"><b>' + esc(d.who) + '</b> <span class="small muted">' + esc(TR.groupOf(d.who)) + '</span>' + (d.changed ? ' ' + TR.chgIcon : '') + '<div class="small muted">' + esc(d.time) + '</div></div></div>';
     }).join('');
     var body = '';
     if (schoolTab === 'grade') {
@@ -1143,11 +1146,48 @@
         '<p class="small muted" style="margin:14px 0 0">부서(업무분장)는 그룹(근무 위치)과 <b>별개 축</b>입니다. 같은 선생님이 \'4학년\' 그룹이면서 \'방과후돌봄부\' 소속일 수 있습니다. 취합 대상도 부서·업무로 고를 수 있어요. 업무분장은 해마다 보관되어 내년 2월에 그대로 불러옵니다.</p>';
     }
     view.innerHTML = '<div class="page-h"><div><h1>학교</h1><p>모든 선생님이 같은 화면을 봅니다 · 누가 어느 학년·부서에서 무슨 일을 맡았는지, 오늘 누가 자리에 없는지.</p></div><div class="row"><button class="btn" data-edit-me>내 그룹·직책 고치기</button><a class="btn" href="#start">새 학년 세팅</a></div></div>' +
-      '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>급식소 현황판 (TV)</h2><span class="small muted">로그인 없음 · 급식소 TV 브라우저에 이 주소만 띄워 두세요</span></div><div class="card-b row" style="justify-content:space-between;flex-wrap:wrap;gap:12px"><div><b style="font-size:18px">t.road/tv/' + TR.meal.DEFAULT + '</b> <span class="small muted">시연: 김해봉황초등학교 실제 NEIS 급식</span><div class="small muted">메뉴 · 알레르기 · 칼로리 · 원산지 · 이번 주 메뉴는 NEIS에서 자동, 위생 교육 주제 · 표어는 날마다 자동으로 바뀝니다. 영양 선생님은 매일 당일 식판 사진 한 장만 올리면 됩니다.</div></div><div class="row"><a class="btn" href="meal-admin.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">영양사 입력 ↗</a><a class="btn pri" href="tv.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">현황판 열기 ↗</a></div></div></section>' +
-      '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>오늘 복무 현황</h2><span class="small muted">' + duty.length + '명 · 나이스 결재와 별개로 공유만 · 보강 배정은 담당자가 기존 방식대로</span></div><div class="card-b"><div class="duty-row">' + (dutyHtml || '<span class="muted">오늘 부재자가 없어요.</span>') + '</div></div></section>' +
-      '<div class="row" style="margin-bottom:14px"><div class="seg"><button data-tab="grade" class="' + (schoolTab === 'grade' ? 'on' : '') + '">학년분장 · 그룹 현황</button><button data-tab="duty" class="' + (schoolTab === 'duty' ? 'on' : '') + '">업무분장 · 부서</button></div><span class="small muted">' + (schoolTab === 'grade' ? '그룹 ' + TR.groups.length + '개 · 구성원 ' + members.length + '명' : '부서 ' + TR.duties.map(function (d) { return d[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length + '개 · 업무 ' + TR.duties.length + '개') + '</span></div>' + body;
+      
+      summaryCard() +
+      '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>오늘 복무 현황</h2><div class="row"><span class="small muted">' + duty.length + '명 · 유형·시간만 보여요(사유 없음)</span><button class="btn sm" id="dutyPaste">나이스 복무현황 붙여넣기</button></div></div><div class="card-b"><div class="duty-row">' + (dutyHtml || '<span class="muted">오늘 부재자가 없어요.</span>') + '</div><p class="small faint" style="margin:12px 0 0">교무실무사 한 분이 나이스 일일 복무현황 표를 복사해 붙여넣으면 채워집니다. 선생님들이 따로 입력하지 않아요. 병가·공가·특별휴가는 「휴가」로만 보입니다.</p></div></section>' +
+      '<div class="row" style="margin-bottom:14px"><div class="seg"><button data-tab="grade" class="' + (schoolTab === 'grade' ? 'on' : '') + '">학년분장 · 그룹 현황</button><button data-tab="duty" class="' + (schoolTab === 'duty' ? 'on' : '') + '">업무분장 · 부서</button></div><span class="small muted">' + (schoolTab === 'grade' ? '그룹 ' + TR.groups.length + '개 · 구성원 ' + members.length + '명' : '부서 ' + TR.duties.map(function (d) { return d[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length + '개 · 업무 ' + TR.duties.length + '개') + '</span></div>' + body + '<div style="margin-top:18px">' + '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>급식소 현황판 (TV)</h2><span class="small muted">로그인 없음 · 급식소 TV 브라우저에 이 주소만 띄워 두세요</span></div><div class="card-b row" style="justify-content:space-between;flex-wrap:wrap;gap:12px"><div><b style="font-size:18px">t.road/tv/' + TR.meal.DEFAULT + '</b> <span class="small muted">시연: 김해봉황초등학교 실제 NEIS 급식</span><div class="small muted">메뉴 · 알레르기 · 칼로리 · 원산지 · 이번 주 메뉴는 NEIS에서 자동, 위생 교육 주제 · 표어는 날마다 자동으로 바뀝니다. 영양 선생님은 매일 당일 식판 사진 한 장만 올리면 됩니다.</div></div><div class="row"><a class="btn" href="meal-admin.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">영양사 입력 ↗</a><a class="btn pri" href="tv.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">현황판 열기 ↗</a></div></div></section>' + '</div>';
     $$('[data-tab]', view).forEach(function (b) { b.onclick = function () { schoolTab = b.dataset.tab; school(); }; });
+    $('#dutyPaste').onclick = dutyPaste;
+    $('#sumPrint').onclick = function () { window.print(); };
     $$('[data-edit-me]', view).forEach(function (b) { b.onclick = editMe; });
+  }
+  // 교감·교장 결재용 한 장 — 실제 데이터로만 센다
+  function summaryCard() {
+    var st = S(), cs = st.collections, rows = 0, done = 0;
+    cs.forEach(function (c) { c.rows.forEach(function (r) { rows++; if (r.done) done++; }); });
+    var must = st.notices.filter(function (n) { return n.must; }), ackP = must.length ? Math.round(must.reduce(function (a, n) { return a + n.seen / n.total; }, 0) / must.length * 100) : 0;
+    var k = function (n, l, d) { return '<div class="sum-k"><b>' + n + '</b><span>' + l + '</span>' + (d ? '<small>' + d + '</small>' : '') + '</div>'; };
+    return '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>이번 학기 학교 업무 요약 <span class="small muted" style="font-weight:400">교감 · 교장 결재용</span></h2><button class="btn sm" id="sumPrint">한 장 인쇄</button></div><div class="card-b"><div class="sum-row">' +
+      k(cs.length + '건', '티로드로 모은 취합', '진행 중 ' + cs.filter(function (c) { return c.rows.some(function (r) { return !r.done; }); }).length + '건') +
+      k((rows ? Math.round(done / rows * 100) : 0) + '%', '제출 완료율', done + '/' + rows + '칸') +
+      k(ackP + '%', '확인 필수 공지 확인율', must.length + '건 평균') +
+      k(st.members.length + '명', '함께 쓰는 교직원', TR.groups.length + '개 그룹') +
+      '</div><p class="small muted" style="margin:12px 0 0">학생 이름은 티로드 서버에 남지 않습니다. 출시 때 개인정보 처리 안내와 보안 계획(CSAP 인증 로드맵, 망분리 환경 안내)을 이 카드에 함께 둡니다.</p></div></section>';
+  }
+  // 교무실무사: 나이스 일일 복무현황 표를 붙여넣으면 오늘 복무를 바꾼다. 사유는 버리고 유형·시간만 남긴다.
+  function dutyPaste() {
+    modal('<div class="card-h"><h2>나이스 복무현황 붙여넣기</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:12px">' +
+      '<p class="small muted" style="margin:0">나이스 › 복무 › 일일 복무현황에서 표를 드래그해 복사(Ctrl+C)한 뒤 아래에 붙여넣으세요. <b>사유 칸은 읽지 않고 버립니다.</b></p>' +
+      '<textarea class="paste" id="dp" style="min-height:180px" placeholder="성명\t복무구분\t기간\t사유\n김민준\t출장\t09:00~17:00\t…"></textarea>' +
+      '<div class="row"><button class="btn sm" id="dpSample">예시 넣기</button><span class="grow"></span><button class="btn" data-close>취소</button><button class="btn pri" id="dpGo">오늘 복무로 바꾸기</button></div><div id="dpRes"></div></div>');
+    $('#dpSample').onclick = function () { $('#dp').value = '성명\t복무구분\t기간\t사유\n김민준\t출장\t09:00~17:00\t교육지원청 연수\n이서연\t조퇴\t14:00~16:40\t병원 진료\n박지훈\t외출\t11:00~12:30\t개인 용무\n최수아\t연가\t종일\t\n노태윤\t병가\t종일\t감기'; };
+    $('#dpGo').onclick = function () {
+      var st = S(), names = st.members.map(function (m) { return m.name; }), out = [], skip = 0;
+      $('#dp').value.split(/\r?\n/).forEach(function (ln) {
+        var nm = names.find(function (n) { return ln.indexOf(n) >= 0; }), ty = (ln.match(/출장|외출|조퇴|연가|병가|공가|특별휴가|지각/) || [])[0];
+        if (!nm || !ty) { if (ln.trim() && !/성명|복무구분/.test(ln)) skip++; return; }
+        var tm = ln.match(/(\d{1,2}:\d{2})\s*[~∼\-–]\s*(\d{1,2}:\d{2})?/), time = tm ? tm[1] + '~' + (tm[2] || '') : '종일';
+        var h = tm ? +tm[1].split(':')[0] : 9, s = !tm ? 'b1' : h < 10 ? 'b1' : h < 12 ? 'b2' : h < 15 ? 'b3' : 'pm';
+        out.push({ id: 'dp' + out.length + Date.now().toString(36), date: TR.TODAY, s: s, e: tm && tm[2] ? (+tm[2].split(':')[0] < 12 ? 'b2' : +tm[2].split(':')[0] < 15 ? 'b3' : 'pm') : (tm ? 'pm' : 'b3'), title: nm + ' ' + (/병가|공가|특별휴가/.test(ty) ? '휴가' : ty), place: '', target: '', type: 'duty', duty: /병가|공가|특별휴가/.test(ty) ? '휴가' : ty, who: nm, time: time });
+      });
+      if (!out.length) { $('#dpRes').innerHTML = '<div class="warn">이름과 복무구분(출장·외출·조퇴·연가·병가…)이 있는 줄을 찾지 못했어요.</div>'; return; }
+      st.events = st.events.filter(function (e) { return !(e.type === 'duty' && TR.onDay(e, TR.TODAY)); }).concat(out);
+      TR.save(); closeModal(); route(); TR.toast('오늘 복무 ' + out.length + '명을 바꿨어요' + (skip ? ' (읽지 못한 줄 ' + skip + '개)' : '') + '. 사유는 저장하지 않았어요.');
+    };
   }
   function editMe() {
     var st = S(), m = st.members.find(function (x) { return x.name === TR.me.name; });
