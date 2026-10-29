@@ -1,0 +1,97 @@
+/* 고티처 시안 C "지금 작동 중" — 메인과 오늘이 함께 쓰는 토큰과 앱 조각 스타일 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+:root {
+  /* 페이지: 신문지 회색 + 먹 + 놋쇠 */
+  --bg: #e8e8e3;
+  --bg-step: #dcdcd6;
+  --ink: #181715;
+  --soft: #55544e;
+  --brass: #bfb21a;
+  --field: #181715;
+  --field-ink: #e8e8e3;
+  --field-soft: #b4b3ab;
+
+  /* 앱: 무채색 장부. 바닥은 신문지에서 한 단계 밝힌 돌 회색 */
+  --ground: #f3f3ef;
+  --surface: #ffffff;
+  --raised: #ececE7;
+  --active: #e6e6e1;
+  --border: #e3e3de;
+  --rule: #efefeb;
+  --control: #cfcfc9;
+  --text: #121211;
+  --muted: #5e5d58;
+  --primary: #181715;
+  --data: #1d5fbf;          /* 하나뿐인 데이터 색: 지금 블록, 모으기 진행 */
+  --data-soft: #e4ecf8;
+  --warning: #92400e;
+  --pill-warning-bg: #fffbeb; --pill-warning-ink: #92400e;
+  --pill-positive-bg: #dcfae5; --pill-positive-ink: #04250e;
+  --pill-neutral-bg: #ececE7; --pill-neutral-ink: #3d3d3a;
+
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --font: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--font); word-break: keep-all; overflow-wrap: break-word; }
+img { display: block; max-width: 100%; height: auto; }
+button, input, select { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--data); outline-offset: 2px; }
+
+/* ---------- 앱 조각 공통 (오늘 화면과 메인의 data-ui 조각) ---------- */
+.ui { font-family: var(--font); color: var(--text); font-size: 16px; line-height: 24px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.panel-h { display: flex; align-items: center; gap: 12px; padding: 18px 24px 12px; }
+.panel-h h2, .panel-h h3 { margin: 0; font-size: 17px; line-height: 24px; font-weight: 600; }
+.panel-h .meta { margin-left: auto; color: var(--muted); font-size: 14px; }
+.panel-b { padding: 0 24px 20px; }
+.muted { color: var(--muted); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px;
+  border-radius: var(--radius-control); border: 1px solid var(--control); background: var(--surface); color: var(--text);
+  font-size: 15px; font-weight: 500; cursor: pointer; white-space: nowrap; text-decoration: none;
+  transition: background-color .15s ease, transform .1s ease, border-color .15s ease; }
+.btn:hover { border-color: #a9a9a3; background: #fafaf8; }
+.btn:active { transform: translateY(1px); }
+.btn.pri { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.pri:hover { background: #33322e; }
+.btn.grey { background: #e5e5e0; border-color: #e5e5e0; }
+.btn.grey:hover { background: #dadad4; }
+.btn.sm { height: 36px; padding: 0 12px; font-size: 14px; }
+
+.pill { display: inline-flex; flex: none; align-items: center; height: 22px; padding: 0 8px; border-radius: 4px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.pill.warn { background: var(--pill-warning-bg); color: var(--pill-warning-ink); }
+.pill.ok { background: var(--pill-positive-bg); color: var(--pill-positive-ink); }
+.pill.neutral { background: var(--pill-neutral-bg); color: var(--pill-neutral-ink); }
+
+/* 장부형 행 */
+.ledger { width: 100%; border-collapse: collapse; }
+.ledger th { font-size: 13px; font-weight: 400; color: var(--muted); text-align: left; height: 36px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+.ledger td { height: 60px; padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.ledger tr:last-child td { border-bottom: 0; }
+.ledger th:first-child, .ledger td:first-child { padding-left: 0; }
+.ledger th:last-child, .ledger td:last-child { padding-right: 0; text-align: right; }
+.ledger .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ledger .t { font-weight: 500; }
+.ledger .s { font-size: 14px; color: var(--muted); line-height: 20px; }
+.ledger tbody tr { transition: background-color .15s ease; }
+.ledger tbody tr:hover td { background: #fafaf8; }
+
+/* 바뀐 것: 이전 값 회색 취소선 → 새 값 */
+del.was { color: var(--muted); text-decoration-thickness: 1px; }
+ins.now { text-decoration: none; font-weight: 600; }
+.chg { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warning); margin-right: 6px; vertical-align: 2px; }
+
+/* 진행 막대 */
+.track { height: 8px; background: var(--raised); border-radius: 4px; overflow: hidden; }
+.track > i { display: block; height: 100%; background: var(--data); border-radius: 4px; transition: width .4s cubic-bezier(.2,.7,.2,1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

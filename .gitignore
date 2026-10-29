@@ -6,3 +6,6 @@ client_secret_*.json
 .env
 .env.*
 !.env.example
+
+# 디자인 작업 임시 파일(taste-skill)
+.taste-skill/

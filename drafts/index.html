@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고티처 시안 비교</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root { --ground: #f6f6f4; --ink: #18181b; --muted: #55555c; --panel: #ffffff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 17px/1.55 Pretendard, system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 64px 24px 96px; }
+  h1 { font-size: 40px; letter-spacing: -0.02em; margin: 0 0 12px; }
+  p.lead { margin: 0 0 48px; color: var(--muted); font-size: 19px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  section { background: var(--panel); border-radius: 8px; padding: 28px; display: flex; flex-direction: column; gap: 12px; }
+  h2 { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+  section p { margin: 0; color: var(--muted); }
+  .links { display: flex; gap: 10px; margin-top: auto; padding-top: 12px; flex-wrap: wrap; }
+  .links a { display: inline-flex; align-items: center; height: 44px; padding: 0 18px; border-radius: 6px; background: var(--ink); color: #fff; text-decoration: none; font-weight: 600; }
+  .links a + a { background: #e7e7e4; color: var(--ink); }
+  .links a:hover { opacity: .88; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>고티처 시안 3종</h1>
+  <p class="lead">같은 하루(10월 26일 월요일, 4학년 2반 정하은 선생님)를 세 가지 스타일로 그렸습니다. 각 시안은 메인(소개)과 오늘(로그인 뒤 첫 화면) 두 장입니다.</p>
+  <div class="grid">
+    <section>
+      <h2>A. 교무수첩</h2>
+      <p>학교 인쇄물처럼 짠 편집형. 명조 제목, 한글 양식 표가 그대로 증거가 됩니다. 오늘 화면은 인사말로 여는 차분한 홈.</p>
+      <div class="links"><a href="a/index.html">메인</a><a href="a/today.html">오늘</a></div>
+    </section>
+    <section>
+      <h2>B. 칠판 한 줄</h2>
+      <p>첫 화면은 글자만. 칠판 판서 같은 큰 두 줄과 메신저 링크 한 줄. 오늘 화면은 처리할 일을 대기열처럼 쌓은 틴트 프레임.</p>
+      <div class="links"><a href="b/index.html">메인</a><a href="b/today.html">오늘</a></div>
+    </section>
+    <section>
+      <h2>C. 지금 작동 중</h2>
+      <p>페이지 위에서 제품이 진짜로 일합니다. 표 붙여넣기부터 독촉 문구까지. 오늘 화면은 무채색 장부에 데이터 한 색.</p>
+      <div class="links"><a href="c/index.html">메인</a><a href="c/today.html">오늘</a></div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

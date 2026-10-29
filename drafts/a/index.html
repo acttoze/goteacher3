@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고티처 — 한글 양식 그대로 걷고 돌려받기</title>
+<meta name="description" content="고티처는 동학년 취합을 원본 한글 양식 그대로 걷고, 채운 파일로 돌려주는 선생님 업무 도구입니다. 동학년판 무료.">
+<script>document.documentElement.classList.add('js')</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* 시안 A · 교무수첩 — editorial-report(seed 1101837334). 12단 그리드, 축 = 6번째 단 시작(약 42%). */
+:root {
+  --bg: #ffffff;
+  --surface: #f6f6f6;
+  --ink: #000000;
+  --muted: #555555;
+  --accent: #fe7141;
+  --accent-ink: #000000;
+  --field-1: #fe7141;
+  --field-2: #d1ddd3;
+  --field-3: #f0ff1c;
+  --field-4: #000000; --field-4-ink: #f4f4f4;
+  --paper: #ffffff;
+
+  --display: "Noto Serif KR", serif;
+  --text: "Pretendard Variable", Pretendard, system-ui, sans-serif;
+  --step-small: 0.875rem;
+  --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --step-head: clamp(2rem, 1.3rem + 3vw, 3.75rem);
+  --step-display: clamp(3rem, 8.4vw, 8.5rem);
+
+  --m: clamp(16px, 2.2vw, 32px);
+  --gap: clamp(12px, 1.4vw, 20px);
+  --sec: clamp(96px, 12vw, 200px);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.33, 1, 0.68, 1);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--text); font-size: var(--step-body); line-height: 1.6; word-break: keep-all; overflow-wrap: break-word; }
+img { display: block; max-width: 100%; height: auto; }
+a { color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-family: var(--display); font-weight: 900; letter-spacing: -0.03em; line-height: 1.14; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+::selection { background: var(--field-3); color: #000; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); padding-inline: var(--m); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 26px; background: var(--accent); color: var(--accent-ink); font: 700 var(--step-body)/1 var(--text); text-decoration: none; border: 0; border-radius: 0; cursor: pointer; transition: transform 140ms var(--ease-out), background-color 180ms var(--ease-out); }
+.btn:hover { background: #ff875d; }
+.btn:active { transform: translateY(1px) scale(.98); }
+.btn .arr { transition: transform 240ms var(--ease-out); }
+.btn:hover .arr { transform: translateX(4px); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 등장: 스크립트가 있을 때만 숨긴다 */
+.js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 800ms var(--ease-expo), transform 800ms var(--ease-expo); transition-delay: calc(var(--i, 0) * 80ms); }
+.js [data-reveal].is-in { opacity: 1; transform: none; }
+
+/* ---------- 상단 ---------- */
+.bar { position: absolute; inset: 0 0 auto 0; z-index: 5; display: flex; align-items: center; gap: 28px; padding: 22px var(--m); color: var(--paper); }
+.word { font-family: var(--display); font-weight: 900; font-size: var(--step-lead); letter-spacing: -0.03em; text-decoration: none; margin-right: auto; }
+.bar nav { display: flex; gap: 26px; }
+.bar nav a { text-decoration: none; font-weight: 600; font-size: 16px; position: relative; }
+.bar nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 2px; background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform 240ms var(--ease-out); }
+.bar nav a:hover::after { transform: scaleX(1); }
+.bar .btn { min-height: 46px; padding: 0 20px; font-size: 16px; }
+
+/* ---------- 히어로: 사진 한 장 + 모서리 카드 두 장 ---------- */
+.hero { position: relative; min-height: max(100svh, 680px); color: var(--paper); background: #111; overflow: hidden; }
+.hero .ph { position: absolute; inset: 0; }
+.hero .ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 50%; filter: grayscale(1) contrast(1.05); opacity: 0; transition: opacity 1600ms ease; }
+.hero .ph img.on { opacity: 1; }
+.hero .ph img.on { animation: drift 14s var(--ease-soft) both; }
+@keyframes drift { from { transform: scale(1.06); } to { transform: scale(1); } }
+.hero .ph::after { content: ""; position: absolute; inset: 0; /* taste-skill-ignore: 사진 위 글자 밑 중립 scrim */ background: linear-gradient(90deg, rgba(0,0,0,.72) 0%, rgba(0,0,0,.55) 38%, rgba(0,0,0,0) 62%); }
+.hero-copy { position: absolute; left: var(--m); top: 50%; transform: translateY(-58%); width: min(44%, 640px); z-index: 2; }
+.hero h1 { font-size: var(--step-head); line-height: 1.12; }
+.hero h1 span { display: block; }
+.hero .lead { margin-top: 24px; font-size: var(--step-body); line-height: 1.6; max-width: 34em; }
+.hero .lead b { font-weight: 700; }
+.hero .go { margin-top: 32px; }
+.pin { position: absolute; z-index: 2; left: 68%; top: 34%; display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 600; }
+.pin i { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; flex: none; }
+.corner { position: absolute; z-index: 2; right: var(--m); bottom: var(--m); display: flex; gap: 16px; }
+.card { width: 230px; display: block; text-decoration: none; background: var(--paper); color: var(--ink); transition: transform 240ms var(--ease-out); }
+.card:hover { transform: translateY(-4px); }
+.card img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; filter: grayscale(1) contrast(1.05); }
+.card span { display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 14px; font-weight: 700; font-size: 16px; }
+
+/* ---------- 쇼케이스: 붙여 넣는 쪽 / 채워지는 쪽 ---------- */
+.show { display: grid; grid-template-columns: 1fr 1fr; min-height: 92svh; position: relative; }
+.show .in { background: var(--field-4); color: var(--field-4-ink); padding: 18svh var(--m) 160px calc(var(--m) + 4vw); position: relative; }
+.show .out { background: var(--surface); padding: 18svh var(--m) 160px; position: relative; display: flex; justify-content: center; }
+.show label { display: block; font-size: var(--step-small); font-weight: 600; margin-bottom: 14px; color: #cfcfcf; }
+.show textarea { width: min(100%, 22em); min-height: 300px; background: #1b1b1b; color: #fff; border: 0; padding: 20px 22px; font: 500 var(--step-lead)/1.75 var(--text); resize: vertical; }
+.show textarea:focus { outline: 3px solid var(--accent); }
+.show .hint { margin-top: 16px; font-size: 16px; color: #d6d6d6; max-width: 26em; }
+.show h2 { position: absolute; bottom: 40px; font-size: var(--step-head); line-height: 1; white-space: nowrap; }
+.show h2 .l { position: absolute; right: calc(50vw + 24px); bottom: 0; color: var(--field-4-ink); }
+.show h2 .r { position: absolute; left: calc(50vw + 24px); bottom: 0; color: var(--ink); }
+.show .split { position: absolute; inset: auto 0 40px 0; height: 0; margin: 0; }
+
+/* 한글 문서 조각 */
+.hwp { width: min(100%, 520px); background: #fff; color: #000; padding: 34px 34px 26px; font-family: var(--display); }
+.hwp .doc-t { text-align: center; font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
+.hwp .doc-s { text-align: center; font-size: 14px; margin: 6px 0 18px; font-family: var(--text); }
+.hwp table { width: 100%; border-collapse: collapse; font-family: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; }
+.hwp th, .hwp td { border: 1px solid #000; padding: 9px 10px; height: 44px; }
+.hwp th { background: #e9e9e9; font-weight: 600; }
+.hwp td.n { text-align: right; }
+.hwp td.c { text-align: center; }
+.hwp tr.sum td { font-weight: 700; background: #f4f4f4; }
+.hwp td.fresh { animation: fill 900ms var(--ease-out); }
+@keyframes fill { from { background: var(--field-3); } to { background: transparent; } }
+.hwp .miss { color: #8a8a8a; }
+.hwp .dfoot { display: flex; justify-content: space-between; margin-top: 16px; font: 14px/1.4 var(--text); }
+.file { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding: 12px 14px; background: var(--field-2); font: 600 14px/1.3 var(--text); }
+
+/* ---------- 흐름: 한 단짜리 읽기 칼럼 + 여백 메모 ---------- */
+.flow { padding-block: var(--sec); }
+.flow h2 { grid-column: 6 / span 6; font-size: var(--step-head); margin-bottom: 64px; }
+.stage { display: contents; }
+.stage .note { grid-column: 1 / span 4; font-family: var(--display); font-weight: 700; font-size: var(--step-lead); line-height: 1.35; letter-spacing: -0.02em; padding-top: 2px; }
+.stage .body { grid-column: 6 / -1; margin-bottom: 88px; }
+.stage .body p { color: var(--muted); }
+.stage .body p b { color: var(--ink); }
+.ev { margin-top: 22px; }
+.ev.photo img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; filter: grayscale(1) contrast(1.05); }
+.ui { background: var(--surface); padding: 22px; font-size: 16px; }
+.ui .t { font-weight: 700; margin-bottom: 4px; }
+.ui .s { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+.names { display: flex; flex-wrap: wrap; gap: 8px; }
+.names button { min-height: 44px; padding: 0 16px; border: 1px solid #c9c9c9; background: #fff; font: 600 16px var(--text); border-radius: 999px; cursor: pointer; transition: background-color 180ms var(--ease-out); }
+.names button[aria-pressed="true"] { background: #000; color: #fff; border-color: #000; }
+.names button:hover { background: #eee; }
+.names button[aria-pressed="true"]:hover { background: #222; }
+.row2 { display: grid; grid-template-columns: 1fr 120px 96px; gap: 10px; align-items: end; }
+.row2 label { font-size: 14px; color: var(--muted); display: grid; gap: 6px; }
+.row2 select, .row2 input { height: 44px; border: 1px solid #c9c9c9; background: #fff; font: 500 16px var(--text); padding: 0 10px; }
+.row2 .btn { min-height: 44px; padding: 0 14px; }
+.prog { display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
+.prog div { display: flex; justify-content: space-between; padding: 8px 0; }
+.prog .no { color: var(--muted); }
+.meter { height: 10px; background: #e2e2e2; margin: 4px 0 14px; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+
+/* ---------- 기능: 고정된 결과 + 손으로 바꾸는 조작 ---------- */
+.feat { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gap); }
+.feat .stick { grid-column: 1 / span 6; position: sticky; top: 0; height: 100svh; background: var(--field-2); display: flex; align-items: center; justify-content: center; padding: var(--m); }
+.feat .col { grid-column: 8 / span 5; padding: 72px var(--m) 25vh 0; }
+.feat h2 { font-size: var(--step-head); margin-bottom: 18vh; }
+.feat h2 span, .today h2 span { display: block; }
+.blk { min-height: 50vh; }
+.blk h3 { font-size: var(--step-lead); line-height: 1.35; font-weight: 700; margin-bottom: 14px; }
+.blk p { color: var(--muted); max-width: 40ch; margin-bottom: 20px; }
+.seg { display: inline-flex; background: var(--surface); padding: 4px; gap: 4px; flex-wrap: wrap; }
+.seg button { min-height: 44px; padding: 0 16px; border: 0; background: transparent; font: 600 16px var(--text); cursor: pointer; transition: background-color 180ms var(--ease-out); }
+.seg button:hover { background: #e7e7e7; }
+.seg button[aria-pressed="true"] { background: #000; color: #fff; }
+.tg { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; min-height: 44px; }
+.tg input { appearance: none; width: 52px; height: 30px; background: #cfcfcf; border-radius: 999px; position: relative; margin: 0; cursor: pointer; transition: background-color 180ms var(--ease-out); }
+.tg input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; background: #fff; border-radius: 50%; transition: transform 240ms var(--ease-out); }
+.tg input:checked { background: #000; }
+.tg input:checked::after { transform: translateX(22px); }
+.recv { width: min(100%, 440px); background: #fff; padding: 28px; font-size: 16px; }
+.recv .t { font-weight: 800; font-size: 19px; }
+.recv .due { margin: 6px 0 18px; color: var(--muted); }
+.recv .due b { color: #000; }
+.recv .f { display: grid; gap: 6px; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
+.recv .f > span:first-child { font-weight: 600; color: #000; }
+.recv .box { height: 46px; border: 1px solid #bdbdbd; display: flex; align-items: center; padding: 0 12px; color: #000; font-size: 16px; }
+.recv .opt { display: flex; flex-wrap: wrap; gap: 6px; }
+.recv .opt span { padding: 8px 12px; background: var(--surface); font-weight: 600; color: #000; }
+.recv .opt span.me { background: #000; color: #fff; }
+.recv .opt span.off { color: #9a9a9a; }
+.recv .warn { background: #fff3c4; color: #5a4300; padding: 12px; font-size: 14px; margin-bottom: 14px; }
+.recv .send { width: 100%; min-height: 50px; }
+.recv .tiny { margin-top: 12px; font-size: 14px; color: var(--muted); }
+.recv [hidden] { display: none; }
+
+/* ---------- 오늘: 노랑 한 면 ---------- */
+.today { background: var(--field-3); padding-block: var(--sec) 0; }
+.today .grid { align-items: start; }
+.today h2 { grid-column: 1 / span 4; font-size: var(--step-head); }
+.today .txt { grid-column: 1 / span 4; margin-top: 28px; }
+.today .txt p + p { margin-top: 16px; }
+.today .txt a { font-weight: 700; }
+.today .frag { grid-column: 6 / span 7; grid-row: 1 / span 3; }
+.tday { background: #fff; padding: 30px; }
+.tday .g { font-family: var(--display); font-weight: 700; font-size: 24px; line-height: 1.35; letter-spacing: -0.02em; }
+.tday .gs { color: var(--muted); margin: 6px 0 22px; font-size: 16px; }
+.blocks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 14px; }
+.blocks > div { background: var(--surface); padding: 12px; min-height: 132px; }
+.blocks > div.now { background: #ffe3d8; border-top: 4px solid var(--accent); }
+.blocks b { display: block; font-size: 16px; }
+.blocks .tm { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 14px; }
+.blocks .ev { margin-top: 8px; font-weight: 600; line-height: 1.4; }
+.blocks .ev small { display: block; font-weight: 400; color: var(--muted); font-size: 14px; }
+.lst { margin-top: 18px; display: grid; gap: 4px; }
+.lst div { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--surface); padding: 12px 14px; }
+.lst .d { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.lst .d.hot { background: #000; color: var(--field-3); padding: 3px 8px; }
+mark { background: var(--field-3); color: #000; padding: 0 2px; }
+.mosaic { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: var(--sec); }
+.mosaic > * { aspect-ratio: 1 / 1; overflow: hidden; }
+.mosaic img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) contrast(1.05); transition: transform 1200ms var(--ease-soft); }
+.mosaic figure:hover img { transform: scale(1.04); }
+.mosaic figure { margin: 0; }
+.tile { padding: clamp(18px, 2.4vw, 36px); display: flex; flex-direction: column; justify-content: space-between; }
+.tile.o { background: var(--field-1); }
+.tile.k { background: var(--field-4); color: var(--field-4-ink); }
+.tile strong { font-family: var(--display); font-weight: 900; font-size: var(--step-head); line-height: 1.05; letter-spacing: -0.03em; }
+.tile p { font-size: var(--step-body); max-width: 22em; }
+
+/* ---------- 질문: 큰 질문, 옆에 답 ---------- */
+.faq { padding-block: var(--sec); row-gap: 80px; }
+.faq h2, .faq .q { grid-column: 1 / span 6; font-family: var(--display); font-size: clamp(1.625rem, 2.6vw, 2.5rem); font-weight: 700; line-height: 1.2; }
+.faq h2 { color: var(--muted); }
+.faq .a { grid-column: 8 / span 5; padding-top: 6px; }
+.faq .empty { grid-column: 8 / span 5; }
+
+/* ---------- 마무리: 뒤집힌 한 면 ---------- */
+.cta { background: #000; color: #f4f4f4; min-height: 92svh; display: grid; grid-template-rows: 1fr auto; padding: 14svh var(--m) 40px; }
+.cta h2 { font-size: var(--step-display); line-height: 1.02; letter-spacing: -0.04em; }
+.cta h2 span { display: block; }
+.cta .base { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding-top: 48px; }
+.cta .base p { font-size: var(--step-body); max-width: 30em; }
+.cta .btn { min-height: 58px; padding: 0 30px; }
+
+/* ---------- 바닥 ---------- */
+.foot { background: #000; color: #f4f4f4; min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: 160px var(--m) 24px; }
+.foot .cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--gap); font-size: 16px; }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; color: #bdbdbd; }
+.foot li:first-child { color: #fff; font-weight: 700; }
+.foot a { text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+.foot svg { width: 100%; height: auto; display: block; margin-top: 64px; }
+.foot .legal { margin-top: 20px; max-width: 72ch; font-size: 14px; color: #bdbdbd; line-height: 1.6; }
+.foot .legal a { text-decoration: underline; }
+
+/* ---------- 폰 ---------- */
+@media (max-width: 860px) {
+  .bar nav { display: none; }
+  .bar { gap: 12px; }
+  .hero { min-height: 100svh; }
+  .hero .ph img { object-position: 62% 50%; }
+  .hero .ph::after { background: rgba(0,0,0,.5); }
+  .hero-copy { top: 15svh; transform: none; width: auto; right: var(--m); }
+  .hero h1 { font-size: 9.4vw; }
+  .hero .lead { font-size: 17px; margin-top: 16px; }
+  .hero .go { display: none; }
+  .pin { display: none; }
+  .corner { left: var(--m); right: var(--m); gap: 12px; }
+  .card { width: auto; flex: 1; }
+  .card span { font-size: 15px; height: 42px; padding: 0 10px; }
+  .show { grid-template-columns: 1fr; }
+  .show .in { padding: 48px var(--m) 24px; }
+  .show .out { padding: 24px var(--m) 56px; }
+  .show textarea { width: 100%; font-size: 18px; min-height: 240px; }
+  .show h2 { position: static; order: 2; white-space: normal; }
+  .show .in { order: 1; } .show .out { order: 3; }
+  .show h2 .l, .show h2 .r { position: static; display: block; font-size: 10vw; padding: 0 var(--m); }
+  .show h2 .l { background: var(--field-4); padding-bottom: 20px; }
+  .show h2 .r { background: var(--surface); padding-top: 20px; }
+  .show .split { position: static; height: auto; }
+  .flow h2, .stage .note, .stage .body { grid-column: 1 / -1; }
+  .flow h2 { margin-bottom: 40px; }
+  .stage .note { margin-bottom: 10px; }
+  .stage .body { margin-bottom: 56px; }
+  .row2 { grid-template-columns: 1fr 1fr; }
+  .row2 .btn { grid-column: 1 / -1; }
+  .feat { display: block; }
+  .feat .stick { position: sticky; top: 0; height: 46svh; z-index: 1; overflow: hidden; align-items: flex-start; padding-top: 16px; }
+  .feat .recv { transform: scale(.82); transform-origin: top center; }
+  .feat .col { padding: 48px var(--m) 64px; position: relative; z-index: 2; background: var(--bg); }
+  .feat h2 { margin-bottom: 40px; }
+  .blk { min-height: 0; margin-bottom: 56px; }
+  .today h2, .today .txt, .today .frag { grid-column: 1 / -1; grid-row: auto; }
+  .today .frag { margin-top: 40px; }
+  .tday { padding: 20px; }
+  .tday .g { font-size: 20px; }
+  .blocks { grid-template-columns: 1fr 1fr; }
+  .mosaic { grid-template-columns: 1fr 1fr; }
+  .faq { row-gap: 12px; }
+  .faq h2, .faq .q, .faq .a { grid-column: 1 / -1; max-width: none; }
+  .faq .q { font-size: 24px; margin-top: 44px; }
+  .faq h2 { font-size: 24px; }
+  .faq .empty { display: none; }
+  .cta { min-height: 80svh; }
+  .cta h2 { font-size: 13vw; }
+  .cta .btn { width: 100%; }
+  .cta .base p { font-size: 17px; }
+  .foot { padding-top: 96px; }
+  .foot .cols { grid-template-columns: 1fr 1fr; row-gap: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .hero .ph img { transition: none; animation: none !important; }
+  .hwp td.fresh { animation: none; }
+  * { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <a class="word" href="#top" aria-label="고티처 처음으로">고티처</a>
+  <nav aria-label="둘러보기">
+    <a href="#show">한글 양식</a>
+    <a href="#flow">모으기</a>
+    <a href="#today">오늘</a>
+    <a href="#faq">질문</a>
+  </nav>
+  <a class="btn" href="#start">구글로 시작하기</a>
+</header>
+
+<main id="top">
+  <section class="hero" aria-labelledby="h1">
+    <div class="ph" id="slides">
+      <img class="on" src="assets/seoul-youngsin-elementary-school.jpg" width="1920" height="1080" alt="서울의 한 초등학교 정문 안쪽, 운동장으로 이어지는 길과 교사동">
+      <img src="assets/seoul-daelim-elementary-school.jpg" width="1920" height="1080" alt="붉은 벽돌과 분홍색 외벽이 섞인 초등학교 현관" loading="lazy">
+      <img src="assets/seoul-nokbun-elementary-school-20201009-002.jpg" width="1920" height="1280" alt="초등학교 정문과 벽돌 기둥, 정문 앞 횡단보도" loading="lazy">
+    </div>
+    <div class="hero-copy">
+      <h1 id="h1" data-reveal><span>한글 양식 그대로</span><span>걷고 돌려받기</span></h1>
+      <p class="lead" data-reveal style="--i:1">고티처는 동학년 취합을 원본 한글 양식으로 걷고, 다 채운 파일로 돌려주는 선생님 업무 도구입니다. <b>동학년판은 무료예요.</b></p>
+      <a class="btn go" href="#show" data-reveal style="--i:2">채워지는 걸 직접 보기 <span class="arr" aria-hidden="true">→</span></a>
+    </div>
+    <p class="pin"><i aria-hidden="true"></i>정식 출시 12월 14일(월)</p>
+    <div class="corner">
+      <a class="card" href="#faq">
+        <img src="assets/staples-staple-remover-and-paper-documents-45985597455.jpg" width="1920" height="1281" alt="책상 위의 서류 묶음과 스테이플러 심">
+        <span>양식 자료실 79건 <span aria-hidden="true">→</span></span>
+      </a>
+      <a class="card" href="today.html">
+        <img src="assets/joong-dae-elementary-school-5477801131.jpg" width="1000" height="750" alt="벽돌로 지은 4층 초등학교 교사동">
+        <span>오늘 화면 보기 <span aria-hidden="true">→</span></span>
+      </a>
+    </div>
+  </section>
+
+  <section class="show" id="show" aria-labelledby="show-h">
+    <div class="in">
+      <label for="paste">반별 신청 인원 — 쿨메신저에서 받은 대로 붙여 넣어 보세요</label>
+      <textarea id="paste" spellcheck="false">4-1 송민재 12
+4-2 정하은 9
+4-3 김도윤 14
+4-4 이수빈
+4-5 박서준</textarea>
+      <p class="hint">숫자를 바꾸거나 줄을 더해 보세요. 오른쪽 양식이 바로 바뀝니다. 학생 이름은 받지 않고 인원 수만 받아요.</p>
+    </div>
+    <div class="out">
+      <div data-ui>
+        <div class="hwp" aria-live="polite">
+          <p class="doc-t">2026학년도 2학기 방과후학교 수요조사</p>
+          <p class="doc-s">4학년 · 제출 마감 10월 27일(화) 12:00</p>
+          <table>
+            <thead><tr><th>반</th><th>담임</th><th>신청 인원</th><th>제출</th></tr></thead>
+            <tbody id="hwpRows"></tbody>
+          </table>
+          <div class="dfoot"><span>새솔초등학교 방과후돌봄부</span><span id="hwpLeft"></span></div>
+        </div>
+        <div class="file"><span>2026_방과후_수요조사.hwpx</span><span>올린 형식 그대로 + hwpx</span></div>
+      </div>
+    </div>
+    <h2 id="show-h" class="split"><span class="l">붙여 넣으면</span><span class="r">양식이 채워집니다</span></h2>
+  </section>
+
+  <section class="flow grid" id="flow" aria-labelledby="flow-h">
+    <h2 id="flow-h" data-reveal>취합 하나가 끝나기까지</h2>
+
+    <div class="stage">
+      <p class="note" data-reveal>가입 없이 이름만</p>
+      <div class="body">
+        <p data-reveal style="--i:1"><b>처음에는,</b> 학년 대표가 구글 로그인 한 번으로 동학년을 만들고 초대 링크를 보냅니다. 초대받은 선생님은 가입하지 않고 이름만 골라 들어옵니다.</p>
+        <div class="ev ui" data-ui data-reveal style="--i:2">
+          <p class="t">새솔초 4학년 동학년에 초대받았어요</p>
+          <p class="s">내 이름을 골라 주세요. 나중에 구글 로그인으로 이어 붙일 수 있어요.</p>
+          <div class="names" id="names">
+            <button type="button" aria-pressed="false">4-1 송민재</button>
+            <button type="button" aria-pressed="true">4-2 정하은</button>
+            <button type="button" aria-pressed="false">4-3 김도윤</button>
+            <button type="button" aria-pressed="false">4-4 이수빈</button>
+            <button type="button" aria-pressed="false">4-5 박서준</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <p class="note" data-reveal>표를 한 번 누르면</p>
+      <div class="body">
+        <p data-reveal style="--i:1"><b>양식을 올리면,</b> hwp든 hwpx든 학교에서 쓰던 파일 그대로 올립니다. 미리보기에서 받을 표를 한 번 누르면 그 표의 칸이 받는 칸이 됩니다. 한글이나 엑셀 표를 복사해 붙여 넣어도 칸이 됩니다.</p>
+        <figure class="ev photo" data-reveal style="--i:2"><img src="assets/staples-staple-remover-and-paper-documents-45985597455.jpg" width="1920" height="1281" alt="스테이플러 심이 흩어진 책상 위에 쌓인 서류" loading="lazy"></figure>
+      </div>
+    </div>
+
+    <div class="stage">
+      <p class="note" data-reveal>로그인 없이 링크 하나</p>
+      <div class="body">
+        <p data-reveal style="--i:1"><b>링크를 받은 선생님은,</b> 로그인 없이 자기 칸을 채워 냅니다. 출장 간 옆 반 선생님 몫을 대신 내도 됩니다.</p>
+        <div class="ev ui" data-ui data-reveal style="--i:2">
+          <p class="t">방과후 수요조사</p>
+          <p class="s">정하은 선생님이 보냄 · 마감 10월 27일(화) 12:00</p>
+          <div class="row2">
+            <label>반<select aria-label="반"><option>4-4 이수빈</option><option>4-5 박서준</option></select></label>
+            <label>신청 인원<input inputmode="numeric" value="11" aria-label="신청 인원"></label>
+            <button class="btn" type="button">내기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <p class="note" data-reveal>올린 형식 + hwpx</p>
+      <div class="body">
+        <p data-reveal style="--i:1"><b>마감 날에는,</b> 누가 냈고 누가 남았는지 한눈에 보입니다. 독촉 문구를 복사해 보내고, 다 모이면 처음 올린 양식에 채워진 파일을 내려받습니다.</p>
+        <div class="ev ui" data-ui data-reveal style="--i:2">
+          <p class="t">방과후 수요조사 · <span id="pgCount"></span></p>
+          <div class="meter"><i id="pgBar"></i></div>
+          <div class="prog" id="pgRows"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="feat" aria-labelledby="feat-h">
+    <div class="stick">
+      <div class="recv" data-ui aria-live="polite">
+        <p class="t">학예회 의상 대여 수량</p>
+        <p class="due">송민재 · 4학년 대표 · 마감 <b id="rDue">10/28(수) 17:00</b></p>
+        <div class="f"><span>내 칸</span><div class="opt" id="rCells"></div></div>
+        <div class="f" id="rName" hidden><span>이름</span><div class="box">다른 학년 선생님은 이름을 적고 내요</div></div>
+        <div class="f"><span>대여 수량</span><div class="box">6벌</div></div>
+        <div class="warn" id="rWarn" hidden>‘학생 이름’으로 보이는 열이 있어요. 고티처는 학생 정보를 받지 않아요. 인원 수로 바꿔 주세요.</div>
+        <button class="btn send" type="button">내기</button>
+        <p class="tiny" id="rAlert">알림은 08:20 · 12:20 · 방과후, 하루 세 번만 갑니다.</p>
+      </div>
+    </div>
+    <div class="col">
+      <h2 id="feat-h" data-reveal><span>보내는 쪽에서</span> <span>정하는 것</span></h2>
+      <div class="blk">
+        <h3 data-reveal>누구에게 받을지 고릅니다.</h3>
+        <p data-reveal style="--i:1">동학년은 명부대로 칸이 생깁니다. 다른 학년이나 교무실에는 같은 링크를 보내고, 받는 사람이 이름을 적어 냅니다.</p>
+        <div class="seg" role="group" aria-label="받는 사람" data-reveal style="--i:2">
+          <button type="button" data-aud="grade" aria-pressed="true">4학년 5반</button>
+          <button type="button" data-aud="all" aria-pressed="false">다른 학년도</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h3 data-reveal>마감을 정하면 알아서 알립니다.</h3>
+        <p data-reveal style="--i:1">알림은 하루 세 번 묶어서 갑니다. 수업 중에는 창을 띄우지 않아요.</p>
+        <div class="seg" role="group" aria-label="마감" data-reveal style="--i:2">
+          <button type="button" data-due="오늘 14:00" aria-pressed="false">오늘 14:00</button>
+          <button type="button" data-due="10/28(수) 17:00" aria-pressed="true">수요일 17:00</button>
+          <button type="button" data-due="10/30(금) 17:00" aria-pressed="false">금요일 17:00</button>
+        </div>
+      </div>
+      <div class="blk">
+        <h3 data-reveal>대신 내기를 허용합니다.</h3>
+        <p data-reveal style="--i:1">출장이나 연가로 빈 반이 있어도 취합이 멈추지 않게, 다른 반 칸도 고를 수 있게 둡니다.</p>
+        <label class="tg" data-reveal style="--i:2"><input type="checkbox" id="proxy" checked> 다른 반 칸도 고를 수 있게</label>
+      </div>
+      <div class="blk">
+        <h3 data-reveal>학생 정보는 받지 않습니다.</h3>
+        <p data-reveal style="--i:1">교직원 정보만 걷습니다. 학생 이름이나 연락처로 보이는 열을 넣으면 경고하고, 인원 수로 바꾸게 안내합니다.</p>
+        <label class="tg" data-reveal style="--i:2"><input type="checkbox" id="stu"> ‘학생 이름’ 열을 넣어 보기</label>
+      </div>
+    </div>
+  </section>
+
+  <section class="today" id="today" aria-labelledby="today-h">
+    <div class="grid">
+      <h2 id="today-h" data-reveal><span>아침에는</span> <span>오늘 한 장</span></h2>
+      <div class="txt">
+        <p data-reveal style="--i:1">출근해서 여는 첫 화면입니다. 오늘 일과를 블록 네 칸에, 어제 퇴근 이후 바뀐 것과 내가 낼 것을 그 옆에 둡니다. 학사일정과 급식은 NEIS에서 저절로 들어옵니다.</p>
+        <p data-reveal style="--i:2"><a href="today.html">오늘 화면 전체 보기 →</a></p>
+      </div>
+      <div class="frag" data-reveal style="--i:1">
+        <div class="tday" data-ui>
+          <p class="g">정하은 선생님, 방과후 수요조사가 오늘 14:00에 마감돼요.</p>
+          <p class="gs">10월 26일 월요일 · 2학기 9주차 · 지금 2블록</p>
+          <div class="blocks">
+            <div><b>1블록</b><span class="tm">08:40~10:30</span><p class="ev">국어 · 수학<small>독서주간 아침 10분 독서</small></p></div>
+            <div class="now"><b>2블록 · 지금</b><span class="tm">10:30~12:20</span><p class="ev">4-2 수업공개<small>참관: 교감 · 4학년부</small></p></div>
+            <div><b>3블록</b><span class="tm">12:20~14:40</span><p class="ev">체육 · 창체<small>3학년 수영 출발 <mark>13:10</mark></small></p></div>
+            <div><b>방과후</b><span class="tm">14:40~</span><p class="ev">학년부장 협의회<small>15:30 · 교무실</small></p></div>
+          </div>
+          <div class="lst">
+            <div><span>방과후 수요조사 (반별 인원)</span><span class="d hot">오늘 14:00</span></div>
+            <div><span>4학년 학년협의 장소 4-3 → <mark>4-1 교실</mark></span><span class="d">바뀜</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mosaic">
+      <figure><img src="assets/seoul-daelim-elementary-school.jpg" width="1920" height="1080" alt="초등학교 현관 앞 화단" loading="lazy"></figure>
+      <div class="tile o" data-reveal><strong>하루 세 번</strong><p>알림은 08:20 · 12:20 · 방과후에 묶어서. 수업 중에는 띄우지 않아요.</p></div>
+      <figure><img src="assets/rows-of-desks-in-lecture-theatre.jpg" width="1920" height="1446" alt="비어 있는 강의실의 나무 책상 줄" loading="lazy"></figure>
+      <div class="tile k" data-reveal style="--i:1"><strong>국내 보관</strong><p>오라클 클라우드 춘천 리전에 저장합니다.</p></div>
+    </div>
+  </section>
+
+  <section class="faq grid" id="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h">자주 묻는 질문</h2><span class="empty"></span>
+    <p class="q" data-reveal>정말 무료인가요?</p>
+    <p class="a" data-reveal style="--i:1">동학년판은 무료입니다. 동학년 공간과 초대, 모으기, 원본 한글 양식에 채워 받기까지 모두 들어 있습니다.</p>
+    <p class="q" data-reveal>받는 선생님도 가입해야 하나요?</p>
+    <p class="a" data-reveal style="--i:1">아니요. 링크 하나로 냅니다. 로그인이 없고, 옆 반 선생님 몫을 대신 내도 됩니다.</p>
+    <p class="q" data-reveal>제 양식이 망가지지 않나요?</p>
+    <p class="a" data-reveal style="--i:1">올린 hwp·hwpx 원본에 그대로 채웁니다. 내려받을 때는 올린 형식과 hwpx 두 가지로 드립니다.</p>
+    <p class="q" data-reveal>학생 정보도 걷을 수 있나요?</p>
+    <p class="a" data-reveal style="--i:1">아니요. 교직원 정보만 받습니다. 학생 이름이나 연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내합니다.</p>
+    <p class="q" data-reveal>수업 중에 알림이 울리나요?</p>
+    <p class="a" data-reveal style="--i:1">울리지 않습니다. 알림은 08:20, 12:20, 방과후 이렇게 하루 세 번 묶어서 보냅니다.</p>
+    <p class="q" data-reveal>양식은 어디서 구하나요?</p>
+    <p class="a" data-reveal style="--i:1">양식 자료실에 79건이 있습니다. 로그인하지 않아도 보고 내려받을 수 있습니다.</p>
+  </section>
+
+  <section class="cta" id="start" aria-labelledby="cta-h">
+    <h2 id="cta-h" data-reveal><span>다음 취합은</span><span>한글 양식 그대로</span></h2>
+    <div class="base">
+      <p data-reveal style="--i:1">구글 로그인 한 번이면 동학년이 열립니다. 베타는 11월 30일, 정식 출시는 12월 14일(월)입니다.</p>
+      <a class="btn" href="#start" data-reveal style="--i:2">구글로 시작하기 <span class="arr" aria-hidden="true">→</span></a>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="cols">
+    <ul><li>고티처</li><li>goteacher.xyz</li><li>선생님 업무 도구</li></ul>
+    <ul><li>둘러보기</li><li><a href="#show">한글 양식</a></li><li><a href="#flow">모으기</a></li><li><a href="today.html">오늘</a></li></ul>
+    <ul><li>약속</li><li><a href="../../prototype/privacy.html">개인정보 처리방침</a></li><li><a href="../../prototype/terms.html">이용약관</a></li></ul>
+    <ul><li>일정</li><li>베타 11월 30일</li><li>정식 12월 14일(월)</li></ul>
+  </div>
+  <div></div>
+  <div>
+    <svg viewBox="0 0 300 98" role="img" aria-label="고티처"><text x="-4" y="86" font-family="Noto Serif KR, serif" font-weight="900" font-size="104" letter-spacing="-5" fill="#f4f4f4" textLength="306" lengthAdjust="spacingAndGlyphs">고티처</text></svg>
+    <p class="legal">© 2026 고티처. 사진: <a href="https://commons.wikimedia.org/wiki/File:Seoul_Youngsin_Elementary_School.jpg">Seoul Youngsin Elementary School</a>, <a href="https://commons.wikimedia.org/wiki/File:Seoul_Daelim_Elementary_School.jpg">Seoul Daelim Elementary School</a> (Aspere, CC0); <a href="https://commons.wikimedia.org/wiki/File:Seoul_Nokbun_Elementary_School_20201009_002.jpg">Seoul Nokbun Elementary School</a> (Mobius6, <a href="https://creativecommons.org/licenses/by-sa/4.0">CC BY-SA 4.0</a>); <a href="https://commons.wikimedia.org/wiki/File:Joong-Dae_Elementary_School_%EC%A4%91%EB%8C%80%EC%B4%88%EB%93%B1%ED%95%99%EA%B5%90_(5477801131).jpg">Joong-Dae Elementary School</a> (InSapphoWeTrust, <a href="https://creativecommons.org/licenses/by-sa/2.0">CC BY-SA 2.0</a>); <a href="https://commons.wikimedia.org/wiki/File:Staples,_Staple_Remover,_and_Paper_Documents_(45985597455).jpg">Staples, Staple Remover, and Paper Documents</a> (Tony Webster, <a href="https://creativecommons.org/licenses/by-sa/2.0">CC BY-SA 2.0</a>); <a href="https://commons.wikimedia.org/wiki/File:Rows_of_Desks_in_Lecture_Theatre.jpg">Rows of Desks in Lecture Theatre</a> (Paul The Writer, CC0). 모두 Wikimedia Commons.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  // 등장
+  var els = document.querySelectorAll('[data-reveal]');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+    els.forEach(function (el) { io.observe(el); });
+    addEventListener('load', function () { setTimeout(function () { els.forEach(function (el) { var r = el.getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) el.classList.add('is-in'); }); }, 2500); });
+  } else els.forEach(function (el) { el.classList.add('is-in'); });
+
+  // 히어로 사진 천천히 바꾸기
+  var imgs = document.querySelectorAll('#slides img'), k = 0, reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduce && imgs.length > 1) setInterval(function () { if (document.hidden) return; imgs[k].classList.remove('on'); k = (k + 1) % imgs.length; imgs[k].classList.add('on'); }, 6000);
+
+  // 쇼케이스: 붙여 넣은 줄 → 한글 양식 표
+  var ta = document.getElementById('paste'), rows = document.getElementById('hwpRows'), left = document.getElementById('hwpLeft'), prev = {};
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function render() {
+    var lines = ta.value.split(/\n/).map(function (l) { return l.trim(); }).filter(Boolean).slice(0, 8), sum = 0, miss = [], h = '';
+    lines.forEach(function (l) {
+      var m = l.split(/[\s\t,]+/), cls = m[0], last = m[m.length - 1].replace(/명$/, '');
+      var n = m.length > 1 && /^\d+$/.test(last) ? last : undefined;
+      var who = m[1] && m[1] !== m[m.length - 1] ? m[1] : (n === undefined ? (m[1] || '') : '');
+      var fresh = prev[cls] !== String(n);
+      if (n !== undefined) sum += +n; else miss.push(cls);
+      h += '<tr><td class="c">' + esc(cls) + '</td><td class="c">' + esc(who) + '</td><td class="n' + (fresh && n !== undefined ? ' fresh' : '') + '">' + (n !== undefined ? n + '명' : '') + '</td><td class="c' + (n === undefined ? ' miss' : '') + '">' + (n !== undefined ? '제출' : '—') + '</td></tr>';
+      prev[cls] = String(n);
+    });
+    h += '<tr class="sum"><td class="c" colspan="2">합계</td><td class="n">' + sum + '명</td><td class="c">' + (lines.length - miss.length) + '/' + lines.length + '</td></tr>';
+    rows.innerHTML = h;
+    left.textContent = miss.length ? '남은 반: ' + miss.join(', ') : '모두 냈어요';
+  }
+  ta.addEventListener('input', render); render();
+
+  // 초대: 이름 고르기
+  document.querySelectorAll('#names button').forEach(function (b, _, all) { b.addEventListener('click', function () { all.forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); }); });
+
+  // 진행 현황 (공통 데이터와 같은 값: 5반 중 3반)
+  var pg = [['4-1 송민재', '9:12 냄'], ['4-2 정하은', '9:40 냄'], ['4-3 김도윤', '10:05 냄'], ['4-4 이수빈', null], ['4-5 박서준', null]];
+  var done = pg.filter(function (r) { return r[1]; }).length;
+  document.getElementById('pgCount').textContent = done + '/' + pg.length + '반';
+  document.getElementById('pgBar').style.width = (done / pg.length * 100) + '%';
+  document.getElementById('pgRows').innerHTML = pg.map(function (r) { return '<div class="' + (r[1] ? '' : 'no') + '"><span>' + r[0] + '</span><span>' + (r[1] || '아직') + '</span></div>'; }).join('') + '<div><button class="btn" type="button" style="min-height:44px;padding:0 16px">독촉 문구 복사</button><button class="btn" type="button" style="min-height:44px;padding:0 16px;background:#000;color:#fff">합본 내려받기</button></div>';
+
+  // 기능: 조작하면 왼쪽 제출 화면이 바뀐다
+  var aud = 'grade', proxy = document.getElementById('proxy'), stu = document.getElementById('stu');
+  function recv() {
+    var cells = ['4-1', '4-2', '4-3', '4-4', '4-5'], mine = '4-2';
+    document.getElementById('rCells').innerHTML = cells.map(function (c) { return '<span class="' + (c === mine ? 'me' : proxy.checked ? '' : 'off') + '">' + c + '</span>'; }).join('') + (aud === 'all' ? '<span>그 밖의 선생님</span>' : '');
+    document.getElementById('rName').hidden = aud !== 'all';
+    document.getElementById('rWarn').hidden = !stu.checked;
+  }
+  document.querySelectorAll('[data-aud]').forEach(function (b, _, all) { b.addEventListener('click', function () { aud = b.dataset.aud; all.forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); recv(); }); });
+  document.querySelectorAll('[data-due]').forEach(function (b, _, all) { b.addEventListener('click', function () { document.getElementById('rDue').textContent = b.dataset.due; all.forEach(function (x) { x.setAttribute('aria-pressed', x === b); }); document.getElementById('rAlert').textContent = b.dataset.due.indexOf('오늘') === 0 ? '마감이 오늘이라 12:20 묶음 알림에 들어갑니다.' : '알림은 08:20 · 12:20 · 방과후, 하루 세 번만 갑니다.'; }); });
+  proxy.addEventListener('change', recv); stu.addEventListener('change', recv); recv();
+})();
+</script>
+</body>
+</html>
