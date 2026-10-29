@@ -1,2 +1,8 @@
 server.log
 .DS_Store
+
+# 비밀 값은 저장소에 두지 않는다
+client_secret_*.json
+.env
+.env.*
+!.env.example
