@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>동학년 만들기</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* R1 동학년판 진입 화면: 간편 로그인 → 학교 찾기(NEIS) → 학년·반 → 동학년 홈(초대) */
+  .g-top{display:flex;align-items:center;gap:12px;padding:14px 36px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .g-top b{font-size:19px}
+  .g-top .grow{flex:1}
+  .g-wrap{max-width:1180px;margin:0 auto;padding:32px 36px 64px}
+  .steps{display:flex;gap:8px;margin-bottom:24px}
+  .steps span{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-weight:600;font-size:15px}
+  .steps span i{font-style:normal;width:24px;height:24px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:14px}
+  .steps span.on{background:var(--primary);color:var(--primary-ink)}
+  .steps span.on i{color:var(--primary)}
+  .steps span.done{background:var(--primary-soft);color:var(--primary)}
+  .hero{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center}
+  .hero h1{font-size:40px;line-height:52px;letter-spacing:-.02em}
+  .hero p.lead{font-size:19px;line-height:32px;color:var(--muted);margin:16px 0 0}
+  .social{display:grid;gap:12px;max-width:420px}
+  .social button{height:56px;border-radius:12px;font-size:18px;font-weight:700;border:1px solid var(--line-strong);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+  .social .kakao{background:#FEE500;border-color:#FEE500;color:#191919}
+  .social .naver{background:#03C75A;border-color:#03C75A;color:#fff}
+  .social .google{background:#fff;color:#1B2430}
+  .pts{display:grid;gap:14px}
+  .pt{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .pt b{font-size:17px}
+  .pt span{font-size:15px;color:var(--muted)}
+  .pt i{font-style:normal;font-size:26px}
+  .search{display:flex;gap:10px}
+  .search input{flex:1;height:52px;border:1px solid var(--line-strong);border-radius:12px;padding:0 16px;font-size:18px;background:var(--surface)}
+  .search input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+  .results{display:grid;gap:10px;margin-top:16px}
+  .results button{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:14px 18px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);cursor:pointer;font-size:17px}
+  .results button:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .results small{color:var(--muted);font-size:15px}
+  .pick{display:flex;flex-wrap:wrap;gap:10px}
+  .pick button{min-width:84px;height:52px;padding:0 18px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);font-size:18px;font-weight:600;cursor:pointer}
+  .pick button.on{border-color:var(--primary);background:var(--primary);color:var(--primary-ink)}
+  .fld2{display:grid;gap:8px;font-size:16px;font-weight:600;margin-top:22px}
+  .fld2 input{height:52px;border:1px solid var(--line-strong);border-radius:12px;padding:0 16px;font-size:18px;background:var(--surface);max-width:360px}
+  .big{height:54px;padding:0 26px;font-size:18px;border-radius:12px}
+  .home{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+  .card-b{padding:20px 24px}
+  .inv{display:grid;grid-template-columns:168px 1fr;gap:20px;align-items:center}
+  .qr{width:168px;height:168px;background:#fff;border:1px solid var(--line);border-radius:10px;display:grid;place-items:center}
+  .qr svg{width:156px;height:156px}
+  .link{font-size:20px;font-weight:700;letter-spacing:.01em}
+  .msg{white-space:pre-wrap;background:var(--surface-2);border-radius:10px;padding:14px 16px;font-size:15px;line-height:1.6;margin:14px 0 0}
+  .slots{display:grid;gap:8px}
+  .slot{display:grid;grid-template-columns:78px 1fr auto;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .slot .c{font-weight:700;font-size:17px}
+  .slot .n{font-size:17px}
+  .slot.wait .n{color:var(--faint)}
+  .slot.in{border-color:var(--rel-line);background:var(--rel)}
+  .pbar{height:12px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin:6px 0 14px}
+  .pbar i{display:block;height:100%;background:var(--primary)}
+  .next{display:grid;gap:10px}
+  .next a{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:1px solid var(--line-strong);border-radius:12px;text-decoration:none;color:var(--text);background:var(--surface)}
+  .next a.pri{background:var(--primary);border-color:var(--primary);color:var(--primary-ink)}
+  .next a b{font-size:17px}
+  .next a span{font-size:15px;opacity:.85}
+  .note{padding:12px 16px;border-radius:10px;background:var(--accent-soft);color:var(--accent-ink);font-size:15px}
+  .err{padding:12px 16px;border-radius:10px;background:var(--danger-soft);color:var(--danger);font-size:15px;margin-top:12px}
+</style>
+</head>
+<body data-zone="in">
+<div class="g-top"><img src="assets/logo.svg" width="26" height="26" alt=""><b>티로드</b><span class="muted">· 동학년</span><span class="grow"></span><span class="small muted" id="who"></span><button class="btn sm" id="reset" title="시연 처음부터">↺ 처음부터</button></div>
+<main class="g-wrap" id="m"></main>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script>
+(function () {
+  // 시연용: 동학년 정보는 이 브라우저(localStorage)에 저장하고, join.html이 같은 키를 고쳐 '들어온 사람'이 바로 보인다.
+  var KEY = 'troad.grade', API = 'https://open.neis.go.kr/hub/', root = document.getElementById('m');
+  var VIA = { kakao: '카카오', naver: '네이버', google: '구글' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } }
+  function save(g) { try { localStorage.setItem(KEY, JSON.stringify(g)); } catch (e) {} }
+  var tt; function toast(m) { var e = document.getElementById('toast'); e.textContent = m; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(function () { e.classList.remove('show'); }, 2000); }
+  function copy(t, m) { (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { toast(m); }, function () { var a = document.createElement('textarea'); a.value = t; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); toast(m); }); }
+  function neis(path, params) {
+    var u = new URL(API + path); u.searchParams.set('Type', 'json');
+    Object.keys(params).forEach(function (k) { u.searchParams.set(k, params[k]); });
+    return fetch(u).then(function (r) { return r.json(); }).then(function (j) { var b = j[path]; return b ? { total: b[0].head[0].list_total_count, rows: b[1].row } : { total: 0, rows: [] }; });
+  }
+  function steps(n) {
+    return '<div class="steps">' + ['간편 로그인', '학교 찾기', '내 학년 · 반', '동학년 초대'].map(function (t, i) { return '<span class="' + (i + 1 === n ? 'on' : i + 1 < n ? 'done' : '') + '"><i>' + (i + 1 < n ? '✓' : i + 1) + '</i>' + t + '</span>'; }).join('') + '</div>';
+  }
+  function joinUrl(g) { return new URL('join.html?t=' + g.token, location.href).href; }
+  function shortUrl(g) { return 't.road/g/' + g.token; }
+
+  function render() {
+    var g = load();
+    document.getElementById('who').textContent = g.me && g.me.name ? g.me.name + ' 선생님 · ' + VIA[g.me.via] + '로 로그인' : '';
+    if (!g.me) return stepLogin();
+    if (!g.school) return stepSchool(g);
+    if (!g.token) return stepClass(g);
+    return home(g);
+  }
+
+  // 1. 간편 로그인 (프로토타입: 누르면 로그인한 것으로)
+  function stepLogin() {
+    root.innerHTML = steps(1) + '<div class="hero"><div><h1>동학년 선생님들과<br>바로 같이 쓰세요</h1><p class="lead">학년 대표 선생님이 동학년을 만들고 링크 하나를 쿨메신저로 보내면 끝입니다. 받은 선생님은 <b>가입 없이 이름만 고르고</b> 들어와요. 학교 전체가 같이 쓰지 않아도 됩니다.</p>' +
+      '<div class="social" style="margin-top:28px"><button class="kakao" data-via="kakao">카카오로 시작하기</button><button class="naver" data-via="naver">네이버로 시작하기</button><button class="google" data-via="google">구글로 시작하기</button></div>' +
+      '<p class="small muted" style="margin:14px 0 0">비밀번호·문자 인증은 없어요. 이 PC를 1년 동안 기억합니다. 초대 링크를 받으셨다면 그 링크를 그대로 여세요.</p></div>' +
+      '<div class="pts"><div class="pt"><i>📋</i><div><b>한글 양식 그대로 걷고, 그대로 돌려받기</b><br><span>hwp·hwpx 양식을 올리면 표 칸만 링크로 받아, 같은 파일에 채워 내려받아요.</span></div></div>' +
+      '<div class="pt"><i>🔗</i><div><b>링크 하나로 동학년 전원</b><br><span>반 칸을 고르고 30초면 제출. 다른 반 값은 보이지 않아요.</span></div></div>' +
+      '<div class="pt"><i>🔒</i><div><b>교직원 정보만</b><br><span>학생 개인정보는 받지 않아요. 오라클 클라우드 국내 리전에 보관합니다.</span></div></div>' +
+      '<div class="pt"><i>🆓</i><div><b>동학년은 무료</b><br><span>학교 전체가 함께 쓰는 공지·일정·복무는 학교판(학교 결제)에서.</span></div></div></div></div>';
+    [].forEach.call(root.querySelectorAll('[data-via]'), function (b) {
+      b.onclick = function () { save({ me: { name: '정하은', via: b.dataset.via } }); toast(VIA[b.dataset.via] + '로 로그인했어요 (프로토타입)'); render(); };
+    });
+  }
+
+  // 2. 학교 찾기 — NEIS 학교정보 실제 검색
+  function stepSchool(g) {
+    root.innerHTML = steps(2) + '<section class="card"><div class="card-b"><h2 style="font-size:22px;margin-bottom:6px">어느 학교 선생님이세요?</h2><p class="muted" style="margin:0 0 16px">학교 이름 일부만 써도 돼요. 나이스 학교 정보에서 찾습니다.</p>' +
+      '<form class="search" id="sf"><input id="sq" placeholder="예: 봉황초" autocomplete="off" autofocus><button class="btn pri big">찾기</button></form><div class="results" id="res"></div></div></section>';
+    document.getElementById('sf').onsubmit = function (e) {
+      e.preventDefault();
+      var q = document.getElementById('sq').value.trim(), res = document.getElementById('res');
+      if (q.length < 2) { res.innerHTML = '<div class="err">두 글자 이상 써 주세요.</div>'; return; }
+      res.innerHTML = '<p class="muted">찾는 중…</p>';
+      neis('schoolInfo', { SCHUL_NM: q, SCHUL_KND_SC_NM: '초등학교' }).then(function (r) {
+        if (!r.rows.length) { res.innerHTML = '<div class="err">「' + esc(q) + '」로 찾은 초등학교가 없어요. 이름을 다시 확인해 주세요.</div>'; return; }
+        res.innerHTML = r.rows.map(function (s, i) { return '<button data-i="' + i + '"><span><b>' + esc(s.SCHUL_NM) + '</b><br><small>' + esc(s.ATPT_OFCDC_SC_NM) + ' · ' + esc(s.ORG_RDNMA) + '</small></span><span class="btn sm pri">이 학교</span></button>'; }).join('') +
+          (r.total > r.rows.length ? '<p class="small muted">' + r.total + '곳 중 ' + r.rows.length + '곳만 보여요. 이름을 더 정확히 써 주세요.</p>' : '');
+        [].forEach.call(res.querySelectorAll('[data-i]'), function (b) {
+          b.onclick = function () { var s = r.rows[+b.dataset.i]; g.school = { name: s.SCHUL_NM, atpt: s.ATPT_OFCDC_SC_CODE, code: s.SD_SCHUL_CODE, office: s.ATPT_OFCDC_SC_NM }; save(g); render(); };
+        });
+      }).catch(function () { res.innerHTML = '<div class="err">나이스에 연결하지 못했어요. 잠시 뒤 다시 찾아 주세요.</div>'; });
+    };
+  }
+
+  // 3. 내 학년·반·이름 — 반 목록은 NEIS 학급정보
+  function stepClass(g) {
+    var grade = g.grade || 4, cls = g.cls || '', classes = g.classes || 0;
+    function draw() {
+      root.innerHTML = steps(3) + '<section class="card"><div class="card-b"><h2 style="font-size:22px;margin-bottom:6px">' + esc(g.school.name) + '</h2><p class="muted" style="margin:0 0 18px">' + esc(g.school.office) + ' · <a href="javascript:void 0" id="chg">학교 바꾸기</a></p>' +
+        '<div class="fld2" style="margin-top:0">담임 학년<div class="pick">' + [1, 2, 3, 4, 5, 6].map(function (n) { return '<button data-g="' + n + '" class="' + (n === grade ? 'on' : '') + '">' + n + '학년</button>'; }).join('') + '</div></div>' +
+        '<div class="fld2">반<div class="pick" id="cls">' + (classes ? Array.apply(null, Array(classes)).map(function (_, i) { var c = grade + '-' + (i + 1); return '<button data-c="' + c + '" class="' + (c === cls ? 'on' : '') + '">' + (i + 1) + '반</button>'; }).join('') + '<button data-c="' + grade + '-전담" class="' + (cls === grade + '-전담' ? 'on' : '') + '">전담</button>' : '<span class="muted">반 정보를 불러오는 중…</span>') + '</div>' +
+        (classes ? '<span class="small muted" style="font-weight:400">나이스 학급 정보: ' + grade + '학년 ' + classes + '개 반</span>' : '') + '</div>' +
+        '<label class="fld2">이름<input id="nm" value="' + esc(g.me.name) + '"></label>' +
+        '<div class="row" style="margin-top:26px;gap:12px"><button class="btn pri big" id="mk">' + grade + '학년 동학년 만들기</button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div></div></section>';
+      document.getElementById('chg').onclick = function () { delete g.school; save(g); render(); };
+      [].forEach.call(root.querySelectorAll('[data-g]'), function (b) { b.onclick = function () { grade = +b.dataset.g; cls = ''; classes = 0; draw(); fetchClasses(); }; });
+      [].forEach.call(root.querySelectorAll('[data-c]'), function (b) { b.onclick = function () { cls = b.dataset.c; draw(); }; });
+      document.getElementById('mk').onclick = function () {
+        var nm = document.getElementById('nm').value.trim();
+        if (!cls) return toast('반을 골라 주세요.');
+        if (!nm) return toast('이름을 써 주세요.');
+        g.me.name = nm; g.me.cls = cls; g.grade = grade; g.classes = classes || 4; g.cls = cls;
+        g.token = Math.random().toString(36).slice(2, 7).toUpperCase();
+        g.members = [{ name: nm, cls: cls, at: Date.now(), via: VIA[g.me.via] + ' 가입 · 만든 사람' }];
+        save(g); toast(grade + '학년 동학년을 만들었어요. 초대 링크를 보내세요.'); render();
+      };
+    }
+    function fetchClasses() {
+      var ay = new Date().getMonth() < 2 ? new Date().getFullYear() - 1 : new Date().getFullYear();
+      neis('classInfo', { ATPT_OFCDC_SC_CODE: g.school.atpt, SD_SCHUL_CODE: g.school.code, AY: ay, GRADE: grade })
+        .then(function (r) { classes = r.total || 4; draw(); }, function () { classes = 4; draw(); });
+    }
+    draw(); fetchClasses();
+  }
+
+  // 4. 동학년 홈 — 초대 링크 · QR · 쿨메신저 문구 · 들어온 사람
+  function home(g) {
+    var msg = '[티로드] ' + g.school.name + ' ' + g.grade + '학년 동학년방을 만들었어요.\n아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)\n' + shortUrl(g) + '\n\n— ' + g.me.name + ' (' + g.me.cls.replace('-', '학년 ') + '반)';
+    var qr = ''; try { var q = qrcode(0, 'M'); q.addData(joinUrl(g)); q.make(); qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) {}
+    var slots = []; for (var i = 1; i <= g.classes; i++) slots.push(g.grade + '-' + i); slots.push(g.grade + '-전담');
+    var ms = g.members || [], inN = slots.filter(function (c) { return ms.some(function (m) { return m.cls === c; }); }).length, extra = ms.filter(function (m) { return slots.indexOf(m.cls) < 0; });
+    root.innerHTML = steps(4) + '<div class="page-h"><div><h1>' + esc(g.school.name) + ' ' + g.grade + '학년</h1><p>동학년 · ' + ms.length + '명 · 만든 사람 ' + esc(g.me.name) + '</p></div></div>' +
+      '<div class="home"><div style="display:grid;gap:20px">' +
+      '<section class="card"><div class="card-h"><h2>동학년 선생님 초대</h2><span class="small muted">가입 없이 이름만 고르면 들어와요</span></div><div class="card-b">' +
+      '<div class="inv"><div class="qr">' + qr + '</div><div><div class="link">' + shortUrl(g) + '</div><p class="small muted" style="margin:6px 0 14px">쿨메신저 쪽지로 보내거나, 교무실·연구실에 QR을 붙여 두세요.</p><div class="row" style="flex-wrap:wrap"><button class="btn pri" id="cpmsg">쪽지 문구 복사</button><button class="btn" id="cplink">링크만 복사</button><a class="btn" href="' + joinUrl(g) + '" target="_blank" rel="noopener">받는 선생님 화면 ↗</a></div></div></div>' +
+      '<div class="msg">' + esc(msg) + '</div></div></section>' +
+      '<section class="card"><div class="card-h"><h2>다음 할 일</h2></div><div class="card-b"><div class="next">' +
+      '<a class="pri" href="app.html#collect/new"><span><b>첫 모으기 만들기</b><br><span>한글 양식을 올리거나 표를 붙여넣으면 동학년 칸이 자동으로 생겨요</span></span><b>→</b></a>' +
+      '<a href="app.html#out/forms"><span><b>양식 자료실 둘러보기</b><br><span>자주 쓰는 학교 양식 79건</span></span><b>→</b></a>' +
+      '</div><p class="small muted" style="margin:14px 0 0">다른 학년·교무실 선생님께도 같은 방식으로 링크를 보내 걷을 수 있어요. 학교 전체가 공지·일정·복무까지 같이 쓰려면 <b>학교판</b>(학교 결제)으로 옮기면 됩니다.</p></div></section></div>' +
+      '<section class="card"><div class="card-h"><h2>들어온 선생님</h2><b>' + inN + '/' + slots.length + '</b></div><div class="card-b"><div class="pbar"><i style="width:' + Math.round(inN / slots.length * 100) + '%"></i></div><div class="slots">' +
+      slots.map(function (c) { var m = ms.find(function (x) { return x.cls === c; }); return '<div class="slot ' + (m ? 'in' : 'wait') + '"><span class="c">' + (c.split('-')[1] === '전담' ? '전담' : c.split('-')[1] + '반') + '</span><span class="n">' + (m ? esc(m.name) + ' <span class="small muted">· ' + esc(m.via) + '</span>' : '아직이에요') + '</span>' + (m ? '<span class="badge ok">들어옴</span>' : '<span></span>') + '</div>'; }).join('') +
+      extra.map(function (m) { return '<div class="slot in"><span class="c">' + esc(m.cls) + '</span><span class="n">' + esc(m.name) + ' <span class="small muted">· ' + esc(m.via) + '</span></span><span class="badge ok">들어옴</span></div>'; }).join('') +
+      '</div>' + (inN < slots.length ? '<p class="small muted" style="margin:14px 0 0">아직 안 들어온 선생님께는 쪽지 문구를 한 번 더 보내면 돼요. 들어오면 여기에 바로 떠요.</p>' : '<p class="small" style="margin:14px 0 0;color:var(--ok);font-weight:700">동학년이 모두 들어왔어요.</p>') + '</div></section></div>' +
+      '<p class="note" style="margin-top:20px">시연용 프로토타입: 동학년 정보는 이 브라우저에만 저장됩니다. 「받는 선생님 화면」을 열어 이름을 고르면 오른쪽 목록에 바로 들어와요.</p>';
+    document.getElementById('cpmsg').onclick = function () { copy(msg, '쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.'); };
+    document.getElementById('cplink').onclick = function () { copy(shortUrl(g), '링크를 복사했어요.'); };
+  }
+
+  window.addEventListener('storage', function (e) { if (e.key === KEY) render(); });
+  document.getElementById('reset').onclick = function () { try { localStorage.removeItem(KEY); } catch (e) {} render(); };
+  render();
+})();
+</script>
+</body>
+</html>

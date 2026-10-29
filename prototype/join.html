@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>동학년 초대</title>
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  /* 초대받은 선생님(PC): 가입 없이 반·이름만 고르고 들어온다. 간편 가입 연결은 선택. */
+  .j-top{display:flex;align-items:center;gap:9px;padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--line)}
+  .j-top b{font-size:18px}
+  .j-wrap{max-width:760px;margin:0 auto;padding:32px 20px 56px;display:grid;gap:18px}
+  .j-wrap h1{font-size:28px;line-height:38px}
+  .j-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+  .j-card h2{font-size:19px;margin-bottom:12px}
+  .pick{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .pick button{display:grid;gap:2px;text-align:left;padding:12px 14px;min-height:70px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface);cursor:pointer;font-size:17px}
+  .pick button b{font-size:18px}
+  .pick button span{font-size:15px;color:var(--muted)}
+  .pick button.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 2px var(--primary-soft)}
+  .pick button.taken span{color:var(--ok);font-weight:600}
+  .fld2{display:grid;gap:8px;font-size:16px;font-weight:600;margin-top:18px}
+  .fld2 input{height:52px;border:1px solid var(--line-strong);border-radius:12px;padding:0 16px;font-size:18px;background:var(--surface)}
+  .big{height:56px;width:100%;font-size:19px;border-radius:14px;margin-top:20px}
+  .done{text-align:center}
+  .done .ck{width:72px;height:72px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:36px;margin:0 auto 12px}
+  .social{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .social button{height:48px;border-radius:12px;font-size:16px;font-weight:700;border:1px solid var(--line-strong);cursor:pointer}
+  .social .kakao{background:#FEE500;border-color:#FEE500;color:#191919}
+  .social .naver{background:#03C75A;border-color:#03C75A;color:#fff}
+  .social .google{background:#fff}
+  .err{padding:14px 16px;border-radius:12px;background:var(--danger-soft);color:var(--danger)}
+</style>
+</head>
+<body>
+<div class="j-top"><img src="assets/logo.svg" width="24" height="24" alt=""><b>티로드</b><span class="muted" id="sub">· 동학년 초대</span></div>
+<main class="j-wrap" id="m"></main>
+<div class="toast" id="toast"></div>
+<script>
+(function () {
+  var KEY = 'troad.grade', q = new URLSearchParams(location.search), root = document.getElementById('m');
+  var VIA = { kakao: '카카오', naver: '네이버', google: '구글' };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (e) { return {}; } }
+  function save(g) { try { localStorage.setItem(KEY, JSON.stringify(g)); } catch (e) {} }
+  var tt; function toast(m) { var e = document.getElementById('toast'); e.textContent = m; e.classList.add('show'); clearTimeout(tt); tt = setTimeout(function () { e.classList.remove('show'); }, 2000); }
+
+  var g = load();
+  if (!g.token || g.token !== q.get('t')) {
+    root.innerHTML = '<div class="err"><b>초대 링크를 찾을 수 없어요.</b><br>링크가 바뀌었거나 동학년이 삭제됐을 수 있어요. 초대한 선생님께 새 링크를 받아 주세요.</div><p class="small muted">시연: 먼저 <a href="grade.html">동학년 만들기</a>에서 동학년을 만든 뒤 「받는 선생님 화면」을 여세요.</p>';
+    return;
+  }
+  document.getElementById('sub').textContent = '· ' + g.school.name + ' ' + g.grade + '학년';
+  var slots = []; for (var i = 1; i <= g.classes; i++) slots.push(g.grade + '-' + i); slots.push(g.grade + '-전담');
+  var cls = '';
+
+  function form() {
+    var ms = g.members || [];
+    root.innerHTML = '<div><h1>' + esc(g.school.name) + ' ' + g.grade + '학년<br>동학년에 초대받았어요</h1><p class="muted" style="margin:8px 0 0">' + esc(g.me.name) + ' 선생님(' + esc(g.me.cls) + ')이 만들었어요. <b>가입 없이</b> 반과 이름만 고르면 들어가요.</p></div>' +
+      '<section class="j-card"><h2>몇 반이세요?</h2><div class="pick">' + slots.map(function (c) {
+        var m = ms.find(function (x) { return x.cls === c; }), lab = c.split('-')[1] === '전담' ? '전담' : c.split('-')[1] + '반';
+        return '<button data-c="' + c + '" class="' + (c === cls ? 'on' : '') + (m ? ' taken' : '') + '"><b>' + lab + '</b><span>' + (m ? esc(m.name) + ' · 들어옴' : '&nbsp;') + '</span></button>';
+      }).join('') + '</div>' +
+      '<label class="fld2">이름<input id="nm" placeholder="예: 김민준" autocomplete="name"></label>' +
+      '<button class="btn pri big" id="go">들어가기</button><p class="small muted" style="margin:10px 0 0;text-align:center">이 PC 브라우저가 기억해서 다음부터는 바로 열려요. 비밀번호·문자 인증은 없어요.</p></section>';
+    [].forEach.call(root.querySelectorAll('[data-c]'), function (b) {
+      b.onclick = function () { cls = b.dataset.c; [].forEach.call(root.querySelectorAll('[data-c]'), function (x) { x.classList.toggle('on', x === b); }); var m = (g.members || []).find(function (x) { return x.cls === cls; }); if (m) toast(m.name + ' 선생님이 이미 들어온 반이에요. 같은 반 선생님이면 그대로 들어오셔도 돼요.'); };
+    });
+    document.getElementById('go').onclick = function () {
+      var nm = document.getElementById('nm').value.trim();
+      if (!cls) return toast('반을 골라 주세요.');
+      if (!nm) return toast('이름을 써 주세요.');
+      g = load(); g.members = (g.members || []).filter(function (x) { return !(x.name === nm && x.cls === cls); });
+      g.members.push({ name: nm, cls: cls, at: Date.now(), via: '초대 링크' });
+      save(g); try { localStorage.setItem('troad.me', nm); } catch (e) {}
+      done(nm);
+    };
+  }
+
+  function done(nm) {
+    root.innerHTML = '<section class="j-card done"><div class="ck">✓</div><h1>들어왔어요, ' + esc(nm) + ' 선생님</h1><p class="muted">' + esc(g.school.name) + ' ' + g.grade + '학년 동학년의 모으기가 이제 「오늘」에 떠요.</p>' +
+      '<a class="btn pri big" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="app.html#today">오늘 화면으로</a></section>' +
+      '<section class="j-card"><h2>다른 PC에서도 쓰려면 <span class="small muted" style="font-weight:400">선택</span></h2><p class="small muted" style="margin:0">교실 PC와 교무실 PC를 같이 쓰거나 PC가 초기화돼도, 간편 가입으로 이어 두면 그대로 이어져요.</p>' +
+      '<div class="social"><button class="kakao" data-via="kakao">카카오</button><button class="naver" data-via="naver">네이버</button><button class="google" data-via="google">구글</button></div></section>';
+    [].forEach.call(root.querySelectorAll('[data-via]'), function (b) {
+      b.onclick = function () { g = load(); var m = g.members.find(function (x) { return x.name === nm; }); if (m) m.via = VIA[b.dataset.via] + ' 가입'; save(g); toast(VIA[b.dataset.via] + ' 계정으로 이어 뒀어요 (프로토타입)'); b.parentNode.innerHTML = '<p class="small" style="grid-column:1/-1;color:var(--ok);font-weight:700;margin:0">✓ ' + VIA[b.dataset.via] + ' 계정으로 이어 뒀어요.</p>'; };
+    });
+  }
+  form();
+})();
+</script>
+</body>
+</html>
