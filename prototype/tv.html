@@ -66,18 +66,38 @@
   .ring .c small{font-size:30px;color:#5B6675;margin-top:10px}
   .nt{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .nt>div{background:#fff;border-radius:24px;padding:22px 30px;box-shadow:0 2px 8px rgba(16,24,40,.07)}
-  .nt .n{font-size:32px;font-weight:700;color:#5B6675}
-  .nt .v{font-size:60px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
-  .nt .v small{font-size:28px;font-weight:600;color:#5B6675;margin-left:6px}
-  .nt .b{font-size:24px;color:#5B6675;margin-top:4px}
-  .nt .bar{height:12px;border-radius:6px;background:#EEF0F3;margin-top:8px;overflow:hidden}
+  .nt .n{font-size:40px;font-weight:700;color:#5B6675}
+  .nt .v{font-size:72px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+  .nt .v small{font-size:36px;font-weight:600;color:#5B6675;margin-left:6px}
+  .nt .b{font-size:36px;color:#5B6675;margin-top:6px;font-weight:600}
+  .nt .bar{height:16px;border-radius:8px;background:#EEF0F3;margin-top:10px;overflow:hidden}
   .nt .bar i{display:block;height:100%;background:#F0A060;border-radius:6px}
 
   /* 4 원산지 */
+  .orgw{position:relative;flex:1;min-height:0}
+  .org.half{position:absolute;inset:0;grid-template-columns:repeat(2,1fr) !important}
+  .pg.on .org.h1{animation:half1 var(--dur) steps(1,end) forwards}
+  .pg.on .org.h2{animation:half2 var(--dur) steps(1,end) forwards}
+  .org.h2{opacity:0}
+  @keyframes half1{0%{opacity:1}50%{opacity:0}100%{opacity:0}}
+  @keyframes half2{0%{opacity:0}50%{opacity:1}100%{opacity:1}}
+  .pgn .p2{display:none}
+  .pg.on .pgn .p1{animation:half1 var(--dur) steps(1,end) forwards}
+  .pg.on .pgn .p2{display:inline;animation:half2 var(--dur) steps(1,end) forwards}
+  .pgn .p1,.pgn .p2{position:relative}
+  .alg2{display:grid;gap:20px;flex:1;min-height:0;grid-auto-rows:minmax(0,1fr)}
+  .alg2>div{border-radius:28px;background:#FCE6EE;color:#8A1C45;box-shadow:inset 0 0 0 5px #D6336C;padding:10px 28px;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden}
+  .alg2 .nm{display:flex;align-items:center;gap:16px;font-size:54px;font-weight:800;line-height:1.2}
+  .alg2 .nm i{font-style:normal;width:68px;height:68px;border-radius:50%;background:#D6336C;color:#fff;display:grid;place-items:center;font-size:42px;flex:none}
+  .alg2 .in{font-size:38px;font-weight:600;margin-top:4px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .alg-none{margin-top:18px;font-size:36px;color:#5B6675;font-weight:600;flex:none}
+  .ph-menu{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:minmax(0,1fr);gap:18px 40px;background:#fff;border-radius:32px;padding:30px 56px;box-shadow:0 2px 8px rgba(16,24,40,.08)}
+  .ph-menu div{display:flex;align-items:center;font-size:64px;font-weight:800;letter-spacing:-.03em;border-bottom:2px solid #E2E6EB;white-space:nowrap;overflow:hidden}
+  .ph-kc{margin-top:18px;font-size:48px;font-weight:800;color:#C2580A;flex:none}
   .org{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:minmax(0,1fr);grid-auto-flow:column;gap:12px 24px;flex:1;min-height:0}
   .org>div{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;border-radius:16px;padding:0 24px;box-shadow:0 1px 4px rgba(16,24,40,.07);min-height:0}
-  .org .p{font-size:30px;font-weight:700;letter-spacing:-.02em}
-  .org .o{font-size:30px;font-weight:800;color:var(--k);white-space:nowrap}
+  .org .p{font-size:42px;font-weight:700;letter-spacing:-.02em}
+  .org .o{font-size:42px;font-weight:800;color:var(--k);white-space:nowrap}
   .org .o.im{color:#C2580A}
 
   /* 5 위생 교육 */
@@ -116,10 +136,10 @@
   .wk h2{font-size:46px;font-weight:800;padding:18px 30px;background:#EEF0F3;display:flex;align-items:baseline;justify-content:space-between}
   .wk h2 small{font-size:30px;font-weight:600;color:#5B6675}
   .wk ul{margin:0;padding:16px 26px;list-style:none;display:grid;gap:8px;flex:1;align-content:start;min-height:0}
-  .wk li{font-size:31px;font-weight:600;line-height:1.2;letter-spacing:-.02em}
+  .wk li{font-size:38px;font-weight:700;line-height:1.2;letter-spacing:-.03em}
   .wk li sup{display:inline-block;font-size:20px;color:#B4235A;font-weight:700;margin-left:4px;vertical-align:8px;letter-spacing:0}
   .wk .no{color:#8A94A3;font-size:32px;padding:16px 26px;flex:1}
-  .wk .kc{padding:14px 30px;font-size:32px;font-weight:700;color:#C2580A;border-top:2px solid #E2E6EB}
+  .wk .kc{padding:14px 30px;font-size:40px;font-weight:700;color:#C2580A;border-top:2px solid #E2E6EB}
   .wk section.today{box-shadow:0 0 0 6px var(--k),0 8px 24px rgba(16,24,40,.15)}
   .wk section.today h2{background:var(--k);color:#fff}
   .wk section.today h2 small{color:#fff;opacity:.85}
@@ -212,26 +232,35 @@
       } },
       { key: 'allergy', label: '알레르기', k: '#D6336C', ks: '#FCE6EE', html: function () {
         if (!meal) return '<div class="pg-h"><h1>알레르기 정보</h1></div>' + none;
-        return '<div class="pg-h"><h1>알레르기 정보</h1><p>' + when + ' 들어간 식품은 <b style="color:#D6336C">분홍색</b> · 해당 학생은 배식 전에 꼭 말해 주세요</p></div><div class="alg">' +
-          M.allergens.map(function (nm, i) { var u = used[i + 1]; return '<div class="' + (u ? 'has' : '') + '"><div class="nm"><i>' + (i + 1) + '</i>' + esc(nm) + '</div>' + (u ? '<div class="in">' + esc(u.join(' · ')) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+        // 3~5m에서 읽히게 오늘 들어간 것만 크게. 없는 식품은 아래 한 줄로.
+        var has = M.allergens.map(function (nm, i) { return { i: i + 1, nm: nm, u: used[i + 1] }; }).filter(function (x) { return x.u; });
+        var cols = has.length <= 4 ? 2 : has.length <= 9 ? 3 : 4;
+        return '<div class="pg-h"><h1>알레르기 정보</h1><p>' + when + ' 점심에 들어 있어요 · 해당 학생은 배식 전에 꼭 말해 주세요</p></div>' +
+          '<div class="alg2" style="grid-template-columns:repeat(' + cols + ',minmax(0,1fr))">' + has.map(function (x) {
+            return '<div><div class="nm"><i>' + x.i + '</i>' + esc(x.nm) + '</div><div class="in">' + esc(x.u.join(' · ')) + '</div></div>';
+          }).join('') + '</div><div class="alg-none">오늘 없는 알레르기 식품 ' + (19 - has.length) + '가지</div>';
       } },
       { key: 'cal', label: '칼로리', k: '#C2580A', ks: '#FDEEE2', html: function () {
         if (!meal) return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1></div>' + none;
         var r = 240, c = 2 * Math.PI * r, kb = +base['에너지'] || 0, pct = kb ? Math.min(meal.kcal / kb, 1) : 1;
-        return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1><p>' + when + ' 점심 한 끼' + ' · ' + M.BASE_NAME + '과 비교' + '</p>' + nx + '</div><div class="cal">' +
+        // 9종 중 아이들이 알아볼 6종만(탄수화물·단백질·지방 + 칼슘·철분·비타민C)
+        var pick = ['탄수화물', '단백질', '지방', '칼슘', '철분', '비타민C'], nu = pick.map(function (k) { return meal.nutr.find(function (x) { return x.n === k; }); }).filter(Boolean);
+        return '<div class="pg-h"><h1>칼로리 · 영양 정보</h1><p>' + when + ' 점심 한 끼 · ' + M.BASE_NAME + '과 비교</p>' + nx + '</div><div class="cal">' +
           '<div class="ring"><svg viewBox="0 0 540 540"><circle cx="270" cy="270" r="' + r + '" fill="none" stroke="#FDEEE2" stroke-width="40"/><circle cx="270" cy="270" r="' + r + '" fill="none" stroke="#F08C00" stroke-width="40" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '"/></svg>' +
           '<div class="c"><b>' + meal.kcal + '</b><span>kcal</span>' + (kb ? '<small>기준 ' + kb + ' kcal</small>' : '') + '</div></div>' +
-          '<div class="nt">' + meal.nutr.map(function (x) {
+          '<div class="nt">' + nu.map(function (x) {
             var b = +base[x.n] || 0;
             return '<div><div class="n">' + esc(x.n) + '</div><div class="v">' + x.v + '<small>' + esc(x.u) + '</small></div>' +
-              (b ? '<div class="bar"><i style="width:' + Math.min(100, x.v / b * 100).toFixed(0) + '%"></i></div><div class="b">기준 ' + b + ' · ' + Math.round(x.v / b * 100) + '%</div>' : '') + '</div>';
+              (b ? '<div class="bar"><i style="width:' + Math.min(100, x.v / b * 100).toFixed(0) + '%"></i></div><div class="b">기준의 ' + Math.round(x.v / b * 100) + '%</div>' : '<div class="b">&nbsp;</div>') + '</div>';
           }).join('') + '</div></div>';
       } },
       { key: 'origin', label: '원산지', k: '#3B5BDB', ks: '#E8EDFD', html: function () {
         if (!meal) return '<div class="pg-h"><h1>원산지 정보</h1></div>' + none;
-        var o = meal.origin, rows = Math.ceil(o.length / 4);
-        return '<div class="pg-h"><h1>원산지 정보</h1><p>우리 학교 급식 재료 · 국내산이 아닌 재료는 <b style="color:#C2580A">주황색</b></p></div><div class="org" style="grid-template-rows:repeat(' + rows + ',minmax(0,1fr))">' +
-          o.map(function (x) { return '<div><span class="p">' + esc(x[0]) + '</span><span class="o' + (/국내산/.test(x[1]) ? '' : ' im') + '">' + esc(x[1]) + '</span></div>'; }).join('') + '</div>';
+        // 28가지를 한 번에 보이면 거리에서 못 읽는다 → 14개씩 두 장, 화면 시간의 절반씩
+        var o = meal.origin, half = Math.ceil(o.length / 2), parts = [o.slice(0, half), o.slice(half)].filter(function (x) { return x.length; });
+        var grid = function (list, k) { return '<div class="org half' + (parts.length > 1 ? ' h' + (k + 1) : '') + '" style="grid-template-rows:repeat(' + Math.ceil(list.length / 2) + ',minmax(0,1fr))">' + list.map(function (x) { return '<div><span class="p">' + esc(x[0]) + '</span><span class="o' + (/국내산/.test(x[1]) ? '' : ' im') + '">' + esc(x[1]) + '</span></div>'; }).join('') + '</div>'; };
+        return '<div class="pg-h"><h1>원산지 정보</h1><p>우리 학교 급식 재료 · 국내산이 아닌 재료는 <b style="color:#C2580A">주황색</b></p>' + (parts.length > 1 ? '<span class="tag pgn"><span class="p1">1</span><span class="p2">2</span> / 2</span>' : '') + '</div><div class="orgw">' +
+          parts.map(grid).join('') + '</div>';
       } },
       { key: 'hygiene', label: hy.name, k: '#1C7ED6', ks: '#E3F0FC', html: function () {
         return '<div class="pg-h"><h1>' + esc(hy.title) + '</h1><span class="tag">' + esc(hy.tag) + '</span></div><div class="wash">' +
@@ -251,17 +280,19 @@
       { key: 'photo', label: '오늘의 식사', k: '#0F6E6E', ks: '#E3F1F0', html: function () {
         if (!meal) return '<div class="pg-h"><h1>오늘의 식사</h1></div>' + none;
         var p = M.photo(S, dy), n = meal.dishes.length, fs = n <= 6 ? 54 : n <= 7 ? 48 : 42;
-        return '<div class="pg-h"><h1>' + (isToday ? '오늘의 식사' : '다음 급식') + '</h1><p>' + t.m + '월 ' + t.d + '일 점심은 이렇게 나와요</p></div><div class="ph"><div class="fr">' +
-          (p ? '<img src="' + p + '" alt="점심 식판 사진">' : emptyTray + '<div class="wait">사진을 준비하고 있어요<small>배식 전에 영양 선생님이 올려 주세요</small></div>') + '</div>' +
+        // 사진이 아직 없으면 학생 TV에는 교직원용 문구 대신 오늘 메뉴를 크게
+        if (!p) return '<div class="pg-h"><h1>' + (isToday ? '오늘의 식사' : '다음 급식') + '</h1><p>' + t.m + '월 ' + t.d + '일 점심</p></div><div class="ph-menu">' +
+          meal.dishes.map(function (d) { return '<div>' + esc(d.n) + '</div>'; }).join('') + '</div><div class="ph-kc">' + meal.kcal + ' kcal</div>';
+        return '<div class="pg-h"><h1>' + (isToday ? '오늘의 식사' : '다음 급식') + '</h1><p>' + t.m + '월 ' + t.d + '일 점심은 이렇게 나와요</p></div><div class="ph"><div class="fr"><img src="' + p + '" alt="점심 식판 사진"></div>' +
           '<div><ul>' + meal.dishes.map(function (d) { return '<li style="font-size:' + Math.min(fs, Math.floor(560 / Math.max(d.n.length, 1))) + 'px">' + esc(d.n) + '</li>'; }).join('') + '</ul><div class="kc">' + meal.kcal + ' kcal</div></div></div>';
       } },
       { key: 'week', label: '이번 주 메뉴', k: '#8A5CF6', ks: '#F0EAFE', html: function () {
         var a = M.label(data.days[0]), b = M.label(data.days[4]);
-        return '<div class="pg-h"><h1>' + (data.days[0] > M.ymd(now()) ? '다음 주 급식' : '이번 주 급식') + '</h1><p>' + a.m + '/' + a.d + ' ~ ' + b.m + '/' + b.d + ' · 작은 숫자는 알레르기 번호</p></div><div class="wk">' +
+        return '<div class="pg-h"><h1>' + (data.days[0] > M.ymd(now()) ? '다음 주 급식' : '이번 주 급식') + '</h1><p>' + a.m + '/' + a.d + ' ~ ' + b.m + '/' + b.d + ' · 알레르기는 2번 화면</p></div><div class="wk">' +
           data.days.map(function (d) {
             var w = M.label(d), x = data.meals[d], on = d === today;
             return '<section class="' + (on ? 'today' : '') + '"><h2>' + w.w + '<small>' + w.m + '/' + w.d + (on ? ' 오늘' : '') + '</small></h2>' +
-              (x ? '<ul>' + x.dishes.map(function (m) { return '<li>' + esc(m.n) + (m.a.length ? '<sup>' + m.a.join('.') + '</sup>' : '') + '</li>'; }).join('') + '</ul><div class="kc">' + x.kcal + ' kcal</div>' : '<div class="no">급식 없음</div>') + '</section>';
+              (x ? '<ul>' + x.dishes.map(function (m) { return '<li>' + esc(m.n) + '</li>'; }).join('') + '</ul><div class="kc">' + x.kcal + ' kcal</div>' : '<div class="no">급식 없음</div>') + '</section>';
           }).join('') + '</div>';
       } }
     ];
@@ -280,7 +311,7 @@
     set = M.settings(S);
     PAGES = arrange(pages());
     $('#sch').innerHTML = esc(data.name || '학교') + '<small>급식소</small>';
-    pagesEl.innerHTML = PAGES.map(function (p) { return '<section class="pg" style="--k:' + p.k + ';--k-soft:' + p.ks + '" data-k="' + p.key + '">' + p.html() + '</section>'; }).join('');
+    pagesEl.innerHTML = PAGES.map(function (p) { return '<section class="pg" style="--k:' + p.k + ';--k-soft:' + p.ks + ';--dur:' + p.sec + 's" data-k="' + p.key + '">' + p.html() + '</section>'; }).join('');
     footEl.innerHTML = PAGES.map(function (p, i) { return '<div class="st" style="--dur:' + p.sec + 's"><i></i><span><b>' + (i + 1) + '</b>' + esc(p.label) + '</span></div>'; }).join('') +
       '<span class="src' + (data.stale ? ' bad' : '') + '">' + (data.stale ? 'NEIS 연결 안 됨<br>' + hm(data.at) + ' 저장본' : 'NEIS 급식 연동<br>' + hm(data.at) + ' 불러옴') + '</span>';
     pgs = pagesEl.children; sts = footEl.querySelectorAll('.st');

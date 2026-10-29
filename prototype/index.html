@@ -72,14 +72,32 @@
 </style>
 </head>
 <body>
-<header class="top"><div class="top-in"><a class="brand" href="index.html"><img src="assets/logo.svg" width="26" height="26" alt="">티로드<small>기획서 v1.3 · 2026-10-27</small></a><div class="grow"></div><a class="btn pri" href="app.html#today">프로토타입 열기</a></div></header>
+<header class="top"><div class="top-in"><a class="brand" href="index.html"><img src="assets/logo.svg" width="26" height="26" alt="">티로드<small>기획서 v1.4 · 2026-10-29</small></a><div class="grow"></div><a class="btn pri" href="app.html#today">프로토타입 열기</a></div></header>
 <main class="doc">
   <div class="hero">
     <div class="eyebrow">고티처 대항마 · 학교 업무 원장</div>
     <h1>쪽지는 그대로,<br><em>원본은 한 곳에.</em></h1>
-    <p class="lead">메신저로 흩어지는 학교 일을 <b>'오늘' 한 장</b>과 <b>끝나는 '모으기'</b>로 바꿉니다. 받는 선생님은 PC에서 쪽지 링크 하나로 바로 참여하고(처음 한 번만 인증), 바뀐 것만 노랗게 다시 봅니다. 학교 화면은 교감 전용이 아니라 모든 선생님이 같이 봅니다. 그리고 <b>우리 학교 안(교내)과 학교 밖(티로드)을 화면부터 나눠</b>, 우리 학교 정보가 밖으로 새지 않는다는 것을 눈으로 확인하게 합니다.</p>
-    <div class="cta"><a class="btn pri" href="app.html#today">오늘 화면</a><a class="btn" href="app.html#collect/c1">모으기 합본 + PC 제출</a><a class="btn" href="app.html#cal">일정 · 전일 + 4블록</a><a class="btn" href="app.html#board/repair">교내 · 시설 수리</a><a class="btn" href="app.html#out/vendors">교외(티로드) · 협력업체</a><a class="btn" href="app.html#school">학교 · 그룹 현황</a></div>
+    <p class="lead">메신저로 흩어지는 학교 일을 <b>'오늘' 한 장</b>과 <b>끝나는 '모으기'</b>로 바꿉니다. 받는 선생님은 PC에서 쪽지 링크 하나로 가입·인증 없이 바로 참여하고(대신 내도 됨), 바뀐 것만 노랗게 다시 봅니다. 학교 화면은 교감 전용이 아니라 모든 선생님이 같이 봅니다. 그리고 <b>우리 학교 안(교내)과 학교 밖(티로드)을 화면부터 나눠</b>, 우리 학교 정보가 밖으로 새지 않는다는 것을 눈으로 확인하게 합니다.</p>
+    <div class="cta"><a class="btn pri" href="app.html#today">오늘 화면</a><a class="btn" href="app.html#collect/c1">모으기 합본 + PC 제출</a><a class="btn" href="app.html#cal">일정 · 전일 + 4블록</a><a class="btn" href="app.html#board/repair">교내 · 수리 요청</a><a class="btn" href="app.html#out/vendors">교외(티로드) · 협력업체</a><a class="btn" href="app.html#school">학교 · 그룹 현황</a></div>
   </div>
+
+  <section class="s">
+    <span class="num">v1.4 · 3라운드 현장 검토 반영 (2026-10-29)</span>
+    <h2>현장에서 막히는 곳부터 고쳤습니다</h2>
+    <p class="sub">일반 교사 · 교무부장 · 생산성 · UI/UX 네 명이 모든 화면을 다시 보고, 기술 검토로 실제 학교 양식 1,376개를 열어 본 결과입니다. 자세한 내용은 <code>meeting/26_reality_review.md</code>, <code>research/04_hwp_feasibility.md</code>.</p>
+    <table class="tbl doc-t card" style="overflow:hidden">
+      <tr><th style="width:172px">영역</th><th>v1.4에서 바뀐 것</th></tr>
+      <tr><td><b>한글 취합</b></td><td>표를 찾아 칸에 채운 뒤 <b>원본 서식 그대로</b> 저장하는 과정을 실제 양식으로 검증(hwpx 266/266 · hwp 78/78). 그래서 '원본 한글 양식에 채워 받기'를 <b>MVP로 앞당김</b>. 구형 .hwp도 받음. 한컴 한글에서 실제로 열어 보는 확인은 출시 전에 할 일</td></tr>
+      <tr><td><b>받는 사람</b></td><td>링크 하나, 가입·인증 없이 칸을 골라 바로 제출. <b>대신 내도 됨</b>(학교 안에서 도는 링크라 허용). 내는 사람 이름은 선택</td></tr>
+      <tr><td><b>학생 정보</b></td><td>학생 이름 칸도 받되 <b>티로드 서버에 남지 않음</b>. 요청한 선생님 PC에서만 풀리게 잠겨서 전달되고, 합본을 내려받으면 지워짐. 서비스의 장점으로 내세움</td></tr>
+      <tr><td><b>복무</b></td><td>유형·시간만 보임(사유 삭제). 교무실무사 한 분이 나이스 복무현황을 붙여넣음. 병가·공가·특별휴가는 '휴가'로만 보임</td></tr>
+      <tr><td><b>오늘</b></td><td>'바뀐 것'은 나 · 우리 학년 · 전 교직원 대상만. 교무실 PC(1920 모니터, 125% 배율)에서 보드가 첫 화면에 보이게 정리</td></tr>
+      <tr><td><b>공지</b></td><td>몇 명이 확인했는지는 <b>보낸 사람과 교감만</b> 봄. 받는 사람에게는 자기 상태만</td></tr>
+      <tr><td><b>교외</b></td><td>협력업체 별점 삭제 → 좋은 점 배지 + 한 줄. 정보 수리요청은 교내 '수리 요청'으로 합침</td></tr>
+      <tr><td><b>급식 TV</b></td><td>3~5m 거리에서 읽히게 글씨 40px 안팎. 알레르기는 오늘 들어간 것만 크게, 원산지는 두 장으로 나눔. 사진이 없을 때는 학생 TV에 오늘 메뉴를 띄움. <b>폰으로 QR을 찍어 바로 올리는 화면</b>은 PC 전용 원칙의 유일한 예외</td></tr>
+      <tr><td><b>공통</b></td><td>버튼 40px · 글씨 15px 하한, 오래된 크롬·웨일 대비 대체 색, 교감·교장 결재용 '이번 학기 학교 업무 요약'</td></tr>
+    </table>
+  </section>
 
   <section class="s">
     <span class="num">v1.3 · 교내 · 교외 분리</span>
@@ -89,20 +107,20 @@
       <div class="card zm in">
         <div class="zm-bar"><span class="zb"><b>티로드초</b><small>교내 · 교직원만</small></span><span class="zo">티로드<br>교외</span><span class="mn"><span>오늘</span><span>일정</span><span>모으기</span><span>게시판</span><span>학교</span></span></div>
         <div class="zm-strip">🔒 <b>티로드초등학교 교내</b> — 우리 학교 교직원만 보는 공간입니다.</div>
-        <div class="zm-body"><ul><li>좌상단에 <b>학교 이름</b>, 학교 색(청록)</li><li>오늘 · 일정 · 모으기 · 공지 · <b>시설 수리</b>(행정실) · 학교(그룹·업무분장)</li><li>외부 업체·다른 학교·로그인 안 한 사람은 <b>들어올 수 없음</b></li><li>안내 띠 오른쪽에 "이 화면을 보는 사람: 교직원 45명만"</li></ul><a class="go" href="app.html#today">교내 화면 →</a></div>
+        <div class="zm-body"><ul><li>좌상단에 <b>학교 이름</b>, 학교 색(청록)</li><li>오늘 · 일정 · 모으기 · 공지 · <b>수리 요청</b>(시설은 행정실, 정보는 계약 업체) · 학교(그룹·업무분장)</li><li>외부 업체·다른 학교·로그인 안 한 사람은 <b>들어올 수 없음</b></li><li>안내 띠 오른쪽에 "이 화면을 보는 사람: 교직원 45명만"</li></ul><a class="go" href="app.html#today">교내 화면 →</a></div>
       </div>
       <div class="card zm out">
-        <div class="zm-bar"><span class="zo">티로드초<br>교내</span><span class="zb"><b>티로드</b><small>교외 · 공개</small></span><span class="mn"><span>양식 자료실</span><span>협력업체</span><span>정보 수리요청</span></span></div>
+        <div class="zm-bar"><span class="zo">티로드초<br>교내</span><span class="zb"><b>티로드</b><small>교외 · 공개</small></span><span class="mn"><span>양식 자료실</span><span>협력업체</span></span></div>
         <div class="zm-strip">🌐 <b>티로드 교외</b> — 학교 밖 공간입니다. 우리 학교 일정·공지·모으기·명부는 여기 나오지 않아요.</div>
-        <div class="zm-body"><ul><li>좌상단에 <b>티로드</b>, 남색. 버튼·선택 표시까지 남색이라 학교 색이 한 곳도 안 남음</li><li>교외 화면 본문에는 우리 학교 일정·공지·모으기·명부를 <b>싣지 않음</b>(정보 수리요청만 우리 학교 + 계약 업체 전용)</li><li>글 쓰는 창마다 "이 글은 누가 봅니다"를 버튼 바로 위에 표시</li></ul><a class="go" href="app.html#out/vendors">교외 화면 →</a></div>
+        <div class="zm-body"><ul><li>좌상단에 <b>티로드</b>, 남색. 버튼·선택 표시까지 남색이라 학교 색이 한 곳도 안 남음</li><li>교외 화면 본문에는 우리 학교 일정·공지·모으기·명부를 <b>싣지 않음</b>. 정보 수리요청은 교내로 옮김(업체 계정만 자기 화면에서 봄)</li><li>글 쓰는 창마다 "이 글은 누가 봅니다"를 버튼 바로 위에 표시</li></ul><a class="go" href="app.html#out/vendors">교외 화면 →</a></div>
       </div>
     </div>
     <h3 style="font-size:18px;margin:28px 0 12px">교외에 두는 것과 보는 사람</h3>
     <table class="tbl doc-t card" style="overflow:hidden">
       <tr><th style="width:172px">메뉴</th><th style="width:300px">보는 사람</th><th>내용</th></tr>
       <tr><td><b>양식 자료실</b></td><td><span class="aud2 pub">🌐 누구나 · 로그인 없이</span></td><td>고티처 양식 자료실과 같은 79건(분류 · 설명 · 이렇게 쓰세요 · hwpx). 검색 유입 창구. <a href="app.html#out/forms">보기 →</a></td></tr>
-      <tr><td><b>협력업체</b></td><td><span class="aud2 pub">🌐 누구나 보기</span> <span class="aud2">✍ 별점·후기는 인증 교사만</span></td><td>에듀테크 · 졸업앨범·사진 · 수학여행·수련활동 · 현장체험학습 · 전세버스 · 찾아가는 교육·체험 · 공연·행사 · 청소·방역 용역 · 인쇄·현수막 · 교구·기자재. 별점은 전체 + <b>가격 · 응대 · 안전·품질 · 서류 처리</b>(견적서·사업자등록증·청렴서약서·강사 경력 조회서를 제때 주는지). 작성자는 <b>"인증 교사 · 인천 · 초등"</b>까지만 보여 업체가 특정 학교에 보복할 수 없음. 업체가 돈으로 순위를 올리거나 후기를 지울 수 없음. <a href="app.html#out/vendors/vd03">업체 보기 →</a></td></tr>
-      <tr><td><b>정보 수리요청</b></td><td><span class="aud2 lock">🔒 우리 학교 교직원</span> <span class="aud2 pub">🛠 계약 업체 1곳</span></td><td>PC·전자칠판·네트워크 고장은 외부 유지보수 업체가 받으므로 교외로 뺌. 업체에는 요청자 이름 대신 위치만. <b>시설 수리</b>는 행정실(내부)이 받으므로 교내 게시판에 남김. <a href="app.html#out/it">보기 →</a></td></tr>
+      <tr><td><b>협력업체</b></td><td><span class="aud2 pub">🌐 누구나 보기</span> <span class="aud2">✍ 배지·한 줄 후기는 인증 교사만</span></td><td>에듀테크 · 졸업앨범·사진 · 수학여행·수련활동 · 현장체험학습 · 전세버스 · 찾아가는 교육·체험 · 공연·행사 · 청소·방역 용역 · 인쇄·현수막 · 교구·기자재. 별점은 없앰(v1.4) — <b>좋은 점 배지</b>(서류를 제때 챙겨 줘요 · 연락이 빨라요 · 안전에 꼼꼼해요 등 8종, 나쁜 배지 없음) + 40자 한 줄<b>"인증 교사 · 인천 · 초등"</b>까지만 보여 업체가 특정 학교에 보복할 수 없음. 업체가 돈으로 순위를 올리거나 후기를 지울 수 없음. <a href="app.html#out/vendors/vd03">업체 보기 →</a></td></tr>
+      <tr><td><b>정보 수리요청</b></td><td><span class="aud2 lock">🔒 우리 학교 교직원</span> <span class="aud2 pub">🛠 계약 업체 1곳</span></td><td><b>v1.4: 교내 '수리 요청' 한 곳으로 합침.</b> PC·전자칠판·네트워크 고장은 계약 업체가 자기 계정 화면에서 받음. 업체에는 요청자 이름 대신 위치만. <b>시설 수리</b>는 행정실(내부)이 받으므로 교내 게시판에 남김. <a href="app.html#out/it">보기 →</a></td></tr>
     </table>
     <h3 style="font-size:18px;margin:28px 0 12px">업체 계정으로 들어오면</h3>
     <ul class="decide">
@@ -205,11 +223,11 @@
     <p class="sub">모든 카드는 프로토타입에서 직접 눌러 볼 수 있습니다. 데이터는 가상의 '티로드초등학교'(24학급)이고, 시연 기준 시각은 10/26(월) 2블록입니다.</p>
     <div class="feat">
       <div class="card"><h3><span class="chg"></span>오늘</h3><p>맨 위에 어제 이후 <b>바뀐 것</b>. 그 아래 내 시간표, 블록 4칸 학교 일과(작성자·그룹 표시)와 복무, <b>[나에게 온 것 / 학교 전체]</b>. 급식·학사는 NEIS에서 자동.</p><a class="go" href="app.html#today">오늘 화면 →</a></div>
-      <div class="card"><h3>모으기 (취합)</h3><p>hwp에서 취합 표만 꺼내(MVP 붙여넣기, v1 hwpx 업로드) 입력 칸을 만들고, 그룹 단위로 "내 칸만" 채우는 링크를 보냅니다. 실시간 합본, 미제출자 독촉 문구, 엑셀·합본 표 복사(→한글), v1에서 원본 hwpx에 채워 받기.</p><a class="go" href="app.html#collect/new">표 붙여넣어 만들기 →</a></div>
+      <div class="card"><h3>모으기 (취합)</h3><p>표 붙여넣기 또는 <b>한글 파일(hwp·hwpx) 업로드</b>로 취합 표만 꺼내 입력 칸을 만들고, 그룹 단위로 "내 칸만" 채우는 링크를 보냅니다. 실시간 합본, 미제출자 독촉 문구, 엑셀·합본 표 복사(→한글), <b>원본 한글 양식에 채워 받기(MVP)</b>. 학생 이름은 서버에 남지 않음.</p><a class="go" href="app.html#collect/new">표 붙여넣어 만들기 →</a></div>
       <div class="card"><h3>받는 사람 PC 화면</h3><p>쿨메신저 쪽지 링크를 누르면 PC 브라우저에서 열립니다. 로그인 없이 처음 한 번 그룹별 명부에서 이름만 고르고, 내 칸만 채웁니다. 제출하면 보낸 사람 합본에 즉시 들어갑니다.</p><a class="go" href="app.html#collect/c1">합본 옆 PC 화면으로 제출해 보기 →</a></div>
       <div class="card"><h3>한 줄 입력</h3><p><code>내일 2블록 5학년 과학실1 실험 안전교육 @차민호</code>를 입력하면 날짜·블록·대상·장소·참석자 칩으로 나뉘고, <b>제목은 쓴 문장 그대로</b>(날짜 표현만 빠짐) 저장됩니다. 특별실이 겹치면 바로 경고. 단축키 <kbd>N</kbd>.</p><a class="go" href="app.html#today">상단 입력창에 써 보기 →</a></div>
-      <div class="card"><h3>게시판 · 공지 판(版) 관리 · 시설 수리</h3><p>고칠 때마다 v2, v3. 바뀐 부분은 <del>강당</del> → <ins>체육관</ins>으로 보여 주고, 이미 본 사람에게는 이 카드만 다시 뜹니다. 확인 현황과 미확인자 명단. 시설 수리는 행정실이 받는 교내 게시판.</p><a class="go" href="app.html#notice/n2">학예회 리허설 v2 →</a></div>
-      <div class="card"><h3>교외(티로드) · 양식 · 협력업체 · 정보 수리</h3><p>학교 밖 사람이 들어오는 기능만 모은 공간. 양식 자료실(누구나), 협력업체 별점·후기(보기는 누구나, 쓰기는 인증 교사), 정보 수리요청(교직원 + 계약 업체). 좌상단이 학교 이름 대신 <b>티로드</b>, 색도 바뀝니다.</p><a class="go" href="app.html#out/vendors">협력업체 →</a></div>
+      <div class="card"><h3>게시판 · 공지 판(版) 관리 · 시설 수리</h3><p>고칠 때마다 v2, v3. 바뀐 부분은 <del>강당</del> → <ins>체육관</ins>으로 보여 주고, 이미 본 사람에게는 이 카드만 다시 뜹니다. 확인 현황·미확인자 명단은 <b>보낸 사람과 교감만</b>. 수리 요청은 시설·정보를 한 곳에서.</p><a class="go" href="app.html#notice/n2">학예회 리허설 v2 →</a></div>
+      <div class="card"><h3>교외(티로드) · 양식 · 협력업체</h3><p>학교 밖 사람이 들어오는 기능만 모은 공간. 양식 자료실(누구나), 협력업체 배지·한 줄 후기(보기는 누구나, 쓰기는 인증 교사, 별점 없음). 좌상단이 학교 이름 대신 <b>티로드</b>, 색도 바뀝니다.</p><a class="go" href="app.html#out/vendors">협력업체 →</a></div>
       <div class="card"><h3>주간·월중행사 + 인쇄</h3><p>한 칸에 채널(유형)별 색, 카드에 제목 + 작성자(그룹). 긴 제목은 자르지 않습니다. 인쇄는 결재란이 붙은 A4/A3 가로 전용 레이아웃이고, 흑백으로 뽑아도 ◆■▲○ 기호로 구분됩니다.</p><a class="go" href="app.html#cal">일정 → 인쇄 →</a></div>
       <div class="card"><h3>학교 (모든 선생님 공용)</h3><p>오늘 복무 현황, <b>학년분장(그룹 현황)</b>, <b>업무분장(부서)</b>. 그룹·직책은 본인이 직접 고치고 바로 모두에게 반영됩니다. 보강 배정은 하지 않습니다.</p><a class="go" href="app.html#school">학교 화면 →</a></div>
       <div class="card"><h3>새 학년 세팅 (4단계)</h3><p>기본 그룹 확인 → 업무분장표(선택) → 시정표 → 초대 링크·QR. 엑셀 매칭이나 임시 비밀번호 12345678이 필요 없습니다. 2월 셋째 주 시즌용.</p><a class="go" href="app.html#start">세팅 마법사 →</a></div>
@@ -240,7 +258,7 @@
     <p class="sub">고티처는 유료와 무료의 기능 차이가 없었습니다. 티로드는 교사 기능은 전부 무료로 두고, <b>학교가 결제하되 모든 선생님이 혜택을 받는 기능</b>을 학교 플랜으로 묶습니다. 관리자 특혜로 보이지 않게 하는 것이 원칙입니다(10/26 확정).</p>
     <table class="tbl doc-t card" style="overflow:hidden">
       <tr><th style="width:230px">무료 (개인·학년)</th><td>오늘, 모으기·합본·엑셀·합본 표 복사, 공지 판 관리, 한 줄 입력, 인쇄, 학교(그룹·업무분장·복무), NEIS 학사·급식</td></tr>
-      <tr><th>학교 플랜 (연 29~49만 원)</th><td>자동 리마인드 무제한, 원본 hwpx 채워 받기, 그룹·업무분장 연도별 인수인계 보관, 학교 도메인·SSO, 계산서 발행</td></tr>
+      <tr><th>학교 플랜 (연 29~49만 원)</th><td>자동 리마인드 무제한, 그룹·업무분장 연도별 인수인계 보관, 학교 도메인·SSO, 계산서 발행</td></tr>
       <tr><th>획득 경로</th><td>산출물 검색어 랜딩(업무분장 월 3,090회, 월중행사표 월 320회) → 바로 쓰는 템플릿. 합본 꼬리말 바이럴. 인디스쿨 1~2월 시즌. 고티처 일정 CSV 가져오기</td></tr>
     </table>
   </section>
@@ -249,8 +267,8 @@
     <span class="num">07 · 로드맵</span>
     <h2>2월 새 학년 시즌에 맞춘다</h2>
     <div class="road">
-      <div class="card"><h3>MVP · 11~1월</h3><ul><li>모으기 루프(직접 입력 시트·자주 쓰는 양식·표 붙여넣기)·엑셀·합본 표 복사</li><li>오늘(전일 + 블록 끌기, 나/학교 전체), 일정 기간 카드 끌기, 주간계획 표 붙여넣기</li><li>교내 게시판(공지 판 관리·확인, 시설 수리)</li><li>교외 티로드(양식 자료실, 협력업체 별점·후기, 정보 수리요청·업체 계정)</li><li>한 줄 입력(규칙 파서, 원문 제목)</li><li>주간·월간·인쇄(A4/A3)</li><li>그룹·학교 화면, 🔔 + 웹 알림</li><li>NEIS 학사·급식, 초대 링크·QR</li></ul></div>
-      <div class="card"><h3>v1 · 3~4월</h3><ul><li>hwpx 업로드 → 같은 파일에 채워 내보내기</li><li>쪽지 붙여넣기 → AI 일정·요청 변환</li><li>그룹·업무분장 연도 인수인계</li><li>반복 일정</li></ul></div>
+      <div class="card"><h3>MVP · 11~1월</h3><ul><li>모으기 루프(직접 입력 시트·자주 쓰는 양식·표 붙여넣기)·엑셀·합본 표 복사</li><li>오늘(전일 + 블록 끌기, 나/학교 전체), 일정 기간 카드 끌기, 주간계획 표 붙여넣기</li><li>교내 게시판(공지 판 관리·확인, 수리 요청 — 시설·정보 + 업체 계정)</li><li>교외 티로드(양식 자료실, 협력업체 배지·한 줄 후기)</li><li><b>원본 한글 양식(hwp·hwpx)에 채워 받기</b> — v1에서 앞당김</li><li>한 줄 입력(규칙 파서, 원문 제목)</li><li>주간·월간·인쇄(A4/A3)</li><li>그룹·학교 화면, 🔔 + 웹 알림</li><li>NEIS 학사·급식, 초대 링크·QR</li></ul></div>
+      <div class="card"><h3>v1 · 3~4월</h3><ul><li>한글 양식의 □체크·( )·날짜 자리 채우기, 돌아온 hwp 여러 개에서 표 값 모으기</li><li>쪽지 붙여넣기 → AI 일정·요청 변환</li><li>그룹·업무분장 연도 인수인계</li><li>반복 일정</li></ul></div>
       <div class="card"><h3>v2 · 2학기</h3><ul><li>윈도우 PC 에이전트(알림)</li><li>중·고 시험감독표·교과 시간표</li><li>특별실 예약</li><li>교육청 부서 대시보드</li></ul></div>
     </div>
   </section>

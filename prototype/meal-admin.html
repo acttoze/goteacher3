@@ -73,6 +73,9 @@
   .drop:not(.done) .dtx{justify-items:center}
   .drop .dtx b{font-size:20px}
   .drop label input{display:none}
+  .qrbox{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center;margin-top:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .qr{width:150px;height:150px;background:#fff;border-radius:8px;display:grid;place-items:center}
+  .qr svg{width:150px;height:150px}
   .warn{margin:12px 0 0;padding:10px 14px;border-radius:9px;background:var(--danger-soft);color:var(--danger);font-size:15px}
 </style>
 </head>
@@ -80,6 +83,7 @@
 <div class="top-a"><img src="assets/logo.svg" width="26" height="26" alt=""><b>티로드</b><span class="muted">· 급식소 현황판 · 영양사 입력</span><span class="grow"></span><span id="pbadge" hidden></span><b id="sch"></b><a class="btn pri" id="openTv" target="_blank" rel="noopener">현황판 열기 ↗</a></div>
 <main class="wrap" id="m"><p class="muted">NEIS 급식 정보를 불러오고 있어요…</p></main>
 <div class="toast2" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="assets/meal.js"></script>
 <script>
 (function () {
@@ -115,7 +119,7 @@
           '<td><span class="secw"><button type="button" data-dec="' + c.key + '" aria-label="1초 줄이기">−</button><input type="number" min="' + M.SEC_MIN + '" max="' + M.SEC_MAX + '" value="' + c.sec + '" data-sec="' + c.key + '"><span>초</span><button type="button" data-inc="' + c.key + '" aria-label="1초 늘리기">+</button></span></td>' +
           '<td class="keep">' + (c.lock ? '<span class="sw lock" title="당일 식판 사진은 규정상 매일 게시해야 해서 끌 수 없어요"><i></i>항상 켜짐</span>' : '<label class="sw"><input type="checkbox" data-on="' + c.key + '"' + (c.on ? ' checked' : '') + '><i></i>' + (c.on ? '켜짐' : '꺼짐') + '</label>') + '</td></tr>';
       }).join('') +
-      '</tbody></table><p class="small muted" style="margin:12px 0 0">나이스에 식단을 올리면 나머지는 자동입니다. 영양사가 매일 할 일은 <b>식판 사진 한 장</b>뿐입니다. 왼쪽 ⋮⋮를 끌어 순서를 바꾸고, 화면마다 노출 시간(기본 ' + M.SEC + '초, ' + M.SEC_MIN + '~' + M.SEC_MAX + '초)과 표시 여부를 정하면 현황판에 바로 반영됩니다.</p></div></section>' +
+      '</tbody></table><p class="small muted" style="margin:12px 0 0">나이스에 식단을 올리면 나머지는 자동입니다. 영양사가 매일 할 일은 <b>식판 사진 한 장</b>뿐입니다. 왼쪽 ⋮⋮를 끌어 순서를 바꾸고, 화면마다 노출 시간(기본 ' + M.SEC + '초 · 원산지 14초 · 이번 주 12초, ' + M.SEC_MIN + '~' + M.SEC_MAX + '초)과 표시 여부를 정하면 현황판에 바로 반영됩니다.</p></div></section>' +
 
       '<section class="card"><div class="card-h"><h2>NEIS에서 받아 온 이번 주 급식</h2><span class="small muted">' + (data.stale ? '연결 안 됨 · ' + hm(data.at) + ' 저장본' : hm(data.at) + ' 불러옴') + '</span></div><div class="card-b"><table class="t"><thead><tr><th>날짜</th><th>메뉴</th><th class="c">칼로리</th><th class="c">알레르기</th><th class="c">영양</th><th class="c">원산지</th><th class="c">인원</th><th class="c">사진</th></tr></thead><tbody>' +
       days.map(function (d) {
@@ -150,7 +154,14 @@
     return '<section class="card"><div class="card-h"><h2>오늘 식판 사진 · ' + w.m + '/' + w.d + ' ' + w.w + '요일</h2><span class="small muted">매일 배식 전 · 당일 찍은 사진</span></div><div class="card-b"><div class="drop' + (p ? ' done' : '') + '" id="drop" tabindex="0">' +
       (p ? '<img src="' + p + '" alt="오늘 식판 사진"><div class="dtx"><b class="ok">✓ 올렸어요 · ' + hm(at || Date.now()).split(' ')[1] + '</b><span>현황판 7번 화면에 떠 있어요. 다른 사진으로 바꾸려면 여기에 다시 놓거나 붙여 넣으세요.</span><div class="row"><label class="btn">다른 사진으로 바꾸기<input type="file" accept="image/*" data-up="' + today + '"></label><button class="btn" data-del="' + today + '">지우기</button></div></div>'
         : '<div class="dtx"><b>여기를 눌러 사진을 고르거나, 사진 파일을 끌어다 놓으세요</b><span>휴대폰으로 찍은 사진을 카카오톡 PC ‘나에게 보내기’ 등에서 <b>복사한 뒤 이 화면에서 Ctrl+V</b> 해도 됩니다.</span><label class="btn pri" style="width:max-content">사진 고르기<input type="file" accept="image/*" data-up="' + today + '"></label></div>') +
-      '</div><p class="warn" id="warn" hidden></p></div></section>';
+      '</div>' + qrBox(today) + '<p class="warn" id="warn" hidden></p></div></section>';
+  }
+  // 폰으로 바로 올리기(PC 전용 원칙의 예외) — QR을 찍으면 그날 사진 올리기 화면이 열린다
+  function photoUrl(d) { return new URL('meal-photo.html?s=' + encodeURIComponent(S) + '&d=' + d, location.href).href; }
+  function qrBox(d) {
+    var svg = '';
+    try { var qr = qrcode(0, 'M'); qr.addData(photoUrl(d)); qr.make(); svg = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); } catch (e) { svg = '<span class="small muted">QR을 그리지 못했어요</span>'; }
+    return '<div class="qrbox"><div class="qr">' + svg + '</div><div><b style="font-size:18px">📱 휴대폰으로 바로 올리기</b><p class="small muted" style="margin:6px 0 10px">휴대폰 카메라로 이 QR을 찍으면 오늘 사진 올리기 화면이 열려요. 찍고 [올리기] 두 번이면 끝납니다.</p><a class="btn sm" href="' + photoUrl(d) + '" target="_blank" rel="noopener">이 PC에서 열어 보기 ↗</a></div></div>';
   }
 
   function upPhoto(f, d) {
@@ -195,7 +206,8 @@
     function order() { return [].map.call(body.children, function (tr) { return tr.dataset.k; }); }
     function setSec(k, v) {
       v = Math.round(+v); if (!(v >= M.SEC_MIN)) v = M.SEC_MIN; if (v > M.SEC_MAX) v = M.SEC_MAX;
-      if (v === M.SEC) delete set.sec[k]; else set.sec[k] = v;
+      var def = M.screens({}).find(function (x) { return x.key === k; }).def;
+      if (v === def) delete set.sec[k]; else set.sec[k] = v;
       save(M.SCREENS.find(function (x) { return x.key === k; }).name + ' 화면을 ' + v + '초 동안 보여 줘요'); render();
     }
     body.querySelectorAll('.handle').forEach(function (h) {
@@ -218,8 +230,9 @@
       };
     });
     body.querySelectorAll('[data-sec]').forEach(function (i) { i.onchange = function () { setSec(i.dataset.sec, i.value); }; });
-    body.querySelectorAll('[data-dec]').forEach(function (b) { b.onclick = function () { var k = b.dataset.dec; setSec(k, (+(set.sec[k]) || M.SEC) - 1); }; });
-    body.querySelectorAll('[data-inc]').forEach(function (b) { b.onclick = function () { var k = b.dataset.inc; setSec(k, (+(set.sec[k]) || M.SEC) + 1); }; });
+    function cur(k) { return M.screens(set).find(function (x) { return x.key === k; }).sec; }
+    body.querySelectorAll('[data-dec]').forEach(function (b) { b.onclick = function () { setSec(b.dataset.dec, cur(b.dataset.dec) - 1); }; });
+    body.querySelectorAll('[data-inc]').forEach(function (b) { b.onclick = function () { setSec(b.dataset.inc, cur(b.dataset.inc) + 1); }; });
     body.querySelectorAll('[data-on]').forEach(function (c) {
       c.onchange = function () {
         var k = c.dataset.on, on = M.screens(set).filter(function (x) { return x.on; });

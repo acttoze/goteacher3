@@ -85,13 +85,13 @@ window.TR = window.TR || {};
   // 현황판 화면 목록. 순서 · 켜고 끄기 · 노출 시간(초)은 영양사가 바꿀 수 있다.
   M.SCREENS = [
     { key: 'menu', name: '오늘의 메뉴', what: '메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원', src: 'auto' },
-    { key: 'allergy', name: '알레르기', what: '19종 가운데 그날 들어간 식품과 해당 메뉴', src: 'auto' },
-    { key: 'cal', name: '칼로리 · 영양', what: '칼로리 · 영양 9종 · 초등 1~6학년 표준 기준과 비교', src: 'auto' },
-    { key: 'origin', name: '원산지', what: '학교 공통 원산지 표시 (학교가 NEIS에 올린 목록 그대로)', src: 'auto' },
+    { key: 'allergy', name: '알레르기', what: '그날 들어간 알레르기 식품만 크게 · 해당 메뉴', src: 'auto' },
+    { key: 'cal', name: '칼로리 · 영양', what: '칼로리 · 영양 6종 · 초등 1~6학년 표준 기준과 비교', src: 'auto' },
+    { key: 'origin', name: '원산지', what: '학교 공통 원산지 표시 (학교가 NEIS에 올린 목록 그대로) · 14개씩 두 장', src: 'auto', sec: 14 },
     { key: 'hygiene', name: '위생 교육', what: '손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며', src: 'rot' },
     { key: 'eat', name: '골고루 먹어요', what: '식품군(메뉴 이름으로 자동 분류) · 표어(날마다 돌아가며)', src: 'rot' },
     { key: 'photo', name: '오늘의 식사', what: '그날 식판 사진 (당일 찍은 사진)', src: 'me', lock: true }, // 규정상 매일 게시 — 끌 수 없음
-    { key: 'week', name: '이번 주 메뉴', what: '월~금 메뉴 · 알레르기 번호 · 칼로리', src: 'auto' }
+    { key: 'week', name: '이번 주 메뉴', what: '월~금 메뉴 · 칼로리', src: 'auto', sec: 12 }
   ];
   M.SEC = 7; M.SEC_MIN = 3; M.SEC_MAX = 60;
   // 저장된 순서에 없는 화면은 뒤에 붙인다(화면이 늘어나도 깨지지 않게)
@@ -99,8 +99,8 @@ window.TR = window.TR || {};
     var keys = M.SCREENS.map(function (x) { return x.key; }), order = (set.order || []).filter(function (k) { return keys.indexOf(k) >= 0; });
     keys.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
     return order.map(function (k) {
-      var sc = M.SCREENS[keys.indexOf(k)], sec = +(set.sec || {})[k] || M.SEC;
-      return { key: k, name: sc.name, what: sc.what, src: sc.src, lock: !!sc.lock, on: sc.lock || !(set.off || {})[k], sec: Math.min(M.SEC_MAX, Math.max(M.SEC_MIN, sec)) };
+      var sc = M.SCREENS[keys.indexOf(k)], sec = +(set.sec || {})[k] || sc.sec || M.SEC;
+      return { key: k, name: sc.name, what: sc.what, src: sc.src, lock: !!sc.lock, def: sc.sec || M.SEC, on: sc.lock || !(set.off || {})[k], sec: Math.min(M.SEC_MAX, Math.max(M.SEC_MIN, sec)) };
     });
   };
 
