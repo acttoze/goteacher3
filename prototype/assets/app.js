@@ -305,7 +305,8 @@
     var school = todayEv.filter(function (e) { return e.type !== 'duty'; });
     var duty = todayEv.filter(function (e) { return e.type === 'duty'; });
     var n2 = st.notices.find(function (n) { return n.id === 'n2'; });
-    var changes = st.events.filter(function (e) { return e.changed && TR.lastDay(e) >= TR.TODAY; });
+    var allChanges = st.events.filter(function (e) { return e.changed && TR.lastDay(e) >= TR.TODAY; });
+    var changes = allChanges.filter(TR.aboutMe), others = allChanges.length - changes.length;
     var untimed = school.filter(function (e) { return !e.s; }).length;
 
     var mine = TR.myTimetable.map(function (t) {
@@ -314,16 +315,23 @@
     }).join('');
 
     var dutyHtml = duty.map(function (d) {
-      return '<div class="duty"><span class="k">' + d.duty + '</span><div class="grow"><div><b>' + esc(d.who) + '</b> <span class="muted small">' + esc(TR.groupOf(d.who)) + ' · ' + esc(d.time) + (d.target ? ' · ' + esc(d.target) : '') + '</span>' + (d.changed ? ' ' + TR.chgIcon : '') + '</div></div></div>';
+      return '<div class="duty"><span class="k">' + d.duty + '</span><div class="grow"><div><b>' + esc(d.who) + '</b> <span class="muted small">' + esc(TR.groupOf(d.who)) + ' · ' + esc(d.time) + '</span>' + (d.changed ? ' ' + TR.chgIcon : '') + '</div></div></div>';
     }).join('');
 
     var inbox = myInbox();
     var open = inbox.filter(function (i) { return !i.done && i.k !== 'send'; }).length;
     var inboxHtml = inboxScope === 'all' ? schoolWideHtml() : inbox.map(function (it) {
       if (it.k === 'send') return '<a class="it" href="#collect/' + it.id + '" style="text-decoration:none;color:inherit"><span class="badge pri" style="margin-top:1px">보냄</span><div class="grow"><div class="ti">' + esc(it.title) + '</div><div class="meta">' + esc(it.meta) + '</div><div class="row" style="margin-top:7px"><div class="bar grow"><i style="width:' + it.p.p + '%"></i></div><span class="small"><b>' + it.p.d + '</b>/' + it.p.t + '</span></div><div class="meta"><span class="need">' + (it.p.unit === '칸' ? '빈 칸 ' : '미제출 ') + (it.p.t - it.p.d) + it.p.unit + '</span> · 누르면 합본·독촉</div></div></a>';
-      return '<div class="it' + (it.done ? ' done' : '') + '"><button class="box" aria-label="완료" data-act="' + it.k + '" data-id="' + it.id + '" data-unit="' + esc(it.unit || '') + '"></button><div class="grow"><div class="ti">' + esc(it.title) + '</div><div class="meta">' + (it.urgent && !it.done ? '<span class="badge red">오늘 14:00</span>' : '') + esc(it.meta) + '</div>' + (it.why ? '<div class="why">왜 나에게: ' + esc(it.why) + '</div>' : '') + '</div>' +
-        (it.done ? '<span class="badge ok">완료</span>' : '<button class="btn sm' + (it.urgent ? ' pri' : '') + '" data-act="' + it.k + '" data-id="' + it.id + '" data-unit="' + esc(it.unit || '') + '">' + (it.k === 'ack' ? '보기' : '제출') + '</button>') + '</div>';
+      return '<div class="it' + (it.done ? ' done' : '') + '"><div class="grow"><div class="ti">' + esc(it.title) + '</div><div class="meta">' + (it.urgent && !it.done ? '<span class="badge red">오늘 14:00</span>' : '') + esc(it.meta) + '</div>' + (it.why ? '<div class="why">왜 나에게: ' + esc(it.why) + '</div>' : '') + '</div>' +
+        (it.done ? '<span class="badge ok">완료</span>' : '<button class="btn sm' + (it.urgent ? ' pri' : '') + '" data-act="' + it.k + '" data-id="' + it.id + '" data-unit="' + esc(it.unit || '') + '">' + (it.k === 'ack' ? '확인' : '제출') + '</button>') + '</div>';
     }).join('');
+    if (inboxScope === 'me') { // 낼 것 먼저, 내가 보낸 것은 아래 따로
+      var sendH = inbox.filter(function (i) { return i.k === 'send'; }).length;
+      inboxHtml = inboxHtml.replace(/(<a class="it" href="#collect\/[^"]*"[\s\S]*?<\/a>)/g, '');
+      inboxHtml = '<div class="ib-h">내가 낼 것</div>' + inboxHtml + (sendH ? '<div class="ib-h">내가 보낸 것</div>' + inbox.filter(function (i) { return i.k === 'send'; }).map(function (it) {
+        return '<a class="it" href="#collect/' + it.id + '" style="text-decoration:none;color:inherit"><div class="grow"><div class="ti">' + esc(it.title) + '</div><div class="meta">' + esc(it.meta) + '</div><div class="row" style="margin-top:7px"><div class="bar grow"><i style="width:' + it.p.p + '%"></i></div><span class="small"><b>' + it.p.d + '</b>/' + it.p.t + '</span></div><div class="meta"><span class="need">' + (it.p.unit === '칸' ? '빈 칸 ' : '미제출 ') + (it.p.t - it.p.d) + it.p.unit + '</span> · 누르면 합본·독촉</div></div></a>';
+      }).join('') : '');
+    }
 
     var chHtml = changes.map(function (e) {
       return '<li>' + TR.chgIcon + '<span class="t">' + TR.dateText(e) + ' ' + esc(e.title) + '</span><span>' + e.change + '</span><a href="javascript:void 0" data-ev="' + e.id + '" class="small">자세히</a></li>';
@@ -334,13 +342,13 @@
       '<div class="page-h"><div><h1>10월 26일 월요일</h1><p>2학기 9주차 · ' + TR.school.name + ' · ' + esc(TR.me.role) + '</p></div>' +
       '<div class="row no-print"><a class="btn" href="#cal">이번 주 보기</a><button class="btn" id="printDay">오늘 일과 A4 인쇄</button></div></div>' +
       '<div class="strip"><span class="pill">🍚 <b>급식</b> 잡곡밥 · 쇠고기미역국 · 돈육장조림 · 감귤</span><span class="pill">🌤 미세먼지 보통</span><span class="pill">🔔 다음 묶음 알림 <b>12:20</b> (2블록 끝) · 수업 중엔 PC 알림도 띄우지 않아요</span><span class="pill faint">학사일정·급식은 NEIS에서 자동</span></div>' +
-      '<section class="changes" aria-label="오늘 바뀐 것"><h2>' + TR.chgIcon + '오늘 바뀐 것 ' + (changes.length + 1) + '건 <span class="small muted" style="font-weight:400">어제 퇴근 이후</span></h2><ul>' + chHtml + '</ul></section>' +
+      '<section class="changes" aria-label="오늘 바뀐 것"><h2>' + TR.chgIcon + '오늘 바뀐 것 ' + (changes.length + 1) + '건 <span class="small muted" style="font-weight:400">어제 퇴근 이후 · 나 · 우리 학년 · 전 교직원 대상만</span>' + (others ? '<a href="#cal" class="small" style="margin-left:auto;font-weight:500">다른 학년 · 동료 변경 ' + others + '건은 일정에서</a>' : '') + '</h2><ul>' + chHtml + '</ul></section>' +
       '<div class="grid3">' +
       '<section class="card col-tt"><div class="card-h"><h2>내 시간표</h2><span class="small muted">4-2 · 학기 초 1번 입력</span></div><div class="card-b" style="padding-top:5px"><table class="tt">' + mine + '</table></div></section>' +
       '<section class="card col-tl"><div class="card-h"><h2>학교 오늘</h2>' + legendHtml() + '</div><div class="card-b">' +
-      '<p class="board-hint">날짜만 넣은 일정은 <b>전일</b>에 모입니다' + (untimed ? ' (지금 ' + untimed + '건)' : '') + '. 내 일정과 우리 학년 일정은 <b>끌어서 블록에 놓고</b>, 카드 <b>위·아래 끝</b>을 끌어 길이를 정하세요. 새 일정은 칸마다 있는 <b>＋ 추가</b>를 눌러 그 자리에서 바로 쓰세요(빈 곳을 두 번 눌러도 됩니다).</p>' +
+      '<p class="board-hint">날짜만 넣은 일정은 <b>전일</b>' + (untimed ? '(' + untimed + '건)' : '') + '에 모여요. 끌어서 블록에 놓고, <b>＋ 추가</b>로 바로 쓰세요.</p>' +
       dayBoard(school) +
-      '<h3 style="font-size:16px;margin:18px 0 9px">복무 <span class="small muted" style="font-weight:400">' + duty.length + '명 · 나이스 결재와 별개로 공유만 · 보강은 담당자가 기존대로</span></h3><div class="duty-list">' + dutyHtml + '</div></div></section>' +
+      '<h3 style="font-size:16px;margin:18px 0 9px">복무 <span class="small muted" style="font-weight:400">' + duty.length + '명 · 유형·시간만 · 교무실무사가 나이스에서 붙여넣음</span></h3><div class="duty-list">' + dutyHtml + '</div></div></section>' +
       '<section class="card col-r"><div class="card-h"><div class="seg"><button data-scope="me" class="' + (inboxScope === 'me' ? 'on' : '') + '">나에게 온 것' + (open ? ' ' + open : '') + '</button><button data-scope="all" class="' + (inboxScope === 'all' ? 'on' : '') + '">학교 전체</button></div>' + (inboxScope === 'me' ? '<span class="badge ' + (open ? 'red' : 'ok') + '">' + (open ? '남은 일 ' + open : '모두 끝') + '</span>' : '<span class="small muted">마감순</span>') + '</div><div class="card-b"><div class="inbox">' + inboxHtml + '</div>' +
       '<p class="small faint" style="margin:14px 0 0">' + (inboxScope === 'me' ? '모으기를 만들 때 고른 대상(그룹·개인·그룹별)에 내가 들어 있는 칸과 확인 필수 공지만 모입니다. 「왜 나에게」가 그 규칙이에요. 제출하면 자동으로 지워져요.' : '학교에서 진행 중인 취합과 확인 필수 공지 전체. 내 것이 아니어도 "다들 이걸 하고 있구나" 리마인드용입니다.') + '</p></div></section>' +
       '</div>';
@@ -954,7 +962,11 @@
         ? '<b>' + esc(TR.school.name) + ' 교내</b> — 우리 학교 교직원만 보는 공간입니다. 외부 업체·다른 학교·로그인 안 한 사람은 들어올 수 없어요.'
         : '<b>티로드 교외</b> — 학교 밖 공간입니다. 다른 학교 선생님과 업체도 들어옵니다. 우리 학교 일정·공지·모으기·명부는 여기 나오지 않아요.';
     var aud = zone === 'in' ? ['<span class="aud lock">🔒 ' + esc(TR.school.name) + ' 교직원 ' + S().members.length + '명만</span>'] : ZONE_AUD[sub] || [];
-    $('#zstrip').innerHTML = '<div class="zstrip-in"><span class="zi" aria-hidden="true">' + (zone === 'in' ? '🔒' : '🌐') + '</span><span>' + txt + '</span><span class="who-sees"><span class="small muted" style="align-self:center">이 화면을 보는 사람</span>' + aud.join('') + '</span></div>';
+    // 교내 안내 띠는 처음 한 번만(알겠어요를 누르면 접힘). 교외는 늘 보여 준다.
+    var seen = false; try { seen = zone === 'in' && role !== 'vendor' && localStorage.getItem('troad.zseen') === '1'; } catch (e) {}
+    $('#zstrip').hidden = seen;
+    $('#zstrip').innerHTML = '<div class="zstrip-in"><span class="zi" aria-hidden="true">' + (zone === 'in' ? '🔒' : '🌐') + '</span><span>' + txt + '</span><span class="who-sees"><span class="small muted" style="align-self:center">이 화면을 보는 사람</span>' + aud.join('') + (zone === 'in' && role !== 'vendor' ? '<button class="btn sm" id="zok">알겠어요</button>' : '') + '</span></div>';
+    var zok = $('#zok'); if (zok) zok.onclick = function () { try { localStorage.setItem('troad.zseen', '1'); } catch (e) {} $('#zstrip').hidden = true; };
   }
   function outZone(sub, id) {
     sub = sub || 'forms';
@@ -1275,4 +1287,8 @@
 
   route();
   renderBell();
+  // 오래된 크롬·웨일(:has 미지원)용 — 체크된 칩에 .on을 붙인다
+  function syncChecks() { $$('.gck,.pck').forEach(function (l) { var i = l.querySelector('input'); l.classList.toggle('on', !!(i && i.checked)); }); }
+  ['change', 'click'].forEach(function (ev) { document.addEventListener(ev, function () { requestAnimationFrame(syncChecks); }); });
+  window.addEventListener('hashchange', function () { requestAnimationFrame(syncChecks); });
 })();

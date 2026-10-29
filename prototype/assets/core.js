@@ -15,7 +15,7 @@
     try { localStorage.setItem(KEY, JSON.stringify(TR.state)); } catch (e) {}
   };
   TR.reset = function () {
-    try { localStorage.removeItem(KEY); localStorage.removeItem('troad.me'); } catch (e) {}
+    try { localStorage.removeItem(KEY); localStorage.removeItem('troad.me'); localStorage.removeItem('troad.zseen'); } catch (e) {}
     TR.state = seed();
   };
   // 그룹 조회: 이름 → 구성원 / 그룹명 ("4학년", "교무실")
@@ -145,6 +145,13 @@
     if (ev.mine || ev.by === TR.me.name || ev.who === TR.me.name) return true;
     var g = TR.groupOf(TR.me.name), t = (ev.target || '') + ' ' + ev.title;
     return t.indexOf(TR.me.cls) >= 0 || t.indexOf(g) >= 0 || t.indexOf(g.replace('학년', '')) >= 0 && /·\d학년|\d·\d/.test(t) || /전\s?교직원|전\s?교원|^담임$|전교/.test(ev.target || '');
+  };
+  // '오늘 바뀐 것'에 띄울 변경: 나 · 우리 학년 · 전 교직원 대상만. 남의 복무는 띄우지 않는다.
+  TR.aboutMe = function (ev) {
+    if (ev.type === 'duty') return ev.who === TR.me.name;
+    if (TR.isRel(ev)) return true;
+    var gr = +String(TR.me.cls).split('-')[0], m = (ev.target || '').match(/(\d)\s*~\s*(\d)학년/);
+    return !!(m && +m[1] <= gr && gr <= +m[2]);
   };
   // 시간을 옮길 수 있는 사람: 쓴 사람 + 쓴 사람과 같은 그룹
   TR.canEdit = function (ev) { return ev.type !== 'duty' && (ev.by === TR.me.name || TR.groupOf(ev.by) === TR.groupOf(TR.me.name)); };

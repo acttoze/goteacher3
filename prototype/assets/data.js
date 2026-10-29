@@ -118,7 +118,7 @@ TR.seedEvents = [
   // 날짜만 입력한 일정(시간 미정) → 「전일」 칸. 필요한 사람만 끌어서 시간대를 정한다.
   { id: 'e22', date: '2026-10-26', title: '급식실 위생점검 (교육지원청 방문)', place: '급식소', target: '급식소', type: 'work', by: '도하경' },
   { id: 'e23', date: '2026-10-26', title: '4학년 학예회 소품 준비물 확인', place: '', target: '4학년', type: 'work', by: '정하은', mine: true },
-  { id: 'e24', date: '2026-10-26', title: '4학년 학년협의 (학예회 순서 정하기)', place: '4-1 교실', target: '4학년부', type: 'meet', by: '송민재' },
+  { id: 'e24', date: '2026-10-26', title: '4학년 학년협의 (학예회 순서 정하기)', place: '4-1 교실', target: '4학년부', type: 'meet', by: '송민재', changed: true, change: '장소 <del>4-3 교실</del> → <ins>4-1 교실</ins>' },
   { id: 'e25', date: '2026-10-27', title: '정보보안 점검의 날 (PC 보안 점검표 제출)', place: '', target: '전 교직원', type: 'work', by: '차민호' },
   { id: 'e26', date: '2026-10-28', title: '학부모 상담 가능 시간 입력 마감', place: '', target: '담임', type: 'work', by: '한상우' },
   { id: 'e27', date: '2026-10-29', title: '2학년 학예회 의상 대여 수령', place: '', target: '2학년', type: 'event', by: '한예린' },
@@ -128,9 +128,9 @@ TR.seedEvents = [
   { id: 'e29', date: '2026-10-27', end: '2026-10-29', title: '6학년 수학여행 사전 동의서 회수', place: '', target: '6학년', type: 'work', by: '양서윤' },
   { id: 'e30', date: '2026-10-28', end: '2026-10-29', s: 'b3', e: 'b3', title: '4학년 학예회 연습 (반별 순서대로)', place: '다목적실', target: '4학년', type: 'event', by: '송민재' },
 
-  { id: 'd1', date: '2026-10-26', s: 'b1', e: 'b3', title: '김민준 출장', place: '교육지원청', target: '연수', type: 'duty', duty: '출장', who: '김민준', time: '09:00–17:00' },
-  { id: 'd2', date: '2026-10-26', s: 'b3', e: 'pm', title: '이서연 조퇴', place: '', target: '병원', type: 'duty', duty: '조퇴', who: '이서연', time: '14:00~', },
-  { id: 'd3', date: '2026-10-26', s: 'b2', e: 'b3', title: '박지훈 외출', place: '', target: '개인', type: 'duty', duty: '외출', who: '박지훈', time: '11:00–12:30' },
+  { id: 'd1', date: '2026-10-26', s: 'b1', e: 'b3', title: '김민준 출장', place: '', target: '', type: 'duty', duty: '출장', who: '김민준', time: '09:00–17:00' },
+  { id: 'd2', date: '2026-10-26', s: 'b3', e: 'pm', title: '이서연 조퇴', place: '', target: '', type: 'duty', duty: '조퇴', who: '이서연', time: '14:00~', },
+  { id: 'd3', date: '2026-10-26', s: 'b2', e: 'b3', title: '박지훈 외출', place: '', target: '', type: 'duty', duty: '외출', who: '박지훈', time: '11:00–12:30' },
   { id: 'd4', date: '2026-10-26', s: 'b1', e: 'b3', title: '최수아 연가', place: '', target: '', type: 'duty', duty: '연가', who: '최수아', time: '종일', changed: true, change: '<ins>연가 신규 등록</ins>' }
 ];
 
