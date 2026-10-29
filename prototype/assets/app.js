@@ -860,9 +860,9 @@
   function board(tab, sub) {
     tab = tab || 'notice';
     var st = S();
-    var tabs = [['notice', '공지', st.notices.filter(function (n) { return n.must && !st.acked[n.id]; }).length], ['repair', '시설 수리', st.repairs.filter(function (r) { return r.cat === '시설' && r.status !== '완료'; }).length]];
-    var act = tab === 'notice' ? '<button class="btn pri" id="nn">＋ 공지 쓰기</button>' : tab === 'repair' ? '<button class="btn pri" id="nr">＋ 시설 수리 요청</button>' : '';
-    var head = '<div class="page-h"><div><h1>게시판</h1><p>' + { notice: '고칠 때마다 판(v1, v2…)이 올라가고, 바뀐 부분만 다시 보여 줍니다.', repair: '교실·화장실·전기·냉난방 같은 시설 고장은 행정실이 받습니다. 학교 안 직원만 봅니다.' }[tab] + '</p></div>' + act + '</div>' +
+    var tabs = [['notice', '공지', st.notices.filter(function (n) { return n.must && !st.acked[n.id]; }).length], ['repair', '수리 요청', st.repairs.filter(function (r) { return r.status !== '완료'; }).length]];
+    var act = tab === 'notice' ? '<button class="btn pri" id="nn">＋ 공지 쓰기</button>' : tab === 'repair' ? '<button class="btn pri" id="nr">＋ 수리 요청</button>' : '';
+    var head = '<div class="page-h"><div><h1>게시판</h1><p>' + { notice: '고칠 때마다 판(v1, v2…)이 올라가고, 바뀐 부분만 다시 보여 줍니다.', repair: '고장은 여기 한 곳에 올리세요. 시설(교실·화장실·전기·냉난방)은 행정실이, 정보(PC·전자칠판·네트워크)는 계약 업체가 받습니다.' }[tab] + '</p></div>' + act + '</div>' +
       '<nav class="btabs">' + tabs.map(function (t) { return '<a href="#board/' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + (t[2] ? '<span class="cnt">' + t[2] + '</span>' : '') + '</a>'; }).join('') + '</nav>';
     view.innerHTML = head + '<div id="bbody"></div>';
     var bb = $('#bbody');
@@ -874,39 +874,41 @@
       }).join('') + '</div>';
       $('#nn').onclick = function () { TR.toast('프로토타입: 공지 쓰기는 일정 한 줄 입력과 같은 방식(칩)으로 만듭니다.'); };
     }
-    if (tab === 'repair') repairTab(bb, '시설');
+    if (tab === 'repair') repairTab(bb);
   }
 
   // 수리요청은 받는 사람으로 나눈다: 시설 = 행정실(교내 게시판), 정보 = 외부 업체(교외 · 티로드)
+  // 수리 요청은 교내 한 곳. 시설은 행정실, 정보는 외부 업체가 받는다(업체는 자기 화면에서 정보 요청만 본다).
   function repairTab(bb, cat) {
-    var st = S(), list = st.repairs.filter(function (r) { return r.cat === cat; });
+    var st = S(), list = st.repairs.filter(function (r) { return !cat || r.cat === cat; });
     var v = TR.vendor, open = list.filter(function (r) { return r.status !== '완료'; }).length;
     var rows = '<div class="card">' + (list.map(function (r) {
-      return '<a class="crow rrow" href="javascript:void 0" data-rp="' + r.id + '"><div><div class="row"><b>' + esc(r.title) + '</b>' + (r.urgent && r.status !== '완료' ? '<span class="badge red">급함</span>' : '') + '</div><div class="small muted">' + esc(r.place) + ' · ' + esc(TR.byline(r.by)) + ' · ' + esc(r.at) + '</div>' + (r.reply ? '<div class="small" style="margin-top:3px">↳ ' + esc(r.reply) + '</div>' : '') + '</div>' +
+      return '<a class="crow rrow" href="javascript:void 0" data-rp="' + r.id + '"><div><div class="row"><span class="badge ' + (r.cat === '정보' ? 'pri' : 'dut') + '">' + esc(r.cat) + '</span><b>' + esc(r.title) + '</b>' + (r.urgent && r.status !== '완료' ? '<span class="badge red">급함</span>' : '') + '</div><div class="small muted">' + esc(r.place) + ' · ' + esc(TR.byline(r.by)) + ' · ' + esc(r.at) + '</div>' + (r.reply ? '<div class="small" style="margin-top:3px">↳ ' + esc(r.reply) + '</div>' : '') + '</div>' +
         '<div class="small muted">' + esc(REPAIR_OWNER[r.cat]) + '</div><div><span class="badge ' + STATUS_BADGE[r.status] + '">' + esc(r.status) + '</span></div></a>';
     }).join('') || '<div class="card-b muted">요청이 없어요.</div>') + '</div>';
-    var side = cat === '시설'
-      ? '<section class="card"><div class="card-h"><h2>담당</h2></div><div class="card-b" style="display:grid;gap:14px">' +
-        '<div><div class="row"><span class="badge dut">시설</span><b>행정실 · 탁현수 주무관</b></div><p class="small muted" style="margin:5px 0 0">학교 교직원 계정 그대로. 외부 사람은 이 게시판을 볼 수 없습니다.</p></div>' +
-        '<div class="pubwarn"><span>🌐</span><div><b>PC·전자칠판·네트워크 고장은?</b><br>외부 유지보수 업체가 받기 때문에 학교 밖 공간(티로드)의 <b>정보 수리요청</b>에 있습니다.<div style="margin-top:8px"><a class="btn sm" href="#out/it">정보 수리요청으로 →</a></div></div></div></div></section>'
-      : '<section class="card"><div class="card-h"><h2>이 게시판을 보는 사람</h2></div><div class="card-b" style="display:grid;gap:14px">' +
+    var side = '<section class="card"><div class="card-h"><h2>누가 받나요</h2></div><div class="card-b" style="display:grid;gap:14px">' +
+        '<div><div class="row"><span class="badge dut">시설</span><b>행정실 · 탁현수 주무관</b></div><p class="small muted" style="margin:5px 0 0">학교 교직원만 봅니다.</p></div>' +
+        '<div><div class="row"><span class="badge pri">정보</span><b>' + esc(v.name) + ' (계약 업체)</b></div><p class="small muted" style="margin:5px 0 0">업체는 정보 요청만, 선생님 이름 대신 위치만 봅니다.</p></div></div></section>' +
+      (role === 'vendor' ? '' : '<section class="card" style="margin-top:18px"><div class="card-h"><h2>정보 업체 계정</h2></div><div class="card-b" style="display:grid;gap:14px">' +
         '<div class="row" style="flex-wrap:wrap"><span class="aud lock">🔒 ' + esc(TR.school.name) + ' 교직원</span><span class="aud pub">🛠 ' + esc(v.name) + ' (계약 업체 1곳)</span></div>' +
         '<div class="vcard"><div class="row"><b>' + esc(v.name) + '</b><span class="badge">외부 업체 계정</span></div>' +
         '<dl class="kv small" style="margin-top:9px;grid-template-columns:96px 1fr;font-size:15px"><dt>볼 수 있는 것</dt><dd><b>정보 수리요청만</b>. 교내 공간(일정·공지·명부·모으기)은 잠겨 있음</dd><dt>로그인</dt><dd>담당자 휴대폰 ' + esc(v.phone) + ' 문자 인증 · 비밀번호 없음</dd><dt>사용 기간</dt><dd>~' + esc(v.until) + ' (계약 끝나면 자동 만료)</dd><dt>요청자 표시</dt><dd>이름 대신 <b>위치</b>만 (예: 4-2 교실)</dd><dt>최근 접속</dt><dd>' + esc(v.lastLogin) + '</dd><dt>초대한 사람</dt><dd>정보부장 ' + esc(v.invitedBy) + '</dd></dl>' +
         '<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm pri" id="vprev">업체 화면 미리보기</button><button class="btn sm" id="vswap">담당자 바꾸기</button><button class="btn sm" id="vlog">접속 기록</button></div></div>' +
-        '<p class="small muted" style="margin:0">업체 계정은 정보부장이 <b>휴대폰 번호 하나로 초대</b>합니다. 담당자가 바뀌면 번호만 바꾸면 이전 사람은 바로 막힙니다. 이 업체는 티로드를 쓰는 다른 학교 ' + (v.schools - 1) + '곳도 맡지만, 학교끼리 서로의 요청은 보이지 않습니다.</p></div></section>';
+        '<p class="small muted" style="margin:0">업체 계정은 정보부장이 <b>휴대폰 번호 하나로 초대</b>합니다. 담당자가 바뀌면 번호만 바꾸면 이전 사람은 바로 막힙니다. 이 업체는 티로드를 쓰는 다른 학교 ' + (v.schools - 1) + '곳도 맡지만, 학교끼리 서로의 요청은 보이지 않습니다.</p></div></section>');
     bb.innerHTML = '<div class="split"><div><div class="small muted" style="margin-bottom:9px">진행 중 ' + open + '건 · 전체 ' + list.length + '건</div>' + rows + '</div><aside>' + side + '</aside></div>';
     $$('[data-rp]', bb).forEach(function (a) { a.onclick = function () { repairView(a.dataset.rp); }; });
-    $('#nr').onclick = function () { repairNew(cat); };
-    if (cat === '정보') {
+    var nr = $('#nr'); if (nr) nr.onclick = function () { repairNew(cat); };
+    if ($('#vprev')) {
       $('#vprev').onclick = vendorPreview;
       $('#vswap').onclick = function () { TR.toast('새 담당자 휴대폰 번호를 넣으면 초대 문자가 가고, 이전 담당자 접속은 즉시 끊깁니다.'); };
       $('#vlog').onclick = function () { TR.toast('최근 30일 접속 12회 · 모두 정보 수리요청 (프로토타입)'); };
     }
   }
   function repairNew(cat) {
+    if (!cat) cat = '시설';
     var info = cat === '정보';
-    modal('<div class="card-h"><h2>' + (info ? '정보 수리 요청' : '시설 수리 요청') + '</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:14px">' +
+    modal('<div class="card-h"><h2>수리 요청</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:14px">' +
+      '<div class="seg" id="rcat"><button data-rc="시설" class="' + (info ? '' : 'on') + '">시설 · 행정실</button><button data-rc="정보" class="' + (info ? 'on' : '') + '">PC·전자칠판·네트워크 · 업체</button></div>' +
       '<label class="fld">위치<input id="rpl" value="' + esc(TR.me.cls) + ' 교실"></label>' +
       '<label class="fld">무엇이 안 되나요<input id="rti" placeholder="' + (info ? '예: 전자칠판 소리가 안 나요' : '예: 교실 뒷문이 잘 안 닫혀요') + '"></label>' +
       '<label class="fld">메모 <span class="small muted">언제 오면 좋은지 등 (선택)</span><input id="rno" placeholder="예: 2블록 수업 중 말고"></label>' +
@@ -915,6 +917,7 @@
       (info ? '<div class="pubwarn"><span>🛠</span><div><b>이 요청은 외부 업체(' + esc(TR.vendor.name) + ')가 봅니다.</b><br>업체에는 선생님 이름 대신 위치만 보이고, 담당자에게 문자 알림이 갑니다. 학생 이름·개인정보는 적지 마세요.</div></div>'
         : '<p class="small muted" style="margin:0">🔒 행정실 시설 담당(탁현수 주무관) 🔔에 바로 뜹니다. 학교 밖 사람은 볼 수 없어요.</p>') +
       '<div class="row" style="justify-content:flex-end"><button class="btn" data-close>취소</button><button class="btn pri" id="rsave">요청하기</button></div></div>');
+    $$('[data-rc]').forEach(function (b) { b.onclick = function () { closeModal(); repairNew(b.dataset.rc); }; });
     $('#rsave').onclick = function () {
       var t = $('#rti').value.trim(); if (!t) { TR.toast('무엇이 안 되는지 한 줄만 적어 주세요.'); return; }
       S().repairs.unshift({ id: 'r' + Date.now().toString(36), cat: cat, title: t, place: $('#rpl').value.trim(), by: TR.me.name, at: '10/26(월) ' + new Date().toTimeString().slice(0, 5), status: '접수', urgent: $('#rur').checked, note: $('#rno').value.trim() });
@@ -951,7 +954,7 @@
   // 우리 학교 일정·공지·모으기·명부는 교외 본문에 싣지 않는다
   var ZONE_AUD = {
     forms: ['<span class="aud pub">🌐 누구나 · 로그인 없이</span>'],
-    vendors: ['<span class="aud pub">🌐 누구나 보기</span>', '<span class="aud">✍ 별점·후기는 인증 교사만</span>'],
+    vendors: ['<span class="aud pub">🌐 누구나 보기</span>', '<span class="aud">✍ 배지·한 줄 후기는 인증 교사만</span>'],
     it: ['<span class="aud lock">🔒 ' + TR.school.name + ' 교직원</span>', '<span class="aud pub">🛠 ' + TR.vendor.name + '</span>']
   };
   function setZone(zone, sub) {
@@ -975,7 +978,7 @@
     sub = sub || 'forms';
     var meta = {
       forms: ['양식 자료실', '학교 업무 양식을 한글(hwpx) 파일로 받습니다. 로그인 없이 누구나 볼 수 있어요.', ''],
-      vendors: ['협력업체', '에듀테크부터 졸업앨범·수학여행·전세버스·체험·용역·인쇄까지, 학교가 함께 일하는 업체를 선생님들이 별점으로 알려 줍니다.', role === 'vendor' ? '' : '<button class="btn pri" id="vsug">＋ 업체 추천하기</button>'],
+      vendors: ['협력업체', '에듀테크부터 졸업앨범·수학여행·전세버스·체험·용역·인쇄까지, 학교가 함께 일하는 업체의 좋은 점을 선생님들이 배지로 알려 줍니다.', role === 'vendor' ? '' : '<button class="btn pri" id="vsug">＋ 업체 추천하기</button>'],
       it: [role === 'vendor' ? '정보 수리요청 · 업체 화면' : '정보 수리요청', role === 'vendor' ? '맡은 학교의 PC·전자칠판·네트워크 수리 요청입니다. 상태를 누르면 요청한 선생님께 알림이 갑니다.' : 'PC·전자칠판·네트워크 고장은 외부 유지보수 업체가 받습니다. 그래서 학교 밖 공간에 있어요.', role === 'vendor' ? '' : '<button class="btn pri" id="nr">＋ 정보 수리 요청</button>']
     }[sub];
     if (!meta) { location.replace('#out/forms'); return; }
@@ -985,15 +988,29 @@
     if (sub === 'vendors') { if (id) vendorView(bb, id); else vendorList(bb); var sg = $('#vsug'); if (sg) sg.onclick = function () { TR.toast('업체 이름·분류·연락처를 받아 운영자가 확인한 뒤 올립니다. 업체가 스스로 등록·광고할 수는 없어요.'); }; }
     if (sub === 'it') {
       if (role === 'vendor') { var draw = function () { bb.innerHTML = '<div class="card"><div class="card-b">' + vendorBody() + '</div></div>'; vendorBind(bb, draw); }; draw(); }
-      else repairTab(bb, '정보');
+      else { location.replace('#board/repair'); return; }
     }
   }
 
   // 협력업체 — 보기는 누구나, 별점·후기는 인증 교사만. 후기 작성자는 '지역 · 학교급'까지만 보인다
   var vCat = '전체', vSort = 'score', vArea = '전체';
   var V_AREAS = ['전체', '서울', '경기', '인천', '강원', '충청', '전라', '경상', '제주'];
-  function vAvg(v, k) { if (!v.rv.length) return 0; return v.rv.reduce(function (s, r) { return s + (k ? r.a[k] : r.r); }, 0) / v.rv.length; }
-  function stars(x) { var n = Math.round(x); return '<span class="stars" aria-label="별점 ' + x.toFixed(1) + '">' + '★★★★★'.slice(0, n) + '<span class="off">' + '★★★★★'.slice(n) + '</span></span>'; }
+  // 후기는 별점 없이 '좋은 배지 고르기 + 한 줄'(네이버 플레이스식). 나쁜 배지·점수는 두지 않는다(명예훼손·계약 공정성 위험).
+  var V_BADGES = ['서류를 제때 챙겨 줘요', '연락이 빨라요', '안전에 꼼꼼해요', '일정을 잘 지켜요', '가격이 합리적이에요', '아이들이 좋아했어요', '현장 대응이 좋아요', '추가 비용이 없어요'];
+  function rvBadges(r) {
+    if (r.b) return r.b;
+    var b = [], a = r.a || {};
+    if (a.d >= 5) b.push(0); if (a.s >= 5 || /바로|빠르|당일/.test(r.t)) b.push(1); if (a.q >= 5) b.push(2);
+    if (/일정|시간표|제때|수업 손실/.test(r.t) && r.r >= 4) b.push(3); if (a.p >= 4 && r.r >= 4) b.push(4);
+    if (/아이들|학생/.test(r.t) && r.r >= 4) b.push(5); if (/답사|동선|비상|바꿔/.test(r.t)) b.push(6);
+    return b.filter(function (x, i, l) { return l.indexOf(x) === i; });
+  }
+  // 한 줄 = 40자까지. 예전 긴 후기는 문장을 이어 붙이다 40자에서 자른다.
+  function oneLine(t) { t = String(t || ''); return t.length > 40 ? t.slice(0, 39).replace(/\s+\S*$/, '') + '…' : t; }
+  function vCounts(v) { var c = V_BADGES.map(function () { return 0; }); v.rv.forEach(function (r) { rvBadges(r).forEach(function (i) { c[i]++; }); }); return c; }
+  function vTotal(v) { return vCounts(v).reduce(function (a, b) { return a + b; }, 0); }
+  function topBadges(v, n) { var c = vCounts(v); return c.map(function (x, i) { return [i, x]; }).filter(function (x) { return x[1]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, n); }
+  function bchip(i, n) { return '<span class="vbadge">👍 ' + esc(V_BADGES[i]) + (n ? ' <b>' + n + '</b>' : '') + '</span>'; }
   function vInArea(v) {
     if (vArea === '전체' || v.area === '전국') return true;
     if (v.area.indexOf('수도권') >= 0 && /서울|경기|인천/.test(vArea)) return true;
@@ -1002,46 +1019,45 @@
   function vendorList(bb) {
     var all = TR.seedVendors;
     var list = all.filter(function (v) { return (vCat === '전체' || v.cat === vCat) && vInArea(v); })
-      .sort(function (a, b) { return vSort === 'cnt' ? b.rv.length - a.rv.length : vSort === 'used' ? b.used - a.used : vAvg(b) - vAvg(a); });
+      .sort(function (a, b) { return vSort === 'cnt' ? b.rv.length - a.rv.length : vSort === 'used' ? b.used - a.used : vTotal(b) - vTotal(a); });
     bb.innerHTML = '<div class="chips" style="margin-bottom:12px">' + ['전체'].concat(TR.vendorCats).map(function (c) { return '<button data-vc="' + c + '" class="' + (vCat === c ? 'on' : '') + '">' + c + '</button>'; }).join('') + '</div>' +
       '<div class="row" style="margin-bottom:14px;flex-wrap:wrap"><label class="small muted" for="varea">지역</label><select id="varea" class="btn sm">' + V_AREAS.map(function (a) { return '<option' + (a === vArea ? ' selected' : '') + '>' + a + '</option>'; }).join('') + '</select>' +
-      '<div class="seg">' + [['score', '별점순'], ['cnt', '후기 많은 순'], ['used', '이용 학교 많은 순']].map(function (s) { return '<button data-vs2="' + s[0] + '" class="' + (vSort === s[0] ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') + '</div><span class="small muted" style="margin-left:auto">업체 ' + list.length + '곳</span></div>' +
+      '<div class="seg">' + [['score', '추천 배지 많은 순'], ['cnt', '후기 많은 순'], ['used', '이용 학교 많은 순']].map(function (s) { return '<button data-vs2="' + s[0] + '" class="' + (vSort === s[0] ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') + '</div><span class="small muted" style="margin-left:auto">업체 ' + list.length + '곳</span></div>' +
       '<div class="vgrid">' + (list.map(function (v) {
-        var a = vAvg(v);
+        var tb = topBadges(v, 3);
         return '<a class="vcard2" href="#out/vendors/' + v.id + '"><div class="row"><span class="badge">' + esc(v.cat) + '</span><span class="small muted">' + esc(v.area) + '</span></div><h3>' + esc(v.name) + '</h3>' +
-          '<div class="vscore">' + stars(a) + '<b>' + a.toFixed(1) + '</b><span class="small muted">후기 ' + v.rv.length + ' · 티로드 학교 ' + v.used + '곳 이용</span></div>' +
-          '<p class="small muted" style="margin:8px 0 0">' + esc(v.d) + '</p>' + (v.tags.length ? '<div class="row" style="margin-top:9px;flex-wrap:wrap">' + v.tags.map(function (t) { return '<span class="badge pri">' + esc(t) + '</span>'; }).join('') + '</div>' : '') + '</a>';
+          '<div class="vbadges">' + (tb.length ? tb.map(function (x) { return bchip(x[0], x[1]); }).join('') : '<span class="small muted">아직 고른 배지가 없어요</span>') + '</div>' +
+          '<div class="small muted" style="margin-top:6px">후기 ' + v.rv.length + ' · 티로드 학교 ' + v.used + '곳 이용</div>' +
+          '<p class="small muted" style="margin:8px 0 0">' + esc(v.d) + '</p></a>';
       }).join('') || '<div class="card"><div class="card-b muted">조건에 맞는 업체가 없어요.</div></div>') + '</div>' +
-      '<p class="small muted" style="margin:16px 0 0">업체 목록은 운영자가 확인해 올리고, 업체가 돈을 내고 순위를 올리거나 후기를 지울 수 없습니다. 후기를 쓴 선생님의 이름·학교는 업체에도 다른 선생님에게도 보이지 않아요.</p>';
+      '<p class="small muted" style="margin:16px 0 0">별점은 없습니다. 선생님들이 고른 <b>좋은 점 배지</b>와 한 줄만 보여요. 업체가 돈을 내고 순위를 올리거나 후기를 지울 수 없고, 쓴 선생님의 이름·학교는 보이지 않아요.</p>';
     $$('[data-vc]', bb).forEach(function (b) { b.onclick = function () { vCat = b.dataset.vc; vendorList(bb); }; });
     $$('[data-vs2]', bb).forEach(function (b) { b.onclick = function () { vSort = b.dataset.vs2; vendorList(bb); }; });
     $('#varea', bb).onchange = function () { vArea = this.value; vendorList(bb); };
   }
   function vendorView(bb, id) {
     var v = TR.seedVendors.find(function (x) { return x.id === id; }); if (!v) { location.replace('#out/vendors'); return; }
-    var a = vAvg(v), canWrite = role !== 'vendor';
-    bb.innerHTML = '<div class="small" style="margin-bottom:9px"><a href="#out/vendors">협력업체</a> / ' + esc(v.cat) + '</div><div class="split"><article class="card"><div class="card-h" style="display:block"><div class="row"><span class="badge">' + esc(v.cat) + '</span><span class="small muted">' + esc(v.area) + ' · 티로드 학교 ' + v.used + '곳 이용</span></div><h2 style="font-size:24px;margin-top:7px">' + esc(v.name) + '</h2><p class="muted" style="margin:4px 0 0">' + esc(v.d) + '</p></div>' +
-      '<div class="card-b" style="border-bottom:1px solid var(--line)"><div class="row" style="justify-content:space-between"><h3 style="margin:0;font-size:18px">선생님 후기 ' + v.rv.length + '</h3>' + (canWrite ? '<button class="btn pri" id="rvnew">별점·후기 쓰기</button>' : '<span class="small muted">후기는 인증 교사만 쓸 수 있어요</span>') + '</div></div>' +
-      v.rv.map(function (r) { return '<div class="review"><div class="row">' + stars(r.r) + '<b>' + r.r + '.0</b><span class="small muted">인증 교사 · ' + esc(r.by) + ' · ' + esc(r.at) + '</span></div><p style="margin:7px 0 6px">' + esc(r.t) + '</p><div class="small muted">' + TR.vendorAxes.map(function (x) { return x[1] + ' ' + r.a[x[0]]; }).join(' · ') + '</div></div>'; }).join('') + '</article>' +
-      '<aside><section class="card"><div class="card-h"><h2>별점</h2></div><div class="card-b"><div class="vscore" style="margin-bottom:14px">' + stars(a) + '<b style="font-size:30px">' + a.toFixed(1) + '</b><span class="small muted">/ 5 · 후기 ' + v.rv.length + '</span></div>' +
-      '<div class="axes">' + TR.vendorAxes.map(function (x) { var m = vAvg(v, x[0]); return '<span>' + x[1] + '</span><div class="bar"><i style="width:' + (m / 5 * 100) + '%"></i></div><b>' + m.toFixed(1) + '</b>'; }).join('') + '</div>' +
-      '<p class="small muted" style="margin:14px 0 0"><b>서류 처리</b> = 견적서·사업자등록증·청렴서약서·보험·강사 경력 조회서 같은 학교 서류를 제때 챙겨 주는지.</p>' +
-      (v.tags.length ? '<div class="row" style="margin-top:12px;flex-wrap:wrap">' + v.tags.map(function (t) { return '<span class="badge pri">' + esc(t) + '</span>'; }).join('') + '</div>' : '') + '</div></section></aside></div>';
+    var canWrite = role !== 'vendor', cnt = vCounts(v), max = Math.max.apply(null, cnt.concat([1]));
+    bb.innerHTML = '<div class="small" style="margin-bottom:9px"><a href="#out/vendors">협력업체</a> / ' + esc(v.cat) + '</div><div class="split"><article class="card"><div class="card-h" style="display:block"><div class="row"><span class="badge">' + esc(v.cat) + '</span><span class="small muted">' + esc(v.area) + ' · 티로드 학교 ' + v.used + '곳 이용</span></div><h2 style="font-size:22px;margin-top:6px">' + esc(v.name) + '</h2><p class="muted" style="margin:6px 0 0">' + esc(v.d) + '</p></div>' +
+      '<div class="card-b" style="border-bottom:1px solid var(--line)"><div class="row" style="justify-content:space-between"><h3 style="margin:0;font-size:18px">선생님 후기 ' + v.rv.length + '</h3>' + (canWrite ? '<button class="btn pri" id="rvnew">배지 · 한 줄 후기 쓰기</button>' : '<span class="small muted">후기는 인증 교사만 쓸 수 있어요</span>') + '</div></div>' +
+      v.rv.map(function (r) { var b = rvBadges(r); return '<div class="review"><div class="vbadges">' + (b.length ? b.map(function (i) { return bchip(i); }).join('') : '') + '</div><p style="margin:7px 0 6px">' + esc(oneLine(r.t)) + '</p><div class="small muted">인증 교사 · ' + esc(r.by) + ' · ' + esc(r.at) + '</div></div>'; }).join('') + '</article>' +
+      '<aside><section class="card"><div class="card-h"><h2>선생님들이 고른 좋은 점</h2></div><div class="card-b"><div class="bcount">' +
+      V_BADGES.map(function (bn, i) { return '<span>' + esc(bn) + '</span><div class="bar"><i style="width:' + (cnt[i] / max * 100) + '%"></i></div><b>' + cnt[i] + '</b>'; }).join('') + '</div>' +
+      '<p class="small muted" style="margin:14px 0 0">별점·나쁜 배지는 없어요. 아쉬운 점은 한 줄에 사실만 적어 주세요.</p></div></section></aside></div>';
     var b = $('#rvnew'); if (b) b.onclick = function () { reviewNew(v); };
   }
   function reviewNew(v) {
-    var pick = { r: 5, p: 4, s: 4, q: 4, d: 4 };
-    var seg = function (k) { return '<div class="seg" data-pk="' + k + '">' + [1, 2, 3, 4, 5].map(function (n) { return '<button data-n="' + n + '" class="' + (pick[k] === n ? 'on' : '') + '">' + n + '</button>'; }).join('') + '</div>'; };
+    var sel = [];
     var area = TR.school.region.replace(/광역시|특별시|특별자치시|특별자치도|도$/, '');
-    modal('<div class="card-h"><h2>' + esc(v.name) + ' 후기</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:12px">' +
-      '<div class="rpick"><b>전체 별점</b>' + seg('r') + TR.vendorAxes.map(function (x) { return '<span>' + x[1] + '</span>' + seg(x[0]); }).join('') + '</div>' +
-      '<label class="fld">후기<textarea id="rvt" rows="4" placeholder="다른 학교 선생님이 업체를 고를 때 도움이 될 이야기 (예: 서류는 제때 왔는지, 아이들 안전은 어땠는지)"></textarea></label>' +
-      '<div class="pubwarn"><span>🌐</span><div><b>이 후기는 학교 밖에 공개됩니다.</b> 다른 학교 선생님과 업체도 봅니다.<br>이름·학교는 가리고 <b>인증 교사 · ' + esc(area) + ' · 초등</b>으로만 표시돼요. 학생·교직원 이름은 적지 마세요.</div></div>' +
+    modal('<div class="card-h"><h2>' + esc(v.name) + ' 후기</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="display:grid;gap:14px">' +
+      '<div><b>좋았던 점을 골라 주세요</b> <span class="small muted">여러 개 · 최대 5개</span><div class="bpick">' + V_BADGES.map(function (bn, i) { return '<button data-b="' + i + '">👍 ' + esc(bn) + '</button>'; }).join('') + '</div></div>' +
+      '<label class="fld">한 줄 <span class="small muted" style="font-weight:400">선택 · 40자까지</span><input id="rvt" maxlength="40" placeholder="예: 견적서·사업자등록증을 한 번에 보내 줬어요"></label>' +
+      '<div class="pubwarn"><span>🌐</span><div><b>이 후기는 학교 밖에 공개됩니다.</b> 다른 학교 선생님과 업체도 봅니다.<br>이름·학교는 가리고 <b>인증 교사 · ' + esc(area) + ' · 초등</b>으로만 표시돼요. 학생·교직원 이름, 비방은 적지 마세요.</div></div>' +
       '<div class="row" style="justify-content:flex-end"><button class="btn" data-close>취소</button><button class="btn pri" id="rvsave">공개로 올리기</button></div></div>');
-    $$('[data-pk]').forEach(function (g) { $$('button', g).forEach(function (b) { b.onclick = function (e) { e.preventDefault(); pick[g.dataset.pk] = +b.dataset.n; $$('button', g).forEach(function (x) { x.classList.toggle('on', x === b); }); }; }); });
+    $$('[data-b]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); var i = +b.dataset.b, k = sel.indexOf(i); if (k >= 0) sel.splice(k, 1); else if (sel.length < 5) sel.push(i); else TR.toast('배지는 5개까지 고를 수 있어요.'); $$('[data-b]').forEach(function (x) { x.classList.toggle('on', sel.indexOf(+x.dataset.b) >= 0); }); }; });
     $('#rvsave').onclick = function () {
-      var t = $('#rvt').value.trim(); if (t.length < 10) { TR.toast('후기를 한두 문장(10자 이상) 적어 주세요.'); return; }
-      v.rv.unshift({ by: area + ' · 초등', at: '10/26', r: pick.r, a: { p: pick.p, s: pick.s, q: pick.q, d: pick.d }, t: t });
+      if (!sel.length) { TR.toast('좋았던 점 배지를 하나 이상 골라 주세요.'); return; }
+      v.rv.unshift({ by: area + ' · 초등', at: '10/26', b: sel.slice(), t: $('#rvt').value.trim() });
       closeModal(); route(); TR.toast('후기를 올렸어요. 이름·학교는 가려서 보입니다.');
     };
   }

@@ -590,3 +590,12 @@ body[data-zone="out"]{--primary:var(--zout);--primary-soft:var(--zout-soft)}
 .sum-k b{font-size:28px;line-height:34px}
 .sum-k span{font-size:15px;font-weight:600}
 .sum-k small{font-size:14px;color:var(--muted)}
+.vbadges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.vbadge{display:inline-flex;align-items:center;gap:4px;height:30px;padding:0 10px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:14px;font-weight:600;white-space:nowrap}
+.vbadge b{color:var(--text)}
+.bcount{display:grid;grid-template-columns:auto 1fr 28px;gap:8px 10px;align-items:center;font-size:15px}
+.bcount b{text-align:right}
+.bpick{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.bpick button{height:40px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-size:15px;cursor:pointer}
+.bpick button.on{border-color:var(--primary);background:var(--primary-soft);color:var(--primary);font-weight:700}
+body:not([data-role="vendor"]) .vonly{display:none}
