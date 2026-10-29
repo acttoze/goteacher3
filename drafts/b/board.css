@@ -1,0 +1,90 @@
+/* 고티처 시안 B — 보드형. 메인(index.html)과 오늘(today.html)이 같이 쓰는 토큰과 카드 부품 */
+@import url("https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2.0.5/fonts/variable/woff2/SUIT-Variable.css");
+
+:root {
+  --ground: #f5f6f8;
+  --tile: #eaecef;
+  --tile-2: #e1e4e8;
+  --card: #ffffff;
+  --ink: #1c1d21;
+  --muted: #565a62;
+  --line: #e4e6ea;
+
+  /* 상태 = 데이터 색. 칸(보드 열)의 색이자 카드 띠의 색 */
+  --sent: #3d7eff;     /* 보냄 */
+  --filling: #ffb020;  /* 채우는 중 */
+  --done: #00b86b;     /* 다 걷힘 */
+  --returned: #1c1d21; /* 돌려받음 */
+  --urgent: #e5484d;   /* 마감 임박 · 실패만 */
+  --urgent-soft: #ffe4e4;
+
+  /* 동학년 다섯 명의 고정 색(이니셜 원 바탕). 목록에서 이웃끼리 60도 이상 떨어짐 */
+  --p-song: #ffe1c7;  /* 송민재 · 30° */
+  --p-jung: #c9f2e4;  /* 정하은 · 165° */
+  --p-kim: #ffd6ec;   /* 김도윤 · 325° */
+  --p-lee: #e2f5c4;   /* 이수빈 · 95° */
+  --p-park: #d3e8ff;  /* 박서준 · 212° */
+
+  --font: "SUIT Variable", "SUIT", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --r: 8px;
+  --ease-out: cubic-bezier(.2, .7, .2, 1);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --ease-soft: cubic-bezier(.25, .8, .3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--font); color: var(--ink); background: var(--ground); font-feature-settings: "tnum" 0; word-break: keep-all; overflow-wrap: break-word; }
+.num { font-variant-numeric: tabular-nums; }
+button, input, select { font: inherit; color: inherit; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--sent); outline-offset: 2px; }
+::selection { background: var(--filling); color: var(--ink); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* 이니셜 원 */
+.av { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; font-weight: 700; color: var(--ink); flex: none; }
+.av[data-p="송"] { background: var(--p-song); }
+.av[data-p="정"] { background: var(--p-jung); }
+.av[data-p="김"] { background: var(--p-kim); }
+.av[data-p="이"] { background: var(--p-lee); }
+.av[data-p="박"] { background: var(--p-park); }
+.av.other { background: var(--tile-2); }
+.avs { display: flex; }
+.avs .av { width: 28px; height: 28px; box-shadow: 0 0 0 2px var(--card); margin-left: -6px; } /* taste-skill-ignore: 겹친 이니셜 사이의 흰 고리(그림자 아님) */
+.avs .av:first-child { margin-left: 0; }
+
+/* 칩 */
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 6px; font-size: 14px; font-weight: 600; background: var(--tile); color: var(--ink); white-space: nowrap; }
+.chip.urgent { background: var(--urgent-soft); color: #a3161b; }
+.chip.file { background: var(--ink); color: #fff; }
+.chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex: none; display: inline-block; }
+
+/* 진행 막대 */
+.bar { height: 8px; border-radius: 4px; background: var(--tile); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--filling); border-radius: 4px; transition: width .5s var(--ease-out); }
+
+/* 버튼: 한 모양(6px), 높이 40px 이상 */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 6px; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; background: var(--tile); color: var(--ink); transition: transform .12s var(--ease-out), background-color .15s ease, color .15s ease; }
+.btn:active { transform: scale(.97); }
+.btn.ink { background: var(--ink); color: #fff; }
+.btn.white { background: #fff; color: var(--ink); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--tile-2); }
+  .btn.ink:hover { background: #33353b; }
+  .btn.white:hover { background: #eef0f3; }
+}
+
+/* 알림(토스트) — 떠 있는 것이라 그림자 허용 */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 8px; font-size: 15px; font-weight: 600; display: flex; gap: 14px; align-items: center; transition: opacity .2s ease, transform .25s var(--ease-out); box-shadow: 0 10px 30px rgba(0, 0, 0, .18); /* taste-skill-ignore: 떠 있는 알림 */ }
+.toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { background: none; border: 0; color: var(--filling); font-weight: 700; cursor: pointer; padding: 6px 2px; min-height: 32px; }
+
+/* 끌리는 카드 — 떠 있으므로 그림자 허용 */
+.dragging-ghost { position: fixed; z-index: 60; pointer-events: none; transform: rotate(2deg); box-shadow: 0 18px 40px rgba(20, 22, 30, .22); /* taste-skill-ignore: 끌리는 카드만 */ }
+.drop-on { outline: 3px dashed var(--ink); outline-offset: -3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

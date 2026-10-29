@@ -3,499 +3,788 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>고티처 — 할 일은 블록에, 취합은 링크로</title>
-<meta name="description" content="고티처는 동학년 선생님들이 한글 양식 취합을 링크 하나로 끝내고, 오늘 일과·바뀐 것·내 마감을 한 화면에서 보는 협업 도구입니다. 동학년판 무료.">
+<title>고티처 보드</title>
+<meta name="description" content="고티처는 동학년 선생님들이 한글 양식 취합을 링크 하나로 걷고, 오늘 할 일을 보드 한 장에서 보는 무료 협업 도구예요.">
 <script>document.documentElement.classList.add('js')</script>
-<link rel="stylesheet" href="cal.css">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="board.css">
 <style>
+  /* 글자 크기 다섯 단계: 14 · 17 · 22 · 32 · 디스플레이 */
   :root {
-    --margin: 40px; --gutter: 24px;
-    --s-small: 15px; --s-body: 18px; --s-lead: 22px;
-    --s-head: clamp(32px, 3.4vw, 52px);
-    --s-display: clamp(48px, 6vw, 96px);
-    --header-ink: var(--ink); --header-bg: var(--ground);
+    --s: 14px; --b: 17px; --l: 22px; --h: 32px;
+    --d: clamp(56px, 7vw, 104px);
+    --m: 24px; /* 바깥 여백 — 화면 끝 글자 방지로 시트 틈(12px)보다 넓게 */
   }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--font); font-size: var(--s-body); line-height: 1.55; -webkit-font-smoothing: antialiased; }
-  h1, h2, h3, p { margin: 0; }
-  a { color: inherit; }
-  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gutter); padding-inline: var(--margin); }
-  .display { font-size: var(--s-display); line-height: 1.02; letter-spacing: -0.035em; font-weight: 800; }
-  .head { font-size: var(--s-head); line-height: 1.1; letter-spacing: -0.025em; font-weight: 800; }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 52px; padding: 0 24px; border-radius: 12px; border: 0; background: var(--coral); color: var(--coral-ink); font: inherit; font-size: var(--s-body); font-weight: 800; text-decoration: none; cursor: pointer; transition: transform .12s var(--ease), background-color .15s; }
-  .btn:hover { background: #ff3a5c; }
-  .btn:active { transform: scale(.97); }
-  .btn.ink { background: var(--ink); color: #fff; }
-  .btn.ink:hover { background: #2b2e36; }
+  body { font-size: var(--b); line-height: 1.5; }
+  h1, h2, h3 { margin: 0; }
+  p { margin: 0; }
 
-  /* ---------- 머리글: 장 색을 따라간다 ---------- */
-  .top { position: fixed; inset: 0 0 auto 0; z-index: 20; height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 var(--margin); background: var(--header-bg); color: var(--header-ink); transition: background-color .3s ease, color .3s ease; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 800; letter-spacing: -0.02em; text-decoration: none; }
-  .top nav { display: flex; gap: 28px; font-size: var(--s-small); font-weight: 700; }
-  .top nav a { padding: 8px 0; text-decoration: underline; text-decoration-color: transparent; text-decoration-thickness: 2px; text-underline-offset: 6px; transition: text-decoration-color .2s; }
-  .top nav a:hover { text-decoration-color: currentColor; }
+  /* ---------- 히어로: 카드 시트 + 글 칸 ---------- */
+  .hero { position: relative; height: max(760px, 100svh); max-height: 1080px; overflow: hidden; padding: 0 var(--m); }
+  .sheet { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; height: 100%; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 12px; transform: translateY(var(--off, 0px)); }
+  .mid { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; grid-template-rows: calc(28svh - 12px) auto auto; height: 100%; }
+  .mid .top { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; overflow: visible; }
+  .mid .top > div, .mid .bot > div { display: flex; flex-direction: column; gap: 12px; }
+  .mid .bot { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mid .bot > div:last-child { padding-top: 40px; }
 
-  /* ---------- 히어로: 색 무대 위의 작동하는 캘린더 ---------- */
-  .hero { position: relative; min-height: calc(42svh + 700px); background: var(--ground); }
-  .hero .grid { padding-top: 150px; }
-  .hero h1 { grid-column: 1 / 8; }
-  .hero h1 .line { display: block; overflow: hidden; padding-bottom: .08em; margin-bottom: -.08em; }
-  .hero h1 [data-line] { display: block; }
-  .hero-side { grid-column: 1 / 5; margin-top: 28px; display: flex; flex-direction: column; gap: 24px; align-items: flex-start; }
-  .hero-side p { max-width: 30em; font-size: var(--s-body); }
-  .hero-side small { font-size: var(--s-small); color: var(--muted); font-weight: 600; }
-  .stage { position: absolute; top: 42svh; right: 0; bottom: 0; left: calc(var(--margin) + (100% - 2 * var(--margin) - 11 * var(--gutter)) / 12 * 4 + 4 * var(--gutter)); background: var(--coral); overflow: clip;
-    clip-path: polygon(0 56px, 0 0, 22% 0, calc(22% + 40px) 56px, 100% 56px, 100% 100%, 0 100%); }
-  .stage-tab { position: absolute; left: 24px; top: 14px; font-size: var(--s-small); font-weight: 800; color: var(--coral-ink); }
-  .frag { position: absolute; left: 56px; top: 112px; right: var(--margin); background: var(--paper); border-radius: 20px; padding: 24px; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; --cal-t: 15px; --cal-s: 15px; --cal-xs: 15px; }
-  .frag-h { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-  .frag-h b { font-size: 22px; font-weight: 800; }
-  .frag-h span { font-size: 15px; color: var(--muted); }
-  .frag .lane-h { font-size: 15px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
-  .frag .cal { --label: 96px; --rowh: 80px; }
+  .panel { grid-column: 1 / -1; background: var(--ink); color: #fff; border-radius: var(--r); padding: 24px; min-height: 430px; display: flex; flex-direction: column; gap: 18px; }
+  .wm { display: flex; align-items: center; gap: 10px; font-size: var(--l); font-weight: 800; letter-spacing: -0.02em; }
+  .mark { display: inline-flex; gap: 3px; align-items: flex-end; height: 22px; }
+  .mark i { width: 6px; border-radius: 2px; display: block; }
+  .mark i:nth-child(1) { height: 22px; background: var(--sent); }
+  .mark i:nth-child(2) { height: 15px; background: var(--filling); }
+  .mark i:nth-child(3) { height: 19px; background: var(--done); }
+  .panel h1 { font-size: var(--h); line-height: 1.12; font-weight: 800; letter-spacing: -0.035em; }
+  .panel .lede { color: #dadce1; font-size: var(--b); line-height: 1.55; max-width: 40ch; }
+  .panel .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--s); font-weight: 700; }
+  .panel .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .panel .try { color: #dadce1; font-size: var(--s); display: flex; gap: 8px; align-items: center; }
+  .panel .try .dot { background: var(--filling); }
+  .panel .acts { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .panel .btn { min-height: 48px; padding: 0 20px; font-size: var(--b); }
+  .panel nav { margin-top: auto; display: flex; gap: 22px; font-size: var(--s); font-weight: 600; }
+  .panel nav a { color: #fff; text-decoration: underline; text-decoration-color: transparent; text-underline-offset: .25em; transition: text-decoration-color .15s ease; }
+  .panel nav a:hover { text-decoration-color: currentColor; }
 
-  /* ---------- 장(章) 공통 ---------- */
-  .chapter { position: relative; min-height: 90svh; padding-block: 140px 120px; display: flex; flex-direction: column; justify-content: center; }
-  .chapter > .grid { width: 100%; }
-  .f-sky { background: var(--f-sky); color: var(--ink); }
-  .f-ink { background: var(--f-ink); color: #f4f5f7; }
-  .f-mint { background: var(--f-mint); color: var(--ink); }
-  .f-butter { background: var(--f-butter); color: var(--ink); }
-  .f-coral { background: var(--f-coral); color: var(--ink); }
+  /* 보드 카드 */
+  .kc { background: var(--card); border-radius: var(--r); overflow: hidden; display: flex; flex-direction: column; }
+  .kc .in { padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 9px; }
+  .kc h3 { font-size: var(--b); line-height: 1.3; font-weight: 700; letter-spacing: -0.01em; }
+  .kc .meta { font-size: var(--s); color: var(--muted); line-height: 1.4; }
+  .kc .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .kc .strip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kc .strip { height: 30px; display: block; line-height: 30px; padding: 0 14px; font-size: var(--s); font-weight: 700; color: var(--ink); background: var(--filling); }
+  .kc[data-status="sent"] .strip { background: var(--sent); }
+  .kc[data-status="done"] .strip { background: var(--done); }
+  .kc[data-status="returned"] .strip { background: var(--returned); color: #fff; }
+  .kc .ph { height: var(--ph, 0px); }
+  .kc .lines { display: grid; gap: 6px; }
+  .kc .lines span { display: flex; justify-content: space-between; font-size: var(--s); color: var(--muted); }
 
-  /* showcase — 결과물 목록 + 살아 있는 종이 */
-  .outs { grid-column: 1 / 6; display: flex; flex-direction: column; gap: 32px; align-self: start; }
-  .outs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-  .outs button { all: unset; cursor: pointer; display: block; font-size: var(--s-head); line-height: 1.12; letter-spacing: -0.025em; font-weight: 800; color: #3a5670; transition: color .2s, transform .2s var(--ease); }
-  .outs button:hover { color: var(--ink); transform: translateX(6px); }
-  .outs button[aria-selected="true"] { color: var(--ink); }
-  .outs button:focus-visible { outline: 3px solid var(--ink); outline-offset: 4px; border-radius: 6px; }
-  .outs p { font-size: var(--s-body); max-width: 26em; }
-  .sheet-stage { grid-column: 7 / 13; position: relative; height: 640px; background: #b7ddff; border-radius: 20px; overflow: clip; }
-  .sheet { position: absolute; left: 64px; top: 72px; background: var(--paper); border-radius: 14px; padding: 32px; transition: opacity .2s ease, transform .3s var(--ease); }
-  .sheet.swap { opacity: 0; transform: translateY(10px); }
-  .doc { width: 560px; }
-  .doc .dh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 15px; color: var(--muted); }
-  .doc h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; text-align: center; margin: 8px 0 6px; }
-  .doc .sub { text-align: center; font-size: 15px; color: var(--muted); margin-bottom: 20px; }
-  .doc table { width: 100%; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
-  .doc th, .doc td { border: 1px solid #c9ced6; padding: 10px 12px; text-align: center; }
-  .doc th { background: var(--tone); font-weight: 700; }
-  .doc td.miss { color: var(--muted); }
-  .doc tfoot td { font-weight: 800; }
-  .doc .files { display: flex; gap: 8px; margin-top: 20px; }
-  .chip { display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border-radius: 10px; background: var(--tone); font-size: 15px; font-weight: 700; border: 0; font-family: inherit; color: var(--ink); cursor: pointer; transition: background-color .15s, transform .1s; }
-  .chip:hover { background: #e3e6eb; }
-  .chip:active { transform: scale(.96); }
-  .chip.on { background: var(--ink); color: #fff; }
-  .msg { width: 440px; }
-  .msg .who { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--muted); margin-bottom: 12px; }
-  .bubble { background: var(--k-class-bg); color: var(--k-class-ink); border-radius: 4px 18px 18px 18px; padding: 16px 18px; font-size: 18px; line-height: 1.55; }
-  .bubble u { text-decoration-thickness: 2px; text-underline-offset: 3px; }
-  .msg .row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 15px; color: var(--muted); }
-  .recv { width: 320px; }
-  .recv h3 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-  .recv .note { font-size: 15px; color: var(--muted); margin-bottom: 18px; }
-  .recv label { display: block; font-size: 15px; font-weight: 700; margin: 14px 0 6px; }
-  .recv .field { display: flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 10px; background: var(--tone); font-size: 18px; font-variant-numeric: tabular-nums; }
-  .recv .check { display: flex; gap: 8px; align-items: center; margin-top: 16px; font-size: 15px; }
-  .recv .check i { width: 20px; height: 20px; border-radius: 6px; background: var(--ink); display: inline-grid; place-items: center; color: #fff; }
-  .recv .btn { width: 100%; margin-top: 20px; height: 48px; }
-  .av { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font-size: 15px; font-weight: 800; flex: none; }
+  /* 살아 있는 카드 */
+  .live { cursor: grab; touch-action: none; transition: outline-color .2s ease; outline: 3px solid transparent; outline-offset: 0; }
+  .live.flash { outline-color: var(--done); }
+  .live .rows { display: grid; gap: 0; margin: 2px -2px 0; }
+  .live .r { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: var(--s); padding: 0 2px; }
+  .live .r .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .live .r b { font-weight: 700; }
+  .live .r .btn { min-height: 34px; padding: 0 12px; font-size: var(--s); background: var(--filling); }
+  .live .r .btn:hover { background: #f0a000; }
+  .live .sum { display: flex; justify-content: space-between; font-size: var(--s); font-weight: 700; }
+  .live .next { width: 100%; }
+  .live .file { display: none; }
+  .live[data-status="returned"] .file { display: inline-flex; }
+  .live .undo { background: none; border: 0; padding: 4px 0; font-size: var(--s); color: var(--muted); text-decoration: underline; cursor: pointer; min-height: 32px; text-align: left; }
+  .live.dragging { opacity: .35; }
+  .col.drop-on, .mid.drop-on { outline-offset: 2px; border-radius: var(--r); }
 
-  /* how — 단계 막대 */
-  .how h2 { grid-column: 1 / 13; margin-bottom: 64px; }
-  .bar { grid-column: 1 / 13; display: flex; gap: 6px; height: 22vh; min-height: 160px; }
-  .seg { flex-basis: 0; min-width: 12%; border-radius: 16px; padding: 20px; color: var(--ink); font-size: 22px; font-weight: 800; letter-spacing: -0.02em; transform-origin: left; }
-  .clauses { grid-column: 1 / 13; display: flex; gap: 6px; margin-top: 20px; }
-  .clauses p { flex-basis: 0; min-width: 12%; font-size: 18px; max-width: 22ch; padding-right: 12px; color: #d9dce2; }
-  .clauses b { color: #fff; }
+  /* ---------- 섹션 공통 ---------- */
+  section { position: relative; }
+  .wrap { padding: 0 var(--m); }
 
-  /* features — 축 위의 행 + 여백의 조각 */
-  .feat-h { grid-column: 5 / 13; min-height: 52svh; display: flex; align-items: center; }
-  .feat-row { grid-column: 5 / 13; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: start; margin-top: 112px; }
-  .feat-row:first-of-type { margin-top: 0; }
-  .feat-row h3 { font-size: var(--s-head); line-height: 1.1; letter-spacing: -0.025em; font-weight: 800; margin-bottom: 16px; }
-  .feat-row p { font-size: var(--s-body); max-width: 34ch; }
-  .feat-side { grid-column: 1 / 5; grid-row: 2 / span 4; align-self: start; position: sticky; top: 140px; }
-  .feat-side p { font-size: var(--s-lead); line-height: 1.45; max-width: 16em; font-weight: 600; }
-  .pic { background: var(--paper); border-radius: 16px; padding: 20px; color: var(--ink); overflow: hidden; }
-  .pic .t { font-size: 15px; font-weight: 800; margin-bottom: 12px; }
-  .pic .s { font-size: 15px; color: var(--muted); }
-  .pic-a { width: 300px; }
-  .pic-b { width: 380px; }
-  .pic-c { width: 260px; }
-  .pic-d { width: 320px; }
-  .classes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .classes span { display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 10px; background: var(--tone); font-size: 15px; font-weight: 700; }
-  .classes span.on { background: var(--k-class-bg); color: var(--k-class-ink); outline: 2px solid var(--k-class-ink); outline-offset: -2px; }
-  .bundles { display: flex; flex-direction: column; gap: 8px; }
-  .bundles div { display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--tone); font-size: 15px; font-variant-numeric: tabular-nums; }
-  .bundles div b { font-weight: 800; }
-  .bundles div.quiet { background: none; outline: 1px dashed #c9ced6; outline-offset: -1px; color: var(--muted); }
-  .warnbox { background: var(--k-todo-bg); color: var(--k-todo-ink); border-radius: 10px; padding: 12px; font-size: 15px; font-weight: 700; line-height: 1.4; }
-  .kv { display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
-  .kv div { display: flex; justify-content: space-between; gap: 8px; }
-  .kv div span { color: var(--muted); }
+  /* 쇼케이스: 조작판이 붙은 실물 데모 */
+  .show { padding: 200px var(--m) 180px; }
+  .show-in { width: 100%; display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 48px; align-items: start; }
+  .show-copy h2 { font-size: var(--h); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; }
+  .show-copy p { margin-top: 16px; }
+  .show-copy ul { margin: 28px 0 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+  .show-copy li { display: flex; gap: 12px; align-items: baseline; }
+  .show-copy li .dot { transform: translateY(-1px); }
+  .demo { background: var(--tile-2); border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: 62fr 38fr; min-height: 560px; }
+  .demo .stage { background: var(--tile); padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+  .demo .ctl { padding: 14px 18px 18px; display: flex; flex-direction: column; }
+  .demo .ctl .cr { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; font-size: var(--s); font-weight: 600; }
+  .demo .ctl .cr + .cr { box-shadow: 0 -1px 0 rgba(28, 29, 33, .08); /* taste-skill-ignore: 조작판 행 구분(앱 조각 안) */ }
+  .demo .ctl .val { font-weight: 700; }
+  .demo .foot { margin-top: auto; font-size: var(--s); font-weight: 700; padding-top: 14px; }
+  .demo .foot a { text-decoration: underline; text-underline-offset: .25em; }
+  .demo input[type=range] { width: 120px; accent-color: var(--ink); }
+  .sw { position: relative; width: 46px; height: 28px; flex: none; }
+  .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .sw i { position: absolute; inset: 0; border-radius: 14px; background: #c8ccd2; transition: background-color .15s ease; pointer-events: none; }
+  .sw i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .18s var(--ease-out); }
+  .sw input:checked + i { background: var(--ink); }
+  .sw input:checked + i::after { transform: translateX(18px); }
+  .sw input:focus-visible + i { outline: 3px solid var(--sent); outline-offset: 2px; }
+  .show-hint { margin-top: 14px; font-size: var(--s); color: var(--muted); }
 
-  /* faq */
-  .faq-h { grid-column: 1 / 5; align-self: start; position: sticky; top: 120px; }
-  .faq-list { grid-column: 5 / 13; display: flex; flex-direction: column; gap: 8px; }
-  .faq-list details { background: #ffe680; border-radius: 16px; transition: background-color .2s; }
-  .faq-list details[open] { background: var(--coral); }
-  .faq-list summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; padding: 0 24px; font-size: 22px; font-weight: 700; cursor: pointer; }
-  .faq-list summary::-webkit-details-marker { display: none; }
-  .plus { position: relative; width: 16px; height: 16px; flex: none; }
-  .plus::before, .plus::after { content: ""; position: absolute; left: 0; top: 6.5px; width: 16px; height: 3px; background: var(--ink); border-radius: 2px; transition: transform .25s var(--ease); }
-  .plus::after { transform: rotate(90deg); }
-  details[open] .plus::after { transform: rotate(0deg); }
-  .faq-list details p { padding: 0 24px 24px; font-size: 18px; max-width: 52ch; }
+  /* 데모 안의 오늘 보드(앱 조각) */
+  .lane { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .lane .blk { background: var(--card); border-radius: 6px; padding: 8px 9px; font-size: var(--s); line-height: 1.35; min-height: 74px; transition: box-shadow .2s ease; }
+  .lane .blk b { display: block; font-weight: 800; }
+  .lane .blk span { color: var(--muted); display: block; }
+  .lane .blk.now { box-shadow: inset 0 3px 0 var(--ink); /* taste-skill-ignore: 지금 블록 표시(앱 조각 안) */ }
+  .lane .blk.past { opacity: .55; }
+  .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; }
+  .mini .mc { display: flex; flex-direction: column; gap: 8px; }
+  .mini .mh { display: flex; align-items: center; gap: 8px; font-size: var(--s); font-weight: 800; }
+  .mini .mh .cnt { color: var(--muted); font-weight: 700; }
+  .mini .t { background: var(--card); border-radius: 6px; padding: 10px 11px; display: grid; gap: 6px; transition: opacity .2s ease, transform .25s var(--ease-out); }
+  .mini .t b { font-size: var(--s); font-weight: 800; line-height: 1.35; }
+  .mini .t .meta { font-size: var(--s); color: var(--muted); }
+  .mini .empty { font-size: var(--s); color: var(--muted); padding: 10px 2px; }
+  .chg { display: none; }
+  .show-chg .chg { display: inline; }
+  .chg del { color: var(--muted); }
+  .chg ins { text-decoration: none; background: #fff1c2; font-weight: 800; padding: 0 3px; border-radius: 3px; }
 
-  /* cta — 이미 열린 첫 단계 */
-  .cta-text { grid-column: 1 / 6; align-self: end; padding-bottom: 40px; }
-  .cta-text p { font-size: 18px; max-width: 30em; margin-top: 24px; }
-  .dialog { grid-column: 7 / 12; align-self: center; width: 440px; max-width: 100%; background: var(--paper); border-radius: 20px; padding: 28px; box-shadow: 0 24px 60px rgba(60, 10, 20, .25); } /* taste-skill-ignore: 열린 대화창(data-ui) */
-  .dialog h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
-  .dialog .d-sub { font-size: 15px; color: var(--muted); margin-bottom: 20px; }
-  .dialog label { display: block; font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-  .dialog input { width: 100%; height: 48px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--tone); font: inherit; font-size: 18px; color: var(--ink); }
-  .seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 12px; background: var(--tone); margin: 20px 0 8px; }
-  .seg2 button { height: 40px; border: 0; border-radius: 9px; background: none; font: inherit; font-size: 15px; font-weight: 700; color: var(--muted); cursor: pointer; transition: background-color .15s, color .15s; }
-  .seg2 button[aria-pressed="true"] { background: var(--paper); color: var(--ink); }
-  .dialog .hint { font-size: 15px; color: var(--muted); min-height: 2.8em; }
-  .dialog .btn { width: 100%; margin-top: 12px; }
+  /* 걷는 법: 카드 하나, 네 칸 */
+  .how { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .field { min-height: 72svh; padding: 28px; display: flex; flex-direction: column; position: relative; }
+  .field:nth-child(1) { background: var(--sent); }
+  .field:nth-child(2) { background: var(--filling); }
+  .field:nth-child(3) { background: var(--done); }
+  .field:nth-child(4) { background: var(--returned); color: #fff; }
+  .field h2 { font-size: var(--h); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; position: absolute; top: 28px; left: 28px; right: 28px; }
+  .field .kc { width: min(300px, 100%); margin: 20svh auto 0; color: var(--ink); transition: transform .15s var(--ease-out); }
+  .field:hover .kc { transform: translateY(-6px); }
+  .field .kc .in { min-height: 212px; padding: 18px; gap: 12px; }
+  .field .clause { margin-top: auto; padding-top: 48px; font-size: var(--l); line-height: 1.35; font-weight: 700; letter-spacing: -0.01em; max-width: 15em; }
 
-  /* footer — 타일 보드 */
-  .foot { background: var(--ground); padding: 12px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
-  .tile { background: var(--tone); border-radius: 16px; padding: 24px; min-height: 220px; display: flex; flex-direction: column; justify-content: space-between; }
-  .t-state { grid-column: 1 / 5; }
-  .t-state p { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.3; }
-  .t-state small { font-size: 15px; color: var(--muted); }
-  .t-nav { grid-column: 5 / 8; }
-  .t-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 18px; font-weight: 600; }
-  .t-nav a { text-decoration: none; }
-  .t-nav a:hover { text-decoration: underline; }
-  .t-time { grid-column: 8 / 10; font-size: 15px; }
-  .t-time b { display: block; font-size: var(--s-head); font-weight: 800; font-variant-numeric: tabular-nums; }
-  .t-mail { grid-column: 10 / 13; font-size: 15px; }
-  .t-mail a { font-size: 22px; font-weight: 800; }
-  .t-word { grid-column: 1 / 9; min-height: 320px; background: var(--ink); color: #f4f5f7; display: flex; align-items: center; justify-content: center; gap: 2vw; font-size: var(--s-display); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
-  .t-word .gt-mark { width: .9em; height: .9em; gap: .06em; }
-  .t-word .gt-mark i { border-radius: 1vw; }
-  .t-go { grid-column: 9 / 13; min-height: 320px; background: var(--coral); color: var(--ink); text-decoration: none; transition: background-color .2s; }
-  .t-go:hover { background: #ff3a5c; }
-  .t-go p { font-size: var(--s-head); font-weight: 800; line-height: 1.25; letter-spacing: -0.02em; }
-  .t-go svg { align-self: flex-end; transition: transform .25s var(--ease); }
-  .t-go:hover svg { transform: translate(6px, -6px); }
+  /* 기능: 엇갈린 조각 칸 */
+  .feat { padding: 200px var(--m) 0; }
+  .feat h2 { font-size: var(--h); font-weight: 800; letter-spacing: -0.03em; margin-bottom: 56px; }
+  .cells { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cell { background: var(--tile); border-radius: var(--r); height: 440px; overflow: hidden; display: flex; flex-direction: column; }
+  .cell .tx { padding: 24px; }
+  .cell .tx h3 { font-size: var(--l); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .cell .fr { margin-top: auto; padding: 0 24px; }
+  .cell .fr .ui { min-height: 214px; }
+  .cell.rev { flex-direction: column-reverse; }
+  .cell.rev .fr { margin-top: 0; margin-bottom: auto; }
+  .cell.rev .tx { margin-top: auto; }
+  .ui { background: var(--card); border-radius: 8px; font-size: var(--s); }
+  .cell:not(.rev) .ui { border-radius: 8px 8px 0 0; margin-bottom: -2px; }
+  .cell.rev .ui { border-radius: 0 0 8px 8px; margin-top: -2px; }
+  .ui .ur { display: flex; align-items: center; gap: 10px; padding: 12px 14px; min-height: 52px; }
+  .ui .ur + .ur { box-shadow: 0 -1px 0 var(--line); /* taste-skill-ignore: 앱 조각 안 행 구분 */ }
+  .ui .ur .grow { flex: 1; min-width: 0; }
+  .ui .ur b { font-weight: 800; }
+  .ui .muted { color: var(--muted); }
+  .ui table { width: 100%; border-collapse: collapse; }
+  .ui th, .ui td { text-align: left; padding: 10px 12px; font-size: var(--s); }
+  .ui th { font-weight: 800; background: var(--ground); }
+  .ui th.bad { background: var(--urgent-soft); color: #a3161b; }
+  .ui .warn { margin: 12px; padding: 12px; border-radius: 6px; background: var(--urgent-soft); color: #7d1014; display: grid; gap: 10px; }
+  .ui .warn .btn { justify-self: start; min-height: 36px; background: var(--ink); color: #fff; font-size: var(--s); }
+  .ui pre { margin: 0; padding: 14px; font: inherit; font-size: var(--s); white-space: pre; background: var(--ground); border-radius: 6px; color: var(--muted); }
+  .times { display: flex; gap: 8px; padding: 16px 14px 6px; }
+  .times .tm { flex: 1; border-radius: 6px; padding: 10px; background: var(--ground); }
+  .times .tm b { display: block; font-size: var(--l); font-weight: 800; }
+  .times .tm.next { background: var(--ink); color: #fff; }
+  .times .tm span { font-size: var(--s); }
+
+  /* 질문: 질문마다 띠 하나 */
+  .faq { margin-top: 200px; }
+  .faq-h { background: var(--filling); min-height: 32svh; display: flex; align-items: flex-end; padding: 48px var(--m) 40px; }
+  .faq-h h2 { font-size: var(--d); font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  .band { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 0 24px; padding: 56px var(--m); }
+  .band:nth-child(even) { background: var(--tile); }
+  .band h3 { grid-column: 1 / 6; font-size: var(--l); font-weight: 800; letter-spacing: -0.02em; line-height: 1.35; }
+  .band p { grid-column: 7 / 13; line-height: 1.6; }
+
+  /* 마무리: 행동 칸 */
+  .cta { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; margin: 200px 0 0; padding: 0; overflow: hidden; }
+  .cta .side { height: 360px; border-radius: var(--r); }
+  .cta .side.l { grid-column: 1 / 3; background: var(--done); margin-left: -40px; }
+  .cta .side.r { grid-column: 11 / 13; background: var(--sent); margin-right: -40px; }
+  .cta .main { grid-column: 3 / 11; height: 360px; border-radius: var(--r); background: var(--ink); color: #fff; padding: 40px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .cta .main h2 { font-size: var(--h); font-weight: 800; letter-spacing: -0.03em; }
+  .cta .main p { color: #dadce1; max-width: 46ch; }
+  .cta .main .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .cta .main .btn { min-height: 52px; padding: 0 22px; font-size: var(--b); }
+  .cta .main a.link { color: #fff; font-size: var(--s); font-weight: 700; text-underline-offset: .25em; }
+
+  /* 바닥: 블록으로 쌓은 이름 */
+  footer { padding: 200px var(--m) 28px; }
+  .blocks { display: flex; gap: 4px; align-items: flex-end; height: 34svh; min-height: 220px; }
+  .blocks svg { display: block; height: 100%; flex: 1; }
+  .blk-ink { flex: 1; height: 62%; background: var(--ink); color: #fff; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; font-size: var(--s); }
+  .blk-ink b { font-size: var(--l); font-weight: 800; }
+  .blk-ink span { color: #dadce1; }
+  .fl { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; margin-top: 56px; font-size: var(--s); }
+  .fl div { grid-column: span 2; display: grid; gap: 10px; align-content: start; }
+  .fl div.c { grid-column: 9 / 13; }
+  .fl b { font-weight: 800; }
+  .fl a { text-decoration: none; }
+  .fl a:hover { text-decoration: underline; }
+  .copy { display: flex; justify-content: space-between; align-items: center; margin-top: 48px; font-size: var(--s); color: var(--muted); }
 
   /* ---------- 움직임 ---------- */
   @media (prefers-reduced-motion: no-preference) {
-    .js .hero h1 [data-line] { transform: translateY(105%); animation: line-up 900ms var(--ease) forwards; animation-delay: calc(var(--i) * 110ms + 150ms); }
-    .js [data-rise] { opacity: 0; transform: translateY(18px); animation: rise .7s var(--ease) forwards; animation-delay: calc(var(--i, 0) * 90ms + 400ms); }
-    .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity .7s var(--ease), transform .9s var(--ease); transition-delay: calc(var(--i, 0) * 75ms); }
+    .js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity .6s var(--ease-out), transform .7s var(--ease-out); transition-delay: var(--dl, 0ms); }
     .js [data-reveal].is-in { opacity: 1; transform: none; }
-    .js .seg[data-reveal] { transform: scaleX(.4); }
-    .js .seg[data-reveal].is-in { transform: none; }
-    .stage { animation: stage-in 1s var(--ease) .3s both; }
-    @supports (animation-timeline: view()) {
-      .sheet-stage .sheet { animation: drift linear both; animation-timeline: view(); animation-range: entry 0% exit 100%; }
-    }
+    .js .hero .col, .js .hero .mid .top > div, .js .hero .mid .bot > div { animation: rise .9s var(--ease-out) both; animation-delay: var(--dl, 0ms); }
+    @keyframes rise { from { opacity: 0; translate: 0 48px; } to { opacity: 1; translate: 0 0; } }
+    .js .panel { animation: rise .7s var(--ease-out) both; animation-delay: 120ms; }
+    .js .shutter { clip-path: inset(0 0 100% 0); transition: clip-path 1000ms var(--ease-in-out); }
+    .js .shutter > * { scale: 1.06; transform-origin: 50% 0; transition: scale 1300ms var(--ease-soft); }
+    .js .shutter.is-in { clip-path: inset(0); }
+    .js .shutter.is-in > * { scale: 1; }
   }
-  @keyframes line-up { to { transform: none; } }
-  @keyframes rise { to { opacity: 1; transform: none; } }
-  @keyframes stage-in { from { transform: translateY(40px); } to { transform: none; } }
-  @keyframes drift { from { translate: 0 60px; } to { translate: 0 -60px; } }
 
-  /* ---------- 폰 ---------- */
-  @media (max-width: 1100px) {
-    .frag { grid-template-columns: 1fr; }
-    .hero { min-height: calc(42svh + 1080px); }
-    .feat-h, .feat-row, .feat-side { grid-column: 1 / -1; }
-    .feat-side { position: static; grid-row: auto; margin-bottom: 56px; }
-    .feat-h { min-height: 36svh; }
-    .chapter { min-height: 0; }
+  /* ---------- 태블릿·폰 ---------- */
+  @media (max-width: 1099px) {
+    .hero { height: auto; max-height: none; padding: var(--m); }
+    .sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; height: auto; }
+    .col, .mid, .mid .top, .mid .bot, .mid .top > div, .mid .bot > div { display: contents; }
+    .col { transform: none; }
+    .panel { order: -2; min-height: 0; margin-bottom: 4px; }
+    .live { order: -1; grid-column: 1 / -1; }
+    .kc.xtra { display: none; }
+    .show-in { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .show-in > * { min-width: 0; }
+    .how { grid-template-columns: 1fr 1fr; }
+    .field { min-height: 0; }
+    .field .kc { margin-top: 96px; }
+    .cells { grid-template-columns: 1fr 1fr; }
+    .band h3 { grid-column: 1 / -1; margin-bottom: 12px; }
+    .band p { grid-column: 1 / -1; }
+    .cta { margin-top: 140px; }
+    .faq { margin-top: 140px; }
+    .faq-h { min-height: 0; padding-top: 96px; }
+    footer { padding-top: 140px; }
   }
-  @media (max-width: 760px) {
-    :root { --margin: 16px; --gutter: 12px; --s-display: 10vw; }
-    .top { height: 64px; }
-    .top nav a:not(:last-child) { display: none; }
-    .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .grid > * { grid-column: 1 / -1 !important; }
-    .hero { min-height: 0; padding-bottom: 0; }
-    .hero .grid { padding-top: 104px; }
-    .stage { position: relative; top: auto; left: auto; right: auto; bottom: auto; margin-top: 40px; height: 1180px; clip-path: polygon(0 56px, 0 0, 72px 0, 112px 56px, 100% 56px, 100% 100%, 0 100%); }
-    .frag { padding: 16px; }
-    .frag .cal { --label: 64px; }
-    .chapter { min-height: 0; padding-block: 104px 88px; }
-    .outs { position: static; }
-    .outs ul { flex-direction: row; overflow-x: auto; gap: 20px; scroll-snap-type: x mandatory; padding-bottom: 6px; }
-    .outs button { font-size: 22px; white-space: nowrap; scroll-snap-align: start; }
-    .frag .todo .fr { display: none; }
-    .frag .cal { --rowh: 56px; }
-    .frag .cal.hint:not(.picking) .slot-btn { display: none; }
-    .frag .todo { padding: 10px 12px; }
-    .stage { height: auto; padding: 88px 16px 32px; clip-path: polygon(0 56px, 0 0, 200px 0, 240px 56px, 100% 56px, 100% 100%, 0 100%); }
-    .frag { position: relative; left: auto; top: auto; right: auto; margin: 0; }
-    .frag-h { flex-direction: column; gap: 4px; }
-    .sheet-stage { height: 560px; margin-top: 28px; }
-    .sheet { left: 16px; top: 16px; padding: 20px; }
-    .bar { flex-direction: column; height: 70svh; }
-    .seg { min-height: 72px; min-width: 0; font-size: 22px; }
-    .clauses { display: none; }
-    .seg small { display: block; font-size: 15px; font-weight: 600; margin-top: 6px; letter-spacing: 0; }
-    .feat-h { min-height: 40svh; }
-    .feat-row { grid-template-columns: 1fr; gap: 24px; margin-top: 64px; }
-    .feat-side { position: static; grid-row: auto; margin-bottom: 40px; }
-    .pic-a, .pic-d { width: 100%; } .pic-b { width: 70%; justify-self: end; } .pic-c { width: 55%; }
-    .faq-h { position: static; margin-bottom: 24px; }
-    .faq-list summary { font-size: 18px; min-height: 64px; padding: 12px 20px; }
-    .faq-list details p { padding: 0 20px 20px; font-size: 16px; }
-    .cta-text { padding-bottom: 32px; }
-    .dialog { width: 100%; }
-    .dialog .btn { height: 52px; }
-    .foot { grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; }
-    .foot > * { grid-column: auto !important; min-height: 0; padding: 20px; }
-    .t-word { grid-column: 1 / -1 !important; min-height: 160px; font-size: 18vw; order: -2; }
-    .t-word .gt-mark { width: 14vw; height: 14vw; }
-    .t-go { grid-column: 1 / -1 !important; order: -1; min-height: 160px; }
-    .t-state { grid-column: 1 / -1 !important; }
+  @media (max-width: 680px) {
+    :root { --h: 26px; --m: 16px; }
+    .panel h1 { font-size: 30px; }
+    .panel .btn { width: 100%; }
+    .show { padding: 120px var(--m); }
+    .demo { grid-template-columns: 1fr; min-height: 0; }
+    .demo .ctl .cr { min-height: 52px; }
+    .demo .ctl .cr.more { display: none; }
+    .lane { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lane .blk:nth-child(n+4) { display: none; }
+    .how { grid-template-columns: 1fr; }
+    .field h2 { position: static; margin-bottom: 20px; }
+    .field .kc { margin: 32px 0 0; }
+    .field { min-height: 0; }
+    .field .clause { padding-top: 32px; font-size: 20px; }
+    .feat { padding-top: 120px; }
+    .cells { grid-template-columns: 1fr; }
+    .cell { height: auto; min-height: 380px; }
+    .faq { margin-top: 120px; }
+    .faq-h { padding-top: 72px; }
+    .band { padding: 32px 20px; }
+    .cta { grid-template-columns: 1fr 1fr; margin: 120px 0 0; gap: 8px; }
+    .cta .main { grid-column: 1 / -1; order: -1; height: auto; padding: 28px 20px; }
+    .cta .side { height: 120px; margin: 0 !important; }
+    .cta .side.l { grid-column: 1; }
+    .cta .side.r { grid-column: 2; }
+    .cta .main .btn { width: 100%; }
+    footer { padding-top: 120px; }
+    .blocks { height: 22svh; min-height: 140px; }
+    .fl { grid-template-columns: 1fr 1fr; }
+    .fl div, .fl div.c { grid-column: span 1; }
+    .fl div.c { grid-column: 1 / -1; }
   }
-  @media (min-width: 761px) { .seg small { display: none; } }
 </style>
 </head>
 <body>
 
-<header class="top">
-  <a class="brand" href="#top" aria-label="고티처 처음으로"><span class="gt-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>고티처</a>
-  <nav aria-label="주요 메뉴">
-    <a href="#outputs">결과물</a>
-    <a href="#how">흐름</a>
-    <a href="#worry">걱정</a>
-    <a href="#faq">묻고 답하기</a>
-  </nav>
+<!-- ======================= 히어로 ======================= -->
+<header class="hero" id="top">
+  <div class="sheet shutter" id="sheet">
+
+    <!-- 1열: 보냄 -->
+    <div class="col" data-col="sent" style="--off:0px;--dl:0ms" aria-label="보냄 칸">
+      <article class="kc xtra" data-status="sent">
+        <div class="in"><h3>개인정보 보호 연수 이수 확인</h3><p class="meta">차민호 · 정보부 · 확인 필수</p><div class="row"><span class="chip">11/6(금)까지</span></div></div>
+        <div class="strip">보냄 · 확인 0/5</div>
+      </article>
+      <article class="kc" data-status="sent">
+        <div class="in"><h3>2학기 교육과정 평가 설문</h3><p class="meta">오지현 · 교무부 · 웹 표</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="bar"><i style="width:0%"></i></div><div class="lines"><span><b>0/5반</b><span>마감 10/30(금)</span></span></div></div>
+        <div class="strip">보냄 · 방금 링크 보냄</div>
+      </article>
+      <article class="kc xtra" data-status="sent">
+        <div class="in"><h3>학예회 순서 정하기</h3><p class="meta">송민재 · 4학년 대표 · 웹 표</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="lines"><span><span>받는 사람 5반</span><span>링크 1개</span></span></div></div>
+        <div class="strip">보냄 · 0/5반</div>
+      </article>
+      <article class="kc xtra" data-status="sent">
+        <div class="in"><h3>겨울방학 방과후 운영 희망</h3><p class="meta">석가영 · 방과후돌봄부 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="lines"><span><span>받는 사람 5반</span><span>링크 1개</span></span></div></div>
+        <div class="strip">보냄 · 0/5반</div>
+      </article>
+      <article class="kc xtra" data-status="sent">
+        <div class="in"><h3>2학기 학교 평가 설문</h3><p class="meta">오지현 · 교무부 · 웹 표</p><div class="bar"><i style="width:0%"></i></div></div>
+        <div class="strip">보냄 · 0/5반</div>
+      </article>
+    </div>
+
+    <!-- 2열: 채우는 중 -->
+    <div class="col" data-col="filling" style="--off:-90px;--dl:60ms" aria-label="채우는 중 칸">
+      <article class="kc" data-status="filling">
+        <div class="in"><h3>학예회 의상 대여 수량</h3><p class="meta">송민재 · 4학년 대표 · 한글 양식</p><div class="bar"><i style="width:40%"></i></div><div class="lines"><span><b>2/5반</b><span>마감 10/28(수)</span></span></div></div>
+        <div class="strip">채우는 중 · 2/5반</div>
+      </article>
+
+      <!-- 살아 있는 카드 -->
+      <article class="kc live" id="live" data-status="filling" tabindex="0" aria-describedby="liveHelp" aria-label="학예회 반별 참가 인원 카드. 화살표 키로 칸을 옮길 수 있어요.">
+        <div class="in">
+          <h3>학예회 반별 참가 인원</h3>
+          <p class="meta">정하은 · 마감 10/27(화) 12:00</p>
+          <div class="rows" id="liveRows"></div>
+          <div class="bar"><i id="liveBar" style="width:60%"></i></div>
+          <div class="sum num"><span id="liveCount">3/5반</span><span id="liveTotal">합계 72명</span></div>
+          <span class="chip file">2026_학예회_참가인원_합본.hwpx</span>
+          <button class="btn ink next" id="liveNext" type="button">4-4·4-5 독촉 문구 복사</button>
+          <button class="undo" id="liveUndo" type="button" hidden>처음 상태로 되돌리기</button>
+        </div>
+        <div class="strip" id="liveStrip">채우는 중 · 3/5반</div>
+      </article>
+
+      <article class="kc xtra" data-status="filling">
+        <div class="in"><h3>방과후 수요조사 (반별 인원)</h3><p class="meta">석가영 · 방과후돌봄부 · 한글 양식</p><div class="row"><span class="chip urgent">오늘 14:00</span></div></div>
+        <div class="strip">채우는 중</div>
+      </article>
+      <article class="kc xtra" data-status="filling">
+        <div class="in"><h3>연수 이수 시간 확인</h3><p class="meta">오지현 · 교무부 · 웹 표</p><div class="bar"><i style="width:20%"></i></div></div>
+        <div class="strip">채우는 중 · 1/5반</div>
+      </article>
+    </div>
+
+    <!-- 3·4열: 글 칸과 그 위아래 카드 -->
+    <div class="mid" style="--dl:120ms">
+      <div class="top">
+        <div style="--dl:120ms">
+          <article class="kc xtra" data-status="done">
+            <div class="in"><h3>4학년 현장체험학습 참가 인원</h3><p class="meta">송민재 · 한글 양식</p><div class="bar"><i style="width:100%;background:var(--done)"></i></div><div class="lines"><span><b>5/5반</b><span>합계 118명</span></span></div></div>
+            <div class="strip">다 걷힘 · 5/5반</div>
+          </article>
+        </div>
+        <div style="--dl:160ms">
+          <article class="kc xtra" data-status="returned">
+            <div class="in"><h3>2학기 상담 주간 희망 시간</h3><p class="meta">정하은 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="row"><span class="chip file">상담주간_합본.hwpx</span></div></div>
+            <div class="strip">돌려받음</div>
+          </article>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="wm"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>고티처</div>
+        <h1>취합은 카드,<br>상태는 칸</h1>
+        <p class="lede">고티처는 동학년 선생님들이 한글 양식 취합을 링크 하나로 걷고, 오늘 할 일을 보드 한 장에서 보는 무료 협업 도구예요.</p>
+        <p class="legend"><span><i class="dot" style="background:var(--sent)"></i>보냄</span><span><i class="dot" style="background:var(--filling)"></i>채우는 중</span><span><i class="dot" style="background:var(--done)"></i>다 걷힘</span><span><i class="dot" style="background:#fff"></i>돌려받음</span></p>
+        <p class="try" id="liveHelp"><span class="dot"></span>노란 칸 카드에서 4-4·4-5를 눌러 끝까지 걷어 보세요. 끌어서 옮겨도 돼요.</p>
+        <div class="acts"><a class="btn white" href="today.html">구글로 시작하기</a></div>
+        <nav aria-label="페이지 안 이동"><a href="#how">걷는 법</a><a href="#today">오늘 보드</a><a href="#faq">묻고 답하기</a></nav>
+      </div>
+
+      <div class="bot">
+        <div style="--dl:200ms">
+          <article class="kc xtra" data-status="sent">
+            <div class="in"><h3>교실 컴퓨터 점검표</h3><p class="meta">차민호 · 정보부 · 웹 표</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div></div>
+            <div class="strip">보냄 · 0/5반</div>
+          </article>
+        </div>
+        <div style="--dl:240ms">
+          <article class="kc xtra" data-status="filling">
+            <div class="in"><h3>학년협의 안건 모으기</h3><p class="meta">송민재 · 웹 표</p><div class="bar"><i style="width:80%"></i></div></div>
+            <div class="strip">채우는 중 · 4/5반</div>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5열: 다 걷힘 -->
+    <div class="col" data-col="done" style="--off:-20px;--dl:180ms" aria-label="다 걷힘 칸">
+      <article class="kc" data-status="done">
+        <div class="in"><h3>독서주간 반별 운영 계획</h3><p class="meta">정하은 · 한글 양식</p><div class="bar"><i style="width:100%;background:var(--done)"></i></div><div class="lines"><span><b>5/5반</b><span>어제 16:40</span></span></div></div>
+        <div class="strip">다 걷힘 · 5/5반</div>
+      </article>
+      <article class="kc xtra" data-status="done">
+        <div class="in"><h3>방과후 강사 만족도</h3><p class="meta">석가영 · 웹 표</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="lines"><span><span>받는 사람 5반</span><span>링크 1개</span></span></div></div>
+        <div class="strip">다 걷힘 · 5/5반</div>
+      </article>
+      <article class="kc xtra" data-status="done">
+        <div class="in"><h3>학년 체험학습 버스 좌석</h3><p class="meta">송민재 · 웹 표</p><div class="bar"><i style="width:100%;background:var(--done)"></i></div><div class="lines"><span><b>5/5반</b><span>10/22</span></span></div></div>
+        <div class="strip">다 걷힘 · 5/5반</div>
+      </article>
+      <article class="kc xtra" data-status="done">
+        <div class="in"><h3>교실 비품 수량 조사</h3><p class="meta">탁현수 · 행정실 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="lines"><span><span>받는 사람 5반</span><span>링크 1개</span></span></div></div>
+        <div class="strip">다 걷힘 · 5/5반</div>
+      </article>
+    </div>
+
+    <!-- 6열: 돌려받음 -->
+    <div class="col" data-col="returned" style="--off:-70px;--dl:240ms" aria-label="돌려받음 칸">
+      <article class="kc" data-status="returned">
+        <div class="in"><h3>1학기 교육과정 평가</h3><p class="meta">오지현 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="row"><span class="chip file">교육과정평가_4학년.hwpx</span></div></div>
+        <div class="strip">돌려받음 · hwpx</div>
+      </article>
+      <article class="kc xtra" data-status="returned">
+        <div class="in"><h3>학부모 상담 가능 시간</h3><p class="meta">정하은 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="lines"><span><span>받는 사람 5반</span><span>링크 1개</span></span></div><div class="row"><span class="chip file">상담시간_합본.hwp</span></div></div>
+        <div class="strip">돌려받음</div>
+      </article>
+      <article class="kc xtra" data-status="returned">
+        <div class="in"><h3>2학기 학년 교육과정 운영 계획</h3><p class="meta">정하은 · 한글 양식</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div><div class="row"><span class="chip file">운영계획_4학년.hwpx</span></div></div>
+        <div class="strip">돌려받음</div>
+      </article>
+      <article class="kc xtra" data-status="returned">
+        <div class="in"><h3>9월 교내 행사 참가 현황</h3><p class="meta">한상우 · 교무부</p><div class="row"><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span></div></div>
+        <div class="strip">돌려받음</div>
+      </article>
+    </div>
+  </div>
 </header>
 
 <main>
-  <!-- 히어로 -->
-  <section class="hero" id="top" data-bg="#f4f5f7" data-ink="#16181d">
-    <div class="grid">
-      <h1 class="display" aria-label="할 일은 블록에, 취합은 링크로">
-        <span class="line"><span data-line style="--i:0">할 일은 블록에,</span></span>
-        <span class="line"><span data-line style="--i:1">취합은 링크로</span></span>
-      </h1>
-      <div class="hero-side">
-        <p data-rise style="--i:0">고티처는 동학년 선생님들이 한글 양식 취합을 링크 하나로 끝내고, 오늘 일과·바뀐 것·내 마감을 한 화면에서 보는 협업 도구예요.</p>
-        <a class="btn" href="#start" data-rise style="--i:1">구글로 시작하기</a>
-        <small data-rise style="--i:2">동학년판 무료 · 베타 11월 30일 · 정식 12월 14일(월)</small>
-      </div>
+
+<!-- ======================= 쇼케이스: 오늘 ======================= -->
+<section class="show" id="today" aria-labelledby="todayH">
+  <div class="show-in">
+    <div class="show-copy" data-reveal>
+      <h2 id="todayH">오늘도 보드 한 장</h2>
+      <p>낼 것, 다가오는 것, 내가 기다리는 것, 끝낸 것이 칸으로 나뉘어요. 학교 하루의 블록 일과는 그 위에 한 줄로 놓여요.</p>
+      <ul>
+        <li><span class="dot" style="background:var(--filling)"></span><span>NEIS 학사일정과 급식은 저절로 들어와요.</span></li>
+        <li><span class="dot" style="background:var(--sent)"></span><span>알림은 하루 세 번 묶어서. 수업 중엔 띄우지 않아요.</span></li>
+        <li><span class="dot" style="background:var(--done)"></span><span>어제 퇴근 이후 바뀐 것만 다시 보여 줘요.</span></li>
+      </ul>
     </div>
-    <div class="stage" aria-label="오늘 화면 체험">
-      <span class="stage-tab">오늘 · 10월 26일 월요일</span>
-      <div class="frag" data-ui>
-        <div class="frag-h"><b>정하은 선생님의 오늘</b><span>할 일을 끌어서 블록에 놓아 보세요</span></div>
-        <div>
-          <div class="lane-h">나에게 온 것</div>
-          <div class="todo-list" id="heroList"></div>
+    <div>
+      <div class="demo" data-ui>
+        <div class="stage" id="stage">
+          <div>
+            <div class="lane" id="dLane" aria-label="블록 일과"></div>
+          </div>
+          <div class="mini" id="dBoard" aria-live="polite"></div>
         </div>
-        <div class="cal" id="heroCal"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 결과물 -->
-  <section class="chapter f-sky" id="outputs" data-bg="#8fcaff" data-ink="#16181d">
-    <div class="grid">
-      <div class="outs">
-        <h2 class="head" data-reveal>고티처가 만들어 주는 것</h2>
-        <ul role="tablist" aria-label="결과물" data-reveal style="--i:1">
-          <li><button role="tab" aria-selected="true" data-out="doc">합본 한글 파일</button></li>
-          <li><button role="tab" aria-selected="false" data-out="msg">메신저에 붙일 한 줄</button></li>
-          <li><button role="tab" aria-selected="false" data-out="nudge">독촉 문구</button></li>
-          <li><button role="tab" aria-selected="false" data-out="recv">받는 사람 화면</button></li>
-        </ul>
-        <p data-reveal style="--i:2" id="outDesc">올린 한글 양식에 다섯 반의 답이 그대로 채워져요. 올린 형식과 hwpx 두 가지로 받습니다.</p>
-      </div>
-      <div class="sheet-stage" data-reveal style="--i:1">
-        <div class="sheet doc" id="sheet" data-ui role="tabpanel"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 흐름 -->
-  <section class="chapter f-ink how" id="how" data-bg="#16181d" data-ink="#f4f5f7">
-    <div class="grid">
-      <h2 class="display" data-reveal>사람 손은<br>잠깐이면 돼요</h2>
-      <div class="bar" data-ui role="img" aria-label="올리기와 보내기는 짧고, 선생님들이 내는 기간이 가장 길고, 합본은 바로 받는다">
-        <div class="seg" data-reveal style="--i:0;flex-grow:1;background:var(--f-sky)">한 번<small>먼저 쓰던 한글 양식을 올리고 표를 고릅니다</small></div>
-        <div class="seg" data-reveal style="--i:1;flex-grow:1;background:var(--f-mint)">한 줄<small>그다음 링크 한 줄을 동학년 메신저에 붙입니다</small></div>
-        <div class="seg" data-reveal style="--i:2;flex-grow:6;background:var(--f-butter)">마감까지 각자<small>그러면 선생님들이 로그인 없이 마감까지 냅니다</small></div>
-        <div class="seg" data-reveal style="--i:3;flex-grow:1;background:var(--f-coral)">바로<small>끝으로 원본 양식 그대로 채운 합본을 받습니다</small></div>
-      </div>
-      <div class="clauses" aria-hidden="true">
-        <p style="flex-grow:1"><b>먼저</b> 쓰던 한글 양식을 올리고 표를 한 번 고릅니다</p>
-        <p style="flex-grow:1"><b>그다음</b> 링크 한 줄을 동학년 메신저에 붙입니다</p>
-        <p style="flex-grow:6"><b>그러면</b> 선생님들이 로그인 없이, 대신 내기까지 되는 화면에서 마감 전에 냅니다</p>
-        <p style="flex-grow:1"><b>끝으로</b> 원본 양식 그대로 채운 합본을 받습니다</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 걱정 -->
-  <section class="chapter f-mint" id="worry" data-bg="#7ddfa6" data-ink="#16181d">
-    <div class="grid">
-      <div class="feat-h"><h2 class="display" data-reveal>걱정은 미리<br>덜어 뒀어요</h2></div>
-      <div class="feat-side"><p data-reveal>링크를 받는 선생님, 알림을 받는 선생님, 결재를 올리는 선생님이 처음에 묻는 네 가지예요.</p></div>
-      <div class="feat-row">
-        <div><h3 data-reveal>가입 없이 내요</h3><p data-reveal style="--i:1">받는 선생님은 링크를 열고 반만 고르면 돼요. 로그인도 앱 설치도 없어요. 옆 반 것을 대신 내도 됩니다.</p></div>
-        <div class="pic pic-a" data-ui data-reveal style="--i:2"><div class="t">반을 골라 주세요</div><div class="classes"><span>4-1</span><span>4-2</span><span>4-3</span><span class="on">4-4</span><span>4-5</span><span>대신 내기</span></div><p class="s" style="margin-top:12px">로그인 없이 내는 화면</p></div>
-      </div>
-      <div class="feat-row">
-        <div><h3 data-reveal>알림은 하루 세 번</h3><p data-reveal style="--i:1">블록이 끝나는 08:20 · 12:20 · 방과후에만 묶어서 알려요. 수업 중에는 창 알림을 띄우지 않아요.</p></div>
-        <div class="pic pic-b" data-ui data-reveal style="--i:2"><div class="bundles"><div><b>08:20</b><span>새로 온 것 2건</span></div><div class="quiet"><span>수업 중</span><span>알림 없음</span></div><div><b>12:20</b><span>마감 임박 1건</span></div></div></div>
-      </div>
-      <div class="feat-row">
-        <div><h3 data-reveal>학생 정보는 안 받아요</h3><p data-reveal style="--i:1">교직원 정보만 걷어요. 학생 이름이나 연락처처럼 보이는 열이 있으면 먼저 알려 주고 인원 수로 바꾸게 안내해요.</p></div>
-        <div class="pic pic-c" data-ui data-reveal style="--i:2"><div class="warnbox">'학생 이름'처럼 보이는 열이 있어요</div><button class="chip" style="margin-top:12px;width:100%">인원 수로 바꾸기</button></div>
-      </div>
-      <div class="feat-row">
-        <div><h3 data-reveal>데이터는 국내에</h3><p data-reveal style="--i:1">오라클 클라우드 춘천 리전에 보관해요. 학사일정과 급식은 NEIS에서 자동으로 들어와요.</p></div>
-        <div class="pic pic-d" data-ui data-reveal style="--i:2"><div class="t">저장 위치</div><div class="kv"><div><span>클라우드</span><b>오라클</b></div><div><span>리전</span><b>춘천</b></div><div><span>학사 · 급식</span><b>NEIS 자동</b></div><div><span>학생 정보</span><b>받지 않음</b></div></div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 묻고 답하기 -->
-  <section class="chapter f-butter" id="faq" data-bg="#ffd84a" data-ink="#16181d">
-    <div class="grid">
-      <h2 class="head faq-h" data-reveal>묻고<br>답하기</h2>
-      <div class="faq-list" data-reveal style="--i:1">
-        <details name="faq" open><summary>정말 무료인가요?<i class="plus" aria-hidden="true"></i></summary><p>네. 동학년이 함께 쓰는 동학년판은 무료예요. 모으기, 한글 양식으로 받기, 양식 자료실, 오늘 화면이 모두 들어 있어요.</p></details>
-        <details name="faq"><summary>받는 선생님도 가입해야 하나요?<i class="plus" aria-hidden="true"></i></summary><p>아니요. 링크 하나로 열고 반을 골라 내면 끝이에요. 로그인은 없고, 옆 반 선생님 것을 대신 내도 됩니다.</p></details>
-        <details name="faq"><summary>한글(hwp) 파일도 되나요?<i class="plus" aria-hidden="true"></i></summary><p>hwp와 hwpx 원본 양식을 올리면 그 양식 그대로 채워서 돌려드려요. 올린 형식과 hwpx 두 가지로 받습니다. 한글·엑셀 표를 복사해 붙여넣어도 칸이 돼요.</p></details>
-        <details name="faq"><summary>학생 정보도 걷을 수 있나요?<i class="plus" aria-hidden="true"></i></summary><p>받지 않아요. 고티처는 교직원 정보만 걷어요. 학생 이름처럼 보이는 열은 미리 알려 드리고 인원 수로 바꾸게 안내해요.</p></details>
-        <details name="faq"><summary>알림이 너무 많지 않을까요?<i class="plus" aria-hidden="true"></i></summary><p>하루 세 번(08:20 · 12:20 · 방과후)만 묶어서 알려요. 수업 중에는 창 알림을 띄우지 않아요.</p></details>
-        <details name="faq"><summary>다른 학년 선생님도 낼 수 있나요?<i class="plus" aria-hidden="true"></i></summary><p>네. 같은 링크를 메신저로 보내면 받는 분이 칸을 고르거나 이름을 적어 내요. 학교 명부가 없어도 돼요.</p></details>
-        <details name="faq"><summary>데이터는 어디에 저장되나요?<i class="plus" aria-hidden="true"></i></summary><p>오라클 클라우드 춘천 리전, 국내에 보관해요.</p></details>
-        <details name="faq"><summary>언제부터 쓸 수 있나요?<i class="plus" aria-hidden="true"></i></summary><p>베타는 11월 30일, 정식은 12월 14일(월)에 열어요.</p></details>
-      </div>
-    </div>
-  </section>
-
-  <!-- 시작 -->
-  <section class="chapter f-coral" id="start" data-bg="#ff4f6d" data-ink="#16181d">
-    <div class="grid" style="min-height:calc(90svh - 260px)">
-      <div class="cta-text">
-        <h2 class="display" data-reveal>우리 학년도<br>지금 시작</h2>
-        <p data-reveal style="--i:1">구글 로그인 한 번이면 동학년 공간과 초대 링크가 생겨요. 초대받은 선생님은 가입 없이 이름만 고르고 들어와요.</p>
-      </div>
-      <form class="dialog" data-ui data-reveal style="--i:2" id="startForm">
-        <h3>동학년 공간 만들기</h3>
-        <p class="d-sub">이름은 나중에 바꿀 수 있어요.</p>
-        <label for="spaceName">공간 이름</label>
-        <input id="spaceName" name="space" value="새솔초 4학년" autocomplete="off">
-        <div class="seg2" role="group" aria-label="나는">
-          <button type="button" aria-pressed="true" data-role="lead">학년 대표예요</button>
-          <button type="button" aria-pressed="false" data-role="join">초대받았어요</button>
+        <div class="ctl" aria-label="데모 조작판">
+          <div class="cr"><label for="cTime">지금 시각</label><span class="row" style="display:flex;gap:8px;align-items:center"><input type="range" id="cTime" min="500" max="1000" step="5" value="665"><span class="val num" id="cTimeV">11:05</span></span></div>
+          <div class="cr"><span>다음 묶음 알림</span><span class="val num" id="cBundle">12:20</span></div>
+          <div class="cr"><label for="cDone">방과후 수요조사 냈음</label><span class="sw"><input type="checkbox" id="cDone"><i></i></span></div>
+          <div class="cr"><label for="c44">4-4 이수빈 제출</label><span class="sw"><input type="checkbox" id="c44"><i></i></span></div>
+          <div class="cr more"><label for="c45">4-5 박서준 제출</label><span class="sw"><input type="checkbox" id="c45"><i></i></span></div>
+          <div class="cr"><label for="cChg">바뀐 것 표시</label><span class="sw"><input type="checkbox" id="cChg" checked><i></i></span></div>
+          <div class="cr more"><label for="cWait">기다리는 중 칸 보기</label><span class="sw"><input type="checkbox" id="cWait" checked><i></i></span></div>
+          <div class="foot"><a href="today.html">오늘 화면 크게 보기</a></div>
         </div>
-        <p class="hint" id="roleHint">공간을 만들면 초대 링크와 QR이 바로 생겨요.</p>
-        <button class="btn ink" type="submit" id="startBtn">구글로 시작하기</button>
-      </form>
+      </div>
+      <p class="show-hint">조작판을 바꾸면 왼쪽 보드가 바로 바뀌어요. 시각을 14:00 뒤로 밀어 보세요.</p>
     </div>
-  </section>
+  </div>
+</section>
+
+<!-- ======================= 걷는 법: 카드 하나, 네 칸 ======================= -->
+<section class="how" id="how" aria-labelledby="howH">
+  <div class="field">
+    <h2 id="howH">카드 한 장의 일생</h2>
+    <article class="kc" data-ui data-status="sent" data-reveal>
+      <div class="in"><h3>학예회 반별 참가 인원</h3><p class="meta">정하은 · 방금 만듦</p><div class="row"><span class="chip">2026_학예회_참가인원.hwpx</span></div><p class="meta">goteacher.xyz/c/4Q2K 복사함</p></div>
+    </article>
+    <p class="clause">먼저 양식을 올리고 링크 하나를 보내요.</p>
+  </div>
+  <div class="field">
+    <article class="kc" data-ui data-status="filling" data-reveal style="--dl:80ms">
+      <div class="in"><h3>학예회 반별 참가 인원</h3><p class="meta">마감 10/27(화) 12:00</p><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av other">이</span><span class="av other">박</span></span><div class="bar"><i style="width:60%"></i></div><div class="lines"><span><b>3/5반</b><span>합계 72명</span></span></div></div>
+    </article>
+    <p class="clause">그다음 다섯 반이 각자 자기 칸을 채워요.</p>
+  </div>
+  <div class="field">
+    <article class="kc" data-ui data-status="done" data-reveal style="--dl:160ms">
+      <div class="in"><h3>학예회 반별 참가 인원</h3><p class="meta">마지막 제출 4-5 박서준</p><span class="avs"><span class="av" data-p="송">송</span><span class="av" data-p="정">정</span><span class="av" data-p="김">김</span><span class="av" data-p="이">이</span><span class="av" data-p="박">박</span></span><div class="bar"><i style="width:100%;background:var(--done)"></i></div><div class="lines"><span><b>5/5반</b><span>합계 118명</span></span></div></div>
+    </article>
+    <p class="clause">다 차면 카드가 저절로 다음 칸으로 가요.</p>
+  </div>
+  <div class="field">
+    <article class="kc" data-ui data-status="returned" data-reveal style="--dl:240ms">
+      <div class="in"><h3>학예회 반별 참가 인원</h3><p class="meta">올린 양식 그대로 채움</p><span class="chip file">…참가인원_합본.hwpx</span><span class="chip">원본 형식 .hwpx</span></div>
+    </article>
+    <p class="clause">마지막엔 원본 한글 양식으로 받아요.</p>
+  </div>
+</section>
+
+<!-- ======================= 기능: 엇갈린 조각 칸 ======================= -->
+<section class="feat" aria-labelledby="featH">
+  <h2 id="featH" data-reveal>귀찮은 예외까지</h2>
+  <div class="cells">
+    <div class="cell" data-reveal>
+      <div class="tx"><h3>대신 내기</h3><p>받는 사람은 로그인 없이 링크로 내요. 바쁜 옆 반 칸은 대신 채워도 돼요.</p></div>
+      <div class="fr"><div class="ui" data-ui>
+        <div class="ur"><span class="av" data-p="이">이</span><span class="grow"><b>4-4 이수빈</b><br><span class="muted">정하은 선생님이 대신 냄</span></span><span class="chip">11:42</span></div>
+        <div class="ur"><span class="av" data-p="박">박</span><span class="grow"><b>4-5 박서준</b><br><span class="muted">아직 안 냄</span></span><button class="btn" type="button" style="min-height:36px;font-size:14px">대신 내기</button></div>
+        <div class="ur"><span class="av" data-p="김">김</span><span class="grow"><b>4-3 김도윤</b><br><span class="muted">직접 냄</span></span><span class="chip">10:20</span></div>
+      </div></div>
+    </div>
+    <div class="cell rev" data-reveal style="--dl:80ms">
+      <div class="tx"><h3>학생 열은 막아요</h3><p>교직원 정보만 걷어요. 학생 이름처럼 보이는 열은 경고하고 인원 수로 바꾸게 해요.</p></div>
+      <div class="fr"><div class="ui" data-ui>
+        <table><thead><tr><th>반</th><th>담임</th><th class="bad">학생 이름</th></tr></thead></table>
+        <div class="warn"><span><b>학생 정보는 받지 않아요.</b> 이 열을 인원 수로 바꿀까요?</span><button class="btn" type="button">인원 수로 바꾸기</button></div>
+      </div></div>
+    </div>
+    <div class="cell" data-reveal style="--dl:160ms">
+      <div class="tx"><h3>표를 붙여넣으면 칸이 돼요</h3><p>한글이나 엑셀에서 표를 복사해 붙여넣으면 첫 줄이 제목, 줄마다 한 반이 돼요.</p></div>
+      <div class="fr"><div class="ui" data-ui style="padding:14px">
+<pre>반	담임	참가	불참
+4-1	송민재
+4-2	정하은</pre>
+        <div class="row" style="display:flex;gap:6px;flex-wrap:wrap;padding-top:12px"><span class="chip">반</span><span class="chip">담임</span><span class="chip" style="background:var(--filling)">참가(명)</span><span class="chip" style="background:var(--filling)">불참(명)</span></div>
+      </div></div>
+    </div>
+    <div class="cell rev" data-reveal>
+      <div class="tx"><h3>알림은 하루 세 번</h3><p>08:20, 12:20, 방과후에 묶어서 한 번씩. 교실 화면에 뜰 수 있는 수업 중엔 띄우지 않아요.</p></div>
+      <div class="fr"><div class="ui" data-ui>
+        <div class="times num"><div class="tm"><b>08:20</b><span>지남</span></div><div class="tm next"><b>12:20</b><span>다음</span></div><div class="tm"><b>방과후</b><span>14:40~</span></div></div>
+        <div class="ur"><span class="grow">12:20에 올 것: <b>낼 것 1 · 바뀐 것 3</b></span></div>
+      </div></div>
+    </div>
+    <div class="cell" data-reveal style="--dl:80ms">
+      <div class="tx"><h3>바뀐 것만 다시</h3><p>어제 퇴근 이후 나와 우리 학년에 해당하는 변경만, 이전 값과 새 값을 나란히.</p></div>
+      <div class="fr"><div class="ui" data-ui>
+        <div class="ur"><span class="av" data-p="송">송</span><span class="grow"><b>4학년 학년협의</b><br><span class="muted">장소</span> <del class="muted">4-3 교실</del> → <b>4-1 교실</b></span></div>
+        <div class="ur"><span class="av other">신</span><span class="grow"><b>3학년 수영교육</b><br><span class="muted">출발</span> <del class="muted">13:00</del> → <b>13:10</b></span></div>
+      </div></div>
+    </div>
+    <div class="cell rev" data-reveal style="--dl:160ms">
+      <div class="tx"><h3>초대는 이름만 골라요</h3><p>초대 링크를 받은 선생님은 가입 없이 자기 이름만 고르고 들어와요.</p></div>
+      <div class="fr"><div class="ui" data-ui>
+        <div class="ur"><span class="grow"><b>새솔초 4학년</b> · 이름을 골라 주세요</span></div>
+        <div class="ur" style="flex-wrap:wrap;gap:8px"><span class="chip">4-1 송민재</span><span class="chip">4-2 정하은</span><span class="chip">4-3 김도윤</span><span class="chip" style="background:var(--ink);color:#fff">4-4 이수빈</span><span class="chip">4-5 박서준</span></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 묻고 답하기 ======================= -->
+<section class="faq" id="faq" aria-labelledby="faqH">
+  <div class="faq-h"><h2 id="faqH" data-reveal>묻고 답하기</h2></div>
+  <div class="band"><h3 data-reveal>정말 무료인가요?</h3><p data-reveal style="--dl:80ms">동학년판은 무료예요. 베타는 11월 30일, 정식 출시는 12월 14일(월)이에요.</p></div>
+  <div class="band"><h3 data-reveal>받는 선생님도 가입해야 하나요?</h3><p data-reveal style="--dl:80ms">아니요. 받는 사람은 링크 하나로 내요. 로그인이 없고, 다른 선생님 칸을 대신 내도 돼요. 만드는 사람만 구글 로그인 한 번이면 돼요.</p></div>
+  <div class="band"><h3 data-reveal>한글 파일이 정말 그대로 돌아오나요?</h3><p data-reveal style="--dl:80ms">hwp·hwpx 원본 양식을 올리면 그 양식에 그대로 채워서 돌려드려요. 올린 형식과 hwpx 두 가지로 받아요.</p></div>
+  <div class="band"><h3 data-reveal>학생 정보도 걷을 수 있나요?</h3><p data-reveal style="--dl:80ms">받지 않아요. 교직원 정보만 걷어요. 학생 이름이나 연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내해요.</p></div>
+  <div class="band"><h3 data-reveal>알림이 수업을 방해하지 않나요?</h3><p data-reveal style="--dl:80ms">알림은 하루 세 번(08:20 · 12:20 · 방과후) 묶어서 보내고, 수업 중에는 띄우지 않아요.</p></div>
+  <div class="band"><h3 data-reveal>데이터는 어디에 저장되나요?</h3><p data-reveal style="--dl:80ms">오라클 클라우드 춘천 리전에 둬요. 데이터는 국내에 보관돼요.</p></div>
+</section>
+
+<!-- ======================= 마무리 ======================= -->
+<section class="cta" aria-labelledby="ctaH">
+  <div class="side l" aria-hidden="true"></div>
+  <div class="main">
+    <h2 id="ctaH">첫 카드를 올려 보세요</h2>
+    <p>양식 하나 올리고 링크를 동학년에 보내면, 카드가 알아서 칸을 옮겨 다녀요. 동학년판 무료 · 베타 11월 30일 · 정식 12월 14일(월).</p>
+    <div class="row"><a class="btn white" href="today.html">구글로 시작하기</a><a class="link" href="today.html">오늘 화면 먼저 보기</a></div>
+  </div>
+  <div class="side r" aria-hidden="true"></div>
+</section>
+
 </main>
 
-<footer class="foot" data-bg="#f4f5f7" data-ink="#16181d">
-  <div class="tile t-state"><p>동학년 일을<br>한 화면에서.</p><small>© 2026 고티처 · 동학년판 무료 · 데이터 국내 보관</small></div>
-  <div class="tile t-nav"><ul><li><a href="#outputs">결과물</a></li><li><a href="#how">흐름</a></li><li><a href="#faq">묻고 답하기</a></li><li><a href="today.html">오늘 화면 보기</a></li><li><a href="../../prototype/privacy.html">개인정보 처리방침</a></li><li><a href="../../prototype/terms.html">이용약관</a></li></ul></div>
-  <div class="tile t-time"><span>춘천 리전 · 지금</span><b id="clock">—</b></div>
-  <div class="tile t-mail"><span>주소</span><a href="https://goteacher.xyz">goteacher.xyz</a></div>
-  <div class="tile t-word" aria-hidden="true"><span class="gt-mark"><i></i><i></i><i></i><i></i></span>고티처</div>
-  <a class="tile t-go" href="#start"><p>베타 소식<br>먼저 받기</p><svg width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg></a>
+<!-- ======================= 바닥 ======================= -->
+<footer>
+  <div class="blocks" aria-label="고티처">
+    <svg viewBox="0 0 300 300" preserveAspectRatio="none" style="height:100%"><defs><mask id="m1"><rect width="300" height="300" fill="#fff"/><text x="34" y="262" font-size="250" font-weight="800" font-family="SUIT Variable, sans-serif" fill="#000">고</text></mask></defs><rect width="300" height="300" rx="8" fill="#3d7eff" mask="url(#m1)"/></svg>
+    <svg viewBox="0 0 300 230" preserveAspectRatio="none" style="height:76%"><defs><mask id="m2"><rect width="300" height="230" fill="#fff"/><text x="34" y="205" font-size="200" font-weight="800" font-family="SUIT Variable, sans-serif" fill="#000">티</text></mask></defs><rect width="300" height="230" rx="8" fill="#ffb020" mask="url(#m2)"/></svg>
+    <svg viewBox="0 0 300 264" preserveAspectRatio="none" style="height:88%"><defs><mask id="m3"><rect width="300" height="264" fill="#fff"/><text x="34" y="232" font-size="226" font-weight="800" font-family="SUIT Variable, sans-serif" fill="#000">처</text></mask></defs><rect width="300" height="264" rx="8" fill="#00b86b" mask="url(#m3)"/></svg>
+    <div class="blk-ink"><b>goteacher.xyz</b><span>동학년판 무료 · 정식 12월 14일(월)</span></div>
+  </div>
+  <div class="fl">
+    <div><b>제품</b><a href="#how">걷는 법</a><a href="#today">오늘 보드</a><a href="#faq">묻고 답하기</a></div>
+    <div><b>시작</b><a href="today.html">구글로 시작하기</a><a href="today.html">오늘 화면 미리 보기</a></div>
+    <div><b>자료</b><span>양식 자료실 79건</span><span>로그인 없이 보기·내려받기</span></div>
+    <div><b>약관</b><a href="../../prototype/privacy.html">개인정보처리방침</a><a href="../../prototype/terms.html">이용약관</a></div>
+    <div class="c"><b>goteacher.xyz</b><span>오라클 클라우드 춘천 리전 · 데이터 국내 보관</span><span>NEIS 학사일정 · 급식 자동</span></div>
+  </div>
+  <div class="copy"><span>© 2026 고티처 · 시안 B(보드형)</span><a class="btn" href="#top">맨 위로</a></div>
 </footer>
 
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastT"></span><button type="button" id="toastU" hidden>되돌리기</button></div>
+
 <script src="../shared/today-data.js"></script>
-<script src="cal.js"></script>
 <script>
 (function () {
-  var G = window.GT, esc = GTCal.esc;
-  // 히어로: 레인 2개(오늘 일정 · 할 일)
-  var narrow = window.matchMedia('(max-width: 760px)').matches, heroCal = document.getElementById('heroCal');
-  heroCal.classList.add('hint');
-  GTCal.mount({ cal: heroCal, list: document.getElementById('heroList'), lanes: narrow ? ['오늘 일정 · 할 일'] : ['오늘 일정', '할 일'], laneOf: function (k) { return narrow ? 0 : k === 'todo' ? 1 : 0; } });
-
-  // 결과물 목록 → 종이 바꾸기
-  var s = G.sent[0];
-  var counts = { '4-1': [24, 1], '4-2': [25, 0], '4-3': [23, 2] }; // 샘플 값
-  var sum = [0, 0];
-  var rows = s.rows.map(function (r) {
-    var c = r.who.split(' ')[0], v = counts[c];
-    if (r.done) { sum[0] += v[0]; sum[1] += v[1]; return '<tr><td>' + c + '</td><td>' + esc(r.who.split(' ')[1]) + '</td><td>' + v[0] + '</td><td>' + v[1] + '</td></tr>'; }
-    return '<tr><td>' + c + '</td><td>' + esc(r.who.split(' ')[1]) + '</td><td class="miss">—</td><td class="miss">—</td></tr>';
-  }).join('');
-  var left = s.rows.filter(function (r) { return !r.done; }).map(function (r) { return r.who.split(' ')[0] + ' ' + r.who.split(' ')[1]; });
-  var link = 'goteacher.xyz/c/4Q2K';
-  var OUT = {
-    doc: { cls: 'doc', desc: '올린 한글 양식에 다섯 반의 답이 그대로 채워져요. 올린 형식과 hwpx 두 가지로 받습니다.',
-      html: '<div class="dh"><span>' + esc(s.form) + '</span><span>' + s.done + '/' + s.total + '반 제출</span></div><h3>' + esc(s.title) + '</h3><p class="sub">새솔초등학교 4학년 · 마감 ' + esc(s.due) + '</p>' +
-        '<table><thead><tr><th>반</th><th>담임</th><th>참가</th><th>불참</th></tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td colspan="2">합계(' + s.done + '반)</td><td>' + sum[0] + '</td><td>' + sum[1] + '</td></tr></tfoot></table>' +
-        '<div class="files"><button class="chip on" type="button">hwpx로 받기</button><button class="chip" type="button">올린 형식(hwp)으로 받기</button></div>' },
-    msg: { cls: 'msg', desc: '링크 한 줄을 동학년 메신저에 붙이면 끝이에요. 받는 선생님은 로그인 없이 열어요.',
-      html: '<div class="who"><span class="av" style="background:#ffe0e6;color:#8a1530">정</span>정하은 → 4학년 동학년</div><div class="bubble">[고티처] ' + esc(s.title) + ' — ' + esc(s.due) + '까지 이 링크로 내 주세요. 로그인 없이 반만 고르면 돼요.<br><u>' + link + '</u></div><div class="row"><span>메신저에 붙여넣기</span><button class="chip" type="button" data-copy="msg">문구 복사</button></div>' },
-    nudge: { cls: 'msg', desc: '아직 안 낸 반만 골라 문구를 만들어요. 누가 남았는지 세지 않아도 돼요.',
-      html: '<div class="who"><span class="av" style="background:#ffe0e6;color:#8a1530">정</span>아직 안 낸 반 ' + left.length + '곳</div><div class="bubble" style="background:var(--k-todo-bg);color:var(--k-todo-ink)">' + esc(left.join(', ')) + ' 선생님, ' + esc(s.title) + '이 아직이에요. ' + esc(s.due) + ' 마감이에요.<br><u>' + link + '</u></div><div class="row"><span>' + s.done + '/' + s.total + '반 제출</span><button class="chip" type="button" data-copy="nudge">독촉 문구 복사</button></div>' },
-    recv: { cls: 'recv', desc: '받는 선생님이 보는 화면이에요. 반을 고르고 숫자만 쓰면 돼요.',
-      html: '<h3>' + esc(s.title) + '</h3><p class="note">새솔초 4학년 · 로그인 없이 내요</p><label>반</label><div class="field">4-4</div><label>참가</label><div class="field">22</div><label>불참</label><div class="field">3</div><div class="check"><i><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6.5 5 9l5-6"/></svg></i>4-4 이수빈 선생님 대신 내기</div><button class="btn ink" type="button">내기</button>' }
-  };
-  var sheet = document.getElementById('sheet'), desc = document.getElementById('outDesc');
-  function show(k) {
-    sheet.classList.add('swap');
-    setTimeout(function () { sheet.className = 'sheet ' + OUT[k].cls; sheet.innerHTML = OUT[k].html; desc.textContent = OUT[k].desc; bindCopy(); }, 200);
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var toastTimer;
+  function toast(t, undo) {
+    var el = $('#toast'); $('#toastT').textContent = t;
+    var u = $('#toastU'); u.hidden = !undo; u.onclick = function () { undo(); el.classList.remove('show'); };
+    el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.classList.remove('show'); }, 3200);
   }
-  function bindCopy() {
-    sheet.querySelectorAll('[data-copy]').forEach(function (b) {
-      b.onclick = function () { var t = sheet.querySelector('.bubble').innerText; (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { GTCal.toast('복사했어요 — 메신저에 붙여넣으세요'); }, function () { GTCal.toast('복사할 문구를 선택해 주세요'); }); };
+
+  /* ---------- 등장(한 번만) ---------- */
+  (function () {
+    var t = $$('[data-reveal]');
+    if (!('IntersectionObserver' in window)) { t.forEach(function (e) { e.classList.add('is-in'); }); return; }
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); } }); }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
+    t.forEach(function (e) { io.observe(e); });
+    window.addEventListener('load', function () { setTimeout(function () { t.forEach(function (e) { var r = e.getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) e.classList.add('is-in'); }); }, 2500); });
+  })();
+
+  /* ---------- 시그니처: 히어로 시트가 위에서부터 열림 ---------- */
+  requestAnimationFrame(function () { requestAnimationFrame(function () { $('#sheet').classList.add('is-in'); }); });
+
+  /* ---------- 살아 있는 카드 ---------- */
+  var ORDER = ['sent', 'filling', 'done', 'returned'];
+  var LABEL = { sent: '보냄', filling: '채우는 중', done: '다 걷힘', returned: '돌려받음' };
+  var classes = [
+    { c: '4-1', who: '송민재', p: '송', n: 24 }, { c: '4-2', who: '정하은', p: '정', n: 23 }, { c: '4-3', who: '김도윤', p: '김', n: 25 },
+    { c: '4-4', who: '이수빈', p: '이', n: 22 }, { c: '4-5', who: '박서준', p: '박', n: 24 }
+  ];
+  var START = [true, true, true, false, false];
+  var st = { done: START.slice(), status: 'filling' };
+  var live = $('#live');
+  var wide = window.matchMedia('(min-width: 1100px)');
+
+  function count() { return st.done.filter(Boolean).length; }
+  function total() { return classes.reduce(function (s, k, i) { return s + (st.done[i] ? k.n : 0); }, 0); }
+  function left() { return classes.filter(function (k, i) { return !st.done[i]; }); }
+
+  function render() {
+    $('#liveRows').innerHTML = classes.map(function (k, i) {
+      return '<div class="r"><span class="av" data-p="' + k.p + '">' + k.p + '</span><span class="n">' + k.c + ' ' + k.who + '</span>' +
+        (st.done[i] ? '<b class="num">' + k.n + '명</b>' : '<button class="btn" type="button" data-i="' + i + '">' + k.c + ' 제출</button>') + '</div>';
+    }).join('');
+    var n = count();
+    $('#liveBar').style.width = (n / 5 * 100) + '%';
+    $('#liveBar').style.background = n === 5 ? 'var(--done)' : '';
+    $('#liveCount').textContent = n + '/5반';
+    $('#liveTotal').textContent = '합계 ' + total() + '명';
+    live.dataset.status = st.status;
+    var strip = LABEL[st.status];
+    if (st.status === 'filling' || st.status === 'sent') strip += ' · ' + n + '/5반';
+    if (st.status === 'done') strip += ' · 5/5반';
+    if (st.status === 'returned') strip += ' · 올린 형식 + hwpx';
+    $('#liveStrip').textContent = strip;
+    var nb = $('#liveNext');
+    if (st.status === 'done') nb.textContent = '한글로 돌려받기';
+    else if (st.status === 'returned') nb.textContent = '합본 내려받기';
+    else nb.textContent = left().map(function (k) { return k.c; }).join('·') + ' 독촉 문구 복사';
+    $('#liveUndo').hidden = st.status === 'filling' && n === 3;
+  }
+
+  function place() {
+    if (!wide.matches) return; // 좁은 화면에선 카드가 맨 위에 그대로 있고 띠만 바뀐다
+    var col = $('.col[data-col="' + st.status + '"]');
+    if (!col || live.parentNode === col) return;
+    var first = col.children[0];
+    if (first && first !== live) col.insertBefore(live, first.nextSibling); else col.insertBefore(live, col.firstChild);
+  }
+
+  function go(status, why) {
+    if (status === st.status) return;
+    var to = ORDER.indexOf(status);
+    if (to >= ORDER.indexOf('done') && count() < 5) { toast('아직 ' + left().map(function (k) { return k.c; }).join('·') + '가 안 냈어요. 다 차면 저절로 넘어가요.'); return; }
+    if (status === 'returned' && st.status !== 'done') { st.status = 'done'; }
+    if (status !== 'returned' && status !== 'done' && count() === 5) { toast('다섯 반이 다 냈어요. 다 걷힘 칸에 있어야 해요.'); return; }
+    st.status = status; render(); place();
+    live.classList.add('flash'); setTimeout(function () { live.classList.remove('flash'); }, 700);
+    if (why) toast(why);
+  }
+
+  live.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-i]');
+    if (!b) return;
+    var i = +b.dataset.i; st.done[i] = true; render();
+    if (count() === 5) setTimeout(function () { go('done', '다섯 반이 다 냈어요. 카드가 다 걷힘 칸으로 갔어요.'); }, 450);
+  });
+  $('#liveNext').addEventListener('click', function () {
+    if (st.status === 'done') { go('returned', '원본 한글 양식에 채워서 돌려받았어요.'); return; }
+    if (st.status === 'returned') { toast('2026_학예회_참가인원_합본.hwpx — 시안이라 실제 파일은 내려받지 않아요.'); return; }
+    var msg = '[고티처] 학예회 반별 참가 인원, ' + left().map(function (k) { return k.c + ' ' + k.who; }).join(', ') + ' 선생님 아직이에요. 마감 10/27(화) 12:00 → goteacher.xyz/c/4Q2K';
+    if (navigator.clipboard) navigator.clipboard.writeText(msg).catch(function () {});
+    toast('독촉 문구를 복사했어요. 쿨메신저에 붙여 넣으세요.');
+  });
+  $('#liveUndo').addEventListener('click', function () { st.done = START.slice(); st.status = 'filling'; render(); place(); });
+
+  // 키보드: ← → 로 칸 옮기기
+  live.addEventListener('keydown', function (e) {
+    if (e.target !== live) return;
+    var i = ORDER.indexOf(st.status);
+    if (e.key === 'ArrowRight' && i < 3) { e.preventDefault(); go(ORDER[i + 1]); live.focus(); }
+    if (e.key === 'ArrowLeft' && i > 0) { e.preventDefault(); go(ORDER[i - 1]); live.focus(); }
+  });
+
+  // 끌어서 옮기기
+  (function () {
+    var ghost = null, sx = 0, sy = 0, ox = 0, oy = 0, moved = false, over = null;
+    function colAt(x, y) {
+      var cols = $$('.col[data-col]');
+      for (var k = 0; k < cols.length; k++) { var r = cols[k].getBoundingClientRect(); if (x >= r.left && x <= r.right) return cols[k]; }
+      return null;
+    }
+    live.addEventListener('pointerdown', function (e) {
+      if (!wide.matches || e.button !== 0 || e.target.closest('button')) return;
+      sx = e.clientX; sy = e.clientY; moved = false;
+      var r = live.getBoundingClientRect(); ox = sx - r.left; oy = sy - r.top;
+      live.setPointerCapture(e.pointerId);
     });
+    live.addEventListener('pointermove', function (e) {
+      if (!live.hasPointerCapture(e.pointerId)) return;
+      if (!moved && Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < 6) return;
+      if (!moved) {
+        moved = true; var r = live.getBoundingClientRect();
+        ghost = live.cloneNode(true); ghost.removeAttribute('id'); ghost.classList.add('dragging-ghost'); ghost.style.width = r.width + 'px';
+        document.body.appendChild(ghost); live.classList.add('dragging');
+      }
+      ghost.style.left = (e.clientX - ox) + 'px'; ghost.style.top = (e.clientY - oy) + 'px';
+      var c = colAt(e.clientX, e.clientY);
+      if (over !== c) { if (over) over.classList.remove('drop-on'); over = c; if (over) over.classList.add('drop-on'); }
+    });
+    function end(e) {
+      if (!moved) return;
+      live.classList.remove('dragging'); if (ghost) ghost.remove(); ghost = null;
+      if (over) { over.classList.remove('drop-on'); go(over.dataset.col); over = null; }
+      moved = false;
+    }
+    live.addEventListener('pointerup', end);
+    live.addEventListener('pointercancel', end);
+  })();
+  render();
+  wide.addEventListener ? wide.addEventListener('change', place) : 0;
+
+  /* ---------- 쇼케이스: 오늘 보드 데모 ---------- */
+  var G = window.GT;
+  function hm(v) { var h = Math.floor(v / 60), m = v % 60; return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m; }
+  function toMin(s) { var p = s.split(':'); return +p[0] * 60 + +p[1]; }
+  var BUNDLES = [{ t: 500, l: '08:20' }, { t: 740, l: '12:20' }, { t: 880, l: '방과후' }];
+
+  function demo() {
+    var now = +$('#cTime').value;
+    $('#cTimeV').textContent = hm(now);
+    var nb = BUNDLES.filter(function (b) { return b.t > now; })[0];
+    $('#cBundle').textContent = nb ? nb.l : '내일 08:20';
+    $('#stage').classList.toggle('show-chg', $('#cChg').checked);
+
+    // 블록 줄: 전일 + 네 블록
+    var cells = [{ label: '전일', time: '시간 미정', k: null }].concat(G.slots.map(function (s) { return { label: s.label, time: s.from + '~', k: s.k, from: toMin(s.from), to: s.to ? toMin(s.to) : 1440 }; }));
+    $('#dLane').innerHTML = cells.map(function (c) {
+      var tt = c.k ? G.timetable.filter(function (t) { return t.k === c.k; })[0] : null;
+      var ev = G.events.filter(function (e) { return c.k ? e.s === c.k : !e.s; })[0];
+      var cls = c.k && now >= c.from && now < c.to ? ' now' : c.k && now >= c.to ? ' past' : '';
+      var line = tt ? tt.sub : ev ? ev.title : '';
+      var chg = ev && ev.changed ? ' <span class="chg"><del>' + ev.changed.from + '</del> <ins>' + ev.changed.to + '</ins></span>' : '';
+      return '<div class="blk' + cls + '"><b>' + c.label + '</b><span class="num">' + c.time + '</span>' + line + chg + '</div>';
+    }).join('');
+
+    // 미니 보드
+    var due = toMin('14:00'), handed = $('#cDone').checked, late = !handed && now >= due;
+    var left = Math.max(0, due - now);
+    var today = [], soon = [], fin = [];
+    G.todo.forEach(function (t) {
+      if (t.urgent) (handed ? fin : today).push(t);
+      else soon.push(t);
+    });
+    var s = G.sent[0], d = s.done + ($('#c44').checked ? 1 : 0) + ($('#c45').checked ? 1 : 0);
+    function card(t) {
+      var chip = t.urgent ? (handed ? '<span class="chip">냄</span>' : late ? '<span class="chip urgent">마감 지남</span>' : '<span class="chip urgent num">' + t.due + ' · ' + Math.floor(left / 60) + '시간 ' + (left % 60) + '분 남음</span>') : '<span class="chip">' + t.due + '</span>';
+      return '<div class="t"><b>' + t.title + '</b><span class="meta">' + t.from + '</span><span>' + chip + '</span></div>';
+    }
+    var cols = [
+      { h: '오늘 할 것', c: 'var(--filling)', items: today.map(card) },
+      { h: '다가오는 것', c: 'var(--sent)', items: soon.map(card) },
+      { h: '기다리는 중', c: '#8a8f98', items: $('#cWait').checked ? ['<div class="t"><b>' + s.title + '</b><div class="bar"><i style="width:' + (d / s.total * 100) + '%' + (d === s.total ? ';background:var(--done)' : '') + '"></i></div><span class="meta num">' + d + '/' + s.total + '반 · ' + (d === s.total ? '다 걷힘' : '마감 ' + s.due) + '</span></div>'] : null },
+      { h: '끝남', c: 'var(--done)', items: fin.map(card) }
+    ];
+    $('#dBoard').innerHTML = cols.map(function (c) {
+      if (!c.items) return '<div class="mc"><div class="mh"><span class="dot" style="background:' + c.c + '"></span>' + c.h + '</div><div class="empty">숨겼어요</div></div>';
+      return '<div class="mc"><div class="mh"><span class="dot" style="background:' + c.c + '"></span>' + c.h + ' <span class="cnt num">' + c.items.length + '</span></div>' + (c.items.length ? c.items.join('') : '<div class="empty">아직 없어요</div>') + '</div>';
+    }).join('');
   }
-  sheet.className = 'sheet doc'; sheet.innerHTML = OUT.doc.html;
-  document.querySelectorAll('[data-out]').forEach(function (b) {
-    b.onclick = function () { document.querySelectorAll('[data-out]').forEach(function (x) { x.setAttribute('aria-selected', x === b); }); show(b.dataset.out); };
-  });
-
-  // 시작 창
-  var role = 'lead';
-  document.querySelectorAll('[data-role]').forEach(function (b) {
-    b.onclick = function () {
-      role = b.dataset.role;
-      document.querySelectorAll('[data-role]').forEach(function (x) { x.setAttribute('aria-pressed', x === b); });
-      document.getElementById('roleHint').textContent = role === 'lead' ? '공간을 만들면 초대 링크와 QR이 바로 생겨요.' : '받은 초대 링크로 들어오면 이름만 고르면 돼요. 가입은 나중에 이어 붙일 수 있어요.';
-      document.getElementById('startBtn').textContent = role === 'lead' ? '구글로 시작하기' : '이름 고르고 들어가기';
-    };
-  });
-  document.getElementById('startForm').onsubmit = function (e) {
-    e.preventDefault();
-    var v = document.getElementById('spaceName').value.trim() || '우리 학년';
-    GTCal.toast('「' + v + '」 공간 — 시안이라 오늘 화면 미리 보기로 이동해요');
-    setTimeout(function () { location.href = 'today.html'; }, 900);
-  };
-
-  // 시계
-  function tick() { var k = new Date(Date.now() + (9 * 60 + new Date().getTimezoneOffset()) * 60000); document.getElementById('clock').textContent = String(k.getHours()).padStart(2, '0') + ':' + String(k.getMinutes()).padStart(2, '0'); }
-  tick(); setInterval(tick, 20000);
-
-  // 머리글이 아래 장의 색을 따라간다
-  var root = document.documentElement, chapters = document.querySelectorAll('[data-bg]');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { root.style.setProperty('--header-bg', e.target.dataset.bg); root.style.setProperty('--header-ink', e.target.dataset.ink); } }); }, { rootMargin: '0px 0px -92% 0px' });
-    chapters.forEach(function (c) { io.observe(c); });
-  }
-  // 등장(한 번)
-  var targets = document.querySelectorAll('[data-reveal]');
-  if ('IntersectionObserver' in window) {
-    var ro = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('is-in'); ro.unobserve(e.target); } }); }, { rootMargin: '0px 0px -10% 0px', threshold: 0.08 });
-    targets.forEach(function (t) { ro.observe(t); });
-    setTimeout(function () { targets.forEach(function (t) { var r = t.getBoundingClientRect(); if (r.top < innerHeight && r.bottom > 0) t.classList.add('is-in'); }); }, 2500);
-  } else targets.forEach(function (t) { t.classList.add('is-in'); });
+  $$('.ctl input').forEach(function (i) { i.addEventListener('input', demo); });
+  demo();
 })();
 </script>
 </body>
