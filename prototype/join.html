@@ -81,8 +81,8 @@
   function done(nm) {
     root.innerHTML = '<section class="j-card done"><div class="ck">✓</div><h1>들어왔어요, ' + esc(nm) + ' 선생님</h1><p class="muted">' + esc(g.school.name) + ' ' + g.grade + '학년 동학년의 모으기가 이제 「오늘」에 떠요.</p>' +
       '<a class="btn pri big" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="app.html#today">오늘 화면으로</a></section>' +
-      '<section class="j-card"><h2>다른 PC에서도 쓰려면 <span class="small muted" style="font-weight:400">선택</span></h2><p class="small muted" style="margin:0">교실 PC와 교무실 PC를 같이 쓰거나 PC가 초기화돼도, 간편 가입으로 이어 두면 그대로 이어져요.</p>' +
-      '<div class="social"><button class="kakao" data-via="kakao">카카오</button><button class="naver" data-via="naver">네이버</button><button class="google" data-via="google">구글</button></div></section>';
+      '<section class="j-card"><h2>다른 PC에서도 쓰려면 <span class="small muted" style="font-weight:400">선택</span></h2><p class="small muted" style="margin:0">교실 PC와 교무실 PC를 같이 쓰거나 PC가 초기화돼도, 구글 계정으로 이어 두면 그대로 이어져요.</p>' +
+      '<div class="social" style="grid-template-columns:1fr"><button class="google" data-via="google">구글 계정으로 이어 두기</button></div></section>';
     [].forEach.call(root.querySelectorAll('[data-via]'), function (b) {
       b.onclick = function () { g = load(); var m = g.members.find(function (x) { return x.name === nm; }); if (m) m.via = VIA[b.dataset.via] + ' 가입'; save(g); toast(VIA[b.dataset.via] + ' 계정으로 이어 뒀어요 (프로토타입)'); b.parentNode.innerHTML = '<p class="small" style="grid-column:1/-1;color:var(--ok);font-weight:700;margin:0">✓ ' + VIA[b.dataset.via] + ' 계정으로 이어 뒀어요.</p>'; };
     });

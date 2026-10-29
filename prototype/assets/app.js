@@ -149,7 +149,7 @@
       (ev.changed ? '<div class="diff" style="margin-top:14px"><b>바뀐 부분</b><div>' + ev.change + '</div></div>' : '') +
       (conf.length ? '<div class="warn">장소가 겹쳐요: ' + conf.map(function (c) { return esc(c.title) + '(' + esc(TR.slotText(c)) + ')'; }).join(', ') + '</div>' : '') +
       '<div class="row" style="margin-top:16px;justify-content:flex-end"><button class="btn sm" data-copy>메신저용 문구 복사</button><button class="btn sm" data-close>닫기</button>' + (edit ? '<button class="btn sm pri" id="mSave">저장</button>' : '') + '</div></div>');
-    $('[data-copy]', $('#modal')).onclick = function () { TR.copy('[티로드] ' + TR.dateText(ev) + ' ' + TR.slotText(ev) + ' ' + ev.title + (ev.place ? ' · ' + ev.place : '') + '\nhttps://t.road/s/' + ev.id); };
+    $('[data-copy]', $('#modal')).onclick = function () { TR.copy('[티로드] ' + TR.dateText(ev) + ' ' + TR.slotText(ev) + ' ' + ev.title + (ev.place ? ' · ' + ev.place : '') + '\nhttps://t.goteacher.xyz/s/' + ev.id); };
     if (edit) {
       $('#mAll').onchange = function () { $('#mRange').hidden = this.checked; };
       $('#mSave').onclick = function () {
@@ -173,7 +173,7 @@
     return '<div class="pcwin" style="height:' + (h || 713) + 'px"><div class="pcbar"><i></i><i></i><i></i><span>' + esc(url) + '</span></div><iframe' + (id ? ' id="' + id + '"' : '') + ' src="' + src + '" title="받는 사람 PC 화면"></iframe></div>';
   }
   function recvModal(src, title) {
-    modal('<div class="card-h"><h2>' + esc(title) + '</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="background:var(--surface-2)">' + pcWin(src, 't.road/c/k7Q2', 690) + '</div><div class="card-b small muted">쿨메신저 쪽지의 링크를 누르면 PC 브라우저에서 열리는 화면입니다. 로그인하지 않아도 됩니다.</div>');
+    modal('<div class="card-h"><h2>' + esc(title) + '</h2><button class="btn sm ghost" data-close aria-label="닫기">✕</button></div><div class="card-b" style="background:var(--surface-2)">' + pcWin(src, 't.goteacher.xyz/c/k7Q2', 690) + '</div><div class="card-b small muted">쿨메신저 쪽지의 링크를 누르면 PC 브라우저에서 열리는 화면입니다. 로그인하지 않아도 됩니다.</div>');
     $('.modal').style.width = '828px';
   }
 
@@ -574,7 +574,7 @@
   function makePreset(key) {
     var c = Object.assign(TR.preset(key), { id: 'c' + Date.now().toString(36), owner: TR.me.name, mine: true, due: '', dueISO: '' });
     S().collections.unshift(c); TR.save();
-    TR.copy('[티로드] ' + c.title + '\n\n아래 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : '우리 반') + '만 채워 주세요.\nhttps://t.road/c/' + c.id.slice(-4) + '\n\n— ' + TR.me.name, '「' + c.title + '」을 만들고 쪽지 문구를 복사했어요. 마감은 이 화면 위에서 정하세요.');
+    TR.copy('[티로드] ' + c.title + '\n\n아래 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : '우리 반') + '만 채워 주세요.\nhttps://t.goteacher.xyz/c/' + c.id.slice(-4) + '\n\n— ' + TR.me.name, '「' + c.title + '」을 만들고 쪽지 문구를 복사했어요. 마감은 이 화면 위에서 정하세요.');
     location.hash = '#collect/' + c.id;
   }
   function collectNew() {
@@ -689,8 +689,8 @@
     }
     function renderMsg() {
       var t = $('#title').value || '(제목)', sp = spec(), ext = ($('input[name=acc]:checked') || {}).value === 'ext';
-      $('#msg').textContent = '[티로드] ' + t + '\n\n아래 링크에서 ' + (sp.mode === 'pergroup' ? '우리 그룹 칸' : sp.hrOnly ? '우리 반 칸' : '내 칸') + '만 채워 주세요. (30초)\nhttps://t.road/c/' + (parsed ? 'k7Q2' : '····') +
-        (ext ? '\n\n명부에 없는 분(강사 등)은 이 링크로 제출해 주세요. 마감 후 닫힙니다.\nhttps://t.road/x/' + (parsed ? 'P4m9' : '····') : '') + '\n\n— ' + TR.me.name + ' (방과후돌봄부)';
+      $('#msg').textContent = '[티로드] ' + t + '\n\n아래 링크에서 ' + (sp.mode === 'pergroup' ? '우리 그룹 칸' : sp.hrOnly ? '우리 반 칸' : '내 칸') + '만 채워 주세요. (30초)\nhttps://t.goteacher.xyz/c/' + (parsed ? 'k7Q2' : '····') +
+        (ext ? '\n\n명부에 없는 분(강사 등)은 이 링크로 제출해 주세요. 마감 후 닫힙니다.\nhttps://t.goteacher.xyz/x/' + (parsed ? 'P4m9' : '····') : '') + '\n\n— ' + TR.me.name + ' (방과후돌봄부)';
     }
     function showSrc(src) {
       newSrc = src;
@@ -700,7 +700,14 @@
       if (src === 'sheet') syncSheet(); else if (src === 'paste') analyze(); else renderMsg();
     }
     paste.addEventListener('input', analyze);
-    paste.addEventListener('paste', function () { setTimeout(analyze, 0); });
+    // 한글에서 표를 복사하면 글자(text/plain)에는 칸 구분이 없고 표는 HTML에만 있다(김해봉황초 실측: 649줄×1칸).
+    // 그래서 HTML 표가 있으면 그걸 읽어 탭으로 이어 붙인다.
+    paste.addEventListener('paste', function (e) {
+      var html = e.clipboardData && e.clipboardData.getData('text/html');
+      var tsv = html && TR.htmlTableToTsv(html);
+      if (tsv) { e.preventDefault(); paste.value = tsv; }
+      setTimeout(analyze, 0);
+    });
     $('#title').addEventListener('input', renderMsg);
     $('#sample').onclick = function () { paste.value = SAMPLE_TABLE.replace('…', TR.homerooms.slice(4).map(function (h) { return h[0] + '\t' + h[1] + '\t\t\t'; }).join('\n')).replace(/\n2-1\t최수아\t\t\t$/m, ''); analyze(); };
     $$('[data-src]', view).forEach(function (b) { b.onclick = function () { showSrc(b.dataset.src); }; });
@@ -820,14 +827,14 @@
       extra +
       '<section class="card"><div class="card-h"><h2>합본</h2><span class="small muted">제출되는 즉시 반영</span></div><div class="scroll"><table class="tbl' + (c.kind === 'matrix' ? ' mx' : '') + '">' + table + '</table></div></section>' +
       '</div><aside class="no-print"><div class="row" style="margin-bottom:9px"><b class="grow">받는 사람 화면 (PC)</b><select id="pu" style="border:1px solid var(--line);border-radius:9px;padding:5px 7px;background:var(--surface);max-width:230px">' + c.rows.map(function (r) { return '<option value="' + esc(r.unit) + '"' + (r.unit === phoneUnit[id] ? ' selected' : '') + '>' + esc(c.kind === 'matrix' ? r.who + ' · ' + r.pos : rowLabel(c, r)) + '</option>'; }).join('') + '</select></div>' +
-      pcWin('recv.html?c=' + id + '&u=' + encodeURIComponent(phoneUnit[id]), 't.road/c/k7Q2?u=' + phoneUnit[id], 736, 'phone') + '<p class="small muted">쪽지 링크를 누른 선생님의 PC 브라우저 화면입니다. 여기서 제출하면 왼쪽 합본에 바로 들어옵니다. 직접 눌러 보세요.</p></aside></div>';
+      pcWin('recv.html?c=' + id + '&u=' + encodeURIComponent(phoneUnit[id]), 't.goteacher.xyz/c/k7Q2?u=' + phoneUnit[id], 736, 'phone') + '<p class="small muted">쪽지 링크를 누른 선생님의 PC 브라우저 화면입니다. 여기서 제출하면 왼쪽 합본에 바로 들어옵니다. 직접 눌러 보세요.</p></aside></div>';
     TR._lastSubmit = null;
-    $$('.miss button', view).forEach(function (b) { b.onclick = function () { var r = c.rows.find(function (x) { return x.unit === b.dataset.r; }); var what = c.kind === 'matrix' ? '아직 이수번호가 없는 연수: ' + c.cols.filter(function (_, j) { return !r.v[j]; }).map(function (x) { return x.n; }).join(', ') : (audMode(c) === 'pg' ? r.unit + ' 그룹' : audMode(c) === 'hr' ? r.unit : '선생님') + ' 칸이 아직 비어 있어요.'; TR.copy((audMode(c) === 'pg' ? r.unit + ' 선생님들' : r.who + ' 선생님') + ', 「' + c.title + '」 ' + what + ' ' + TR.dueText(c) + '\nhttps://t.road/c/k7Q2?u=' + encodeURIComponent(r.unit), rowLabel(c, r) + ' 쪽 문구를 복사했어요.'); }; });
-    var ra = $('#remindAll'); if (ra) ra.onclick = function () { TR.copy('[티로드] 「' + c.title + '」 아직 다 못 채운 ' + (audMode(c) === 'pg' ? '그룹' : '분') + ': ' + miss.map(function (r) { return rowLabel(c, r); }).join(', ') + '\n' + TR.dueText(c) + ' · 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.road/c/k7Q2', missLabel + ' ' + miss.length + ' 독촉 문구를 복사했어요.'); };
+    $$('.miss button', view).forEach(function (b) { b.onclick = function () { var r = c.rows.find(function (x) { return x.unit === b.dataset.r; }); var what = c.kind === 'matrix' ? '아직 이수번호가 없는 연수: ' + c.cols.filter(function (_, j) { return !r.v[j]; }).map(function (x) { return x.n; }).join(', ') : (audMode(c) === 'pg' ? r.unit + ' 그룹' : audMode(c) === 'hr' ? r.unit : '선생님') + ' 칸이 아직 비어 있어요.'; TR.copy((audMode(c) === 'pg' ? r.unit + ' 선생님들' : r.who + ' 선생님') + ', 「' + c.title + '」 ' + what + ' ' + TR.dueText(c) + '\nhttps://t.goteacher.xyz/c/k7Q2?u=' + encodeURIComponent(r.unit), rowLabel(c, r) + ' 쪽 문구를 복사했어요.'); }; });
+    var ra = $('#remindAll'); if (ra) ra.onclick = function () { TR.copy('[티로드] 「' + c.title + '」 아직 다 못 채운 ' + (audMode(c) === 'pg' ? '그룹' : '분') + ': ' + miss.map(function (r) { return rowLabel(c, r); }).join(', ') + '\n' + TR.dueText(c) + ' · 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.goteacher.xyz/c/k7Q2', missLabel + ' ' + miss.length + ' 독촉 문구를 복사했어요.'); };
     $('#pu').onchange = function () { phoneUnit[id] = this.value; $('#phone').src = 'recv.html?c=' + id + '&u=' + encodeURIComponent(this.value); };
     $('#csv').onclick = function () {
       var sh = sheetOf(c), lines = [sh.head].concat(sh.rows);
-      var csv = '﻿' + lines.map(function (l) { return l.map(function (x) { return '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n') + (footOn() ? '\r\n"티로드로 모았습니다 · t.road"' : '');
+      var csv = '﻿' + lines.map(function (l) { return l.map(function (x) { return '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n') + (footOn() ? '\r\n"티로드로 모았습니다 · t.goteacher.xyz"' : '');
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = c.title + '_합본.csv'; a.click();
       TR.toast('합본을 내려받았어요 (엑셀에서 열림).');
     };
@@ -845,7 +852,7 @@
     var ds = $('#dsave'); if (ds) ds.onclick = function () {
       var d = $('#dd').value, t = $('#dt').value || '17:00'; if (!d) { TR.toast('마감 날짜를 골라 주세요.'); return; }
       var first = !c.due; c.due = (d === TR.TODAY ? '오늘 ' : TR.fmt(d) + ' ') + t; c.dueISO = d + 'T' + t; c.urgent = d === TR.TODAY; c.remind = $('#drm').checked; TR.save();
-      TR.copy('[티로드] 「' + c.title + '」 마감 ' + (first ? '안내' : '변경') + ': ' + c.due + '\n아직 안 채운 분은 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.road/c/k7Q2', '마감을 ' + c.due + '로 ' + (first ? '정했어요' : '바꿨어요') + '. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.');
+      TR.copy('[티로드] 「' + c.title + '」 마감 ' + (first ? '안내' : '변경') + ': ' + c.due + '\n아직 안 채운 분은 링크에서 ' + (c.kind === 'matrix' ? '내 줄' : audMode(c) === 'pg' ? '우리 그룹 칸' : audMode(c) === 'hr' ? '우리 반 칸' : '내 칸') + '만 채워 주세요.\nhttps://t.goteacher.xyz/c/k7Q2', '마감을 ' + c.due + '로 ' + (first ? '정했어요' : '바꿨어요') + '. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.');
       collectDetail(id);
     };
   }
@@ -1095,7 +1102,7 @@
       '<div class="card-b row" style="border-top:1px solid var(--line);justify-content:space-between">' + (prev ? '<a href="#out/forms/' + prev.id + '" class="small">← ' + esc(prev.t) + '</a>' : '<span></span>') + (next ? '<a href="#out/forms/' + next.id + '" class="small">' + esc(next.t) + ' →</a>' : '') + '</div></article>' +
       '<aside><section class="card"><div class="card-h"><h2>티로드에서 바로</h2></div><div class="card-b" style="display:grid;gap:9px"><a class="btn" href="#collect/new">이 양식의 표로 모으기</a><button class="btn" id="fshare">링크 복사 (쪽지로 보내기)</button><p class="small muted" style="margin:0">표가 있는 양식이면 hwpx를 올려 <b>표만 칸 단위로 걷고</b>, 다 모이면 같은 파일에 채워 돌려받습니다(v1).</p></div></section></aside></div>';
     $('#fdl').onclick = function () { f.dl++; TR.toast('프로토타입: 「' + f.file + '」 내려받기'); formView(bb, id); };
-    $('#fshare').onclick = function () { TR.copy('[티로드 양식] ' + f.t + '\nhttps://t.road/forms/' + f.id); };
+    $('#fshare').onclick = function () { TR.copy('[티로드 양식] ' + f.t + '\nhttps://t.goteacher.xyz/forms/' + f.id); };
   }
 
   // 확인 현황(몇 명 봤는지)은 보낸 사람과 교감만 본다 — 받는 사람에겐 점검받는 느낌을 주지 않게
@@ -1122,11 +1129,11 @@
       '</div><aside>' + (canSeeAck(n) ? '<section class="card"><div class="card-h"><h2>확인 현황 <span class="small muted" style="font-weight:400">보낸 사람만 봐요</span></h2><b>' + pct + '%</b></div><div class="card-b"><div class="bar"><i style="width:' + pct + '%"></i></div><p class="small muted" style="margin:6px 0 0">' + n.seen + '/' + n.total + '명</p>' +
       (n.ver > 1 ? '<p class="small" style="margin:12px 0 5px">v' + n.ver + ' 바뀐 부분 확인 <b>' + n.seenV2 + '/' + n.seen + '</b></p><div class="bar"><i style="width:' + Math.round(n.seenV2 / n.seen * 100) + '%;background:var(--accent)"></i></div>' : '') +
       (id === 'n2' ? '<p class="small muted" style="margin:14px 0 7px">아직 안 본 선생님</p><div class="miss">' + TR.unseenN2.map(function (x) { return '<button>' + x + '</button>'; }).join('') + '</div><button class="btn sm" style="margin-top:12px" id="rem">안 본 분께 보낼 문구 복사</button>' : '') +
-      '</div></section>' : '<section class="card"><div class="card-b"><b>' + (n.must ? (st.acked[n.id] ? '✓ 확인했어요' : '열어 보면 확인한 것으로 쳐요') : '확인이 필요 없는 공지예요') + '</b><p class="small muted" style="margin:6px 0 0">누가 봤는지는 보낸 선생님만 알 수 있어요.</p></div></section>') + '<div style="margin-top:18px"><div class="small muted" style="margin-bottom:7px">받는 사람 화면 (PC 브라우저)</div>' + pcWin('recv.html?n=' + id, 't.road/n/' + id, 644) + '</div></aside></div>';
+      '</div></section>' : '<section class="card"><div class="card-b"><b>' + (n.must ? (st.acked[n.id] ? '✓ 확인했어요' : '열어 보면 확인한 것으로 쳐요') : '확인이 필요 없는 공지예요') + '</b><p class="small muted" style="margin:6px 0 0">누가 봤는지는 보낸 선생님만 알 수 있어요.</p></div></section>') + '<div style="margin-top:18px"><div class="small muted" style="margin-bottom:7px">받는 사람 화면 (PC 브라우저)</div>' + pcWin('recv.html?n=' + id, 't.goteacher.xyz/n/' + id, 644) + '</div></aside></div>';
     $$('[data-v]', view).forEach(function (b) { b.onclick = function () { $$('[data-v]', view).forEach(function (x) { x.classList.toggle('on', x === b); }); var v = n.versions[+b.dataset.v - 1]; $('#kv').innerHTML = Object.keys(v.fields).map(function (k) { return '<dt>' + esc(k) + '</dt><dd>' + esc(v.fields[k]) + '</dd>'; }).join(''); }; });
     var ack = $('#ack'); if (ack) ack.onclick = function () { st.acked[n.id] = true; n.seen = Math.min(n.total, n.seen + 1); TR.save(); TR.toast('확인했어요. 보낸 분 화면에 바로 반영됩니다.'); noticeDetail(id); updateDots(); };
-    $('#cp').onclick = function () { TR.copy('[티로드] ' + n.title + (n.ver > 1 ? ' (v' + n.ver + ' 수정: 장소·시간 변경)' : '') + '\nhttps://t.road/n/' + n.id); };
-    var rem = $('#rem'); if (rem) rem.onclick = function () { TR.copy('[티로드] 「' + n.title + '」 v2에서 장소(체육관)·시간(3블록)이 바뀌었어요. 확인 부탁드립니다.\nhttps://t.road/n/' + n.id, '미확인 ' + TR.unseenN2.length + '명께 보낼 문구를 복사했어요.'); };
+    $('#cp').onclick = function () { TR.copy('[티로드] ' + n.title + (n.ver > 1 ? ' (v' + n.ver + ' 수정: 장소·시간 변경)' : '') + '\nhttps://t.goteacher.xyz/n/' + n.id); };
+    var rem = $('#rem'); if (rem) rem.onclick = function () { TR.copy('[티로드] 「' + n.title + '」 v2에서 장소(체육관)·시간(3블록)이 바뀌었어요. 확인 부탁드립니다.\nhttps://t.goteacher.xyz/n/' + n.id, '미확인 ' + TR.unseenN2.length + '명께 보낼 문구를 복사했어요.'); };
   }
 
   // ---------- 학교 (전체 교사 공용 현황판) ----------
@@ -1165,7 +1172,7 @@
       
       summaryCard() +
       '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>오늘 복무 현황</h2><div class="row"><span class="small muted">' + duty.length + '명 · 유형·시간만 보여요(사유 없음)</span><button class="btn sm" id="dutyPaste">나이스 복무현황 붙여넣기</button></div></div><div class="card-b"><div class="duty-row">' + (dutyHtml || '<span class="muted">오늘 부재자가 없어요.</span>') + '</div><p class="small faint" style="margin:12px 0 0">교무실무사 한 분이 나이스 일일 복무현황 표를 복사해 붙여넣으면 채워집니다. 선생님들이 따로 입력하지 않아요. 병가·공가·특별휴가는 「휴가」로만 보입니다.</p></div></section>' +
-      '<div class="row" style="margin-bottom:14px"><div class="seg"><button data-tab="grade" class="' + (schoolTab === 'grade' ? 'on' : '') + '">학년분장 · 그룹 현황</button><button data-tab="duty" class="' + (schoolTab === 'duty' ? 'on' : '') + '">업무분장 · 부서</button></div><span class="small muted">' + (schoolTab === 'grade' ? '그룹 ' + TR.groups.length + '개 · 구성원 ' + members.length + '명' : '부서 ' + TR.duties.map(function (d) { return d[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length + '개 · 업무 ' + TR.duties.length + '개') + '</span></div>' + body + '<div style="margin-top:18px">' + '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>급식소 현황판 (TV)</h2><span class="small muted">로그인 없음 · 급식소 TV 브라우저에 이 주소만 띄워 두세요</span></div><div class="card-b row" style="justify-content:space-between;flex-wrap:wrap;gap:12px"><div><b style="font-size:18px">t.road/tv/' + TR.meal.DEFAULT + '</b> <span class="small muted">시연: 김해봉황초등학교 실제 NEIS 급식</span><div class="small muted">메뉴 · 알레르기 · 칼로리 · 원산지 · 이번 주 메뉴는 NEIS에서 자동, 위생 교육 주제 · 표어는 날마다 자동으로 바뀝니다. 영양 선생님은 매일 당일 식판 사진 한 장만 올리면 됩니다.</div></div><div class="row"><a class="btn" href="meal-admin.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">영양사 입력 ↗</a><a class="btn pri" href="tv.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">현황판 열기 ↗</a></div></div></section>' + '</div>';
+      '<div class="row" style="margin-bottom:14px"><div class="seg"><button data-tab="grade" class="' + (schoolTab === 'grade' ? 'on' : '') + '">학년분장 · 그룹 현황</button><button data-tab="duty" class="' + (schoolTab === 'duty' ? 'on' : '') + '">업무분장 · 부서</button></div><span class="small muted">' + (schoolTab === 'grade' ? '그룹 ' + TR.groups.length + '개 · 구성원 ' + members.length + '명' : '부서 ' + TR.duties.map(function (d) { return d[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length + '개 · 업무 ' + TR.duties.length + '개') + '</span></div>' + body + '<div style="margin-top:18px">' + '<section class="card" style="margin-bottom:18px"><div class="card-h"><h2>급식소 현황판 (TV)</h2><span class="small muted">로그인 없음 · 급식소 TV 브라우저에 이 주소만 띄워 두세요</span></div><div class="card-b row" style="justify-content:space-between;flex-wrap:wrap;gap:12px"><div><b style="font-size:18px">t.goteacher.xyz/tv/' + TR.meal.DEFAULT + '</b> <span class="small muted">시연: 김해봉황초등학교 실제 NEIS 급식</span><div class="small muted">메뉴 · 알레르기 · 칼로리 · 원산지 · 이번 주 메뉴는 NEIS에서 자동, 위생 교육 주제 · 표어는 날마다 자동으로 바뀝니다. 영양 선생님은 매일 당일 식판 사진 한 장만 올리면 됩니다.</div></div><div class="row"><a class="btn" href="meal-admin.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">영양사 입력 ↗</a><a class="btn pri" href="tv.html?s=' + TR.meal.DEFAULT + '" target="_blank" rel="noopener">현황판 열기 ↗</a></div></div></section>' + '</div>';
     $$('[data-tab]', view).forEach(function (b) { b.onclick = function () { schoolTab = b.dataset.tab; school(); }; });
     $('#dutyPaste').onclick = dutyPaste;
     $('#sumPrint').onclick = function () { window.print(); };
@@ -1237,7 +1244,7 @@
       '<p class="small muted">교장·보건·사서·상담·특수·돌봄 직책은 교무실과 기타/지원 양쪽에 있습니다. 전담은 주 학년 그룹의 \'전담\'으로 들어갑니다.</p>';
     if (wizStep === 2) body = '<h2 style="font-size:20px">업무분장표를 붙여넣으세요 (선택)</h2><p class="muted">2월에 만드는 그 표 그대로. <b>부서와 담당 업무</b>가 만들어지고, 취합 대상을 "부서·업무"로 고를 수 있게 됩니다. 부서는 그룹과 별개라서, 비워 두고 나중에 넣어도 됩니다.</p><textarea class="paste" id="wp">' + DUTY_SAMPLE + '</textarea><div id="wr" style="margin-top:14px"></div>';
     if (wizStep === 3) body = '<h2 style="font-size:20px">블록 시각을 정하세요</h2><p class="muted">티로드의 시간 단위는 <b>1블록 · 2블록 · 3블록 · 방과후</b> 네 칸뿐입니다. 학교 시정에 맞춰 시작·끝 시각만 고치면 「오늘」·「일정」의 블록 칸과 <b>묶음 알림 시각</b>이 여기서 정해집니다. 수업 중에는 PC 알림도 띄우지 않습니다(교실 TV·전자칠판에 화면이 송출되기 때문).</p><textarea class="paste" id="wp">' + TIME_SAMPLE + '</textarea><div id="wr" style="margin-top:14px"></div>';
-    if (wizStep === 4) body = '<h2 style="font-size:20px">선생님 초대</h2><p class="muted">학교 코드를 말로 전할 필요가 없습니다. 링크를 쪽지로 보내거나 교무실에 QR을 붙여 두세요. 처음 들어올 때 <b>이름 → 그룹 → 직책</b>만 고르면 됩니다.</p><div class="row" style="gap:23px;align-items:flex-start;flex-wrap:wrap"><canvas class="qr" id="qr" width="29" height="29" aria-label="초대 QR 예시"></canvas><div class="grow" style="min-width:276px"><div class="msg">[티로드] 우리 학교 티로드가 열렸어요.\n오늘 일과·바뀐 것·내 마감을 한 화면에서 봅니다.\n가입 없이 이름과 그룹(학년·교무실…)만 고르면 끝 → https://t.road/j/TRD-7Q2K</div><div class="row" style="margin-top:12px"><button class="btn pri" id="cpj">쪽지 문구 복사</button><button class="btn" onclick="window.print()">QR 인쇄</button></div><p class="small muted">학교 도메인 메일 인증은 선택입니다 (초등은 업무용 메일 보유율이 낮음).</p></div></div>';
+    if (wizStep === 4) body = '<h2 style="font-size:20px">선생님 초대</h2><p class="muted">학교 코드를 말로 전할 필요가 없습니다. 링크를 쪽지로 보내거나 교무실에 QR을 붙여 두세요. 처음 들어올 때 <b>이름 → 그룹 → 직책</b>만 고르면 됩니다.</p><div class="row" style="gap:23px;align-items:flex-start;flex-wrap:wrap"><canvas class="qr" id="qr" width="29" height="29" aria-label="초대 QR 예시"></canvas><div class="grow" style="min-width:276px"><div class="msg">[티로드] 우리 학교 티로드가 열렸어요.\n오늘 일과·바뀐 것·내 마감을 한 화면에서 봅니다.\n가입 없이 이름과 그룹(학년·교무실…)만 고르면 끝 → https://t.goteacher.xyz/j/TRD-7Q2K</div><div class="row" style="margin-top:12px"><button class="btn pri" id="cpj">쪽지 문구 복사</button><button class="btn" onclick="window.print()">QR 인쇄</button></div><p class="small muted">학교 도메인 메일 인증은 선택입니다 (초등은 업무용 메일 보유율이 낮음).</p></div></div>';
     view.innerHTML = '<div class="page-h"><div><h1>새 학년 세팅</h1><p>2월 셋째 주, 10분이면 끝나는 4단계. 고티처처럼 엑셀 매칭·임시 비밀번호가 필요 없습니다.</p></div><a class="btn" href="#school">학교 화면으로</a></div>' +
       '<div class="wiz"><nav class="wiz-steps card" style="padding:9px">' + steps.map(function (s, i) { return '<button class="' + (wizStep === i + 1 ? 'on' : '') + '" data-s="' + (i + 1) + '"><i>' + (i + 1) + '</i>' + s + '</button>'; }).join('') + '</nav>' +
       '<section class="card"><div class="card-b">' + body + '<div class="row" style="justify-content:flex-end;margin-top:18px">' + (wizStep > 1 ? '<button class="btn" data-s="' + (wizStep - 1) + '">이전</button>' : '') + (wizStep < 4 ? '<button class="btn pri" data-s="' + (wizStep + 1) + '">다음</button>' : '<a class="btn pri" href="#today">완료 — 오늘 화면 보기</a>') + '</div></div></section></div>';

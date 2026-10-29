@@ -155,6 +155,7 @@
     var cd = e.clipboardData || {}, types = [].slice.call(cd.types || []), html = cd.getData ? cd.getData('text/html') : '', txt = cd.getData ? cd.getData('text/plain') : '';
     var rows = txt.split(/\r?\n/).filter(function (l) { return l.trim(); }), cols = rows.length ? Math.max.apply(null, rows.map(function (l) { return l.split('\t').length; })) : 0;
     var tbl = /<table/i.test(html);
+    if (tbl) { var t = new DOMParser().parseFromString(html, 'text/html').querySelector('table'), trs = t ? t.querySelectorAll('tr') : []; R.htmlGrid = trs.length + '줄×' + (trs.length ? Math.max.apply(null, [].map.call(trs, function (r) { return r.children.length; })) : 0) + '칸'; }
     R.paste = { types: types.join(','), table: tbl, rows: rows.length, cols: cols };
     $('#pzr').innerHTML = rows.length ? '<span style="color:var(--ok);font-weight:700">붙여넣기 됐어요</span> — ' + rows.length + '줄 × ' + cols + '칸' + (tbl ? ' · 표 서식(HTML) 있음' : ' · 글자만') : '<span style="color:var(--danger);font-weight:700">아무것도 안 들어왔어요</span> — 망 사이 복사가 막혔을 수 있어요';
     summary();
@@ -193,7 +194,7 @@
       '연결: 티로드 열림 · 나이스 ' + (R.neis == null ? '확인 중' : R.neis ? 'OK' : '막힘') + ' · CDN ' + (R.cdn == null ? '확인 중' : R.cdn ? 'OK' : '막힘'),
       '지원: WASM ' + (R.wasm ? 'O' : 'X') + ' · 암호화 ' + (R.crypto ? 'O' : 'X') + ' · color-mix ' + (R.cmix ? 'O' : 'X') + ' · :has ' + (R.has ? 'O' : 'X'),
       '저장 유지: ' + R.store + (R.firstAt ? ' (처음 ' + new Date(R.firstAt).toLocaleDateString('ko-KR') + ', ' + R.visits + '번째)' : '') + ' · 쿠키 ' + (R.cookie ? '남음' : '없음'),
-      '붙여넣기: ' + (R.paste ? R.paste.rows + '줄×' + R.paste.cols + '칸' + (R.paste.table ? ' 표서식' : ' 글자만') : '안 해 봄') + ' · 파일 고르기: ' + (R.file || '안 해 봄') + ' · 내려받기: ' + (A.download || '-') + ' · 알림: ' + (R.notify || '안 해 봄'),
+      '붙여넣기: ' + (R.paste ? '글자 ' + R.paste.rows + '줄×' + R.paste.cols + '칸' + (R.paste.table ? ' · 표서식 ' + (R.htmlGrid || '') : ' · 글자만') : '안 해 봄') + ' · 파일 고르기: ' + (R.file || '안 해 봄') + ' · 내려받기: ' + (A.download || '-') + ' · 알림: ' + (R.notify || '안 해 봄'),
       '한글 열기: hwp ' + (A.hwp || '-') + ' · hwpx ' + (A.hwpx || '-') + (A.memo ? ' · 메모: ' + A.memo : ''),
       '시각: ' + new Date().toLocaleString('ko-KR')
     ];

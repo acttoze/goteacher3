@@ -89,10 +89,10 @@
     return fetch(u).then(function (r) { return r.json(); }).then(function (j) { var b = j[path]; return b ? { total: b[0].head[0].list_total_count, rows: b[1].row } : { total: 0, rows: [] }; });
   }
   function steps(n) {
-    return '<div class="steps">' + ['간편 로그인', '학교 찾기', '내 학년 · 반', '동학년 초대'].map(function (t, i) { return '<span class="' + (i + 1 === n ? 'on' : i + 1 < n ? 'done' : '') + '"><i>' + (i + 1 < n ? '✓' : i + 1) + '</i>' + t + '</span>'; }).join('') + '</div>';
+    return '<div class="steps">' + ['구글 로그인', '학교 찾기', '내 학년 · 반', '동학년 초대'].map(function (t, i) { return '<span class="' + (i + 1 === n ? 'on' : i + 1 < n ? 'done' : '') + '"><i>' + (i + 1 < n ? '✓' : i + 1) + '</i>' + t + '</span>'; }).join('') + '</div>';
   }
   function joinUrl(g) { return new URL('join.html?t=' + g.token, location.href).href; }
-  function shortUrl(g) { return 't.road/g/' + g.token; }
+  function shortUrl(g) { return 't.goteacher.xyz/g/' + g.token; }
 
   function render() {
     var g = load();
@@ -106,8 +106,8 @@
   // 1. 간편 로그인 (프로토타입: 누르면 로그인한 것으로)
   function stepLogin() {
     root.innerHTML = steps(1) + '<div class="hero"><div><h1>동학년 선생님들과<br>바로 같이 쓰세요</h1><p class="lead">학년 대표 선생님이 동학년을 만들고 링크 하나를 쿨메신저로 보내면 끝입니다. 받은 선생님은 <b>가입 없이 이름만 고르고</b> 들어와요. 학교 전체가 같이 쓰지 않아도 됩니다.</p>' +
-      '<div class="social" style="margin-top:28px"><button class="kakao" data-via="kakao">카카오로 시작하기</button><button class="naver" data-via="naver">네이버로 시작하기</button><button class="google" data-via="google">구글로 시작하기</button></div>' +
-      '<p class="small muted" style="margin:14px 0 0">비밀번호·문자 인증은 없어요. 이 PC를 1년 동안 기억합니다. 초대 링크를 받으셨다면 그 링크를 그대로 여세요.</p></div>' +
+      '<div class="social" style="margin-top:28px"><button class="google" data-via="google"><svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>구글 계정으로 시작하기</button></div>' +
+      '<p class="small muted" style="margin:14px 0 0">학교 PC에서 쓰는 구글 계정 하나면 돼요. 비밀번호를 티로드에 따로 만들지 않고, 이 PC를 1년 동안 기억합니다. 초대 링크를 받으셨다면 그 링크를 그대로 여세요.</p></div>' +
       '<div class="pts"><div class="pt"><i>📋</i><div><b>한글 양식 그대로 걷고, 그대로 돌려받기</b><br><span>hwp·hwpx 양식을 올리면 표 칸만 링크로 받아, 같은 파일에 채워 내려받아요.</span></div></div>' +
       '<div class="pt"><i>🔗</i><div><b>링크 하나로 동학년 전원</b><br><span>반 칸을 고르고 30초면 제출. 다른 반 값은 보이지 않아요.</span></div></div>' +
       '<div class="pt"><i>🔒</i><div><b>교직원 정보만</b><br><span>학생 개인정보는 받지 않아요. 오라클 클라우드 국내 리전에 보관합니다.</span></div></div>' +

@@ -146,6 +146,20 @@
     var g = TR.groupOf(TR.me.name), t = (ev.target || '') + ' ' + ev.title;
     return t.indexOf(TR.me.cls) >= 0 || t.indexOf(g) >= 0 || t.indexOf(g.replace('학년', '')) >= 0 && /·\d학년|\d·\d/.test(t) || /전\s?교직원|전\s?교원|^담임$|전교/.test(ev.target || '');
   };
+  // 클립보드 HTML의 첫 표 → 탭·줄바꿈 글자. 병합 칸(colspan)은 빈 칸으로 채워 열을 맞춘다. 표가 없으면 ''.
+  TR.htmlTableToTsv = function (html) {
+    var doc = new DOMParser().parseFromString(html, 'text/html'), t = doc.querySelector('table');
+    if (!t) return '';
+    return [].map.call(t.querySelectorAll('tr'), function (tr) {
+      var out = [];
+      [].forEach.call(tr.children, function (td) {
+        if (!/^T[DH]$/.test(td.tagName)) return;
+        out.push(td.textContent.replace(/\s+/g, ' ').trim());
+        for (var k = 1; k < (+td.getAttribute('colspan') || 1); k++) out.push('');
+      });
+      return out.join('\t');
+    }).filter(function (l) { return l.replace(/\t/g, '').trim(); }).join('\n');
+  };
   // '오늘 바뀐 것'에 띄울 변경: 나 · 우리 학년 · 전 교직원 대상만. 남의 복무는 띄우지 않는다.
   TR.aboutMe = function (ev) {
     if (ev.type === 'duty') return ev.who === TR.me.name;
