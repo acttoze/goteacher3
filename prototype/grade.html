@@ -92,7 +92,7 @@
     return '<div class="steps">' + ['구글 로그인', '학교 찾기', '내 학년 · 반', '동학년 초대'].map(function (t, i) { return '<span class="' + (i + 1 === n ? 'on' : i + 1 < n ? 'done' : '') + '"><i>' + (i + 1 < n ? '✓' : i + 1) + '</i>' + t + '</span>'; }).join('') + '</div>';
   }
   function joinUrl(g) { return new URL('join.html?t=' + g.token, location.href).href; }
-  function shortUrl(g) { return 't.goteacher.xyz/g/' + g.token; }
+  function shortUrl(g) { return 'goteacher.xyz/g/' + g.token; }
 
   function render() {
     var g = load();

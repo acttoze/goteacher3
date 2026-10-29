@@ -109,7 +109,7 @@
     var scr = M.screens(set), onN = scr.filter(function (c) { return c.on; }), loop = onN.reduce(function (a, c) { return a + c.sec; }, 0);
 
     root.innerHTML =
-      '<div class="page-h"><div><h1>급식소 현황판</h1><p>' + esc(data.name) + ' · NEIS 교육청 ' + esc(M.split(S).atpt) + ' / 학교 ' + esc(M.split(S).code) + ' · 현황판 주소 <b>t.goteacher.xyz/tv/' + esc(S) + '</b></p></div></div>' +
+      '<div class="page-h"><div><h1>급식소 현황판</h1><p>' + esc(data.name) + ' · NEIS 교육청 ' + esc(M.split(S).atpt) + ' / 학교 ' + esc(M.split(S).code) + ' · 현황판 주소 <b>goteacher.xyz/tv/' + esc(S) + '</b></p></div></div>' +
       '<div class="note">시연용 프로토타입이라 여기서 넣은 값은 <b>이 브라우저에만</b> 저장됩니다. 같은 PC에서 연 현황판에는 바로 반영됩니다. 실제 서비스에서는 티로드 서버에 저장되어 급식소 TV에 바로 뜹니다.</div>' +
 
       todayPhotoHtml(today) +

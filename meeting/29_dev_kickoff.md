@@ -15,7 +15,7 @@
 |---|---|
 | 스택 | Python 3.12 + Django 5 + htmx, PostgreSQL 17, Redis + RQ, python-hwpx(서버) + rhwp WASM(브라우저) |
 | 서버 | OCI 춘천 `ap-chuncheon-1` 무료 A1(2 OCPU·12GB) — SSH 별칭 `oci_tailscale`(공인 168.107.34.70의 22번은 막힘). 80·443은 **Traefik** 컨테이너가 받음 → 티로드 컨테이너에 `Host(t.goteacher.xyz)` 라벨. 컨테이너 29개 공용이므로 다른 서비스는 건드리지 않는다 |
-| 도메인 | `t.goteacher.xyz`(와일드카드 `*.goteacher.xyz` → OCI). 본 도메인 goteacher.xyz는 구버전 운영 중 |
+| 도메인 | **운영은 `goteacher.xyz`**. 구버전이 본 도메인에서 운영 중이라 **개발·베타는 `t.goteacher.xyz`**(와일드카드 → OCI), 출시 때 전환(작업 G7). 코드에 주소를 박지 말고 `SITE_URL` 설정으로만 |
 | 로그인 | **구글만**. GCP 프로젝트 `troad-goteacher`(landmandev@gmail.com), 리디렉션 `/auth/google/callback`(운영·localhost:8000) |
 | 비밀 | 구글 클라이언트 JSON: `~/.config/troad/google_oauth_client.json`(저장소 밖, 600). 서버에는 `.env`로만. **저장소에 비밀 값 금지**(.gitignore에 `client_secret_*.json`, `.env`) |
 | 학생 정보 | 받지 않는다. 교직원 정보 취합까지만(학생 열은 감지·경고) |
@@ -30,5 +30,5 @@
 
 ## 남은 확인
 
-- 구글 동의 화면은 **'테스트 중'**(10/29 확인). 게시는 브랜딩(홈페이지·처리방침·약관 주소, 승인 도메인 goteacher.xyz)이 있어야 해서 B1 배포 뒤로. 처리방침·약관 초안은 `prototype/privacy.html`·`terms.html`(노란 칸 채우기 필요). 그전에는 테스트 사용자로 로그인
+- 구글 동의 화면은 **'테스트 중'으로 유지**(테스트 사용자로 개발·베타). 프로덕션 게시는 출시 때 도메인 전환(G7)과 함께, 처리방침·약관을 `goteacher.xyz`에 올린 뒤. 처리방침·약관 초안은 `prototype/privacy.html`·`terms.html`(노란 칸 채우기 필요). 그전에는 테스트 사용자로 로그인
 - 학교판(R2) 전: OCI의 CSAP 보유 여부, 전용 인스턴스 분리
