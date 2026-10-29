@@ -101,7 +101,6 @@
       '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + (row.gid ? '그룹 칸 · 그룹 누구나' : esc(row.who) + (mine ? ' · 내 칸' : ' 선생님 칸')) + '</span></span>' + (row.done ? '<span class="badge ok">' + (row.by ? esc(row.by) + ' 제출' : '제출함') + '</span>' : '') + '</h2>' +
       (row.gid ? '<p class="small muted" style="margin:-4px 0 12px">' + esc(row.unit) + ' 선생님 누구나 이 칸을 쓸 수 있어요. 한 분이 내면 그룹 전체가 제출한 것으로 처리되고, 마감 전까지 다른 분이 고칠 수 있어요.</p>' : '') +
       (!mine && !row.gid ? '<p class="small muted" style="margin:-4px 0 12px">대신 내셔도 돼요. 학교 안에서만 도는 링크라 누구나 이 칸을 채울 수 있어요.</p>' : '') +
-      (piiFields(c).length ? '<p class="pii-note">🔒 ' + piiFields(c).map(esc).join(', ') + ' 칸은 요청한 선생님 PC에서만 풀리게 잠겨서 전달돼요. 티로드도 볼 수 없고, 합본을 내려받으면 서버에서 지워집니다.</p>' : '') +
       c.fields.map(function (f, i) {
         var v = row.v[i] || '', id = 'f' + i;
         if (f.t === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><select id="' + id + '" required><option value="">선택</option>' + (f.o || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';

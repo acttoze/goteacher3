@@ -564,7 +564,7 @@
     }).join('');
     view.innerHTML = '<div class="page-h"><div><h1>모으기</h1><p>양식 표를 붙여넣으면 끝. 받는 사람은 자기 칸만 채우고, 합본은 실시간으로 만들어집니다. 마감은 만든 뒤 각 요청 화면에서 정합니다.</p></div><a class="btn pri" href="#collect/new">＋ 새로 모으기</a></div>' +
       '<div class="card">' + rows + '</div>' +
-      '<div class="grid2" style="margin-top:18px"><div class="proto-note">취합 흐름: hwp에서 <b>취합할 표 부분만</b> 꺼내 칸 단위 데이터로 만들고 → 선생님별 "내 칸" 링크로 걷고 → 다 모이면 다시 hwp로 내보냅니다. MVP부터 <b>한글 파일(hwp · hwpx)을 올리면 같은 파일의 그 표 칸에 채워 올린 형식 그대로</b> 돌려줍니다(실제 양식 1,376개로 검증).</div><div class="proto-note">🔒 <b>학생 이름은 티로드 서버에 남지 않습니다.</b> 요청한 선생님 PC에서만 풀리게 잠겨 오가고, 합본을 내려받으면 지워집니다. 꼬리말 「티로드로 모았습니다」는 요청 화면에서 끌 수 있어요.</div></div>';
+      '<div class="grid2" style="margin-top:18px"><div class="proto-note">취합 흐름: hwp에서 <b>취합할 표 부분만</b> 꺼내 칸 단위 데이터로 만들고 → 선생님별 "내 칸" 링크로 걷고 → 다 모이면 다시 hwp로 내보냅니다. MVP부터 <b>한글 파일(hwp · hwpx)을 올리면 같은 파일의 그 표 칸에 채워 올린 형식 그대로</b> 돌려줍니다(실제 양식 1,376개로 검증).</div><div class="proto-note">티로드는 <b>교직원 정보 취합</b>까지만 합니다. 학생 이름·연락처 열은 받지 않아요. 꼬리말 「티로드로 모았습니다」는 요청 화면에서 끌 수 있어요.</div></div>';
   }
 
   var SAMPLE_TABLE = '학년반\t담임\t희망 인원\t희망 프로그램\t비고\n1-1\t강지은\t\t\t\n1-2\t윤서준\t\t\t\n1-3\t장미경\t\t\t\n2-1\t최수아\t\t\t\n…';
@@ -582,7 +582,7 @@
     view.innerHTML = '<div class="page-h"><div><h1>새로 모으기</h1><p>받을 항목만 정하면 됩니다. 받는 사람 칸(학년반·이름)은 대상에 맞춰 자동으로 채워져요.</p></div><a class="btn" href="#collect">취소</a></div>' +
       '<div class="grid2"><section class="card"><div class="card-b">' +
       '<label class="fld" style="margin-bottom:18px">제목<input id="title" placeholder="예: 2학기 방과후 수요조사" style="height:46px;font-size:17px"></label>' +
-      '<div class="step"><i>1</i>양식 가져오기 <span class="pii-badge">🔒 학생 이름은 티로드 서버에 남지 않아요</span></div>' +
+      '<div class="step"><i>1</i>양식 가져오기 <span class="pii-badge">교직원 정보만 받아요 · 학생 개인정보는 받지 않아요</span></div>' +
       '<div class="seg" style="margin-bottom:14px">' + [['paste', '표 붙여넣기'], ['file', '한글 양식 올리기 (hwp · hwpx)'], ['sheet', '직접 입력'], ['preset', '자주 쓰는 양식']].map(function (s) { return '<button data-src="' + s[0] + '" class="' + (newSrc === s[0] ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') + '</div>' +
       '<div id="srcSheet" data-pane="sheet"><div id="sheet"></div><label class="toggle" style="margin-top:12px"><input type="checkbox" id="multi"> 받는 사람이 줄을 여러 개 추가 (예: 물품 신청 — 한 반이 여러 물품)</label></div>' +
       '<div data-pane="preset"><div class="presets">' +
@@ -683,7 +683,7 @@
         unitCols.map(function (h) { return '<span class="field-chip" style="background:var(--surface-2)">' + esc(h) + '<span class="small faint">미리 채움</span></span>'; }).join('') +
         inputCols.map(function (h) { var t = /인원|수|시간|금액/.test(h) ? 'number' : /프로그램|여부|희망/.test(h) ? 'select' : /일$|날짜/.test(h) ? 'date' : 'text'; return '<span class="field-chip">' + esc(h) + '<select aria-label="입력 형식"><option' + (t === 'text' ? ' selected' : '') + '>글자</option><option' + (t === 'number' ? ' selected' : '') + '>숫자</option><option' + (t === 'select' ? ' selected' : '') + '>선택지</option><option' + (t === 'date' ? ' selected' : '') + '>날짜</option></select></span>'; }).join('') + '</div>';
       var pii = head.filter(function (h) { return /학생\s?(이름|성명)|학생명|연락처|전화|주민|주소/.test(h); });
-      $('#pii').innerHTML = pii.length ? '<div class="pii-note"><b>🔒 학생 정보 열: ' + pii.map(esc).join(', ') + '</b><br>이 칸의 값은 보낸 선생님 PC에서만 풀리는 암호로 오가서 <b>티로드도 볼 수 없어요.</b> 합본을 내려받으면 서버에서 바로 지워지고, 티로드에는 제출 여부와 인원 수만 남습니다.</div>' : '';
+      $('#pii').innerHTML = pii.length ? '<div class="warn"><b>학생 개인정보로 보이는 열: ' + pii.map(esc).join(', ') + '</b><br>티로드는 교직원 정보 취합까지만 해요. 이 열은 <b>인원 수</b>로 바꾸거나 빼 주세요. 학생 명단은 학교 업무용 시스템에서 다뤄 주세요.</div>' : '';
       if (!$('#title').value) $('#title').value = /방과후|프로그램/.test(paste.value) ? '2학기 방과후 수요조사(추가)' : '새 취합';
       renderMsg();
     }
@@ -1182,7 +1182,7 @@
       k((rows ? Math.round(done / rows * 100) : 0) + '%', '제출 완료율', done + '/' + rows + '칸') +
       k(ackP + '%', '확인 필수 공지 확인율', must.length + '건 평균') +
       k(st.members.length + '명', '함께 쓰는 교직원', TR.groups.length + '개 그룹') +
-      '</div><p class="small muted" style="margin:12px 0 0">학생 이름은 티로드 서버에 남지 않습니다. 출시 때 개인정보 처리 안내와 보안 계획(CSAP 인증 로드맵, 망분리 환경 안내)을 이 카드에 함께 둡니다.</p></div></section>';
+      '</div><p class="small muted" style="margin:12px 0 0">학생 개인정보는 받지 않고 교직원 업무 정보만 다룹니다. 출시 때 개인정보 처리 안내와 보안 계획(오라클 클라우드 보안, 망분리 환경 안내)을 이 카드에 함께 둡니다.</p></div></section>';
   }
   // 교무실무사: 나이스 일일 복무현황 표를 붙여넣으면 오늘 복무를 바꾼다. 사유는 버리고 유형·시간만 남긴다.
   function dutyPaste() {
