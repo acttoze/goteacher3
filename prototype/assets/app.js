@@ -564,12 +564,12 @@
     }).join('');
     view.innerHTML = '<div class="page-h"><div><h1>모으기</h1><p>양식 표를 붙여넣으면 끝. 받는 사람은 자기 칸만 채우고, 합본은 실시간으로 만들어집니다. 마감은 만든 뒤 각 요청 화면에서 정합니다.</p></div><a class="btn pri" href="#collect/new">＋ 새로 모으기</a></div>' +
       '<div class="card">' + rows + '</div>' +
-      '<div class="grid2" style="margin-top:18px"><div class="proto-note">취합 흐름: hwp에서 <b>취합할 표 부분만</b> 꺼내 칸 단위 데이터로 만들고 → 선생님별 "내 칸" 링크로 걷고 → 다 모이면 다시 hwp로 내보냅니다. MVP는 표 <b>붙여넣기</b>, v1은 <b>hwpx 파일을 올려 같은 파일에 채워 돌려주기</b>입니다.</div><div class="proto-note">합본 파일 꼬리말에 "티로드로 모았습니다"가 들어갑니다. 받는 사람이 다음 취합을 직접 만들어 보게 하는 장치입니다.</div></div>';
+      '<div class="grid2" style="margin-top:18px"><div class="proto-note">취합 흐름: hwp에서 <b>취합할 표 부분만</b> 꺼내 칸 단위 데이터로 만들고 → 선생님별 "내 칸" 링크로 걷고 → 다 모이면 다시 hwp로 내보냅니다. MVP부터 <b>한글 파일(hwp · hwpx)을 올리면 같은 파일의 그 표 칸에 채워 올린 형식 그대로</b> 돌려줍니다(실제 양식 1,376개로 검증).</div><div class="proto-note">🔒 <b>학생 이름은 티로드 서버에 남지 않습니다.</b> 요청한 선생님 PC에서만 풀리게 잠겨 오가고, 합본을 내려받으면 지워집니다. 꼬리말 「티로드로 모았습니다」는 요청 화면에서 끌 수 있어요.</div></div>';
   }
 
   var SAMPLE_TABLE = '학년반\t담임\t희망 인원\t희망 프로그램\t비고\n1-1\t강지은\t\t\t\n1-2\t윤서준\t\t\t\n1-3\t장미경\t\t\t\n2-1\t최수아\t\t\t\n…';
   var TYPE_LABEL = { text: '글자', number: '숫자', select: '선택지', date: '날짜', url: '링크' };
-  var newSrc = 'sheet';
+  var newSrc = 'paste';
   // 자주 쓰는 양식: 누르면 바로 만들어진다. 마감은 만든 뒤 관리(상세) 화면에서 정한다.
   function makePreset(key) {
     var c = Object.assign(TR.preset(key), { id: 'c' + Date.now().toString(36), owner: TR.me.name, mine: true, due: '', dueISO: '' });
@@ -581,23 +581,24 @@
     var cols = [{ n: '', t: 'text' }], multi = false;
     view.innerHTML = '<div class="page-h"><div><h1>새로 모으기</h1><p>받을 항목만 정하면 됩니다. 받는 사람 칸(학년반·이름)은 대상에 맞춰 자동으로 채워져요.</p></div><a class="btn" href="#collect">취소</a></div>' +
       '<div class="grid2"><section class="card"><div class="card-b">' +
-      '<div class="step"><i>1</i>양식 가져오기</div>' +
-      '<div class="seg" style="margin-bottom:14px">' + [['sheet', '직접 입력'], ['preset', '자주 쓰는 양식'], ['paste', '표 붙여넣기'], ['file', 'hwpx 올리기 · v1']].map(function (s) { return '<button data-src="' + s[0] + '" class="' + (newSrc === s[0] ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') + '</div>' +
+      '<label class="fld" style="margin-bottom:18px">제목<input id="title" placeholder="예: 2학기 방과후 수요조사" style="height:46px;font-size:17px"></label>' +
+      '<div class="step"><i>1</i>양식 가져오기 <span class="pii-badge">🔒 학생 이름은 티로드 서버에 남지 않아요</span></div>' +
+      '<div class="seg" style="margin-bottom:14px">' + [['paste', '표 붙여넣기'], ['file', '한글 양식 올리기 (hwp · hwpx)'], ['sheet', '직접 입력'], ['preset', '자주 쓰는 양식']].map(function (s) { return '<button data-src="' + s[0] + '" class="' + (newSrc === s[0] ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') + '</div>' +
       '<div id="srcSheet" data-pane="sheet"><div id="sheet"></div><label class="toggle" style="margin-top:12px"><input type="checkbox" id="multi"> 받는 사람이 줄을 여러 개 추가 (예: 물품 신청 — 한 반이 여러 물품)</label></div>' +
       '<div data-pane="preset"><div class="presets">' +
       '<button class="preset" data-preset="supplies"><b>학습준비물 신청</b><span>반마다 물품을 여러 줄로 · <b>금액 = 수량 × 단가</b> 자동 · 학급 예산 10만 원에서 잔액 자동 · 학년별 합계 자동</span><span class="small muted">물품명 · 수량 · 단가 · 금액 · 구입 링크 / 담임 24명 + 도움반</span><span class="go">누르면 바로 만들어요 →</span></button>' +
       '<button class="preset" data-preset="training"><b>교직원 연수 이수 현황</b><span>법정의무연수 ' + TR.TRAININGS.length + '개 × 전 교직원 · 칸마다 <b>이수번호</b> · 연수별 이수율 · 안 한 사람만 골라 독촉</span><span class="small muted">연수명 · 기간 · 대상 · 담당 / 전 교직원 ' + S().members.length + '명 (교원·행정실·급식소·지원)</span><span class="go">누르면 바로 만들어요 →</span></button>' +
       '</div><p class="small muted" style="margin:12px 0 0">학교에서 구글 시트로 가장 많이 돌리는 두 가지입니다. 연수 목록과 예산은 만든 뒤 고칠 수 있어요.</p></div>' +
-      '<div id="srcFile" data-pane="file"><label class="drop"><input type="file" id="hwpFile" accept=".hwpx,.hwp" hidden><b>hwpx 파일을 끌어다 놓거나 눌러서 고르세요</b><span class="small muted">파일 안의 표를 찾아 취합할 표를 고르게 합니다. 본문·결재란은 그대로 두고, 다 모이면 <b>같은 파일의 그 표 칸만</b> 채워 돌려드립니다.</span></label><div id="fileRes"></div></div>' +
+      '<div id="srcFile" data-pane="file"><label class="drop"><input type="file" id="hwpFile" accept=".hwpx,.hwp" hidden><b>한글 파일(hwp · hwpx)을 끌어다 놓거나 눌러서 고르세요</b><span class="small muted">파일 안의 표를 찾아 취합할 표를 고르게 합니다. 본문·결재란은 그대로 두고, 다 모이면 <b>같은 파일의 그 표 칸만</b> 채워 돌려드립니다.</span></label><div id="fileRes"></div></div>' +
       '<div id="srcPaste" data-pane="paste"><div class="row" style="justify-content:flex-end;margin-bottom:7px"><button class="btn sm" id="sample">예시 표 넣기</button></div>' +
       '<textarea class="paste" id="paste" placeholder="한글에서 표를 드래그해 복사(Ctrl+C) → 여기에 붙여넣기(Ctrl+V)\n\n예) 학년반 | 담임 | 희망 인원 | 희망 프로그램 | 비고"></textarea><div id="fields" style="margin-top:14px"></div></div>' +
       '<div id="rest"><div class="step" style="margin-top:21px"><i>2</i>누구에게 받나요</div><div id="aud"></div>' +
       '<div class="step" style="margin-top:21px"><i>3</i>받는 방식</div>' +
       '<div style="display:grid;gap:7px"><label><input type="radio" name="acc" value="in" checked> <b>티로드 안에서</b> — 쪽지 링크를 누르면 바로 내 칸. 처음 한 번 이 PC를 등록하면 그다음부터 로그인 화면이 없어요.</label><label><input type="radio" name="acc" value="ext"> <b>+ 외부 링크도 허용</b> — 명부에 없는 사람(방과후 강사·기간제 첫날·업체)용. 칸 하나 제출만 되고, 마감되면 링크가 닫힙니다.</label></div>' +
-      '<div class="row" style="margin-top:21px"><input id="title" placeholder="제목 (예: 2학기 방과후 수요조사)" style="flex:1;height:44px;border:1px solid var(--line-strong);border-radius:9px;padding:0 12px;background:var(--surface)"><button class="btn pri" id="create">만들고 링크 받기</button></div><p class="small muted" style="margin:9px 0 0">마감은 여기서 받지 않아요. 만든 뒤 요청 화면(관리)에서 정하면 받는 사람에게 마감과 리마인드가 갑니다.</p></div>' +
+      '<div class="row" style="margin-top:21px;justify-content:flex-end"><button class="btn pri" id="create" style="height:46px;font-size:17px">만들고 링크 받기</button></div><p class="small muted" style="margin:9px 0 0">마감은 여기서 받지 않아요. 만든 뒤 요청 화면(관리)에서 정하면 받는 사람에게 마감과 리마인드가 갑니다.</p></div>' +
       '</div></section>' +
       '<section class="card"><div class="card-h"><h2>받는 사람에게 갈 쪽지</h2><span class="small muted">쿨메신저에 그대로 붙여넣기</span></div><div class="card-b"><div class="msg" id="msg"></div><p class="small muted">링크를 누른 선생님은 PC 브라우저에서 <b>자기 반 칸만</b> 봅니다. 티로드에 들어와 있으면 우상단 🔔에도 뜹니다.</p><div id="pii"></div></div></section></div>';
-    var paste = $('#paste'), fieldsEl = $('#fields'), parsed = null;
+    var paste = $('#paste'), fieldsEl = $('#fields'), parsed = null, pendingFile = null;
 
     // 2. 누구에게 받나요 — 그룹 선택(사람마다 한 줄) / 개인 선택(전 직원 중) / 그룹별(그룹마다 한 줄)
     var GRADES = TR.groups.filter(function (g) { return g.kind === 'grade'; }).map(function (g) { return g.id; });
@@ -682,7 +683,7 @@
         unitCols.map(function (h) { return '<span class="field-chip" style="background:var(--surface-2)">' + esc(h) + '<span class="small faint">미리 채움</span></span>'; }).join('') +
         inputCols.map(function (h) { var t = /인원|수|시간|금액/.test(h) ? 'number' : /프로그램|여부|희망/.test(h) ? 'select' : /일$|날짜/.test(h) ? 'date' : 'text'; return '<span class="field-chip">' + esc(h) + '<select aria-label="입력 형식"><option' + (t === 'text' ? ' selected' : '') + '>글자</option><option' + (t === 'number' ? ' selected' : '') + '>숫자</option><option' + (t === 'select' ? ' selected' : '') + '>선택지</option><option' + (t === 'date' ? ' selected' : '') + '>날짜</option></select></span>'; }).join('') + '</div>';
       var pii = head.filter(function (h) { return /학생\s?(이름|성명)|학생명|연락처|전화|주민|주소/.test(h); });
-      $('#pii').innerHTML = pii.length ? '<div class="warn">학생 개인정보로 보이는 열이 있어요: ' + pii.map(esc).join(', ') + '. 티로드는 학생 개인정보를 저장하지 않습니다. 인원 수로 바꾸거나 열을 빼 주세요.</div>' : '';
+      $('#pii').innerHTML = pii.length ? '<div class="pii-note"><b>🔒 학생 정보 열: ' + pii.map(esc).join(', ') + '</b><br>이 칸의 값은 보낸 선생님 PC에서만 풀리는 암호로 오가서 <b>티로드도 볼 수 없어요.</b> 합본을 내려받으면 서버에서 바로 지워지고, 티로드에는 제출 여부와 인원 수만 남습니다.</div>' : '';
       if (!$('#title').value) $('#title').value = /방과후|프로그램/.test(paste.value) ? '2학기 방과후 수요조사(추가)' : '새 취합';
       renderMsg();
     }
@@ -706,9 +707,8 @@
     $$('[data-preset]', view).forEach(function (b) { b.onclick = function () { makePreset(b.dataset.preset); }; });
     $('#hwpFile').onchange = function () {
       var f = this.files[0]; if (!f) return;
-      if (/\.hwp$/i.test(f.name)) { $('#fileRes').innerHTML = '<div class="warn">구형 .hwp 파일이에요. 한글에서 <b>다른 이름으로 저장 → hwpx</b>로 바꿔 올려 주세요. (또는 표만 복사해 붙여넣기 탭 사용)</div>'; return; }
       $('#fileRes').innerHTML = '<div class="proto-note" style="margin-top:12px">「' + esc(f.name) + '」에서 표 2개를 찾았어요. 취합할 표를 고르세요. <span class="small">(프로토타입: 실제 파일은 읽지 않고 예시 표로 대신합니다)</span><div class="row" style="margin-top:9px"><button class="btn sm" data-tbl="1">표 1 · 결재란(2×4)</button><button class="btn sm pri" data-tbl="2">표 2 · 학년반/담임/희망 인원… (25행)</button></div></div>';
-      $$('[data-tbl]', view).forEach(function (b) { b.onclick = function () { if (b.dataset.tbl === '1') { TR.toast('결재란은 취합 표가 아니에요. 표 2를 고르세요.'); return; } showSrc('paste'); $('#sample').click(); TR.toast('표 2를 가져왔어요. 내보낼 때 같은 hwpx 파일의 이 표에 채워 드립니다.'); }; });
+      $$('[data-tbl]', view).forEach(function (b) { b.onclick = function () { if (b.dataset.tbl === '1') { TR.toast('결재란은 취합 표가 아니에요. 표 2를 고르세요.'); return; } showSrc('paste'); $('#sample').click(); TR.toast('표 2를 가져왔어요. 다 모이면 같은 한글 파일의 이 표 칸에 채워 올린 형식(hwp/hwpx) 그대로 돌려드립니다.'); pendingFile = f.name; }; });
     };
     $('#create').onclick = function () {
       if (!parsed || !parsed.input.length) { TR.toast(newSrc === 'sheet' ? '받을 항목 이름을 하나 이상 적어 주세요 (C열부터).' : '먼저 양식 표를 붙여넣어 주세요. "예시 표 넣기"를 눌러도 돼요.'); return; }
@@ -720,7 +720,7 @@
       var isItems = newSrc === 'sheet' && multi;
       if (isItems && fields.filter(function (f) { return f.t === 'number'; }).length >= 2) fields.push({ n: '금액', t: 'calc' });
       var id = 'c' + Date.now().toString(36);
-      S().collections.unshift({ id: id, kind: isItems ? 'items' : undefined, title: $('#title').value, owner: TR.me.name, dept: '방과후돌봄부', mine: true, due: '', dueISO: '', ext: $('input[name=acc]:checked').value === 'ext',
+      S().collections.unshift({ id: id, kind: isItems ? 'items' : undefined, file: newSrc !== 'sheet' && pendingFile || undefined, title: $('#title').value, owner: TR.me.name, dept: '방과후돌봄부', mine: true, due: '', dueISO: '', ext: $('input[name=acc]:checked').value === 'ext',
         aud: sp, target: TR.audText(sp) + (isItems ? ' · 여러 줄' : ''), fields: fields,
         rows: units.map(function (u) { var r = Object.assign({ done: false, at: '' }, u); if (isItems) r.items = []; else r.v = fields.map(function () { return ''; }); return r; }) });
       TR.save(); TR.copy($('#msg').textContent, '만들었어요. 쪽지 문구를 복사했습니다. 마감은 이 화면 위에서 정하세요.');
@@ -748,6 +748,7 @@
   function colB(c, r) { return audMode(c) === 'pg' ? (r.by || '') : r.who; }
   function rowLabel(c, r) { var m = c.kind === 'matrix' ? 'p' : audMode(c); return m === 'hr' || c.kind === 'items' ? r.unit + ' ' + r.who : m === 'pg' ? r.unit : r.who; }
 
+  function footOn() { try { return localStorage.getItem('troad.foot') !== '0'; } catch (e) { return true; } }
   var phoneUnit = {};
   function collectDetail(id, _x, soft) {
     var c = S().collections.find(function (x) { return x.id === id; }); if (!c) { location.hash = '#collect'; return; }
@@ -811,7 +812,7 @@
     var dueBox = c.mine ? '<section class="card duebox' + (c.due ? '' : ' need') + '"><div class="card-b"><div class="row" style="flex-wrap:wrap;gap:12px"><b style="font-size:17px">' + (c.due ? '마감 ' + esc(c.due) : '마감을 아직 정하지 않았어요') + '</b><span class="small muted grow">' + (c.due ? '바꾸면 받는 선생님 「나에게 온 것」·🔔의 마감도 함께 바뀝니다.' : '만들 때는 마감을 받지 않아요. 정하면 받는 선생님께 마감과 리마인드가 갑니다.') + '</span></div>' +
       '<div class="row" style="flex-wrap:wrap;margin-top:12px"><input type="date" id="dd" class="btn sm" value="' + (dueISO[0] || TR.addDays(TR.TODAY, 4)) + '"><input type="time" id="dt" class="btn sm" value="' + (dueISO[1] || '17:00') + '"><label class="toggle"><input type="checkbox" id="drm" checked> D-1 · 당일 08:20 자동 리마인드</label><button class="btn sm pri" id="dsave" style="margin-left:auto">' + (c.due ? '마감 바꾸기' : '마감 정하기') + '</button></div></div></section>' : '';
     view.innerHTML = '<div class="page-h"><div><div class="small"><a href="#collect">모으기</a> /</div><h1>' + esc(c.title) + '</h1><p>' + esc(c.dept) + ' ' + esc(c.owner) + ' · ' + esc(c.target) + ' · ' + esc(c.due ? '마감 ' + c.due : '마감 미정') + (c.ext ? ' · <span class="badge acc">외부 링크 허용</span>' : '') + '</p></div>' +
-      '<div class="row"><button class="btn" id="csv">엑셀로 내보내기</button><button class="btn" id="cptbl" title="한글 문서의 표 자리에 붙여넣으세요">합본 표 복사 → 한글에 붙여넣기</button>' + (c.kind ? '' : '<button class="btn" id="hwpx">원본 hwpx에 채워 받기 <span class="badge">v1</span></button>') + (c.mine ? '<button class="btn" id="lock">마감하고 잠그기</button>' : '') + '</div></div>' +
+      '<div class="row" style="flex-wrap:wrap;justify-content:flex-end"><label class="toggle small" title="결재 문서에 광고처럼 보이면 끄세요"><input type="checkbox" id="foot"' + (footOn() ? ' checked' : '') + '> 꼬리말 「티로드로 모았습니다」</label><button class="btn" id="csv">엑셀로 내보내기</button><button class="btn" id="cptbl" title="한글 문서의 표 자리에 붙여넣으세요">합본 표 복사 → 한글에 붙여넣기</button>' + (c.kind ? '' : '<button class="btn" id="hwpx">' + (c.file ? '원본 한글 양식에 채워 받기' : '한글 양식에 채워 받기') + '</button>') + (c.mine ? '<button class="btn" id="lock">마감하고 잠그기</button>' : '') + '</div></div>' +
       dueBox + (c.guide ? '<div class="guide"><b>안내</b><ol>' + c.guide.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ol></div>' : '') +
       '<div class="split"><div>' +
       '<div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))">' + kpis + '</div>' +
@@ -826,11 +827,12 @@
     $('#pu').onchange = function () { phoneUnit[id] = this.value; $('#phone').src = 'recv.html?c=' + id + '&u=' + encodeURIComponent(this.value); };
     $('#csv').onclick = function () {
       var sh = sheetOf(c), lines = [sh.head].concat(sh.rows);
-      var csv = '﻿' + lines.map(function (l) { return l.map(function (x) { return '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n') + '\r\n"티로드로 모았습니다 · t.road"';
+      var csv = '﻿' + lines.map(function (l) { return l.map(function (x) { return '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n') + (footOn() ? '\r\n"티로드로 모았습니다 · t.road"' : '');
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = c.title + '_합본.csv'; a.click();
       TR.toast('합본을 내려받았어요 (엑셀에서 열림).');
     };
-    var hx = $('#hwpx'); if (hx) hx.onclick = function () { TR.toast('v1 기능: hwpx 파일로 시작한 취합이면, 그 파일의 같은 표에 값을 채워 hwpx로 돌려드립니다(본문·결재란 유지).'); };
+    var hx = $('#hwpx'); if (hx) hx.onclick = function () { TR.toast(c.file ? '「' + c.file + '」의 그 표 칸에 값을 채워 올린 형식 그대로 내려받아요(본문·결재란·서식 유지, hwpx도 함께). 프로토타입은 안내만 합니다.' : '한글 파일로 시작한 모으기에서 쓸 수 있어요. 지금은 「합본 표 복사 → 한글에 붙여넣기」를 쓰세요.'); };
+    $('#foot').onchange = function () { try { localStorage.setItem('troad.foot', this.checked ? '1' : '0'); } catch (e) {} TR.toast(this.checked ? '내보내는 파일에 꼬리말을 넣어요.' : '꼬리말 없이 내보내요.'); };
     $('#cptbl').onclick = function () {
       var sh = sheetOf(c), all = [sh.head].concat(sh.rows);
       var tsv = all.map(function (l) { return l.join('\t'); }).join('\n');

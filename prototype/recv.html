@@ -42,6 +42,15 @@
   .trn:first-of-type{border-top:0}
   .trn input[type=text]{height:42px;border:1px solid var(--line-strong);border-radius:9px;padding:0 10px;font-size:15px;width:100%}
   .trn input:disabled{background:var(--surface-2);color:var(--faint)}
+  .rowpick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .rowpick button{display:grid;gap:2px;text-align:left;padding:10px 12px;min-height:64px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);cursor:pointer;font-size:16px}
+  .rowpick button:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .rowpick button span{font-size:15px;color:var(--muted)}
+  .rowpick button i{font-style:normal;font-size:14px;font-weight:700;color:var(--primary);min-height:20px}
+  .rowpick button.d{background:var(--surface-2)}
+  .rowpick button.d i{color:var(--ok)}
+  .rowpick button.m{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+  .pii-note{margin:0 0 14px;padding:10px 12px;border-radius:9px;background:var(--ok-soft);color:var(--ok);font-size:15px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -65,27 +74,40 @@
     document.getElementById('go').onclick = function () { setMe(document.getElementById('nm').value); next(); };
   }
 
+  var pickedUnit = null;
+  function piiFields(c) { return (c.fields || []).map(function (f) { return f.n; }).filter(function (n) { return /학생\s?(이름|성명)|학생명|연락처|전화|주소/.test(n); }); }
+  // 칸 고르기: 링크 하나로 들어온 사람이 채울 반·사람·그룹을 고른다
+  function pickRow(c) {
+    var done = c.rows.filter(function (r) { return r.done; }).length, me = getMe();
+    root.innerHTML = '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>' + (c.due ? '마감 <b>' + esc(c.due) + '</b>' : '마감 미정') + '</span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + ' · ' + done + '/' + c.rows.length + ' 제출</span></div></div>' +
+      '<div class="m-card"><h2>어느 칸을 채우시나요?</h2><p class="small muted" style="margin:-4px 0 12px">가입·로그인 없이 바로 씁니다. 다른 분 칸을 대신 채워도 돼요.</p><div class="rowpick">' +
+      c.rows.map(function (r) { var m = me && TR.rowMine(r, me); return '<button data-u="' + esc(r.unit) + '" class="' + (r.done ? 'd' : '') + (m ? ' m' : '') + '"><b>' + esc(r.unit) + '</b><span>' + esc(r.gid ? '그룹' : r.who) + '</span><i>' + (r.done ? '제출함' : m ? '내 칸' : '') + '</i></button>'; }).join('') + '</div></div>';
+    [].forEach.call(root.querySelectorAll('[data-u]'), function (b) { b.onclick = function () { pickedUnit = b.dataset.u; collect(); }; });
+  }
   function collect() {
     var c = TR.state.collections.find(function (x) { return x.id === q.get('c'); });
     if (!c) { root.innerHTML = '<p>요청을 찾을 수 없어요.</p>'; return; }
-    var unit = q.get('u') || c.rows[0].unit;
+    // 링크는 하나. 칸(반·사람)을 고르면 바로 쓴다. 학교 안 링크라 본인 확인 없이 누구나 낼 수 있다(대신 내기 허용).
+    var unit = q.get('u') || pickedUnit;
+    if (!unit) return pickRow(c);
     var row = c.rows.find(function (r) { return r.unit === unit; }) || c.rows[0];
-    // 사람 줄은 그 사람만, 그룹 줄(그룹별 모으기)은 그 그룹 구성원 누구나
     if (q.get('me')) setMe(row.gid ? TR.me.name : row.who);
-    var me = getMe();
-    if (!me || (!TR.rowMine(row, me) && !q.get('force'))) { setMe(''); var gm = row.gid && (TR.state.members || TR.seedMembers).find(function (m) { return m.group === row.gid; }); return pickName(collect, row.gid ? (gm ? gm.name : '') : row.who); }
+    var me = getMe() || '', mine = me && TR.rowMine(row, me);
     if (c.kind === 'items') return itemsForm(c, row);
     if (c.kind === 'matrix') return matrixForm(c, row);
     var done = c.rows.filter(function (r) { return r.done; }).length;
     var others = c.rows.filter(function (r) { return r.unit !== row.unit; }).slice(0, 12).map(function (r) { return '<span class="' + (r.done ? 'd' : '') + '">' + esc(r.unit) + '</span>'; }).join('');
     root.innerHTML = '<div class="m-h"><h1>' + esc(c.title) + '</h1><div class="m-meta"><span>' + (c.due ? '마감 <b style="color:' + (c.urgent ? 'var(--danger)' : 'var(--text)') + '">' + esc(c.due) + '</b>' : '마감 미정 · 정해지면 알려 드려요') + '</span><span>요청 ' + esc(c.dept) + ' ' + esc(TR.byline(c.owner)) + '</span></div></div>' +
-      '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + (row.gid ? '그룹 칸 · ' + esc(me) + ' 선생님이 쓰는 중' : esc(row.who) + ' · 내 칸') + '</span></span>' + (row.done ? '<span class="badge ok">' + (row.by ? esc(row.by) + ' 제출' : '제출함') + '</span>' : '') + '</h2>' +
+      '<form class="m-card" id="f"><h2><span>' + esc(row.unit) + ' <span class="small muted" style="font-weight:400">' + (row.gid ? '그룹 칸 · 그룹 누구나' : esc(row.who) + (mine ? ' · 내 칸' : ' 선생님 칸')) + '</span></span>' + (row.done ? '<span class="badge ok">' + (row.by ? esc(row.by) + ' 제출' : '제출함') + '</span>' : '') + '</h2>' +
       (row.gid ? '<p class="small muted" style="margin:-4px 0 12px">' + esc(row.unit) + ' 선생님 누구나 이 칸을 쓸 수 있어요. 한 분이 내면 그룹 전체가 제출한 것으로 처리되고, 마감 전까지 다른 분이 고칠 수 있어요.</p>' : '') +
+      (!mine && !row.gid ? '<p class="small muted" style="margin:-4px 0 12px">대신 내셔도 돼요. 학교 안에서만 도는 링크라 누구나 이 칸을 채울 수 있어요.</p>' : '') +
+      (piiFields(c).length ? '<p class="pii-note">🔒 ' + piiFields(c).map(esc).join(', ') + ' 칸은 요청한 선생님 PC에서만 풀리게 잠겨서 전달돼요. 티로드도 볼 수 없고, 합본을 내려받으면 서버에서 지워집니다.</p>' : '') +
       c.fields.map(function (f, i) {
         var v = row.v[i] || '', id = 'f' + i;
         if (f.t === 'select') return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><select id="' + id + '" required><option value="">선택</option>' + (f.o || []).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';
         return '<div class="f"><label for="' + id + '">' + esc(f.n) + '</label><input id="' + id + '" ' + (f.t === 'number' ? 'type="number" min="0"' : f.t === 'date' ? 'type="date"' : 'type="text"') + ' value="' + esc(v) + '"' + (f.n === '비고' ? '' : ' required') + ' placeholder="' + (f.n === '비고' ? '없으면 비워 두세요' : '') + '"></div>';
       }).join('') +
+      '<div class="f"><label for="by">내는 사람 <span class="small muted" style="font-weight:400">선택</span></label><input id="by" type="text" value="' + esc(me || (row.gid ? '' : row.who)) + '" placeholder="이름 (비워도 돼요)"></div>' +
       '<button class="btn pri big" type="submit">' + (row.done ? '수정해서 다시 제출' : '제출하기') + '</button><p class="small muted" style="margin:9px 0 0;text-align:center">제출 후에도 마감 전까지 고칠 수 있어요.</p></form>' +
       '<div class="m-card"><h2>' + (row.gid ? '다른 그룹' : /^\d-\d$/.test(row.unit) ? '다른 반' : '다른 분') + ' <span class="small muted" style="font-weight:400">' + done + '/' + c.rows.length + ' 제출</span></h2><div class="others">' + others + '</div><p class="small faint" style="margin:9px 0 0">다른 반이 쓴 값은 보이지 않아요. 제출 여부만 보입니다.</p></div>';
     document.getElementById('f').onsubmit = function (e) {
@@ -93,7 +115,8 @@
       TR.state = TR.load();
       var cc = TR.state.collections.find(function (x) { return x.id === c.id; }), rr = cc.rows.find(function (r) { return r.unit === row.unit; });
       rr.v = cc.fields.map(function (_, i) { return document.getElementById('f' + i).value; });
-      rr.done = true; if (rr.gid) rr.by = me; var n = new Date(); rr.at = '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
+      var by = document.getElementById('by').value.trim(); if (by) setMe(by);
+      rr.done = true; rr.by = by && by !== rr.who ? by : (rr.gid ? by : ''); var n = new Date(); rr.at = '10/26 ' + String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0');
       TR.save(); post({ troad: 'submitted', c: c.id, u: row.unit });
       doneView(cc, rr);
     };
