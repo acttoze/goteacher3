@@ -3,7 +3,7 @@ from django.urls import path
 from django.views.generic import TemplateView
 
 from accounts import views as accounts
-from collect import submit
+from collect import export, submit
 from collect import views as collect
 from spaces import views as spaces
 
@@ -27,6 +27,9 @@ urlpatterns = [
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
     path("s/<str:space_token>/c/<str:key>/due", collect.due),
     path("s/<str:space_token>/c/<str:key>/lock", collect.lock),
+    path("s/<str:space_token>/c/<str:key>/export.csv", export.export_csv),
+    path("s/<str:space_token>/c/<str:key>/copy", export.copy),
+    path("s/<str:space_token>/c/<str:key>/footer", export.footer),
     path("c/<str:link_token>", submit.pick),
     path("c/<str:link_token>/outside", submit.outside),
     path("c/<str:link_token>/u/<str:key>", submit.unit),

@@ -46,6 +46,24 @@
       closeDlg(e.target.closest('.scrim'));
       return;
     }
+    // 합본 표 복사(D4): 서버가 만든 HTML 표와 TSV를 클립보드에 함께 넣는다(한글은 HTML 표를, 메모장·엑셀은 TSV를 읽는다).
+    // 누른 순간 ClipboardItem을 만들고 값은 Promise로 채운다(사용자 동작 안에서 써야 하는 브라우저 대비).
+    var ct = e.target.closest('[data-copy-table]');
+    if (ct) {
+      var ok = function () { toast('합본 표를 복사했어요. 한글 문서에서 Ctrl+V 하면 표로 들어가요.'); };
+      var bad = function () { toast('복사하지 못했어요. 잠시 뒤 다시 눌러 주세요.'); };
+      var got = fetch(ct.dataset.copyTable, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+      var blob = function (k, t) { return got.then(function (d) { return new Blob([d[k]], { type: t }); }); };
+      var plain = function () { return got.then(function (d) { return navigator.clipboard.writeText(d.tsv); }); };
+      if (!navigator.clipboard) { bad(); return; }
+      var w = window.ClipboardItem && navigator.clipboard.write
+        ? navigator.clipboard.write([new ClipboardItem({ 'text/html': blob('html', 'text/html'), 'text/plain': blob('tsv', 'text/plain') })]).catch(plain)
+        : plain();
+      w.then(ok, bad);
+      return;
+    }
+
     // 복사: <button data-copy="#id" data-done="알림"> 또는 <button data-text="글자">. 입력 칸이면 value, 아니면 글자.
     // htmx로 바뀐 내용도 누를 때 읽는다. 원본에 data-done이 있으면 그 알림, 원본 글자가 비면 알림만 띄운다.
     var c = e.target.closest('[data-copy],[data-text]');

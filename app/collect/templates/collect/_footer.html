@@ -1,0 +1,4 @@
+{# 꼬리말 켜고 끄기(D4, design .foot-row). 바꾸면 이 폼만 다시 받는다. 동학년 회원 누구나. #}
+<form class="foot-row" id="footForm" hx-post="/s/{{ space.token }}/c/{{ c.key }}/footer" hx-trigger="change" hx-swap="outerHTML"{% if footer_toast %} data-toast-now="{{ footer_toast }}"{% endif %}>{% csrf_token %}
+  <label class="foot-in"><span class="toggle"><input type="checkbox" id="footOn" name="on"{% if c.footer_on %} checked{% endif %}><i></i></span><span>내보내는 파일 끝에 「고티처로 모았습니다」 넣기</span></label>
+</form>

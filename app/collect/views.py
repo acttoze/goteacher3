@@ -249,7 +249,9 @@ def _board(c):
                     n = None
                 if n is not None and f.pk in sums:
                     sums[f.pk] += n
-                cell = {"v": v, "r": f.pk in sums, "show": _fmt(n) if f.pk in sums else v}
+                # x: 내보내기 값(D4). 자동 계산은 쉼표 없는 수(prototype itemVals), 나머지는 낸 값 그대로
+                x = f"{n.normalize():f}" if f.kind == Field.Kind.CALC and n is not None else "" if f.kind == Field.Kind.CALC else v
+                cell = {"v": v, "x": x, "r": f.pk in sums, "show": _fmt(n) if f.pk in sums else v}
                 if f.kind == Field.Kind.URL:
                     cell["href"] = v if re.match(r"https?://", v) else None  # 다른 스킴은 글자로만
                 if matrix:

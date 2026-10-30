@@ -2,9 +2,10 @@
 <section class="card lk{% if c.closed_at %} locked{% endif %}" id="lkCard"{% if oob %} hx-swap-oob="true"{% endif %} aria-labelledby="lkH">
   <div class="card-h"><h2 id="lkH">받는 링크</h2></div>
   <div class="card-b">
-    <div class="joined"><label class="sr" for="lk">받는 링크</label><input class="input num" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="받는 링크를 복사했어요">복사</button></div>
+    <div class="joined"><label class="sr" for="lk">받는 링크</label><input class="input num" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="받는 링크를 복사했어요" aria-label="받는 링크 복사">복사</button></div>
     <p class="note">{% if c.closed_at %}마감하고 잠가서 이 링크로는 더 낼 수 없어요.{% else %}링크 하나로 모두 내요. 로그인은 없고, 바쁜 반은 옆 반 선생님이 대신 내도 돼요.{% endif %}</p>
     <div class="rail-acts"><button class="btn sec" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button></div>
     <p class="sr" id="msg">{{ msg }}</p>
+    {% include "collect/_footer.html" %}
   </div>
 </section>
