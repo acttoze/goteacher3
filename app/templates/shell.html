@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{# design/assets/shell.js의 공통 틀. 아직 없는 기능(일정·양식 자료실·설정·접속 중)은 넣지 않는다. #}
+{# design/assets/shell.js의 공통 틀. 아직 없는 기능(일정·설정·접속 중)은 넣지 않는다. #}
 {% block html_attr %} class="has-shell"{% endblock %}
 {% block body %}
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -8,6 +8,7 @@
   <nav class="nav" aria-label="주 메뉴">
     <a href="/s/{{ space.token }}/today"{% if page == "today" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg><span>오늘</span></a>
     <a href="/s/{{ space.token }}/c/"{% if page == "collect" or page == "list" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>모으기</span></a>
+    <a href="/forms"{% if page == "forms" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><span>양식 자료실</span></a>
   </nav>
   <p class="group">{{ space.grade }}학년 동학년</p>
   <nav class="nav sub" aria-label="동학년">

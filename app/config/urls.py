@@ -5,6 +5,7 @@ from django.views.generic import TemplateView
 from accounts import views as accounts
 from collect import bell, export, lists, submit
 from collect import views as collect
+from library import views as library
 from spaces import views as spaces
 
 
@@ -47,5 +48,9 @@ urlpatterns = [
     path("terms", TemplateView.as_view(template_name="legal/terms.html")),
     path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("s/<str:space_token>/", include("today.urls")),  # G1 간이 오늘
+    path("forms", library.index),  # G4 양식 자료실(로그인 없이)
+    path("forms/<str:slug>", library.index),
+    path("forms/<str:slug>/download", library.download),
+    path("sitemap.xml", library.sitemap),
     path("healthz", healthz),
 ]

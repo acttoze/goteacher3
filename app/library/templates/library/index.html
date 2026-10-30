@@ -1,0 +1,119 @@
+{% extends frame %}
+{# G4 양식 자료실 = design/forms.html. 목록 7 / 자세히 5. /forms/<slug>는 같은 화면에 그 양식을 편다. #}
+{% block title %}{% if doc %}{{ doc.title }} · {% endif %}양식 자료실 · 고티처{% endblock %}
+{% block head %}
+<meta name="description" content="{% if doc %}{{ doc.desc }}{% else %}학교 업무 한글 양식 {{ total }}건. 로그인 없이 보고 내려받아요.{% endif %}">
+<link rel="canonical" href="{{ canonical }}">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  .tool { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .tool .search { flex: 0 1 520px; }
+  .tool .search .input { height: 48px; font-size: 17px; }
+  .tabs .cnt { margin-left: auto; align-self: center; font-size: 15px; color: var(--muted); white-space: nowrap; }
+  .tabs { margin-bottom: 0; }
+
+  .flist { list-style: none; margin: 0; padding: 0; }
+  .flist li { border-top: 1px solid var(--rule); }
+  .flist li:first-child { border-top: 0; }
+  .frow { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 16px; align-items: center; min-height: 84px; padding: 12px; margin: 0 -12px; width: calc(100% + 24px); border-radius: 10px; color: inherit; text-decoration: none; transition: background-color .15s; }
+  .frow:hover { background: #fafbfc; }
+  .frow[aria-current="true"] { background: var(--surface); }
+  .ext { height: 26px; border-radius: 6px; display: inline-grid; place-items: center; font: 700 13px/1 var(--font); background: var(--surface); color: var(--muted); }
+  .frow[aria-current="true"] .ext { background: #fff; }
+  .ext.x { color: var(--ink); }
+  .frow .t { display: block; font-weight: 600; font-size: 17px; line-height: 1.35; }
+  .frow .m { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .frow .r { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .frow .r .num { font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
+
+  .detail { position: sticky; top: 24px; max-height: calc(100svh - 48px); overflow-y: auto; }
+  .has-shell .detail { top: calc(var(--topbar) + 24px); max-height: calc(100svh - var(--topbar) - 48px); }
+  .detail h2 { font-size: 21px; line-height: 1.3; letter-spacing: -0.02em; }
+  .detail h3 { font-size: 17px; margin: 0 0 8px; }
+  .detail .tips { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .detail p { margin: 0; }
+  .fact { display: grid; grid-template-columns: 96px 1fr; gap: 8px 12px; font-size: 15px; margin: 0; }
+  .fact dt { color: var(--muted); }
+  .fact dd { margin: 0; overflow-wrap: anywhere; }
+  .acts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .acts .btn { flex: 1 1 180px; }
+
+  @media (max-width: 1100px) { .detail { position: static; } }
+  @media (max-width: 760px) {
+    .tool { flex-wrap: wrap; }
+    .tool .search { flex-basis: 100%; }
+    .frow { grid-template-columns: 48px minmax(0, 1fr); }
+    .frow .r { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; }
+  }
+</style>
+{% endblock %}
+{% block ptitle %}양식 자료실{% endblock %}
+{% block ctx %}<span class="ctx">양식 자료실</span>{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>양식 자료실</h1>
+    <p class="sub">학교 업무 한글 양식 <b class="num">{{ total }}건</b> · 로그인 없이 보고 내려받아요.</p>
+  </div>
+</div>
+
+<form class="tool" action="/forms" method="get" role="search"
+      hx-get="/forms" hx-trigger="input changed delay:300ms from:#q, search from:#q"
+      hx-target="#browse" hx-select="#browse" hx-swap="outerHTML" hx-push-url="true">
+  <label class="search"><span class="sr">양식 찾기</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input class="input" id="q" name="q" type="search" value="{{ q }}" maxlength="40" autocomplete="off" placeholder="양식 이름이나 설명으로 찾기 (예: 출장, 체험학습)">
+  </label>
+  {% if ca %}<input type="hidden" name="ca" value="{{ ca }}">{% endif %}
+</form>
+
+<div id="browse">
+  <nav class="tabs" aria-label="분류">
+    {% for c in cats %}<a href="{{ c.href }}"{% if c.on %} aria-current="page"{% endif %}>{{ c.name }}<span class="c num">{{ c.n }}</span></a>
+    {% endfor %}
+    <span class="cnt">{% if q %}찾은 양식 <b class="num" style="color:var(--ink)">{{ docs|length }}건</b>{% else %}{{ ca_name }} <b class="num" style="color:var(--ink)">{{ docs|length }}건</b> · 최근 올린 순{% endif %}</span>
+  </nav>
+
+  <div class="grid" style="margin-top:8px">
+    <section class="s7" aria-labelledby="listH">
+      <h2 class="sr" id="listH">양식 목록</h2>
+      <ul class="flist" id="flist" hx-boost="true" hx-target="#detail" hx-select="#detail" hx-swap="outerHTML" hx-select-oob="#flist">
+        {% for d in docs %}
+        <li><a class="frow" href="/forms/{{ d.slug }}{{ keep }}"{% if shown.pk == d.pk %} aria-current="true"{% endif %}>
+          <span class="ext{% if d.ext == 'hwpx' %} x{% endif %}">{{ d.ext|upper }}</span>
+          <span><span class="t">{{ d.title }}</span><span class="m">{{ d.desc }}</span></span>
+          <span class="r"><span class="pill">{{ d.category }}</span><span class="num">{{ d.created_at|date:"Y-m-d" }}</span></span>
+        </a></li>
+        {% empty %}
+        <li><p class="empty" style="margin:16px 0">「{{ q }}」{{ josa }} 맞는 양식이 {% if ca %}{{ ca }} 분류에{% else %}자료실에{% endif %} 없어요. {% if ca %}분류를 「전체」로 바꾸거나 {% endif %}다른 낱말로 찾아보세요.</p></li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <aside class="s5 detail card" id="detail" aria-labelledby="dH">
+      {% if shown %}
+      <div class="card-h"><h2 id="dH">{{ shown.title }}</h2></div>
+      <div class="card-b" style="display:flex;flex-direction:column;gap:18px">
+        <p>{{ shown.desc }}</p>
+        <div class="acts"><a class="btn pri" href="/forms/{{ shown.slug }}/download"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"/></svg>내려받기 .{{ shown.ext }}</a></div>
+        {% if shown.tips %}<div>
+          <h3>이렇게 쓰세요</h3>
+          <ul class="tips">{% for t in shown.tips %}<li>{{ t }}</li>{% endfor %}</ul>
+        </div>{% endif %}
+        <dl class="fact">
+          <dt>파일</dt><dd>{{ shown.filename }} · <span class="num">{{ shown.kb }}KB</span></dd>
+          <dt>분류</dt><dd>{{ shown.category }}</dd>
+          <dt>올린 날</dt><dd class="num">{{ shown.created_at|date:"Y-m-d" }}</dd>
+          <dt>내려받기</dt><dd class="num">{{ shown.downloads }}회</dd>
+        </dl>
+        <p class="small muted">예시로 채운 내용은 그대로 쓰거나 지우고 우리 학교 내용으로 바꿔 쓰세요.</p>
+      </div>
+      {% else %}
+      <div class="card-h"><h2 id="dH">자세히</h2></div>
+      <div class="card-b"><p class="empty">왼쪽에서 양식을 고르면 설명과 쓰는 법이 여기에 보여요.</p></div>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from accounts.models import is_guest, new_guest
 from accounts.views import home as login_home
 from accounts.views import set_device_cookie
+from library.models import FormDoc
 
 from . import neis
 from .models import Member, School, Space, new_token
@@ -92,7 +93,7 @@ def home(request):
     if mine:  # design: 로그인 뒤 첫 화면은 오늘(brand → today.html)
         return redirect(f"/s/{mine.token}/today")
     if not request.user.is_authenticated:  # 로그인 전: 소개 페이지(G5). 시작 화면은 /start
-        return render(request, "landing.html")
+        return render(request, "landing.html", {"forms_n": FormDoc.objects.count()})
     if is_guest(request.user):  # 동학년 만들기는 구글 회원만
         return login_home(request)
 

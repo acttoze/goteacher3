@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "collect",
     "hwpfiles",
     "today",
+    "library",
 ]
 
 MIDDLEWARE = [

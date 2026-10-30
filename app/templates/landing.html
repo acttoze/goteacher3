@@ -7,7 +7,7 @@
 <meta name="description" content="고티처는 동학년 취합 도구입니다. 한글 양식을 올리고 링크 하나를 보내면 다섯 반이 한 표를 동시에 채우고, 그 양식 그대로 돌려받습니다.">
 <link rel="stylesheet" href="{% static 'css/landing.css' %}">
 </head>
-{# G5 소개 페이지 = design/landing.html. 로그인 전 / 에서만 보인다. 없는 화면(오늘·자료실)으로 가는 링크는 뺐다. #}
+{# G5 소개 페이지 = design/landing.html. 로그인 전 / 에서만 보인다. 없는 화면(오늘)으로 가는 링크는 뺐다. 양식 자료실은 /forms(건수는 DB). #}
 <body class="no-js">
 <script>document.body.classList.remove('no-js');</script>
 
@@ -195,6 +195,7 @@
     </div>
     <div class="links">
       <a href="#today">오늘 화면</a>
+      {% if forms_n %}<a href="/forms">양식 자료실 {{ forms_n }}건</a>{% endif %}
       <a href="#how">걷는 법</a>
       <a href="#faq">자주 묻는 질문</a>
       <a href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a>

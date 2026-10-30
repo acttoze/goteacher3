@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>{{ site }}/</loc></url>
+<url><loc>{{ site }}/forms</loc></url>
+{% for d in docs %}<url><loc>{{ site }}/forms/{{ d.slug|iriencode }}</loc><lastmod>{{ d.created_at|date:"Y-m-d" }}</lastmod></url>
+{% endfor %}</urlset>
