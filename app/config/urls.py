@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.urls import path
+from django.views.generic import TemplateView
 
 from accounts import views as accounts
 from collect import submit
@@ -32,5 +33,7 @@ urlpatterns = [
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),
+    path("privacy", TemplateView.as_view(template_name="legal/privacy.html")),
+    path("terms", TemplateView.as_view(template_name="legal/terms.html")),
     path("healthz", healthz),
 ]

@@ -1,0 +1,23 @@
+{% extends "bare.html" %}
+{# 개인정보처리방침·이용약관 공통 틀(prototype/privacy.html·terms.html 게시본). 로그인 없이 연다. #}
+{% block head %}
+<style>
+  .bare.wide { max-width: 860px; padding-top: 40px; padding-bottom: 72px; }
+  .doc { line-height: 1.75; }
+  .doc h1 { margin-bottom: 6px; }
+  .doc h2 { font-size: var(--fs-section); margin: 30px 0 10px; }
+  .doc p, .doc ul, .doc ol { margin: 8px 0; }
+  .doc ul, .doc ol { padding-left: 1.4em; }
+  .doc table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 8px 0; }
+  .doc th, .doc td { border: 1px solid var(--control); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .doc th { background: var(--surface); font-weight: 600; }
+  .doc-f { margin-top: 40px; font-size: var(--fs-small); color: var(--muted); }
+  .doc-f a { color: inherit; }
+</style>
+{% endblock %}
+{% block main %}
+<article class="doc">
+{% block doc %}{% endblock %}
+</article>
+<p class="doc-f"><a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a></p>
+{% endblock %}

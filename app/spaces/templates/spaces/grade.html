@@ -20,6 +20,12 @@
   .msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; }
   .msg-h { display: flex; align-items: center; gap: 10px; margin: 20px 0 8px; }
   .msg-h b { font-size: 15px; }
+  .next a { display: flex; align-items: center; gap: 16px; min-height: 40px; text-decoration: none; color: inherit; }
+  .next a b { display: block; font-size: 17px; }
+  .next a span.m { display: block; font-size: 15px; color: var(--muted); margin-top: 2px; }
+  .next a .go { margin-left: auto; color: var(--muted); transition: transform .15s, color .15s; flex: none; }
+  .next a:hover b { color: var(--accent); }
+  .next a:hover .go { transform: translateX(3px); color: var(--accent); }
 </style>
 {% endblock %}
 {% block main %}
@@ -35,6 +41,12 @@
   {% include "spaces/_roster.html" %}
   <div class="stack-y s5">
     {% include "spaces/_invite.html" %}
+    <section class="card" aria-labelledby="nxH">
+      <div class="card-h"><h2 id="nxH">다음 할 일</h2></div>
+      <div class="card-b next">
+        <a href="/s/{{ space.token }}/c/new"><span><b>새로 모으기</b><span class="m">한글 양식을 올리면 반마다 칸이 자동으로 생겨요</span></span><span class="go" aria-hidden="true">→</span></a>
+      </div>
+    </section>
   </div>
 </div>
 {% endblock %}
