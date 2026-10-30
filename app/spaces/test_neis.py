@@ -1,6 +1,7 @@
 """B5 NEIS 모듈: 실제 응답 형태의 픽스처로 목. 실패하면 빈 결과 + 로그(키 값은 로그에 없음)."""
 import io
 import json
+import time
 from unittest import mock
 from urllib.error import URLError
 
@@ -115,14 +116,26 @@ class NeisTests(SimpleTestCase):
         self.assertIn("ERROR-290", logs.output[0])
         self.assertNotIn("secret-key-123", "".join(logs.output))
 
-    def test_network_failure_empty_logged_not_cached(self):
+    def test_network_failure_empty_logged_cached_briefly(self):
         err = URLError("https://open.neis.go.kr/hub/schoolInfo?KEY=secret-key-123")
         with self.assertLogs("spaces.neis", "WARNING") as logs, \
-                mock.patch.object(neis, "urlopen", side_effect=err):
+                mock.patch.object(neis, "urlopen", side_effect=err) as m:
             self.assertEqual(neis.meals("S10", "9010000", "20261102", "20261106"), [])
+            self.assertEqual(neis.meals("S10", "9010000", "20261102", "20261106"), [])
+        m.assert_called_once()  # NEIS가 멈춰도 같은 요청이 워커를 계속 붙잡지 않는다
         self.assertNotIn("secret-key-123", "".join(logs.output))
-        _, m = self.call(MEALS, neis.meals, "S10", "9010000", "20261102", "20261106")
-        m.assert_called_once()  # 실패는 캐시하지 않는다
+        now = time.time()
+        with mock.patch("time.time", return_value=now + neis.FAIL_TTL + 1):
+            _, m = self.call(MEALS, neis.meals, "S10", "9010000", "20261102", "20261106")
+        m.assert_called_once()  # 짧은 시간이 지나면 다시 부른다
+
+    def test_http_error_cached_briefly(self):
+        from urllib.error import HTTPError
+        err = HTTPError("u", 503, "busy", {}, None)
+        with self.assertLogs("spaces.neis", "WARNING"), mock.patch.object(neis, "urlopen", side_effect=err) as m:
+            neis.search_schools("봉황초")
+            neis.search_schools("봉황초")
+        m.assert_called_once()
 
 
 class NeisPrototypeParityTests(SimpleTestCase):

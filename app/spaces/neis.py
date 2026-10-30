@@ -2,7 +2,8 @@
 
 - 인증키는 settings.NEIS_KEY(환경변수). 없으면 키 없이 부른다 — NEIS는 이때 한 번에 5건까지만 준다.
 - 실패(네트워크·HTTP·NEIS 오류 코드)는 빈 결과 + 경고 로그. 로그에 주소·키를 남기지 않는다.
-- 캐시는 Django 기본 캐시. 학교·학급은 하루, 학사·급식은 한 시간.
+- 캐시는 Django 기본 캐시. 학교·학급은 하루, 학사·급식은 한 시간. 실패도 FAIL_TTL(1분) 캐시 —
+  NEIS가 멈췄을 때 같은 요청이 매번 TIMEOUT만큼 워커를 붙잡지 않게.
 """
 import json
 import logging
@@ -20,6 +21,7 @@ API = "https://open.neis.go.kr/hub/"
 TIMEOUT = 5
 DAY = 60 * 60 * 24
 HOUR = 60 * 60
+FAIL_TTL = 60
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +52,7 @@ def _get(path, params, ttl):
     except (URLError, OSError, ValueError, KeyError, IndexError, NeisError) as e:
         # 주소에 키가 들어 있으므로 예외 메시지·주소는 남기지 않는다.
         log.warning("NEIS %s 실패: %s %s", path, type(e).__name__, e if isinstance(e, NeisError) else "")
-        return [], 0
+        result, ttl = ([], 0), FAIL_TTL
     cache.set(ck, result, ttl)
     return result
 

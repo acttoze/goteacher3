@@ -249,3 +249,52 @@ class QaB6EdgeTests(NeisMocked):
         r = self.client.get(url)
         self.assertContains(r, "1</b><span class=\"num\">/ 5칸")  # 3반 + 전담 + 칸 밖 1
         self.assertContains(r, "아직이에요", count=4)
+
+
+class HardeningB6Tests(NeisMocked):
+    """B6 후속: 교사 한 명은 동학년 하나, 인덱스 경계, 이름 정리."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def test_member_cannot_create_second_space(self):
+        url = self.make()["Location"]
+        self.client.get("/", {"q": "새솔"})  # 회원이면 홈은 내 동학년으로 보낸다
+        session = self.client.session
+        session["new_school"] = SCHOOLS[1]
+        session.save()
+        r = self.client.post("/new/class", {"grade": 5, "cls": "5-1", "name": "송민재"})
+        self.assertEqual(r["Location"], url)
+        self.assertEqual(Space.objects.count(), 1)
+        self.assertNotIn("new_school", self.client.session)
+        self.assertEqual(self.client.post("/new/school", {"i": 0})["Location"], url)
+
+    def test_double_submit_makes_one_space(self):
+        loc = self.make()["Location"]
+        r = self.client.post("/new/class", {"grade": 4, "cls": "4-1", "name": "송민재"})
+        self.assertEqual(r["Location"], loc)
+        self.assertEqual((Space.objects.count(), Member.objects.count()), (1, 1))
+
+    def test_validation_error_keeps_picked_school(self):
+        self.client.get("/", {"q": "새솔"})
+        self.client.post("/new/school", {"i": 0})
+        self.assertEqual(self.client.post("/new/class", {"grade": 4, "cls": ""}).status_code, 400)
+        r = self.client.post("/new/class", {"grade": 4, "cls": "4-1", "name": "송민재"})
+        self.assertTrue(r["Location"].startswith("/s/"))
+
+    def test_pick_rejects_negative_and_out_of_range(self):
+        self.client.get("/", {"q": "새솔"})
+        for i in (-1, -2, 2, 99):
+            self.assertEqual(self.client.post("/new/school", {"i": i})["Location"], "/")
+            self.assertNotIn("new_school", self.client.session)
+
+    def test_name_cleaned(self):
+        dirty = "‮ 송​민\u0007재⁦ ﻿"
+        self.make(name=dirty)
+        self.assertEqual(Member.objects.get().name, "송민재")
+
+    def test_name_only_invisible_rejected(self):
+        r = self.make(name=" ​‮⁠ ")
+        self.assertContains(r, "이름을 써 주세요", status_code=400)
+        self.assertEqual(Space.objects.count(), 0)
