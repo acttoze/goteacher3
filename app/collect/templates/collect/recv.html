@@ -1,0 +1,93 @@
+{% extends "bare.html" %}
+{% load static %}
+{% block title %}{% if c %}{{ c.title }} · 제출{% else %}링크를 찾을 수 없어요{% endif %} · 고티처{% endblock %}
+{% block head %}
+<style>
+  /*
+    제출(받는 사람) — design/submit.html. 질문: 내 칸이 어디고, 뭘 쓰면 되나?
+    로그인 없음. 가운데 한 열 720(바깥 여백 24). 폰에서는 16 여백, 누르는 곳은 모두 52px 이상.
+  */
+  body { background: var(--bg); }
+  .head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .head h1 { font-size: 32px; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; color: var(--muted); font-size: 17px; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .meta .by { display: inline-flex; align-items: center; gap: 8px; }
+  .status { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .status .track { flex: 1; max-width: 280px; }
+  .status .n { font-weight: 700; white-space: nowrap; }
+  .status .n b { color: var(--accent); }
+
+  .panel { border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+  .panel h2 { font-size: 21px; letter-spacing: -0.02em; }
+  .panel .lead { color: var(--muted); margin-top: -10px; }
+
+  /* 칸 고르기 */
+  .units { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .unit { width: 100%; display: grid; grid-template-columns: minmax(64px, auto) 1fr auto; align-items: center; gap: 14px; min-height: 68px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--surface); text-align: left; cursor: pointer; color: inherit; text-decoration: none;
+    transition: background-color .15s, transform .12s; }
+  .unit:hover { background: var(--hover); }
+  .unit:active { transform: scale(.99); }
+  .unit .c { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .unit .w { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; min-width: 0; }
+  .unit .w small { display: block; font-size: var(--fs-small); color: var(--accent-ink); font-weight: 600; margin-top: 2px; }
+  .unit.mine { background: var(--accent-soft); }
+  .unit.mine .c { color: var(--accent); }
+  .unit.mine:hover { background: #dfe8ff; }
+  .privacy { font-size: 15px; color: var(--muted); }
+  .outside { display: flex; gap: 10px; }
+  .outside .input { flex: 1; }
+
+  /* 입력 */
+  .who-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .who-h .c { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+  .who-h .tlink { margin-left: auto; font-size: 15px; }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+  .field .input.big { height: 60px; font-size: 24px; font-weight: 700; text-align: right; padding-right: 48px; }
+  .unitbox { position: relative; }
+  .unitbox i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: 17px; pointer-events: none; }
+  .field .input.bad { border-color: var(--negative); }
+  .ferr { color: var(--negative); font-size: 15px; font-weight: 600; }
+  .ferr:empty { display: none; }
+  .after { text-align: center; color: var(--muted); font-size: 15px; }
+
+  /* 여러 줄(multi) */
+  .lines { display: flex; flex-direction: column; gap: 12px; }
+  .line { display: grid; gap: 8px 10px; align-items: center; padding: 12px; border-radius: 12px; background: var(--surface); }
+  .line .input { background: #fff; }
+  .line .amt { font-weight: 700; text-align: right; }
+  .line .del { width: 40px; height: 40px; padding: 0; }
+  .line .lnk { grid-column: 1 / -2; }
+  .line-h { background: none; padding: 0 12px; font-size: 15px; font-weight: 600; margin-bottom: -10px; }
+
+  /* 연수 이수(prototype matrixForm .trn) */
+  .trns { display: flex; flex-direction: column; }
+  .trn { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rule); }
+  .trn:first-child { border-top: 0; }
+  .trn .input:disabled { background: var(--surface); color: var(--faint); }
+  .trn .na { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 15px; color: var(--muted); cursor: pointer; }
+  .trn .na input { width: 20px; height: 20px; }
+
+  /* 끝 */
+  .ok-mark { width: 56px; height: 56px; border-radius: 50%; background: var(--positive); color: #fff; display: grid; place-items: center; flex: none; }
+  .sent-kv { display: grid; grid-template-columns: 96px 1fr; gap: 0; font-size: 17px; margin: 0; }
+  .sent-kv dt, .sent-kv dd { padding: 12px 0; border-top: 1px solid var(--rule); }
+  .sent-kv dt { color: var(--muted); }
+  .sent-kv dd { margin: 0; font-weight: 600; }
+  .sent-kv dt:first-of-type, .sent-kv dd:first-of-type { border-top: 0; }
+  .invite { font-size: 15px; color: var(--muted); margin-top: 24px; }
+
+  @media (max-width: 760px) {
+    .bare-top .brand { display: flex; }
+    .head h1 { font-size: 26px; }
+    .panel { padding: 20px 16px; border-radius: 14px; margin: 0 -4px; }
+    .unit { grid-template-columns: minmax(52px, auto) 1fr auto; padding: 10px 14px; }
+    .status .track { max-width: none; }
+    .trn { grid-template-columns: 1fr; gap: 6px; }
+  }
+</style>
+<script src="{% static 'js/recv.js' %}" defer></script>
+{% endblock %}
+{% block ctx %}{% if c %}<span class="ctx">{{ school }} {{ grade }}학년</span>{% endif %}{% endblock %}
+{% block end %}<span class="end"><span class="lbl">로그인 없이 내요</span></span>{% endblock %}
+{% block main %}{% include "collect/_recv_main.html" %}{% endblock %}

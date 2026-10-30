@@ -2,6 +2,7 @@ from django.http import HttpResponse
 from django.urls import path
 
 from accounts import views as accounts
+from collect import submit
 from collect import views as collect
 from spaces import views as spaces
 
@@ -22,6 +23,9 @@ urlpatterns = [
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),
     path("s/<str:space_token>/c/<str:key>/", collect.made),
+    path("c/<str:link_token>", submit.pick),
+    path("c/<str:link_token>/outside", submit.outside),
+    path("c/<str:link_token>/u/<str:key>", submit.unit),
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
     path("auth/google/login", accounts.google_login),

@@ -1,0 +1,89 @@
+{% if view == "notfound" %}
+<div class="head"><h1>링크를 찾을 수 없어요</h1><p class="meta">주소가 잘렸거나, 걷는 선생님이 모으기를 지웠을 수 있어요.</p></div>
+<section class="panel" aria-labelledby="nfH"><h2 id="nfH">이렇게 해 보세요</h2>
+  <ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px"><li>쿨메신저 쪽지의 링크를 끝까지 복사했는지 봐 주세요.</li><li>그래도 안 되면 보낸 선생님께 새 링크를 받아 주세요.</li></ul>
+</section>
+{% else %}
+<div class="head">
+  <h1>{{ c.title }}</h1>
+  <p class="meta">
+    {% if owner %}<span class="by"><span class="av sm" style="background:var(--ink)">{{ owner.name|slice:":1" }}</span><span><b>{{ owner.name }}</b> 선생님({{ owner.cls }})이 걷어요</span></span>{% endif %}
+    <span>{% if c.due %}마감 <b class="num">{{ c.due|date:"n/j H:i" }}</b>{% else %}마감 미정{% endif %}</span>
+  </p>
+  <div class="status"><div class="track"><i style="width:{{ pct }}%"></i></div><span class="n num"><b>{{ n_done }}</b> / {{ n_total }}{{ per }} 냈어요</span></div>
+</div>
+
+{% if view == "pick" %}
+<section class="panel" aria-labelledby="pickH">
+  <h2 id="pickH">어느 {% if per == "반" %}반{% else %}분{% endif %} 칸을 채우시나요?</h2>
+  <p class="lead">가입·로그인 없이 바로 써요. 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>
+  <ul class="units">{% for u in units %}
+    <li><a class="unit{% if u.mine %} mine{% endif %}" href="/c/{{ c.link_token }}/u/{{ u.row.key }}">
+      <span class="c num">{{ u.row.unit }}</span>
+      <span class="w"><span class="av sm{% if not u.done %} off{% endif %}{% if u.ink %} ink-t{% endif %}" style="background:{{ u.color }}">{{ u.row.who|slice:":1"|default:"?" }}</span><span>{{ u.row.who|default:"이름 없음" }} 선생님{% if u.mine %}<small>이 PC에서 쓰던 이름이에요</small>{% endif %}</span></span>
+      <span class="st{% if u.late %} late{% elif u.done %} done{% endif %}">{% if u.late %}늦게 냈어요{% elif u.done %}냈어요{% else %}아직{% endif %}</span>
+    </a></li>{% endfor %}
+  </ul>
+  {% if c.allow_outside %}
+  <form class="field" method="post" action="/c/{{ c.link_token }}/outside">{% csrf_token %}
+    <label for="oname">명부에 없으면 이름을 쓰고 내 칸을 만드세요</label>
+    <div class="outside"><input class="input lg" id="oname" name="name" maxlength="40" autocomplete="name" placeholder="이름"{% if outside_error %} aria-describedby="oErr"{% endif %}><button class="btn sec lg" type="submit">내 칸 만들기</button></div>
+    {% if outside_error %}<p class="ferr" id="oErr" role="alert">{{ outside_error }}</p>{% endif %}
+  </form>
+  {% elif outside_error %}<p class="ferr" role="alert">{{ outside_error }}</p>{% endif %}
+  <p class="privacy">다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.</p>
+</section>
+
+{% elif view == "form" %}
+<form class="panel" id="f" method="post" action="/c/{{ c.link_token }}/u/{{ row.key }}" hx-post="/c/{{ c.link_token }}/u/{{ row.key }}" hx-target="#main" novalidate aria-labelledby="formH">{% csrf_token %}
+  <div class="who-h"><span class="c num">{{ row.unit }}</span><h2 id="formH">{{ row.who|default:"이름 없음" }} 선생님 칸</h2><a class="tlink acc" href="/c/{{ c.link_token }}">다른 칸 고르기</a></div>
+  {% if done and not sent %}<p class="notice">{% if changed %}보내신 뒤 다른 분이 고쳤어요({{ last|date:"n/j H:i" }}). 지금 값은 보이지 않아요. 다시 내면 새 값으로 바뀌어요.{% else %}{{ row.unit }} 칸은 {{ last|date:"n/j H:i" }}에 이미 냈어요. 다시 내면 새 값으로 바뀌어요.{% endif %}</p>{% endif %}
+  {% if not mine and not done %}<p class="well">{{ row.who|default:"이 칸" }} 선생님 대신 내셔도 돼요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>{% endif %}
+  {% if form_error %}<p class="ferr" role="alert">{{ form_error }}</p>{% endif %}
+
+  {% if c.multi %}
+  <div class="line line-h" aria-hidden="true" style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px">{% for col in cols %}{% if col.f.kind != "url" %}<span{% if col.calc %} class="amt"{% endif %}>{{ col.label }}</span>{% endif %}{% endfor %}<span></span></div>
+  <div class="lines" id="lines">{% for ln in lines %}{% include "collect/_recv_line.html" %}{% endfor %}</div>
+  <template id="lineT">{% include "collect/_recv_line.html" with ln=blank %}</template>
+  <button class="btn sec lg block" type="button" data-add-line>＋ 줄 추가</button>
+  {% elif matrix %}{% with ln=lines.0 %}
+  <p class="lead" style="margin-top:0">다 못 채워도 저장돼요. 채운 칸만 합본에 들어가요. 대상이 아니면 「해당 없음」을 고르세요.</p>
+  <div class="trns">{% for cell in ln.cells %}{% with f=cell.col.f %}
+    <div class="trn"><label for="t{{ f.pos }}"><b>{{ forloop.counter }}. {{ f.name }}</b></label>
+      <div><input class="input" id="t{{ f.pos }}" name="f{{ f.pos }}" autocomplete="off" placeholder="이수번호 붙여넣기" value="{% if cell.v != na %}{{ cell.v }}{% endif %}"{% if cell.v == na %} disabled{% endif %}>
+        <label class="na"><input type="checkbox" name="na{{ f.pos }}" data-na="t{{ f.pos }}"{% if cell.v == na %} checked{% endif %}> 해당 없음</label></div></div>
+  {% endwith %}{% endfor %}</div>
+  {% endwith %}
+  {% else %}{% with ln=lines.0 %}
+  <div class="pair">{% for cell in ln.cells %}{% if cell.col.f.kind == "number" %}{% include "collect/_recv_input.html" %}{% endif %}{% endfor %}</div>
+  {% for cell in ln.cells %}{% if cell.col.f.kind != "number" and not cell.col.calc %}{% include "collect/_recv_input.html" %}{% endif %}{% endfor %}
+  {% endwith %}{% endif %}
+
+  <label class="field"><span>내는 사람 <span class="hint">선택 · 대신 내는 분은 이름을 남겨 주세요</span></span><input class="input lg" name="by" autocomplete="name" value="{{ by }}" maxlength="40" placeholder="이름"></label>
+  <button class="btn pri lg block" type="submit">{% if matrix %}저장하기{% elif done %}고쳐서 다시 내기{% else %}제출하기{% endif %}</button>
+  <p class="after">{% if c.due %}마감 {{ c.due|date:"n/j H:i" }} 전까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
+</form>
+
+{% elif view == "done" %}
+<section class="panel" aria-labelledby="okH" tabindex="-1" id="ok" autofocus>
+  <div class="row" style="gap:16px"><span class="ok-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+    <div><h2 id="okH">{% if partial %}저장했어요{% else %}제출했어요{% endif %}</h2><p class="muted">{% if owner %}{{ owner.name }} 선생님 {% endif %}합본에 바로 들어갔어요. 이제 {{ n_done }}/{{ n_total }}{{ per }}이에요.</p></div></div>
+  <dl class="sent-kv num">
+    <dt>{% if per == "반" %}반{% else %}칸{% endif %}</dt><dd>{{ row.unit }} {{ row.who }} 선생님</dd>
+    {% for line in summary %}{% if c.multi %}<dt>{{ forloop.counter }}줄</dt><dd>{{ line }}</dd>{% else %}{% for name, v in line %}<dt>{{ name }}</dt><dd>{% if v %}{{ v }}{% else %}<span class="dash">—</span>{% endif %}</dd>{% endfor %}{% endif %}{% endfor %}
+    <dt>낸 사람</dt><dd>{% if by %}{{ by }}{% if proxy %} (대신 냄){% endif %}{% else %}<span class="dash">—</span>{% endif %}</dd>
+    <dt>시각</dt><dd>{{ at|date:"n/j H:i" }}{% if late %} · 마감 뒤에 냈어요{% endif %}</dd>
+  </dl>
+  <a class="btn sec lg block" href="/c/{{ c.link_token }}/u/{{ row.key }}">고치기</a>
+  <p class="after">{% if c.due %}마감 {{ c.due|date:"n/j H:i" }} 전까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
+</section>
+<p class="invite">매일 아침 내 일과와 낼 것을 한 장으로 보려면 <a class="tlink acc" href="/">고티처를 써 보세요</a>.</p>
+
+{% elif view == "closed" %}
+<section class="panel" aria-labelledby="clH"><h2 id="clH">마감됐어요</h2>
+  <p>{{ c.closed_at|date:"n/j H:i" }}에 마감돼서 이 링크로는 더 낼 수 없어요.{% if owner %} 늦게라도 내야 하면 {{ owner.name }} 선생님({{ owner.cls }})께 말해 주세요. 마감을 다시 열 수 있어요.{% endif %}</p>
+  <span id="clMsg" hidden>[고티처] {{ c.title }} 마감이 지나서 못 냈어요. 다시 열어 주실 수 있을까요?</span>
+  <button class="btn sec lg block" type="button" data-copy="#clMsg" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">{% if owner %}{{ owner.name }} 선생님께 {% endif %}보낼 문구 복사</button>
+</section>
+{% endif %}
+{% endif %}

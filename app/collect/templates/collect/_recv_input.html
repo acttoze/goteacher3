@@ -1,0 +1,12 @@
+{# 칸 하나의 입력. cell = {col: {f, label, unit, calc}, v, err} #}{% with f=cell.col.f %}{% if cell.col.calc %}
+<span class="field"><span>{{ cell.col.label }} <span class="hint">자동 계산</span></span><span class="amt num" data-calc>0</span></span>
+{% else %}
+<label class="field"><span>{{ cell.col.label }}{% if f.name == "비고" %} <span class="hint">없으면 비워 두세요</span>{% endif %}</span>
+  {% if f.kind == "number" %}<span class="unitbox"><input class="input {% if c.multi %}lg{% else %}big{% endif %} num{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" inputmode="decimal" autocomplete="off" value="{{ cell.v }}" data-num{% if cell.err %} aria-invalid="true"{% endif %}>{% if cell.col.unit %}<i>{{ cell.col.unit }}</i>{% endif %}</span>
+  {% elif f.kind == "select" %}<select class="input lg{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}"><option value="">고르기</option>{% for o in f.options %}<option{% if o == cell.v %} selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+  {% elif f.kind == "date" %}<input class="input lg{% if cell.err %} bad{% endif %}" type="date" name="f{{ f.pos }}" value="{{ cell.v }}">
+  {% elif f.kind == "url" %}<input class="input lg{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" inputmode="url" autocomplete="off" value="{{ cell.v }}" placeholder="https://">
+  {% else %}<input class="input lg{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" autocomplete="off" value="{{ cell.v }}">{% endif %}
+  {% if cell.err %}<span class="ferr" role="alert">{{ cell.err }}</span>{% endif %}
+</label>
+{% endif %}{% endwith %}

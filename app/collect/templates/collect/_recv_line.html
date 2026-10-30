@@ -1,0 +1,12 @@
+{# multi 한 줄(prototype itemsForm .itm). 머리글은 위에 한 번만, 링크 칸은 아랫줄. 새 줄 틀(<template>)은 ln=blank #}<div class="line" data-line style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px">
+  <input type="hidden" name="line" value="{{ ln.key }}">
+  {% for cell in ln.cells %}{% with f=cell.col.f %}{% if cell.col.calc %}<span class="amt num" data-calc aria-label="{{ cell.col.label }}">0</span>
+  {% elif f.kind != "url" %}<span>{% if f.kind == "number" %}<input class="input num{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" inputmode="decimal" autocomplete="off" value="{{ cell.v }}" data-num aria-label="{{ f.name }}">
+    {% elif f.kind == "select" %}<select class="input{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" aria-label="{{ f.name }}"><option value="">고르기</option>{% for o in f.options %}<option{% if o == cell.v %} selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+    {% elif f.kind == "date" %}<input class="input{% if cell.err %} bad{% endif %}" type="date" name="f{{ f.pos }}" value="{{ cell.v }}" aria-label="{{ f.name }}">
+    {% else %}<input class="input{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" autocomplete="off" value="{{ cell.v }}" aria-label="{{ f.name }}">{% endif %}
+    {% if cell.err %}<span class="ferr" role="alert">{{ cell.err }}</span>{% endif %}</span>
+  {% endif %}{% endwith %}{% endfor %}
+  <button class="btn ghost del" type="button" data-del-line aria-label="이 줄 지우기">✕</button>
+  {% for cell in ln.cells %}{% if cell.col.f.kind == "url" %}<span class="lnk"><input class="input{% if cell.err %} bad{% endif %}" name="f{{ cell.col.f.pos }}" inputmode="url" autocomplete="off" value="{{ cell.v }}" placeholder="{{ cell.col.label }} (https://… 없으면 비워 두세요)" aria-label="{{ cell.col.label }}">{% if cell.err %}<span class="ferr" role="alert">{{ cell.err }}</span>{% endif %}</span>{% endif %}{% endfor %}
+</div>
