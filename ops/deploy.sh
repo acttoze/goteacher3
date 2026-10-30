@@ -45,15 +45,16 @@ main() {
   docker compose build -q goteacher-app
   # 임시 컨테이너가 Traefik 백엔드로 잡히지 않게 라벨을 끈다
   docker compose run --rm -T -l traefik.enable=false goteacher-app python app/manage.py migrate --noinput
-  # worker도 같은 이미지로 새로 띄운다. 못 뜨면 직전 이미지를 latest로 다시 붙여 그것으로 되돌린다.
+  # 앱은 새 컨테이너가 healthy가 된 뒤 옛 것을 내린다(무중단, rollout.sh). worker도 같은 이미지로 새로 띄운다.
+  # 못 뜨면 직전 이미지를 latest로 다시 붙여 그것으로 되돌린다(앱이 못 떴으면 옛 앱 컨테이너가 계속 응답 중).
   # (migrate는 이미 적용됐다 — 되돌릴 수 없는 마이그레이션이면 직전 코드가 새 스키마로 뜬다. 스테이징 한정 허용)
-  if ! docker compose up -d --wait goteacher-app goteacher-worker; then
+  if ! bash ./rollout.sh; then
     if [ -n "$old_img" ]; then
       log "기동 실패 ${new:0:7} — 직전 이미지로 되돌림"
       local bad_img
       bad_img=$(docker image inspect -f '{{.Id}}' goteacher-app:latest)
       docker tag "$old_img" goteacher-app:latest
-      docker compose up -d --wait goteacher-app goteacher-worker || log "되돌리기도 실패 — 수동 확인 필요"
+      bash ./rollout.sh || log "되돌리기도 실패 — 수동 확인 필요"
       [ "$bad_img" != "$old_img" ] && docker rmi "$bad_img" >/dev/null 2>&1 || true
     fi
     false  # ERR 트랩: deploy-skip에 기록, deployed는 그대로(직전 커밋)

@@ -149,3 +149,12 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+# 500 오류는 docker logs에 경로(토큰 가림)·예외 종류·코드 위치만 남긴다. 값이 들어갈 수 있는 것은 빼고(config/logsafe.py).
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"safe": {"()": "config.logsafe.SafeErrorFormatter"}},
+    "handlers": {"stderr": {"class": "logging.StreamHandler", "formatter": "safe", "level": "ERROR"}},
+    "loggers": {"django.request": {"handlers": ["stderr"], "level": "ERROR", "propagate": False}},
+}

@@ -46,6 +46,13 @@ services:
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.scheme: https
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.permanent: "true"
       traefik.http.services.gt-staging.loadbalancer.server.port: "8000"
+      # 무중단 교체(G6, rollout.sh): Traefik이 1초마다 /healthz를 보고 503(비우는 중)이면 그 컨테이너를 뺀다.
+      # Host는 Docker healthcheck와 같은 localhost(ALLOWED_HOSTS). 컨테이너 IP로 보내면 Django가 400을 준다.
+      # 제한 5초: Traefik은 한 번 실패로 뺀다 — worker가 느린 요청으로 잠깐 밀려도 하나뿐인 서버를 빼지 않게
+      traefik.http.services.gt-staging.loadbalancer.healthcheck.path: /healthz
+      traefik.http.services.gt-staging.loadbalancer.healthcheck.hostname: localhost
+      traefik.http.services.gt-staging.loadbalancer.healthcheck.interval: 1s
+      traefik.http.services.gt-staging.loadbalancer.healthcheck.timeout: 5s
 
   # 작업 큐(RQ). 앱과 같은 이미지(deploy.sh가 goteacher-app으로 빌드). 밖에 열지 않는다.
   # 작업당 상한 300초는 config/queue.py(settings.RQ_JOB_TIMEOUT).

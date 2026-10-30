@@ -1,3 +1,5 @@
+import os
+
 from django.http import HttpResponse
 from django.urls import include, path
 from django.views.generic import TemplateView
@@ -9,7 +11,13 @@ from library import views as library
 from spaces import views as spaces
 
 
+# 무중단 교체(ops/rollout.sh)가 내릴 컨테이너에 이 파일을 만들면 503을 줘서 Traefik이 먼저 뺀다
+DRAIN_FILE = "/tmp/gt-drain"
+
+
 def healthz(request):
+    if os.path.exists(DRAIN_FILE):
+        return HttpResponse("draining", content_type="text/plain", status=503)
     return HttpResponse("ok", content_type="text/plain")
 
 

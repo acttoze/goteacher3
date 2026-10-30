@@ -11,6 +11,10 @@
 실패한 커밋은 `var/deploy-skip`에 적고 넘어간다(CI를 다시 돌려 통과했다면 이 파일을 지우면 다시 시도).
 기록은 `var/deploy.log`, 마지막 반영 커밋은 `var/deployed`.
 
+- 무중단(G6): 앱은 `ops/rollout.sh`가 새 컨테이너를 먼저 띄워 healthy 확인 → 옛 것에 `/tmp/gt-drain`(→ `/healthz` 503,
+  Traefik 서비스 health check가 1초 안에 뺌) → 옛 것을 내린다. 새 것이 안 뜨면 새 것만 지우고 옛 것이 계속 응답.
+  `compose.yml`의 traefik 라벨을 바꾼 배포만 공존할 수 없어(설정이 다른 같은 라우터 → Traefik이 둘 다 버림) 수 초 끊긴다.
+  앱 컨테이너 번호는 교체마다 바뀐다(`goteacher-goteacher-app-N`). 이름 대신 `docker compose ps -q goteacher-app`.
 - 수동 반영(CI 없이): `GT_SKIP_CI=1 ops/deploy.sh`
 - 되돌리기: `git revert` 뒤 푸시(서버에서 손으로 reset하지 않는다 — 다음 분에 main으로 돌아간다)
 
@@ -18,6 +22,10 @@
 복구 시험: `ops/restore_test.sh [파일]` — 네트워크 없는 임시 컨테이너 `goteacher-restoretest`에 풀어
 표마다 행 수를 운영 db와 비교하고 지운다. 운영 db에 실제로 복구하는 것은 리드 승인 뒤:
 `docker compose exec -T db pg_restore -U goteacher -d goteacher --clean --if-exists < 파일`.
+
+감시(G6): crontab 5분마다 `ops/monitor.sh` — Traefik 경유 `/healthz`·worker·db·디스크 여유 15GB·백업 26시간 안·
+최근 5분 500 오류(`config/logsafe.py`: 경로 토큰 가림, 예외 메시지 없이 종류·위치만)·배포 실패. 문제 목록이 바뀔 때만
+`var/alerts.log`에 남긴다(같은 문제는 6시간마다). 보내는 수단은 미정 → `notify()`. 지금 상태만 보기: `GT_DRY=1 ops/monitor.sh`.
 
 공용 서버 규칙: 이 프로젝트 밖의 컨테이너·네트워크·볼륨과 Traefik 설정은 건드리지 않는다.
 `docker system prune`·`volume prune` 금지. DB·Redis 포트는 호스트에 열지 않는다.
