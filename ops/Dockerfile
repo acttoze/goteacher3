@@ -17,7 +17,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY app ./app
 COPY hwp ./hwp
 COPY web ./web
-RUN SECRET_KEY=build-only python app/manage.py collectstatic --noinput -v 0
+RUN SECRET_KEY=build-only python app/manage.py collectstatic --noinput -v 0 \
+    && chmod -R a+rX /srv/staticfiles  # 업로드 폴더 권한(700) 설정이 collectstatic에도 걸려 gt가 못 읽는 것 방지
 
 RUN useradd --system --no-create-home gt \
     && mkdir -p /srv/media && chown gt /srv/media && chmod 700 /srv/media  # 올린 한글 파일 볼륨(새 볼륨이 이 소유권을 받음)
