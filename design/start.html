@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시작하기 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /* 가입 4단계 — 질문: 1분 안에 내 동학년을 만들 수 있나? 단계마다 한 장, 큰 글씨 하나. */
+  .bare.wide { max-width: 1120px; padding-top: 56px; }
+  .step-word { font-size: 17px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .step-word .track { width: 160px; height: 6px; }
+  .st-h { font-size: 32px; line-height: 1.15; letter-spacing: -0.04em; font-weight: 800; }
+  .st-lead { margin-top: 16px; font-size: 20px; line-height: 1.5; color: var(--muted); max-width: 34em; }
+  .split { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 48px; align-items: start; }
+  .gbtn { margin-top: 36px; height: 56px; padding: 0 26px 0 20px; border-radius: 999px; border: 1px solid var(--control); background: #fff; display: inline-flex; align-items: center; gap: 14px; font: 700 18px/1 var(--font); cursor: pointer; transition: background-color .15s, transform .12s; }
+  .gbtn:hover { background: var(--surface); }
+  .gbtn:active { transform: scale(.98); }
+  .fine { margin-top: 16px; font-size: 15px; color: var(--muted); max-width: 32em; }
+  .facts { background: var(--surface); border-radius: 16px; padding: 28px; display: flex; flex-direction: column; gap: 22px; }
+  .facts h2 { font-size: 19px; letter-spacing: -0.02em; }
+  .facts dl { display: flex; flex-direction: column; gap: 18px; margin: 0; }
+  .facts dt { font-weight: 700; font-size: 17px; }
+  .facts dd { margin: 4px 0 0; color: var(--muted); font-size: 16px; }
+  .facts .ex { display: flex; gap: 8px; align-items: center; margin-top: 8px; font-size: 14px; color: var(--muted); }
+  .facts .ex .stack .av { border-color: var(--surface); }
+  .card.form { padding: 28px; gap: 22px; max-width: 760px; }
+  .results { list-style: none; margin: 0; padding: 0; }
+  .results li + li { border-top: 1px solid var(--rule); }
+  .results button { width: 100%; display: flex; align-items: center; gap: 16px; padding: 16px 4px; background: none; border: 0; text-align: left; cursor: pointer; border-radius: 8px; transition: background-color .15s; }
+  .results button:hover { background: #fafbfc; }
+  .results b { font-size: 18px; }
+  .results .m { font-size: 15px; color: var(--muted); margin-top: 2px; }
+  .results .go { margin-left: auto; }
+  .sf { display: flex; gap: 10px; }
+  .sf .search { flex: 1; }
+  .school-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 17px; }
+  .done-box { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
+  .back { margin-top: 20px; }
+  .route { margin-top: 64px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .route li { list-style: none; background: var(--surface); border-radius: 14px; padding: 20px; min-height: 148px; display: flex; flex-direction: column; gap: 8px; }
+  .route li.on { background: var(--accent-soft); }
+  .route b { font-size: 18px; letter-spacing: -0.02em; }
+  .route li.on b { color: var(--accent-ink); }
+  .route span { font-size: 15px; color: var(--muted); }
+  .route-h { margin-top: 64px; font-size: 19px; letter-spacing: -0.02em; }
+  .route-h + .route { margin-top: 16px; }
+  @media (max-width: 900px) {
+    .route { grid-template-columns: 1fr 1fr; }
+    .split { grid-template-columns: 1fr; gap: 32px; }
+    .st-h { font-size: 32px; }
+    .st-lead { font-size: 18px; }
+  }
+  @media (max-width: 760px) {
+    .bare-top .brand { display: flex; } /* 공용 폰 규칙이 셸용 .brand를 숨겨서 되살림 */
+    .bare.wide { padding-top: 28px; }
+    .step-word { font-size: 15px; }
+    .step-word .track { width: 64px; flex: none; }
+    .st-h { font-size: 28px; }
+    .sf { flex-direction: column; }
+    .card.form { padding: 20px; }
+    .gbtn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<header class="bare-top">
+  <a class="brand" href="landing.html" id="brand"></a>
+  <span class="ctx">동학년 만들기</span>
+  <span class="end"><span class="lbl">초대 링크를 받으셨다면 그 링크를 그대로 여세요</span></span>
+</header>
+<main class="bare wide" id="m"></main>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc, m = $('#m');
+  $('#brand').innerHTML = U.mark(24) + '고티처';
+  var STEPS = ['구글 로그인', '학교 찾기', '내 학년 · 반', '동학년 만들기'];
+  var S = { step: 1, name: '송민재', school: null, grade: 4, cls: '4-1' };
+  var SCHOOLS = [
+    { name: '새솔초등학교', office: '경기도교육청', addr: '경기도 화성시 새솔동' },
+    { name: '새솔중학교', office: '경기도교육청', addr: '경기도 화성시 새솔동' },
+    { name: '서울새솔초등학교', office: '서울특별시교육청', addr: '서울특별시 강서구 마곡동' }
+  ];
+  var GOOGLE = '<svg width="24" height="24" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+  function head(title, lead) {
+    return '<p class="step-word"><span>4단계 중 ' + S.step + '단계 · ' + STEPS[S.step - 1] + '</span><span class="track thin"><i style="width:' + (S.step / 4 * 100) + '%"></i></span></p>' +
+      '<h1 class="st-h">' + title + '</h1>' + (lead ? '<p class="st-lead">' + lead + '</p>' : '');
+  }
+  function back() { return '<p class="back"><button class="tlink" type="button" id="back">이전 단계로</button></p>'; }
+  function bindBack() { var b = $('#back'); if (b) b.onclick = function () { S.step--; render(); }; }
+
+  function step1() {
+    m.innerHTML = '<div class="split"><div>' + head('동학년 선생님들과<br>한 양식을 같이 채워요',
+      '학년 대표 선생님이 동학년을 만들고 링크 하나를 쿨메신저로 보내면 끝이에요. 받은 선생님은 가입 없이 이름만 고르고 들어와요.') +
+      '<button class="gbtn" type="button" id="google">' + GOOGLE + '구글 계정으로 시작하기</button>' +
+      '<p class="fine">학교 PC에서 쓰는 구글 계정 하나면 돼요. 고티처에 비밀번호를 따로 만들지 않고, 이 PC를 1년 동안 기억해요.</p></div>' +
+      '<aside class="facts" aria-labelledby="factsH"><h2 id="factsH">동학년판은 무료예요</h2><dl>' +
+      '<div><dt>한글 양식 그대로</dt><dd>hwp·hwpx 양식을 올리면 다섯 반 답을 같은 파일에 채워서 돌려드려요.</dd></div>' +
+      '<div><dt>링크 하나, 가입 없음</dt><dd>받는 선생님은 링크를 열고 자기 칸만 채워요. 바쁜 반은 대신 내도 돼요.</dd>' +
+      '<div class="ex"><span class="stack">' + PEOPLE.grade.map(function (n) { return U.av(n, 'sm'); }).join('') + '</span>동학년 다섯 명이 한 표를 동시에</div></div>' +
+      '<div><dt>교직원 정보만</dt><dd>학생 개인정보는 받지 않아요. 데이터는 오라클 클라우드 춘천 리전, 국내에 보관해요.</dd></div>' +
+      '</dl></aside></div>' +
+      '<h2 class="route-h">1분이면 첫 화면까지 가요</h2><ol class="route plain">' +
+      '<li class="on"><b>구글 로그인</b><span>학교 PC의 구글 계정 하나로. 비밀번호를 새로 만들지 않아요.</span></li>' +
+      '<li><b>학교 찾기</b><span>학교 이름 일부만 쓰면 나이스 학교 정보에서 찾아요.</span></li>' +
+      '<li><b>내 학년 · 반</b><span>반 목록은 나이스 학급 정보에서 가져와요.</span></li>' +
+      '<li><b>동학년 만들기</b><span>초대 링크와 QR이 생겨요. 쿨메신저로 보내면 끝이에요.</span></li></ol>';
+    $('#google').onclick = function () { S.step = 2; U.toast('송민재 선생님 구글 계정으로 들어왔어요'); render(); };
+  }
+
+  function step2() {
+    m.innerHTML = head('어느 학교 선생님이세요?', '학교 이름 일부만 써도 돼요. 나이스 학교 정보에서 찾아요.') +
+      '<section class="card form" style="margin-top:32px" aria-label="학교 찾기"><form class="sf" id="sf"><label class="search"><span class="sr">학교 이름</span>' + U.icon('search', 18) +
+      '<input class="input lg" id="sq" value="새솔" autocomplete="off" placeholder="예: 새솔초"></label><button class="btn ink lg" type="submit">찾기</button></form>' +
+      '<div id="res"></div></section>' + back();
+    function search() {
+      var q = $('#sq').value.trim(), res = $('#res');
+      if (q.length < 2) { res.innerHTML = '<p class="empty">두 글자 이상 써 주세요.</p>'; return; }
+      var r = SCHOOLS.filter(function (s) { return s.name.indexOf(q) > -1; });
+      res.innerHTML = r.length ? '<p class="small muted">' + r.length + '곳을 찾았어요</p><ul class="results">' + r.map(function (s, i) {
+        return '<li><button type="button" data-i="' + i + '"><span><b>' + esc(s.name) + '</b><div class="m">' + esc(s.office) + ' · ' + esc(s.addr) + '</div></span><span class="btn sec sm go">이 학교</span></button></li>';
+      }).join('') + '</ul>' : '<p class="empty">「' + esc(q) + '」' + U.josa(q, '으로', '로') + ' 찾은 학교가 없어요. 이름을 줄여서 다시 써 보세요.</p>';
+      U.$$('[data-i]', res).forEach(function (b) { b.onclick = function () { S.school = r[+b.dataset.i]; S.step = 3; render(); }; });
+    }
+    $('#sf').onsubmit = function (e) { e.preventDefault(); search(); };
+    search(); bindBack();
+  }
+
+  function step3() {
+    var classes = 5;
+    m.innerHTML = head('담임 학년과 반을 골라 주세요', '') +
+      '<p class="school-line" style="margin-top:12px"><b>' + esc(S.school.name) + '</b><span class="muted">' + esc(S.school.office) + '</span><button class="tlink acc" type="button" id="chg">학교 바꾸기</button></p>' +
+      '<section class="card form" style="margin-top:28px" aria-label="학년·반·이름">' +
+      '<div class="field"><span>담임 학년</span><div class="picks" id="gp">' + [1, 2, 3, 4, 5, 6].map(function (n) { return '<button class="pick" type="button" data-g="' + n + '" aria-pressed="' + (n === S.grade) + '">' + n + '학년</button>'; }).join('') + '</div></div>' +
+      '<div class="field"><span>반</span><div class="picks" id="cp"></div><span class="hint" id="neis"></span></div>' +
+      '<label class="field"><span>이름</span><input class="input lg" id="nm" value="' + esc(S.name) + '" style="max-width:320px"><span class="hint">구글 계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span></label>' +
+      '<div class="wrap-row"><button class="btn pri lg" type="button" id="mk"></button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div></section>' + back();
+    function drawCls() {
+      var list = []; for (var i = 1; i <= classes; i++) list.push(S.grade + '-' + i); list.push(S.grade + '-전담');
+      $('#cp').innerHTML = list.map(function (c) { var l = c.split('-')[1]; return '<button class="pick" type="button" data-c="' + c + '" aria-pressed="' + (c === S.cls) + '">' + (l === '전담' ? '전담' : l + '반') + '</button>'; }).join('');
+      $('#neis').textContent = '나이스 학급 정보: ' + S.grade + '학년 ' + classes + '개 반';
+      $('#mk').textContent = S.grade + '학년 동학년 만들기';
+      U.$$('[data-c]').forEach(function (b) { b.onclick = function () { S.cls = b.dataset.c; drawCls(); }; });
+    }
+    U.$$('[data-g]').forEach(function (b) { b.onclick = function () { S.grade = +b.dataset.g; S.cls = ''; U.$$('[data-g]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); drawCls(); }; });
+    $('#chg').onclick = function () { S.step = 2; render(); };
+    $('#mk').onclick = function () {
+      var nm = $('#nm').value.trim();
+      if (!S.cls) return U.toast('반을 골라 주세요.');
+      if (!nm) { $('#nm').focus(); return U.toast('이름을 써 주세요.'); }
+      S.name = nm; S.step = 4; render();
+    };
+    drawCls(); bindBack();
+  }
+
+  function step4() {
+    var sch = S.school.name.replace('등학교', '');
+    m.innerHTML = head(esc(sch) + ' ' + S.grade + '학년 동학년을 만들었어요', '이제 초대 링크를 동학년 선생님들께 보내면 돼요. 들어오는 선생님이 동학년 화면에 바로 떠요.') +
+      '<section class="card form" style="margin-top:32px" aria-label="만든 동학년"><div class="done-box">' + U.av(S.name === '송민재' ? '송민재' : S.name, 'xl') +
+      '<div><b style="font-size:20px">' + esc(S.name) + ' 선생님 · ' + esc(S.cls.replace('-', '학년 ')) + (S.cls.indexOf('전담') < 0 ? '반' : '') + '</b><p class="muted" style="margin-top:4px">' + esc(S.school.name) + ' ' + S.grade + '학년 동학년 · 만든 사람</p></div></div>' +
+      '<div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="' + G.space.invite + '"><button class="btn ink" type="button" id="cp">링크 복사</button></div>' +
+      '<div class="wrap-row"><a class="btn pri lg" href="grade.html">동학년 화면으로</a><span class="small muted">쪽지 문구와 QR은 동학년 화면에 있어요.</span></div></section>';
+    $('#cp').onclick = function () { U.copy(G.space.invite, '초대 링크를 복사했어요 · ' + G.space.invite); };
+  }
+
+  function render() { [step1, step2, step3, step4][S.step - 1](); window.scrollTo(0, 0); var h = $('h1'); if (h && S.step > 1) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } }
+  render();
+})();
+</script>
+</body>
+</html>

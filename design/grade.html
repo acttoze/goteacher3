@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>동학년 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /*
+    동학년 — 질문: 우리 학년 선생님이 다 들어왔나, 안 들어온 칸에 무엇을 보내나?
+    캔버스 1150, 12열 간격 24. 위 줄 7/5 = 664 + 24 + 462 = 1150. 아래 줄 12.
+  */
+  .list > li.who-row { display: grid; grid-template-columns: 40px 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 74px; }
+  .who-row .c { font-weight: 700; font-size: 17px; }
+  .who-row .n b { font-size: 17px; }
+  .who-row .n .m { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+  .who-row .at { font-size: var(--fs-small); color: var(--muted); text-align: right; white-space: nowrap; }
+  .who-row.wait .c, .who-row.wait .n b { color: var(--muted); }
+  .head-num { display: flex; align-items: baseline; gap: 6px; }
+  .head-num b { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); line-height: 1; }
+  .head-num span { color: var(--muted); font-size: 17px; }
+  .prog-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+  .inv { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .qr { width: 128px; height: 128px; background: #fff; border-radius: 10px; padding: 8px; box-shadow: inset 0 0 0 1px var(--line); } /* taste-skill-ignore: QR 바탕 테두리 */
+  .qr svg { width: 100%; height: 100%; }
+  .msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; }
+  .msg-h { display: flex; align-items: center; gap: 10px; margin: 20px 0 8px; }
+  .msg-h b { font-size: 15px; }
+  .next a { display: flex; align-items: center; gap: 16px; padding: 16px 0; text-decoration: none; border-top: 1px solid var(--rule); }
+  .next a:first-child { border-top: 0; padding-top: 0; }
+  .next a:last-child { padding-bottom: 0; }
+  .next a b { display: block; font-size: 17px; }
+  .next a span.m { display: block; font-size: 15px; color: var(--muted); margin-top: 2px; }
+  .next a .go { margin-left: auto; color: var(--muted); transition: transform .15s, color .15s; flex: none; }
+  .next a:hover b { color: var(--accent); }
+  .next a:hover .go { transform: translateX(3px); color: var(--accent); }
+  @media (max-width: 760px) {
+    .inv { grid-template-columns: 1fr; }
+    .list > li.who-row { grid-template-columns: 40px minmax(0, 1fr) auto; row-gap: 2px; }
+    .who-row .at { grid-column: 2; text-align: left; }
+    .who-row #resend { grid-column: 3; grid-row: 1; }
+    .who-row .c { display: none; }
+    .who-row .n b::before { content: attr(data-c) " "; }
+  }
+</style>
+</head>
+<body data-page="grade">
+<main class="main">
+  <div class="title">
+    <div class="grow">
+      <h1 id="h1"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <a class="btn sec" href="settings.html#space">동학년 설정</a>
+    <button class="btn pri" type="button" id="cpMsg">쪽지 문구 복사</button>
+  </div>
+
+  <div class="grid stretch">
+    <section class="card s7" aria-labelledby="inH">
+      <div class="card-h"><h2 id="inH">들어온 선생님</h2><span class="r">들어오면 여기에 바로 떠요</span></div>
+      <div class="card-b">
+        <div class="prog-wrap"><div class="head-num"><b class="num" id="inN"></b><span class="num" id="inT"></span></div><div class="track"><i id="inBar"></i></div></div>
+        <ul class="list" id="slots"></ul>
+      </div>
+      <div class="card-f"><button class="btn sec sm" type="button" id="cpMsg2">쪽지 문구 다시 복사</button><span>전담 선생님이 들어오면 6/6이 돼요</span></div>
+    </section>
+    <div class="stack-y s5">
+      <section class="card" aria-labelledby="ivH">
+        <div class="card-h"><h2 id="ivH">초대하기</h2><span class="r">가입 없이 이름만 고르면 돼요</span></div>
+        <div class="card-b">
+          <div class="inv">
+            <div class="qr" id="qr" role="img" aria-label="초대 링크 QR 코드"></div>
+            <div class="stack-y" style="gap:12px">
+              <div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly><button class="btn ink" type="button" id="cpLink">복사</button></div>
+              <p class="small muted">쿨메신저로 보내거나, 연구실에 QR을 붙여 두세요. 링크를 연 선생님은 반과 이름만 골라요.</p>
+              <a class="tlink acc small" href="join.html">받는 선생님 화면 보기</a>
+            </div>
+          </div>
+          <div class="msg-h"><b>쪽지 문구</b><span class="small muted">쿨메신저에 그대로 붙여넣기</span></div>
+          <div class="well msg" id="msg"></div>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="nxH">
+        <div class="card-h"><h2 id="nxH">다음 할 일</h2></div>
+        <div class="card-b next">
+          <a href="collect-new.html"><span><b>첫 모으기 만들기</b><span class="m">한글 양식을 올리면 다섯 반 칸이 자동으로 생겨요</span></span><span class="go">→</span></a>
+          <a href="forms.html"><span><b>양식 자료실 둘러보기</b><span class="m" id="fN"></span></span><span class="go">→</span></a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc;
+  GTShell.mount({ quick: true });
+  var total = G.members.length + G.waiting.length, inN = G.members.length;
+  $('#h1').textContent = G.space.name;
+  $('#sub').innerHTML = G.school + ' · ' + G.space.kind + ' 공간 · 만든 사람 <b>' + esc(G.space.by) + '</b> · ' + G.space.made.replace(/^2026-0?(\d+)-0?(\d+)$/, '$1월 $2일') + '부터';
+  $('#inN').textContent = inN;
+  $('#inT').textContent = '/ ' + total + '칸 들어왔어요';
+  $('#inBar').style.width = (inN / total * 100) + '%';
+  $('#fN').textContent = '자주 쓰는 학교 양식 ' + G.formTotal + '건, 로그인 없이 내려받기';
+
+  function day(s) { var a = s.split('/'); return a[0] + '월 ' + a[1] + '일'; }
+  $('#slots').innerHTML = G.members.map(function (x) {
+    var me = x.name === G.me.name;
+    return '<li class="who-row">' + U.av(x.name, 'lg') + '<span class="c">' + esc(x.cls.split('-')[1]) + '반</span>' +
+      '<div class="n"><b data-c="' + esc(x.cls.split('-')[1]) + '반">' + esc(x.name) + (me ? ' (나)' : '') + (x.role ? ' · ' + esc(x.role) : '') + '</b><div class="m">' + esc(x.via) + '</div></div>' +
+      '<span class="at">' + day(x.at) + ' 들어옴</span></li>';
+  }).join('') + G.waiting.map(function (w) {
+    return '<li class="who-row wait"><span class="av lg ghost">' + esc(w.label.charAt(0)) + '</span><span class="c">' + esc(w.label) + '</span>' +
+      '<div class="n"><b data-c="' + esc(w.label) + '">아직이에요</b><div class="m">' + esc(w.hint) + '께 링크를 보내 보세요</div></div>' +
+      '<button class="tlink acc" type="button" id="resend">다시 보내기</button></li>';
+  }).join('');
+
+  var msg = '[고티처] ' + G.school + ' ' + G.space.grade + '학년 동학년방이에요.\n아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)\nhttps://' + G.space.invite + '\n\n— ' + G.me.name + ' (' + G.me.cls.replace('-', '학년 ') + '반)';
+  $('#msg').textContent = msg;
+  $('#lk').value = G.space.invite;
+  $('#cpMsg').onclick = function () { U.copy(msg, '쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.'); };
+  $('#cpLink').onclick = function () { U.copy(G.space.invite, '초대 링크를 복사했어요 · ' + G.space.invite); };
+  $('#cpMsg2').onclick = function () { U.copy(msg, '쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.'); };
+  $('#resend').onclick = function () { U.copy(msg, '쪽지 문구를 복사했어요 · 노태윤 선생님께 보내 주세요'); };
+
+  // QR 모양: 링크 글자로 정해지는 25×25 격자(시안용 그림 — 실제 서비스는 QR 라이브러리)
+  (function qr() {
+    var n = 25, seed = 0, s = G.space.invite, cells = '';
+    for (var i = 0; i < s.length; i++) seed = (seed * 31 + s.charCodeAt(i)) >>> 0;
+    function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+    function finder(x, y) { return x < 7 && y < 7 || x >= n - 7 && y < 7 || x < 7 && y >= n - 7; }
+    function finderOn(x, y) { var fx = x < 7 ? x : x - (n - 7), fy = y < 7 ? y : y - (n - 7); var d = Math.max(Math.abs(fx - 3), Math.abs(fy - 3)); return d !== 2 && d <= 3; }
+    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+      var on = finder(x, y) ? finderOn(x, y) : (x === 7 || y === 7 || x === n - 8 || y === n - 8) ? false : (x === 6 || y === 6) ? (x + y) % 2 === 0 : rnd() > 0.52;
+      if (on) cells += 'M' + x + ' ' + y + 'h1v1h-1z';
+    }
+    $('#qr').innerHTML = '<svg viewBox="0 0 ' + n + ' ' + n + '" shape-rendering="crispEdges" aria-hidden="true"><path d="' + cells + '" fill="#0d0d0d"/></svg>';
+  })();
+})();
+</script>
+</body>
+</html>

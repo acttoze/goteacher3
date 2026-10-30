@@ -1,0 +1,21 @@
+/* 고티처 시안 C 공통 토큰 — 메인과 오늘 화면이 같이 쓴다 */
+:root {
+  --font: "Wanted Sans Variable", "Wanted Sans", -apple-system, "Apple SD Gothic Neo", system-ui, sans-serif;
+  --bg: #ffffff;
+  --surface: #f3f4f6;      /* 한 단계 톤 */
+  --line: #e6e8ec;
+  --ink: #0d0d0d;
+  --muted: #4b5059;
+  --accent: #2251ff;       /* 강조 하나: 행동·주 데이터 */
+  --accent-hover: #1640e0;
+  --accent-soft: #eaf0ff;
+  --accent-track: #d3defe;
+  --accent-ink: #0b2a99;
+  --positive: #1d7a46;
+  --negative: #c4242a;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); background: var(--ink); color: #fff; padding: 14px 20px; border-radius: 14px;
+  font: 600 16px/1.4 var(--font); max-width: min(560px, calc(100vw - 32px)); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50;
+  box-shadow: 0 10px 30px rgba(13, 13, 13, .18); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }

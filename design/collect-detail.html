@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>학예회 반별 참가 인원 · 모으기 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /*
+    합본 — 질문: 누가 냈고, 언제 한글로 받을 수 있나?
+    캔버스(1440): 1150 = 12열(73.83) + 간격 24. 위 줄 8/4 = 758.7 + 24 + 367.3.
+    아래 줄 8/4 같은 선. 오른쪽 칸은 카드 둘을 한 덩어리로 쌓아 위 줄 끝을 맞춘다.
+  */
+  .sheet { position: relative; }
+  .sheet .card-h .who { display: flex; align-items: center; gap: 10px; }
+  .live-wrap { padding: 0 var(--pad); }
+  .live td { height: 60px; }
+  .live td.cell { width: 15%; }
+  .live td.cell .v { display: block; text-align: right; font-weight: 600; font-size: 17px; border-radius: 6px; padding: 6px 8px; margin: 0 -8px; min-height: 36px; }
+  .live td.memo { color: var(--muted); font-size: 15px; }
+  .live td.at { width: 18%; }
+  .live td.at .t { font-size: 15px; }
+  .live td.at .t small { display: block; font-size: var(--fs-small); color: var(--muted); }
+  .live tr.empty-row td.cls, .live tr.empty-row td.nm { color: var(--muted); }
+  .live tfoot td { height: 56px; }
+  .prog { display: flex; align-items: center; gap: 14px; padding: 18px var(--pad) var(--pad); margin-top: auto; }
+  .prog .track { flex: 1; }
+  .prog .n { font-weight: 700; white-space: nowrap; }
+  .prog .n b { color: var(--accent); }
+
+  /* 오른쪽 칸 */
+  .due-big { font-size: var(--fs-lead); font-weight: 700; letter-spacing: -0.02em; }
+  .due-left { margin-top: 4px; color: var(--muted); }
+  .rail-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .remind { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; font-size: 15px; }
+  .remind svg { color: var(--accent); margin-top: 2px; flex: none; }
+  .lk .note { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .foot-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; font-size: 15px; }
+  .locked .lk .joined .input { color: var(--faint); text-decoration: line-through; }
+
+  /* 한글로 받기 */
+  .hwp { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 28px; padding: 0 var(--pad) var(--pad); align-items: start; }
+  /* 쪽은 실제 크기(560×792)로 그리고 300px 칸에 맞게 줄인다 */
+  .pagebox { width: 300px; height: 424px; overflow: hidden; border: 1px solid var(--line); border-radius: 4px; background: #fff; } /* taste-skill-ignore: data-ui 한글 쪽 미리보기 */
+  .page { width: 560px; height: 792px; transform: scale(.5357); transform-origin: 0 0; padding: 44px 40px; display: flex; flex-direction: column; gap: 14px; font-size: 14px; line-height: 1.4; color: #222; }
+  .page .ap { align-self: flex-end; display: grid; grid-template-columns: repeat(3, 64px); border: 1px solid #555; } /* taste-skill-ignore: data-ui 결재란 */
+  .page .ap span { border-left: 1px solid #555; text-align: center; padding: 4px 0; font-size: 13px; } /* taste-skill-ignore: data-ui 결재란 */
+  .page .ap span:nth-child(3n+1) { border-left: 0; }
+  .page .ap span.b { height: 38px; border-top: 1px solid #555; } /* taste-skill-ignore: data-ui 결재란 */
+  .page .pt { text-align: center; font-size: 24px; font-weight: 700; margin: 10px 0 2px; }
+  .page .ps { text-align: center; color: #555; }
+  .page table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .page th, .page td { border: 1px solid #555; padding: 6px 4px; text-align: center; height: 34px; } /* taste-skill-ignore: data-ui 한글 표 */
+  .page th { background: #f1f1f1; font-weight: 700; }
+  .page td.fill { color: var(--accent-ink); font-weight: 700; }
+  .page td.fill.new { background: var(--accent-soft); }
+  .page .pf { margin-top: auto; text-align: right; color: #666; font-size: 12px; }
+  .page .pd { text-align: right; color: #333; }
+  .files { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+  .files .lead { font-size: 17px; font-weight: 600; line-height: 1.45; }
+  .files .lead b { color: var(--accent); }
+  .files .meta { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  .fl { list-style: none; margin: 18px 0 0; padding: 0; }
+  .fl li { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; min-height: 72px; padding: 12px 0; border-top: 1px solid var(--rule); }
+  .fl li .btn { margin-left: auto; }
+  .fl .ext { width: 48px; height: 48px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; background: var(--surface); color: var(--ink); }
+  .fl .ext.k { background: var(--accent-soft); color: var(--accent-ink); }
+  .fl b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fl span.d { font-size: var(--fs-small); color: var(--muted); }
+  .fl .grow { min-width: 0; flex: 1 1 180px; }
+
+  /* 활동 기록 */
+  .log { padding: 0 var(--pad); }
+  .log li { align-items: flex-start; padding: 12px 0; min-height: 0; }
+  .log .x { font-size: 15px; line-height: 1.45; }
+  .log .when { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+  .log li.new .when { color: var(--accent); font-weight: 600; }
+
+  @media (max-width: 900px) { .hwp { grid-template-columns: 1fr; } }
+  @media (max-width: 760px) {
+    .live th.nm-h, .live td.nm, .live th.memo-h, .live td.memo { display: none; }
+    .live td.at .t small { display: none; }
+    .live td.at .t { white-space: nowrap; font-size: 14px; }
+    .sheet .cursor { display: none; }
+    .hwp { grid-template-columns: 1fr; }
+    .prog { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body data-page="collect">
+<main class="main">
+  <div class="title">
+    <div class="grow">
+      <h1 id="h1"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <button class="btn sec" type="button" id="nudge">독촉 문구 복사</button>
+    <a class="btn pri" href="#hwpH" id="getHwp">한글 양식으로 받기</a>
+  </div>
+
+  <div class="grid stretch">
+    <section class="card s8 sheet" id="sheet" aria-labelledby="liveH">
+      <div class="card-h"><h2 id="liveH">합본</h2><span class="pill" id="state">받는 중</span><span class="r who" id="viewing"></span></div>
+      <div class="live-wrap">
+        <table class="tbl live" id="live">
+          <caption class="sr">학예회 반별 참가 인원 합본</caption>
+          <thead><tr><th>반</th><th class="nm-h">담임</th><th class="r">참가(명)</th><th class="r">불참(명)</th><th class="memo-h">비고</th><th class="r">제출</th></tr></thead>
+          <tbody></tbody>
+          <tfoot><tr><td>합계</td><td class="nm"></td><td class="r num" id="sumA"></td><td class="r num" id="sumB"></td><td class="memo"></td><td class="r num" id="sumN"></td></tr></tfoot>
+        </table>
+      </div>
+      <div class="prog"><div class="track"><i id="bar"></i></div><span class="n num" id="progN"></span></div>
+    </section>
+
+    <div class="s4 stack-y">
+      <section class="card" aria-labelledby="dueH">
+        <div class="card-h"><h2 id="dueH">마감</h2></div>
+        <div class="card-b">
+          <p class="due-big num" id="dueBig"></p>
+          <p class="due-left" id="dueLeft"></p>
+          <p class="remind" id="remind"></p>
+          <div class="rail-acts"><button class="btn sec sm" type="button" id="chgDue">마감 바꾸기</button><button class="btn ghost sm" type="button" id="lock">마감하고 잠그기</button></div>
+        </div>
+      </section>
+      <section class="card lk" aria-labelledby="lkH">
+        <div class="card-h"><h2 id="lkH">받는 링크</h2></div>
+        <div class="card-b">
+          <div class="joined"><label class="sr" for="lkIn">받는 링크</label><input class="input num" id="lkIn" readonly><button class="btn ink" type="button" id="lkCopy">복사</button></div>
+          <p class="note">링크 하나로 다섯 반이 다 내요. 로그인은 없고, 명부 밖 선생님도 이 링크에서 칸을 골라 낼 수 있어요.</p>
+          <label class="foot-row"><span class="toggle"><input type="checkbox" id="footer" checked><i></i></span><span>한글 파일 끝에 「고티처로 모았습니다」 넣기</span></label>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="grid stretch" style="margin-top:var(--gap)">
+    <section class="card s8" aria-labelledby="hwpH" id="hwpCard">
+      <div class="card-h"><h2 id="hwpH">한글로 받기</h2><span class="r" id="hwpR"></span></div>
+      <div class="hwp">
+        <div class="pagebox" data-ui aria-label="채운 한글 파일 첫 쪽 미리보기"><div class="page" id="page"></div></div>
+        <div class="files">
+          <p class="lead" id="hwpLead"></p>
+          <p class="meta">올린 양식의 표 2(표 2개 중)만 채워요. 본문과 결재란은 그대로예요.</p>
+          <ul class="fl">
+            <li><span class="ext k">HWPX</span><div class="grow"><b>2026_학예회_참가인원_합본.hwpx</b><span class="d">올린 형식 그대로 · 한컴 한글 2018 이상</span></div><button class="btn sec sm" type="button" data-dl="hwpx" id="dlMain"></button></li>
+            <li><span class="ext">XLSX</span><div class="grow"><b>2026_학예회_참가인원_합본.xlsx</b><span class="d">엑셀 · 반마다 한 줄</span></div><button class="btn sec sm" type="button" data-dl="xlsx">받기</button></li>
+            <li><span class="ext">표</span><div class="grow"><b>합본 표 복사</b><span class="d">한글 문서에 그대로 붙여넣기(Ctrl+V)</span></div><button class="btn sec sm" type="button" id="copyTbl">복사</button></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+    <section class="card s4" aria-labelledby="logH">
+      <div class="card-h"><h2 id="logH">활동 기록</h2><span class="r">최근순</span></div>
+      <ul class="list log" id="log"></ul>
+    </section>
+  </div>
+</main>
+
+<div class="scrim" id="dueDlg" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dueDlgH">
+    <div class="dh"><h2 id="dueDlgH">마감 바꾸기</h2></div>
+    <div class="db">
+      <div class="grid" style="gap:12px">
+        <label class="field s6"><span>날짜</span><input class="input" type="date" id="dDate" value="2026-10-27" min="2026-10-26"></label>
+        <label class="field s6"><span>시각</span><input class="input" type="time" id="dTime" value="12:00" step="600"></label>
+      </div>
+      <p class="muted small">바꾸면 아직 안 낸 반에 다음 묶음 알림으로 새 마감이 가요. 자동 리마인드는 새 마감 날 08:20에 한 번 더 가요.</p>
+    </div>
+    <div class="df"><button class="btn ghost" type="button" id="dCancel">취소</button><button class="btn ink" type="button" id="dSave">바꾸기</button></div>
+  </div>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc, av = U.av, P = window.PEOPLE;
+  var C = G.collections[0];
+  GTShell.mount({ crumb: [['모으기', 'collect.html'], [C.title]], phoneTitle: '합본', online: ['송민재', '정하은', '김도윤'] });
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- 상태: 화면의 모든 숫자는 여기서 ----------
+  var S = {
+    rows: C.rows.map(function (r) { return { cls: r.cls, who: r.who, v: r.v.slice(), at: r.at, by: r.by || '', live: r.live, just: false, typing: null }; }),
+    due: { date: '2026-10-27', time: '12:00' },
+    locked: false,
+    log: [
+      { by: '김도윤', html: '<b>김도윤</b> 선생님이 4-3 칸을 냈어요', when: '10/26 09:12' },
+      { by: '송민재', html: '<b>송민재</b> 선생님이 4-1 칸을 냈어요', when: '10/24 08:55' },
+      { sys: true, html: '아침 묶음 08:20 · 4-3·4-4·4-5에 마감 안내가 갔어요', when: '10/26 08:20' },
+      { sys: true, html: '방과후 묶음 · 4-3·4-4·4-5에 마감 안내가 갔어요', when: '10/24 14:40' },
+      { by: '정하은', html: '<b>정하은</b> 선생님이 4-2 칸을 냈어요', when: '10/23 16:40' },
+      { by: '정하은', html: '<b>정하은</b> 선생님이 한글 양식(표 2)으로 모으기를 만들었어요', when: '10/23 16:32' }
+    ],
+    viewers: ['송민재']
+  };
+  var NOW = new Date(2026, 9, 26, 11, 5);
+  var WD = ['일', '월', '화', '수', '목', '금', '토'];
+  function done() { return S.rows.filter(function (r) { return r.v[0] !== null; }); }
+  function sum(i) { return S.rows.reduce(function (s, r) { return s + (r.v[i] || 0); }, 0); }
+  function dueDate() { var d = S.due.date.split('-'), t = S.due.time.split(':'); return new Date(+d[0], +d[1] - 1, +d[2], +t[0], +t[1]); }
+  function dueLabel() { var d = dueDate(); return (d.getMonth() + 1) + '/' + d.getDate() + '(' + WD[d.getDay()] + ') ' + S.due.time; }
+
+  // ---------- 그리기 ----------
+  var tbody = $('#live tbody');
+  function renderTable() {
+    tbody.innerHTML = S.rows.map(function (r, i) {
+      var ok = r.v[0] !== null, typing = r.typing;
+      function cell(k) {
+        var val = r.draft && r.draft[k] != null ? r.draft[k] : (r.v[k] === null ? '' : r.v[k]);
+        var ed = typing && typing.k === k;
+        return '<td class="cell r"><span class="v num' + (ed ? ' editing' : '') + '"' + (ed ? ' style="--who:' + P.of(r.who).color + '"' : '') + ' data-c="' + i + '-' + k + '">' + (val === '' && !ok ? '<span class="dash">—</span>' : esc(val)) + '</span></td>';
+      }
+      var at = ok ? '<span class="t num">' + esc(r.at) + (r.by && r.by !== r.who ? '<small>' + esc(r.by) + ' 대신 냄</small>' : '') + '</span>' : (S.locked ? '<span class="st late">안 냄</span>' : '<span class="st">미제출</span>');
+      return '<tr class="' + (ok ? '' : 'empty-row') + (r.just ? ' just' : '') + '" data-i="' + i + '"><td class="cls id">' + esc(r.cls) + '</td><td class="nm"><span class="row" style="gap:8px">' + av(r.who, 'sm' + (ok ? '' : ' off')) + esc(r.who) + '</span></td>' +
+        cell(0) + cell(1) + '<td class="memo">' + (r.v[2] ? esc(r.v[2]) : '') + '</td><td class="at r">' + at + '</td></tr>';
+    }).join('');
+    S.rows.forEach(function (r) { r.just = false; });
+    var d = done().length, t = S.rows.length;
+    $('#sumA').textContent = sum(0);
+    $('#sumB').textContent = sum(1);
+    $('#sumN').textContent = d + '/' + t + '반';
+    $('#bar').style.width = (d / t * 100) + '%';
+    $('#progN').innerHTML = '<b>' + d + '</b> / ' + t + '반 냈어요' + (d < t ? ' · 남은 반 ' + S.rows.filter(function (r) { return r.v[0] === null; }).map(function (r) { return r.cls; }).join(', ') : '');
+    console.assert(sum(0) === done().reduce(function (s, r) { return s + r.v[0]; }, 0), '참가 합계 불일치');
+  }
+  function renderTitle() {
+    var d = done().length, t = S.rows.length;
+    $('#h1').textContent = C.title;
+    $('#sub').innerHTML = esc(C.file) + ' · 마감 <b class="num">' + esc(dueLabel()) + '</b> · <b class="num">' + d + '/' + t + '반</b> 냈어요';
+    var st = $('#state');
+    if (S.locked) { st.className = 'pill'; st.textContent = '마감됨'; }
+    else if (d === t) { st.className = 'pill pos'; st.textContent = '다 걷힘'; }
+    else { st.className = 'pill acc'; st.textContent = '받는 중'; }
+  }
+  function renderViewers() {
+    $('#viewing').innerHTML = '<span class="stack">' + S.viewers.map(function (n) { return av(n, 'sm'); }).join('') + '</span><span>' + S.viewers.map(esc).join(' · ') + ' 보는 중</span>';
+  }
+  function renderDue() {
+    var ms = dueDate() - NOW, h = Math.floor(ms / 3600000), m = Math.round((ms % 3600000) / 60000);
+    $('#dueBig').textContent = dueLabel();
+    $('#dueLeft').textContent = S.locked ? '마감하고 잠갔어요. 링크로는 더 낼 수 없어요.' : ms <= 0 ? '마감 시각이 지났어요' : (h >= 48 ? Math.floor(h / 24) + '일 ' + (h % 24) + '시간' : h + '시간 ' + m + '분') + ' 남았어요';
+    var d = dueDate();
+    $('#remind').innerHTML = S.locked ? '' : U.icon('bell', 18) + '<span>' + (d.getMonth() + 1) + '/' + d.getDate() + '(' + WD[d.getDay()] + ') 08:20 아침 묶음으로 안 낸 반에 자동 리마인드가 가요.</span>';
+    $('#lock').textContent = S.locked ? '다시 열기' : '마감하고 잠그기';
+    $('#chgDue').disabled = S.locked;
+    document.body.classList.toggle('locked', S.locked);
+  }
+  function renderHwp() {
+    var d = done().length, t = S.rows.length, all = d === t;
+    var page = '<div class="ap"><span>담당</span><span>부장</span><span>교감</span><span class="b"></span><span class="b"></span><span class="b"></span></div>' +
+      '<p class="pt">2026학년도 학예회 반별 참가 인원</p><p class="ps">' + esc(G.school) + ' 4학년 · 제출 기한 ' + esc(dueLabel()) + '</p>' +
+      '<table><thead><tr><th>반</th><th>담임</th><th>참가(명)</th><th>불참(명)</th><th>비고</th></tr></thead><tbody>' +
+      S.rows.map(function (r) {
+        var ok = r.v[0] !== null, cls = 'fill' + (r.fresh ? ' new' : '');
+        return '<tr><td>' + esc(r.cls) + '</td><td>' + esc(r.who) + '</td><td class="' + (ok ? cls : '') + '">' + (ok ? r.v[0] : '') + '</td><td class="' + (ok ? cls : '') + '">' + (ok ? r.v[1] : '') + '</td><td class="' + (ok ? cls : '') + '">' + (ok && r.v[2] ? esc(r.v[2]) : '') + '</td></tr>';
+      }).join('') +
+      '<tr><th colspan="2">계</th><td class="fill">' + sum(0) + '</td><td class="fill">' + sum(1) + '</td><td></td></tr></tbody></table>' +
+      '<p class="pd">2026. 10. 27.</p><p class="pd">4학년부</p>' +
+      ($('#footer').checked ? '<p class="pf">고티처로 모았습니다 · goteacher.xyz</p>' : '');
+    $('#page').innerHTML = page;
+    $('#hwpR').textContent = '미리보기 1/1쪽';
+    $('#hwpLead').innerHTML = all ? '다섯 반이 <b>다 냈어요.</b> 올린 양식 그대로 받으면 돼요.' : '<b class="num">' + d + '/' + t + '반</b>만 채워져 있어요. 지금 받으면 ' + S.rows.filter(function (r) { return r.v[0] === null; }).map(function (r) { return r.cls; }).join(', ') + ' 칸은 비어 있어요.';
+    $('#dlMain').textContent = all ? '받기' : d + '/' + t + '반만 채워서 받기';
+    $('#getHwp').textContent = all ? '다 걷혔어요 · 한글로 받기' : '한글 양식으로 받기';
+  }
+  function renderLog() {
+    $('#log').innerHTML = S.log.slice(0, 7).map(function (f) { return '<li class="' + (f.isNew ? 'new arrive' : '') + '">' + (f.sys ? '<span class="av" style="background:var(--surface)" title="고티처 알림">' + U.mark(16) + '</span>' : av(f.by)) + '<div class="x">' + f.html + '<span class="when num">' + esc(f.when) + '</span></div></li>'; }).join('');
+    S.log.forEach(function (f) { f.isNew = false; });
+  }
+  function all() { renderTable(); renderTitle(); renderViewers(); renderDue(); renderHwp(); renderLog(); }
+
+  // ---------- 행동 ----------
+  $('#lkIn').value = C.link;
+  $('#lkCopy').onclick = function () { U.copy('https://' + C.link, '받는 링크를 복사했어요 · ' + C.link); };
+  $('#footer').onchange = function () { renderHwp(); U.toast(this.checked ? '한글 파일 끝에 꼬리말을 넣어요' : '꼬리말을 뺐어요'); };
+  $('#nudge').onclick = function () {
+    var left = S.rows.filter(function (r) { return r.v[0] === null; });
+    if (!left.length) { U.toast('다섯 반이 다 냈어요. 독촉할 반이 없어요.'); return; }
+    U.copy('[고티처] ' + C.title + ', ' + left.map(function (r) { return r.cls + ' ' + r.who; }).join(' · ') + ' 선생님 칸이 비어 있어요. ' + dueLabel() + '까지 링크에서 채워 주세요.\nhttps://' + C.link,
+      '독촉 문구를 복사했어요 · ' + left.map(function (r) { return r.cls; }).join(' · ') + ' · 쿨메신저에 붙여넣으세요');
+  };
+  U.$$('[data-dl]').forEach(function (b) {
+    b.onclick = function () { var d = done().length; U.toast('2026_학예회_참가인원_합본.' + b.dataset.dl + ' 내려받기 (' + d + '/' + S.rows.length + '반 채움, 시안이라 파일은 없어요)'); };
+  });
+  $('#copyTbl').onclick = function () {
+    var tsv = '반\t담임\t참가(명)\t불참(명)\t비고\n' + S.rows.map(function (r) { return [r.cls, r.who, r.v[0] === null ? '' : r.v[0], r.v[1] === null ? '' : r.v[1], r.v[2] || ''].join('\t'); }).join('\n') + '\n계\t\t' + sum(0) + '\t' + sum(1) + '\t';
+    U.copy(tsv, '합본 표를 복사했어요. 한글 문서에 붙여넣으세요.');
+  };
+  // 마감
+  var dlg = $('#dueDlg');
+  $('#chgDue').onclick = function () { dlg.hidden = false; $('#dDate').focus(); };
+  function closeDlg() { dlg.hidden = true; $('#chgDue').focus(); }
+  $('#dCancel').onclick = closeDlg;
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) closeDlg(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !dlg.hidden) closeDlg(); });
+  $('#dSave').onclick = function () {
+    var prev = dueLabel();
+    S.due = { date: $('#dDate').value || S.due.date, time: $('#dTime').value || S.due.time };
+    S.log.unshift({ by: G.me.name, html: '<b>' + G.me.name + '</b> 선생님이 마감을 <del>' + esc(prev) + '</del> → <b>' + esc(dueLabel()) + '</b>' + U.josa(S.due.time, '으로', '로') + ' 바꿨어요', when: '방금', isNew: true });
+    dlg.hidden = true; all(); U.toast('마감을 ' + dueLabel() + U.josa(S.due.time, '으로', '로') + ' 바꿨어요. 안 낸 반에 다음 묶음으로 알려요.');
+  };
+  $('#lock').onclick = function () {
+    S.locked = !S.locked; all();
+    if (S.locked) U.toast('마감하고 잠갔어요. 링크로는 더 낼 수 없어요.', function () { S.locked = false; all(); });
+    else U.toast('다시 열었어요. 링크로 다시 낼 수 있어요.');
+  };
+
+  all();
+
+  // ---------- 실시간: 이수빈 선생님이 4-4 칸을 채운다(시연) ----------
+  var sheet = $('#sheet');
+  function makeCursor(name) {
+    var p = P.of(name), c = document.createElement('div');
+    c.className = 'cursor' + (p.inkText ? ' ink-t' : ''); c.style.setProperty('--who', p.color);
+    c.innerHTML = '<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true"><path d="M2 2l15 7.4-6.6 1.9L7.4 18z" fill="' + p.color + '" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="nm">' + esc(name) + '</span>';
+    c.setAttribute('aria-hidden', 'true');
+    sheet.appendChild(c); return c;
+  }
+  function at(sel, dx, dy) { var el = $(sel), s = sheet.getBoundingClientRect(); if (!el || !el.offsetParent) el = $(sel.replace(/td\.memo/, 'td.at')); if (!el) return [0, 0]; var r = el.getBoundingClientRect(); return [r.left - s.left + r.width * dx, r.top - s.top + r.height * dy]; }
+  function move(c, xy) { c.style.transform = 'translate(' + Math.round(xy[0]) + 'px,' + Math.round(xy[1]) + 'px)'; }
+  var minjae = makeCursor('송민재');
+  move(minjae, at('tr[data-i="4"] td.memo', .3, .4));
+  setTimeout(function () { move(minjae, at('tr[data-i="2"] td.memo', .4, .4)); }, 1800);
+
+  var I = 3, R = S.rows[I], val = R.live;
+  function arrive() {
+    R.v = val.slice(); R.at = '10/26 11:05'; R.typing = null; R.draft = null; R.just = true; R.fresh = true;
+    S.viewers = ['송민재', '이수빈'];
+    S.log.unshift({ by: '이수빈', html: '<b>이수빈</b> 선생님이 4-4 칸을 냈어요', when: '방금 11:05', isNew: true });
+    all();
+  }
+  if (reduce) { setTimeout(arrive, 400); return; }
+  setTimeout(function () {
+    S.viewers = ['송민재', '이수빈']; renderViewers();
+    var subin = makeCursor('이수빈');
+    move(subin, [sheet.clientWidth * .55, -24]);
+    setTimeout(function () { move(subin, at('[data-c="3-0"]', .55, .7)); }, 60);
+    function typeIn(k, s, next) {
+      var j = 0;
+      (function step() {
+        j++; R.draft = R.draft || [null, null]; R.draft[k] = s.slice(0, j); R.typing = { k: k }; renderTable();
+        if (j < s.length) setTimeout(step, 220); else setTimeout(next, 450);
+      })();
+    }
+    setTimeout(function () {
+      typeIn(0, String(val[0]), function () {
+        move(subin, at('[data-c="3-1"]', .55, .7));
+        setTimeout(function () { typeIn(1, String(val[1]), function () { arrive(); move(subin, at('[data-c="3-1"]', 1.1, 1.1)); }); }, 900);
+      });
+    }, 1200);
+  }, 4200);
+})();
+</script>
+</body>
+</html>

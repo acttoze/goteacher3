@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고티처 디자인 시스템</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /* 화면 목록과 디자인 기초. 개발(web/static 이식) 때 이 페이지에서 출발한다.
+     폭 1150 가운데 한 열. 기초 구역은 6/6 = 563 + 24 + 563. */
+  .doc { max-width: 1198px; margin: 0 auto; padding: 8px 24px 120px; }
+  .doc-top { display: flex; align-items: center; gap: 12px; height: 64px; margin-bottom: 24px; }
+  .doc-top b { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; }
+  .doc-top .end { margin-left: auto; display: flex; gap: 10px; }
+  .lead { font-size: 19px; color: var(--muted); margin-top: 12px; max-width: 64ch; line-height: 1.55; }
+  .lead b { color: var(--ink); }
+  section.part { margin-top: 96px; }
+  section.part:first-of-type { margin-top: 48px; }
+  section.part > h2 { font-size: 24px; letter-spacing: -0.02em; margin-bottom: 8px; }
+  section.part > p { color: var(--muted); margin-bottom: 24px; }
+  .tbl td.flow { font-size: var(--fs-small); color: var(--muted); font-weight: 600; padding: 36px 0 10px; }
+  .scr td:first-child { width: 220px; }
+  .scr a { text-decoration: none; font-weight: 700; }
+  .scr a:hover { color: var(--accent); }
+  .scr .q { color: var(--ink); }
+  .scr .f { color: var(--faint); font-size: var(--fs-small); white-space: nowrap; }
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .sw div { border-radius: var(--radius-in); overflow: hidden; background: var(--surface); }
+  .sw i { display: block; height: 64px; }
+  .sw span { display: block; padding: 10px 12px; font-size: var(--fs-small); }
+  .sw b { display: block; font-size: 15px; }
+  .type-row { display: flex; align-items: baseline; gap: 20px; padding: 14px 0; border-top: 1px solid var(--rule); }
+  .type-row:first-child { border-top: 0; }
+  .type-row .k { width: 120px; flex: none; font-size: var(--fs-small); color: var(--muted); }
+  .demo { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .demo + .demo { margin-top: 16px; }
+  .cursor-demo { position: relative; height: 72px; background: var(--surface); border-radius: var(--radius-in); }
+  .cursor-demo .cursor { position: absolute; }
+  .rules { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .rules li { padding: 14px 0; border-top: 1px solid var(--rule); line-height: 1.5; }
+  .rules b { display: block; }
+  @media (max-width: 760px) {
+    .doc { padding: 16px 16px 80px; }
+    .doc-top { margin-bottom: 16px; }
+    .doc-top .end { display: none; }
+    .scr td:first-child { width: auto; }
+    .scr thead { display: none; }
+    .scr tr { display: block; padding: 12px 0; border-top: 1px solid var(--rule); }
+    .scr td { display: block; height: auto; border: 0; padding: 2px 0; }
+    .rules { grid-template-columns: 1fr; }
+    .type-row { flex-direction: column; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+  <header class="doc-top">
+    <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 3l17 8.2-7.4 2.1L10.4 21z" fill="#2251ff"/></svg><b>고티처</b>
+    <span class="end"><a class="btn sec sm" href="landing.html">소개 페이지</a><a class="btn pri sm" href="today.html">오늘 화면부터 보기</a></span>
+  </header>
+
+  <h1>고티처 디자인 시스템</h1>
+  <p class="lead">C안 <b>멀티플레이어 협업</b>으로 확정(2026-10-30)한 R1 동학년판 전체 화면입니다. 흰 바탕에 굵은 큰 글씨, 강조는 블루 하나, 동학년 다섯 선생님은 저마다 고정 색의 커서와 이니셜로 화면 곳곳에 나타나요. 모든 화면은 같은 하루(10월 26일 월요일 11:05, 4학년 2반 정하은 선생님)를 보여 줍니다.</p>
+
+  <section class="part" aria-labelledby="scrH">
+    <h2 id="scrH">화면</h2>
+    <p>각 화면이 먼저 답하는 질문 하나. 개발 작업 번호는 <span class="num">meeting/28_tasks_r1.md</span>.</p>
+    <table class="tbl scr" id="scr">
+      <thead><tr><th>화면</th><th>먼저 답하는 질문</th><th class="r">작업</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="part" aria-labelledby="colH">
+    <h2 id="colH">색</h2>
+    <p>강조의 원색은 주 버튼·주 데이터·활성 아이콘 같은 작은 표시에만, 넓은 면은 옅은 사다리로. 사람 색은 아바타·커서·이름표에만 써요.</p>
+    <div class="sw" id="sw"></div>
+    <h3 style="font-size:17px;margin:32px 0 12px">동학년 다섯 선생님</h3>
+    <div class="sw" id="ppl"></div>
+  </section>
+
+  <section class="part" aria-labelledby="typeH">
+    <h2 id="typeH">글씨</h2>
+    <p>Wanted Sans Variable 한 가족. 크기는 다섯 단계, 본문은 16px 아래로 내려가지 않아요. 숫자는 늘 고른 폭(tabular).</p>
+    <div class="card"><div class="card-b" style="padding-top:var(--pad)" id="types"></div></div>
+  </section>
+
+  <section class="part" aria-labelledby="cmpH">
+    <h2 id="cmpH">부품</h2>
+    <p>버튼은 알약 하나(높이 44, 작게 40). 카드는 1px 선과 10px 모서리, 그림자 없음. 떠 있는 것(메뉴·알림 묶음·대화상자·커서 이름표)만 그림자를 가져요.</p>
+    <div class="grid">
+      <div class="card s6"><div class="card-h"><h3>버튼·입력</h3></div><div class="card-b">
+        <div class="demo"><button class="btn pri">한글 양식으로 받기</button><button class="btn sec">독촉 문구 복사</button><button class="btn ink">들어가기</button><button class="btn ghost">취소</button></div>
+        <div class="demo"><button class="btn pri sm">내기</button><button class="btn sec sm">초대 링크 복사</button><button class="btn danger sm">동학년에서 나가기</button><button class="btn sm" disabled>오늘 마감 없음</button></div>
+        <div class="demo" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <label class="field"><span>참가(명)</span><input class="input" inputmode="numeric" value="22"></label>
+          <label class="field"><span>비고 <span class="hint">선택</span></span><input class="input" placeholder="없으면 비워 두세요"></label>
+        </div>
+        <div class="demo"><div class="joined" style="flex:1"><input class="input" value="goteacher.xyz/c/7HJ3" readonly aria-label="받는 링크"><button class="btn ink">복사</button></div></div>
+        <div class="demo"><div class="seg" role="group" aria-label="예시"><button type="button" aria-pressed="true">한글 양식</button><button type="button">표 붙여넣기</button><button type="button">직접 입력</button></div>
+          <label class="row"><span class="toggle"><input type="checkbox" checked aria-label="꼬리말"><i></i></span>꼬리말</label></div>
+        <div class="demo"><div class="picks"><button class="pick" aria-pressed="true">4학년</button><button class="pick">5학년</button><button class="pick">1반</button><button class="pick">전담</button></div></div>
+      </div></div>
+      <div class="card s6"><div class="card-h"><h3>상태·진행·사람</h3></div><div class="card-b">
+        <div class="demo"><span class="st done">냄</span><span class="st">아직</span><span class="st late">늦게 냄</span><span class="pill pos">다 걷힘</span><span class="pill acc">오늘 14:00</span><span class="pill warn">학생 정보로 보이는 열</span><span class="pill">마감 미정</span></div>
+        <div class="demo" style="display:block"><div class="big"><b class="num">3</b><span class="num">/ 5반 냈어요</span></div><div class="track" style="margin-top:10px"><i style="width:60%"></i></div></div>
+        <div class="demo" id="avs"></div>
+        <div class="demo" style="display:block"><div class="cursor-demo" id="cur"></div></div>
+        <div class="demo" style="display:block"><p class="notice">학생 이름·연락처로 보이는 열이 2개 있어요. 고티처는 교직원 정보만 받아요.</p></div>
+        <div class="demo" style="display:block"><p class="empty">오늘 낼 것은 모두 끝났어요.</p></div>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="part" aria-labelledby="ruleH">
+    <h2 id="ruleH">지키는 것</h2>
+    <p>새 화면을 만들 때 이 열 가지를 먼저 확인해요.</p>
+    <ul class="rules">
+      <li><b>화면마다 질문 하나</b>제목 줄이 그 답이고, 가장 큰 것도 그 답이에요. 주 버튼은 하나.</li>
+      <li><b>숫자는 행에서 계산</b>합계·개수·진행은 데이터의 행에서만 만들어요. 같은 사실은 한 변수.</li>
+      <li><b>블루는 작게</b>주 버튼·지금 블록·걷는 진행 같은 주 데이터에만. 메뉴·탭은 무채색.</li>
+      <li><b>사람 색은 사람에게만</b>아바타·커서·이름표·편집 중 테두리. 차트나 상태에 쓰지 않아요.</li>
+      <li><b>큰 글씨</b>본문 16px, 보조 14px, 버튼 40px 이상. 회색 글자도 4.5:1 이상.</li>
+      <li><b>학교 그림 없음</b>칠판·교무수첩·학교 사진 대신 실제 제품 조각(표·양식·커서)을 보여 줘요.</li>
+      <li><b>장식 금지</b>그라데이션·유리·이모지·작은 대문자 라벨·번호 장식·아이콘 타일 없음.</li>
+      <li><b>빈 상태도 정직하게</b>0은 0으로, 없는 값은 회색 줄표, 빈 구역은 틀과 한 문장을 남겨요.</li>
+      <li><b>한글 양식이 주인공</b>올린 양식을 그린 미리보기와 돌려받는 파일을 화면에 직접 보여 줘요.</li>
+      <li><b>PC 우선</b>1536×750에서 첫 화면이 다 보여야 해요. 좁은 폭은 쌓기만, 받는 사람 제출 화면만 폰도 꼼꼼히.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var U = window.GTU, P = window.PEOPLE, G = window.GT, esc = U.esc;
+  var SCR = [
+    ['처음 쓰는 선생님', [
+      ['소개', 'landing.html', '고티처가 무엇이고 왜 동학년에게 좋은가?', 'G5'],
+      ['가입', 'start.html', '1분 안에 우리 학교·학년·반으로 들어갈 수 있나?', 'B4·B5'],
+      ['동학년 초대', 'grade.html', '동학년 선생님이 다 들어왔나, 링크를 어떻게 보내나?', 'B7'],
+      ['초대 입장', 'join.html', '가입 없이 몇 반 누구로 들어가나?', 'B7']
+    ]],
+    ['매일', [
+      ['오늘', 'today.html', '오늘 놓치면 안 되는 것과 동학년은 지금 무엇을 하나?', 'G1'],
+      ['일정', 'schedule.html', '이번 주 내가 챙길 것과 바뀐 것은?', 'G1'],
+      ['알림 묶음', 'today.html', '08:20·12:20·방과후에 무엇이 왔나? (상단 종 모양)', 'G2']
+    ]],
+    ['모으기', [
+      ['모으기 목록', 'collect.html', '내가 걷는 것·낼 것 중 무엇이 남았나?', 'D6'],
+      ['새로 모으기', 'collect-new.html', '무엇을 누구에게서 받나? 한글 표 고르기·학생 정보 경고', 'C2·C3·C7·E5'],
+      ['합본', 'collect-detail.html', '누가 냈고, 언제 한글로 받을 수 있나?', 'C6·D1·D2·D4·F2']
+    ]],
+    ['받는 선생님(로그인 없음)', [
+      ['제출', 'submit.html', '내 칸이 어디고, 무엇을 쓰면 되나?', 'C5']
+    ]],
+    ['그 밖', [
+      ['양식 자료실', 'forms.html', '필요한 학교 양식이 있나, 바로 걷을 수 있나?', 'G4'],
+      ['설정', 'settings.html', '내 정보·알림 시간·동학년·이 PC를 어떻게 바꾸나?', 'B4·G2']
+    ]]
+  ];
+  document.querySelector('#scr tbody').innerHTML = SCR.map(function (g) {
+    return '<tr><td colspan="3" class="flow" style="border:0;height:auto">' + esc(g[0]) + '</td></tr>' + g[1].map(function (s) {
+      return '<tr><td><a href="' + s[1] + '">' + esc(s[0]) + '</a></td><td class="q">' + esc(s[2]) + '</td><td class="r f num">' + esc(s[3]) + '</td></tr>';
+    }).join('');
+  }).join('');
+
+  var CS = getComputedStyle(document.documentElement);
+  var SW = [['바탕', '--bg'], ['한 단계 톤', '--surface'], ['선', '--line'], ['잉크', '--ink'], ['보조 글자', '--muted'], ['강조', '--accent'], ['강조 옅음', '--accent-soft'], ['강조 막대 바탕', '--accent-track'], ['강조 글자', '--accent-ink'], ['좋음', '--positive'], ['나쁨', '--negative']];
+  document.getElementById('sw').innerHTML = SW.map(function (s) { var v = CS.getPropertyValue(s[1]).trim(); return '<div><i style="background:' + v + (v === '#ffffff' ? ';box-shadow:inset 0 0 0 1px var(--line)' : '') + '"></i><span><b>' + s[0] + '</b><span class="num faint">' + v + ' · ' + s[1] + '</span></span></div>'; }).join('');
+  document.getElementById('ppl').innerHTML = P.grade.map(function (n) { var p = P.of(n), m = G.members.filter(function (x) { return x.name === n; })[0]; return '<div><i style="background:' + p.color + '"></i><span><b>' + n + ' · ' + m.cls + '</b><span class="num faint">' + p.color + (p.inkText ? ' · 글자 검정' : '') + '</span></span></div>'; }).join('');
+
+  var T = [['화면 제목 28', 28, 800, '학예회 반별 참가 인원'], ['강조 줄 22', 22, 700, '3 / 5반 냈어요'], ['카드 제목 19', 19, 700, '동학년 지금'], ['본문 16', 16, 400, '링크를 열어 자기 칸에 쓰면 끝이에요.'], ['보조 14', 14, 400, '석가영 · 방과후돌봄부 · 한글 양식']];
+  document.getElementById('types').innerHTML = T.map(function (t) { return '<div class="type-row"><span class="k">' + t[0] + '</span><span style="font-size:' + t[1] + 'px;font-weight:' + t[2] + ';letter-spacing:' + (t[1] > 20 ? '-0.03em' : '0') + '">' + t[3] + '</span></div>'; }).join('');
+
+  document.getElementById('avs').innerHTML = '<span class="stack">' + P.grade.map(function (n) { return U.av(n, 'lg'); }).join('') + '</span>' + U.ptag('이수빈', '보는 중') + U.ptag('김도윤', '고치는 중');
+  var cur = document.getElementById('cur');
+  var w = cur.clientWidth;
+  [['송민재', 0.06, 14], ['이수빈', 0.5, 26]].forEach(function (a) {
+    var p = P.of(a[0]), c = document.createElement('div');
+    c.className = 'cursor' + (p.inkText ? ' ink-t' : ''); c.style.setProperty('--who', p.color); c.style.transform = 'translate(' + Math.round(w * a[1]) + 'px,' + a[2] + 'px)';
+    c.innerHTML = '<svg width="20" height="22" viewBox="0 0 20 22" aria-hidden="true"><path d="M2 2l15 7.4-6.6 1.9L7.4 18z" fill="' + p.color + '" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="nm">' + a[0] + '</span>';
+    cur.appendChild(c);
+  });
+})();
+</script>
+</body>
+</html>

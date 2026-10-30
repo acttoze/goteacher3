@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>설정 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /*
+    설정 — 영역마다 한 화면(#me · #alerts · #space · #device). 저장은 한 가지: 바꾸면 바로 저장되고 제목 옆에 "저장했어요".
+    한 줄 = 설명 칸 360 + 간격 24 + 패널(나머지). 캔버스 1150에서 패널 766.
+  */
+  .srow { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 24px; padding: 32px 0; border-top: 1px solid var(--line); }
+  .srow:first-of-type { border-top: 0; padding-top: 4px; }
+  .srow .lab h2 { font-size: 18px; letter-spacing: -0.02em; margin-top: 6px; }
+  .srow .lab p { font-size: 15px; color: var(--muted); margin-top: 6px; max-width: 30em; }
+  .panel { background: var(--surface); border-radius: 14px; padding: 8px 20px; }
+  .panel.pad { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .sw { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 1px solid #e3e6ea; }
+  .sw:first-child { border-top: 0; }
+  .sw b { font-size: 16px; }
+  .sw .d { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .sw .pill { margin-left: 8px; vertical-align: 1px; }
+  .toggle.lock input { cursor: not-allowed; }
+  .panel .input { background: #fff; }
+  .saved { font-size: var(--fs-small); color: var(--positive); font-weight: 600; opacity: 0; transition: opacity .2s; white-space: nowrap; }
+  .saved.on { opacity: 1; }
+
+  /* 알림 미리보기: 묶음이 도착하는 모습 */
+  .alert-row { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+  .preview .cap { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+  .noti { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 10px 28px rgba(13, 13, 13, .10), 0 0 0 1px var(--line); display: flex; flex-direction: column; gap: 10px; } /* taste-skill-ignore: 떠 있는 알림 미리보기 */
+  .noti .nh { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .noti .nh b { color: var(--ink); font-size: 15px; }
+  .noti .nh .t { margin-left: auto; }
+  .noti ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.4; }
+  .noti li { display: flex; gap: 8px; align-items: flex-start; }
+  .noti .more { font-size: 14px; color: var(--muted); }
+  .day-strip { margin-top: 14px; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; font-size: 13px; }
+  .day-strip span { padding: 8px 6px; border-radius: 6px; background: #fff; text-align: center; color: var(--muted); }
+  .day-strip span.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+
+  /* 동학년 사람 */
+  .mem { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 60px; border-top: 1px solid #e3e6ea; }
+  .mem:first-child { border-top: 0; }
+  .mem .m { font-size: 14px; color: var(--muted); }
+  .danger-zone { box-shadow: inset 0 0 0 1px #f0b7b9; background: #fff; } /* taste-skill-ignore: 위험 영역 외곽선 */
+  .dev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; border-top: 1px solid #e3e6ea; }
+  .dev:first-child { border-top: 0; }
+  .dev .m { font-size: 14px; color: var(--muted); margin-top: 2px; }
+
+  .tabs { margin-bottom: 28px; }
+  @media (max-width: 1100px) {
+    .srow { grid-template-columns: 1fr; gap: 14px; }
+    .alert-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    .srow { padding: 24px 0; }
+    .panel { padding: 4px 16px; }
+  }
+</style>
+</head>
+<body data-page="settings">
+<main class="main narrow">
+  <div class="title">
+    <div class="grow"><h1 id="h1">설정</h1><p class="sub" id="sub"></p></div>
+    <span class="saved" id="saved" role="status" aria-live="polite">저장했어요</span>
+  </div>
+  <nav class="tabs" aria-label="설정 영역" id="tabs">
+    <a href="#me">내 정보</a><a href="#alerts">알림</a><a href="#space">동학년</a><a href="#device">이 PC</a>
+  </nav>
+  <div id="view"></div>
+</main>
+
+<div class="scrim" id="leave" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="lvH">
+    <div class="dh"><h2 id="lvH">새솔초 4학년에서 나갈까요?</h2></div>
+    <div class="db"><p>나가면 동학년 모으기·일정이 「오늘」에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.</p>
+      <label class="field"><span>확인하려면 「새솔초 4학년」을 써 주세요</span><input class="input" id="lvIn" autocomplete="off"></label></div>
+    <div class="df"><button class="btn sec" type="button" id="lvNo">그대로 두기</button><button class="btn danger" type="button" id="lvYes" disabled>나가기</button></div>
+  </div>
+</div>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc;
+  GTShell.mount({ quick: true });
+  var AREAS = { me: '내 정보', alerts: '알림', space: '동학년', device: '이 PC' };
+  var SUBS = {
+    me: '동학년 선생님들에게 보이는 이름과 반이에요.',
+    alerts: '알림은 하루 세 번 묶어서 와요. 지금 켜진 묶음은 아래에서 바로 바뀌어요.',
+    space: G.space.name + ' · 선생님 ' + G.members.length + '명 · 만든 사람 ' + G.space.by,
+    device: '이 PC 브라우저가 1년 동안 로그인을 기억해요.'
+  };
+  var S = { name: G.me.name, cls: G.me.cls, b1: true, b2: true, b3: true };
+
+  function row(title, desc, panel) { return '<section class="srow"><div class="lab"><h2>' + title + '</h2><p>' + desc + '</p></div><div>' + panel + '</div></section>'; }
+  function sw(id, title, desc, on, lock, pill) {
+    return '<div class="sw"><div><b>' + title + '</b>' + (pill ? '<span class="pill">' + pill + '</span>' : '') + '<div class="d">' + desc + '</div></div>' +
+      '<label class="toggle' + (lock ? ' lock' : '') + '"><input type="checkbox" id="' + id + '"' + (on ? ' checked' : '') + (lock ? ' disabled' : '') + ' aria-label="' + title + '"><i></i></label></div>';
+  }
+  function saved() { var s = $('#saved'); s.classList.add('on'); clearTimeout(saved.t); saved.t = setTimeout(function () { s.classList.remove('on'); }, 1800); }
+
+  function vMe() {
+    return row('이름', '동학년 화면·합본·활동 기록에 이 이름으로 보여요.',
+      '<div class="panel pad"><label class="field"><span class="sr">이름</span><input class="input" id="nm" value="' + esc(S.name) + '" style="max-width:280px"></label></div>') +
+      row('반', '모으기에서 내 칸을 정할 때 써요. 학년이 바뀌면 3월에 다시 골라요.',
+      '<div class="panel pad"><div class="picks" id="cls">' + ['4-1', '4-2', '4-3', '4-4', '4-5', '4-전담'].map(function (c) { var l = c.split('-')[1]; return '<button class="pick" type="button" data-c="' + c + '" aria-pressed="' + (c === S.cls) + '">' + (l === '전담' ? '전담' : l + '반') + '</button>'; }).join('') + '</div></div>') +
+      row('얼굴 색', '동학년 화면에서 내 커서·이름표에 쓰는 색이에요. 다섯 명이 겹치지 않게 정해져 있어요.',
+      '<div class="panel pad"><div class="row">' + U.av(S.name, 'xl') + '<div><b>' + esc(S.name) + '</b><div class="small muted">청록 · 바꿀 수 없어요</div></div></div></div>');
+  }
+  function vAlerts() {
+    var b = G.bundles[0];
+    var prev = '<div class="preview"><p class="cap">오늘 08:20에 이렇게 왔어요</p><div class="noti" aria-label="알림 미리보기"><div class="nh">' + U.mark(18) + '<b>고티처 · 아침 묶음</b><span class="t num">08:20</span></div>' +
+      '<ul>' + b.items.map(function (it) { return '<li><span class="pill' + (it.kind === '마감' ? ' acc' : '') + '">' + it.kind + '</span><span>' + esc(it.text) + '</span></li>'; }).join('') + '</ul>' +
+      '<span class="more">눌러서 「오늘」 열기</span></div>' +
+      '<div class="day-strip" aria-label="하루 알림 시간"><span class="on">08:20</span><span>1·2블록</span><span class="on">12:20</span><span>3블록</span><span class="on">방과후</span></div></div>';
+    return '<section class="srow"><div class="lab"><h2>묶음 시간</h2><p>마감·바뀐 일정·제출 소식을 모아 하루 세 번만 보내요. 끄면 그 시간 소식은 다음 묶음으로 넘어가요.</p></div>' +
+      '<div class="alert-row"><div class="panel">' +
+      sw('b1', '아침 08:20', '오늘 마감과 어제 퇴근 이후 바뀐 것', S.b1) +
+      sw('b2', '점심 12:20', '2블록 끝 · 오전에 들어온 제출', S.b2) +
+      sw('b3', '방과후 14:40', '마지막 묶음 · 내일 준비', S.b3) +
+      sw('q', '수업 중 조용', '1·2·3블록에는 창을 띄우지 않아요. 수업을 지키려고 끌 수 없게 했어요.', true, true, '항상 켜짐') +
+      '</div>' + prev + '</div></section>' +
+      row('브라우저 알림', '이 PC 크롬에서 알림을 허용했어요. 학교 PC를 바꾸면 다시 허용해야 해요.',
+        '<div class="panel pad"><div class="row"><span class="st done">허용됨</span><span class="muted small">교실 PC · 크롬</span><button class="tlink acc" type="button" id="test" style="margin-left:auto">시험 알림 보내기</button></div></div>');
+  }
+  function vSpace() {
+    return row('선생님', '들어온 선생님 ' + G.members.length + '명과 아직 안 들어온 칸이에요. 학년 대표는 만든 사람이 맡아요.',
+      '<div class="panel">' + G.members.map(function (x) {
+        return '<div class="mem">' + U.av(x.name) + '<div><b>' + esc(x.cls) + ' ' + esc(x.name) + (x.name === G.me.name ? ' (나)' : '') + '</b><div class="m">' + esc(x.via) + '</div></div><span class="' + (x.role ? 'pill acc' : 'small muted') + '">' + (x.role ? esc(x.role) : '담임') + '</span></div>';
+      }).join('') + G.waiting.map(function (w) { return '<div class="mem"><span class="av ghost">' + esc(w.label.charAt(0)) + '</span><div><b class="muted">' + esc(w.label) + ' · 아직이에요</b><div class="m">' + esc(w.hint) + '</div></div><a class="tlink acc" href="grade.html">초대하기</a></div>'; }).join('') + '</div>') +
+      row('초대 링크', '링크가 밖으로 퍼졌다면 새로 만드세요. 예전 링크는 바로 닫히고, 이미 들어온 선생님은 그대로예요.',
+        '<div class="panel pad"><div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="' + G.space.invite + '"><button class="btn ink" type="button" id="cp">복사</button></div>' +
+        '<div><button class="btn sec sm" type="button" id="regen">링크 새로 만들기</button></div></div>') +
+      row('동학년에서 나가기', '전근·학년 이동 때 써요. 동학년은 다른 선생님들에게 그대로 남아요.',
+        '<div class="panel pad danger-zone"><p>나가면 이 동학년의 모으기·일정이 내 「오늘」에서 사라져요. 내가 낸 칸은 합본에 남아요.</p><div><button class="btn danger" type="button" id="out">새솔초 4학년에서 나가기</button></div></div>');
+  }
+  function vDevice() {
+    return row('로그인 기억', '같은 PC에서는 1년 동안 다시 로그인하지 않아요. 공용 PC라면 쓰고 나서 로그아웃하세요.',
+      '<div class="panel">' + sw('rem', '이 PC 1년 기억', '2027년 10월 26일까지 · 끄면 브라우저를 닫을 때 로그아웃', true) + '</div>') +
+      row('구글 계정', '다른 PC에서 들어올 때 이 계정으로 로그인해요.',
+        '<div class="panel pad"><div class="row"><span class="st done">연결됨</span><b>' + esc(G.me.google) + '</b></div></div>') +
+      row('로그인한 기기', '모르는 기기가 있으면 로그아웃하세요. 그 기기는 다음에 다시 로그인해야 해요.',
+        '<div class="panel" id="devs">' +
+        '<div class="dev"><div><b>교실 PC · 크롬</b><div class="m">지금 이 PC · 10월 26일 08:31부터</div></div><span class="small muted">지금 사용 중</span></div>' +
+        '<div class="dev" id="d2"><div><b>교무실 PC · 웨일</b><div class="m">마지막 사용 10월 23일 16:12</div></div><button class="tlink" type="button" id="lo2">로그아웃</button></div>' +
+        '</div>');
+  }
+
+  var VIEWS = { me: vMe, alerts: vAlerts, space: vSpace, device: vDevice };
+  function route() {
+    var k = (location.hash || '#me').slice(1); if (!VIEWS[k]) k = 'me';
+    U.$$('#tabs a').forEach(function (a) { if (a.getAttribute('href') === '#' + k) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    $('#h1').textContent = AREAS[k] + ' 설정';
+    $('#sub').textContent = SUBS[k];
+    document.title = AREAS[k] + ' 설정 · 고티처';
+    $('#view').innerHTML = VIEWS[k]();
+    bind(k);
+  }
+  function bind(k) {
+    U.$$('#view input[type=checkbox]').forEach(function (c) { c.onchange = function () { S[c.id] = c.checked; saved(); }; });
+    if (k === 'me') {
+      $('#nm').onchange = function () { if (this.value.trim()) { S.name = this.value.trim(); saved(); } };
+      U.$$('[data-c]').forEach(function (b) { b.onclick = function () { S.cls = b.dataset.c; U.$$('[data-c]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); saved(); }; });
+    }
+    if (k === 'alerts') $('#test').onclick = function () { U.toast('시험 알림을 보냈어요. 화면 오른쪽 아래를 보세요.'); };
+    if (k === 'space') {
+      $('#cp').onclick = function () { U.copy($('#lk').value, '초대 링크를 복사했어요 · ' + $('#lk').value); };
+      $('#regen').onclick = function () { $('#lk').value = 'goteacher.xyz/j/8MW5'; saved(); U.toast('새 링크를 만들었어요. 예전 링크 goteacher.xyz/j/4Q2K는 닫혔어요.'); };
+      $('#out').onclick = function () { $('#leave').hidden = false; $('#lvIn').value = ''; $('#lvYes').disabled = true; $('#lvIn').focus(); };
+    }
+    if (k === 'device') $('#lo2').onclick = function () { $('#d2').innerHTML = '<div><b>교무실 PC · 웨일</b><div class="m">로그아웃했어요</div></div><span class="small muted">—</span>'; saved(); };
+  }
+  $('#lvIn').oninput = function () { $('#lvYes').disabled = this.value.trim() !== '새솔초 4학년'; };
+  $('#lvNo').onclick = function () { $('#leave').hidden = true; };
+  $('#lvYes').onclick = function () { $('#leave').hidden = true; U.toast('시안이라 실제로 나가지는 않아요.'); };
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>

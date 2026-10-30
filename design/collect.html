@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>모으기 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /*
+    모으기 — 질문: 내가 걷는 것은 얼마나 걷혔고, 내가 낼 것은 무엇이 남았나?
+    캔버스 1150: 표 span 8(758.7) + 24 + 곁 span 4(367.3) = 1150. 5열 이하 표라 전체 폭으로 늘리지 않는다.
+  */
+  .bar { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .bar .search { flex: 0 1 316px; }
+  .bar .count { margin-left: auto; font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
+
+  .tbl td { height: 76px; }
+  .tbl a.ttl { font-weight: 600; text-decoration: none; }
+  .tbl tr.link:hover a.ttl { color: var(--accent); }
+  .tbl .prog { width: 168px; }
+  .tbl .prog .nums { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 15px; }
+  .tbl .prog .nums b { font-weight: 700; }
+  .tbl .prog .nums span { color: var(--muted); font-size: var(--fs-small); }
+  .tbl .due { white-space: nowrap; }
+  .tbl .due.urgent { color: var(--accent-ink); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; font-weight: 600; }
+  .tbl td.act { width: 1%; white-space: nowrap; }
+  .tbl td.c-id { max-width: 0; width: 40%; }
+  .tbl td.c-id .sub2, .tbl td.c-id a.ttl { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbl .stack .av { width: 26px; height: 26px; font-size: 12px; }
+  .tbl tr.empty-row td { height: auto; padding: 16px 0 0; border-top: 0; }
+
+  .side-b h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .side-b .blk + .blk { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--rule); }
+  .side-b .left { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+  .side-b .left span { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+  .side-b p { font-size: 15px; color: var(--muted); }
+  .side-b p b { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 640px) {
+    .bar { flex-wrap: wrap; }
+    .bar .search { flex: 1 1 100%; }
+    .bar .count { margin-left: 0; }
+    .tbl thead { display: none; }
+    .tbl, .tbl tbody, .tbl tr { display: block; }
+    .tbl tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 14px 0; border-top: 1px solid var(--rule); }
+    .tbl tr:first-child { border-top: 0; }
+    .tbl td { display: block; height: auto; border: 0; padding: 0 !important; }
+    .tbl td.c-id { grid-column: 1; max-width: none; width: auto; min-width: 0; }
+    .tbl td.c-key { grid-column: 2; grid-row: 1; text-align: right; }
+    .tbl td.c-2 { grid-column: 1 / -1; font-size: 13px; color: var(--muted); text-align: left; }
+    .tbl td.c-2 .due.urgent { padding: 0; background: none; }
+    .tbl td.c-hide { display: none; }
+    .tbl .prog { width: auto; }
+    .tbl .prog .track { display: none; }
+    .tbl .prog .nums { margin: 0; justify-content: flex-end; }
+    .tbl .prog .nums span { display: none; }
+    .tbl tr.empty-row { display: block; }
+  }
+</style>
+</head>
+<body data-page="collect">
+<main class="main">
+  <div class="title">
+    <div class="grow">
+      <h1>모으기</h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <a class="btn pri" href="collect-new.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>새로 모으기</a>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="모으기 보기">
+    <button role="tab" type="button" data-tab="sent" aria-selected="true">내가 걷는 것 <span class="c num" data-c="sent"></span></button>
+    <button role="tab" type="button" data-tab="todo" aria-selected="false">내가 낼 것 <span class="c num" data-c="todo"></span></button>
+    <button role="tab" type="button" data-tab="past" aria-selected="false">지난 것 <span class="c num" data-c="past"></span></button>
+  </div>
+
+  <div class="grid">
+    <section class="s8" aria-labelledby="listH">
+      <h2 class="sr" id="listH">모으기 목록</h2>
+      <div class="bar">
+        <label class="search"><span class="sr">제목·보낸 사람으로 찾기</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input class="input" id="q" type="search" placeholder="제목·보낸 사람으로 찾기" autocomplete="off"></label>
+        <span class="count num" id="count"></span>
+      </div>
+      <table class="tbl" id="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table>
+    </section>
+
+    <aside class="s4 card side-b" aria-labelledby="nextH">
+      <div class="card-h"><h2 id="nextH">다음 할 일</h2></div>
+      <div class="card-b" id="side"></div>
+    </aside>
+  </div>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc;
+  GTShell.mount({ quick: true });
+
+  var SRC = { hwp: '한글 양식', paste: '표 붙여넣기', preset: '자주 쓰는 양식', sheet: '직접 입력' };
+  var sets = {
+    sent: G.collections.filter(function (c) { return c.status === 'open' || c.status === 'done'; }),
+    todo: G.todo,
+    past: G.collections.filter(function (c) { return c.status === 'past'; })
+  };
+  var tab = location.hash === '#todo' ? 'todo' : location.hash === '#past' ? 'past' : 'sent';
+  var NOUN = { sent: '모으기', todo: '낼 것', past: '지난 모으기' };
+
+  function match(item, q) {
+    if (!q) return true;
+    return [item.title, item.from, item.file].filter(Boolean).join(' ').toLowerCase().indexOf(q.toLowerCase()) > -1;
+  }
+  function done(c) { return c.rows.filter(function (r) { return r.v[0] !== null; }); }
+
+  function colRow(c, past) {
+    var d = done(c), pct = Math.round(d.length / c.total * 100), all = d.length === c.total;
+    var src = SRC[c.source] + (c.file ? ' · ' + c.file : '');
+    var st = past ? '<span class="st">닫힘</span>' : all ? '<span class="st done">다 걷힘</span>' : '<span class="st">진행 중</span>';
+    return '<tr class="link" data-href="collect-detail.html">' +
+      '<td class="c-id"><a class="ttl" href="collect-detail.html">' + esc(c.title) + '</a><span class="sub2">' + esc(src) + '</span></td>' +
+      '<td class="c-hide"><span class="stack" aria-label="낸 반: ' + esc(d.map(function (r) { return r.cls; }).join(', ')) + '">' + d.map(function (r) { return U.av(r.who, 'sm'); }).join('') + '</span></td>' +
+      '<td class="c-key r"><div class="prog"><div class="nums"><span>낸 반</span><b class="num">' + d.length + '/' + c.total + '반</b></div><div class="track thin' + (all ? ' done' : '') + '"><i style="width:' + pct + '%"></i></div></div></td>' +
+      '<td class="c-2 r"><span class="due num"><span class="sr">마감 </span>' + esc(c.due) + '</span></td>' +
+      '<td class="c-hide r">' + st + '</td></tr>';
+  }
+  function todoRow(t) {
+    var act = t.kind === '확인' ? '확인하기' : '내기';
+    return '<tr>' +
+      '<td class="c-id"><a class="ttl" href="submit.html">' + esc(t.title) + '</a><span class="sub2">' + esc(t.from) + (t.form ? ' · ' + esc(t.form) : '') + '</span></td>' +
+      '<td class="c-2 r"><span class="due num' + (t.urgent ? ' urgent' : '') + '">' + esc(t.due) + '</span></td>' +
+      '<td class="c-key act r"><a class="btn ghost sm" href="submit.html">' + act + '</a></td></tr>';
+  }
+  var HEAD = {
+    sent: '<tr><th>제목</th><th>낸 선생님</th><th class="r">제출</th><th class="r">마감</th><th class="r">상태</th></tr>',
+    past: '<tr><th>제목</th><th>낸 선생님</th><th class="r">제출</th><th class="r">마감</th><th class="r">상태</th></tr>',
+    todo: '<tr><th>제목</th><th class="r">마감</th><th class="r"><span class="sr">행동</span></th></tr>'
+  };
+
+  function render() {
+    var q = $('#q').value.trim();
+    Object.keys(sets).forEach(function (k) {
+      $('[data-c="' + k + '"]').textContent = sets[k].filter(function (x) { return match(x, q); }).length;
+    });
+    U.$$('[data-tab]').forEach(function (b) { b.setAttribute('aria-selected', String(b.dataset.tab === tab)); });
+    var rows = sets[tab].filter(function (x) { return match(x, q); });
+    $('#thead').innerHTML = HEAD[tab];
+    var cols = tab === 'todo' ? 3 : 5;
+    $('#tbody').innerHTML = rows.length ? rows.map(function (x) { return tab === 'todo' ? todoRow(x) : colRow(x, tab === 'past'); }).join('')
+      : '<tr class="empty-row"><td colspan="' + cols + '"><p class="empty">' + (q ? '「' + esc(q) + '」' + U.josa(q, '과', '와') + ' 맞는 ' + NOUN[tab] + '이 없어요. 검색어를 지우면 모두 보여요.' : (tab === 'todo' ? '낼 것이 없어요. 새로 오면 다음 묶음 알림 ' + G.nextBundle.at + '에 알려 드려요.' : '아직 ' + NOUN[tab] + '이 없어요.')) + '</p></td></tr>';
+    $('#count').textContent = rows.length + '건';
+    U.$$('#tbody tr.link').forEach(function (tr) { tr.onclick = function (e) { if (!e.target.closest('a,button')) location.href = tr.dataset.href; }; });
+    var open = sets.sent.filter(function (c) { return c.status === 'open'; }).length;
+    $('#sub').innerHTML = '걷는 중 <b class="num">' + open + '건</b> · 낼 것 <b class="num">' + sets.todo.length + '건</b>, 가장 급한 건 <b>' + esc(sets.todo[0].title.replace(/ \(.*\)/, '')) + ' ' + esc(sets.todo[0].due) + '</b>';
+  }
+
+  // 곁: 누구를 독촉하고, 다음 리마인드는 언제인가
+  (function side() {
+    var c = sets.sent.filter(function (x) { return x.status === 'open'; })[0];
+    var left = c.rows.filter(function (r) { return r.v[0] === null; });
+    $('#side').innerHTML =
+      '<div class="blk"><h3>아직 안 낸 반 <span class="muted num" style="font-weight:500">' + left.length + '반</span></h3>' +
+      '<p>' + esc(c.title) + ' · 마감 <b class="num">' + esc(c.due) + '</b></p>' +
+      '<div class="left">' + left.map(function (r) { return '<span>' + U.av(r.who, 'sm') + esc(r.cls + ' ' + r.who) + '</span>'; }).join('') + '</div>' +
+      '<button class="btn sec sm" type="button" id="nudge">독촉 문구 복사</button></div>' +
+      '<div class="blk"><h3>자동 리마인드</h3><p>' + esc(c.reminder) + '. 아직 안 낸 반에게만 가요.</p></div>' +
+      '<div class="blk"><h3>다 걷힌 것</h3><p>' + sets.sent.filter(function (x) { return x.status === 'done'; }).map(function (x) { return '<b>' + esc(x.title) + '</b> · ' + esc(x.closedAt) + ' 다 걷힘'; }).join('<br>') + '</p>' +
+      '<p style="margin-top:10px"><a class="tlink acc" href="collect-detail.html">합본 받기</a></p></div>';
+    $('#nudge').onclick = function () {
+      U.copy('[고티처] ' + c.title + ', ' + left.map(function (r) { return r.cls + ' ' + r.who; }).join(' · ') + ' 선생님 칸이 비어 있어요. ' + c.due + '까지 링크에서 채워 주세요.\nhttps://' + c.link,
+        '독촉 문구를 복사했어요 · ' + left.map(function (r) { return r.cls; }).join(' · '));
+    };
+  })();
+
+  U.$$('[data-tab]').forEach(function (b) { b.onclick = function () { tab = b.dataset.tab; history.replaceState(null, '', tab === 'sent' ? location.pathname : '#' + tab); render(); }; });
+  $('#q').addEventListener('input', render);
+  render();
+})();
+</script>
+</body>
+</html>

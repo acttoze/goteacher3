@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>학예회 반별 참가 인원 · 제출 · 고티처</title>
+<link rel="stylesheet" href="assets/gt.css">
+<style>
+  /*
+    제출(받는 사람) — 질문: 내 칸이 어디고, 뭘 쓰면 되나?
+    로그인 없음. 가운데 한 열 720(바깥 여백 24). 폰에서는 16 여백, 누르는 곳은 모두 52px 이상.
+  */
+  body { background: var(--bg); }
+  .head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+  .head h1 { font-size: 32px; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; color: var(--muted); font-size: 17px; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  .meta .by { display: inline-flex; align-items: center; gap: 8px; }
+  .status { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .status .track { flex: 1; max-width: 280px; }
+  .status .n { font-weight: 700; white-space: nowrap; }
+  .status .n b { color: var(--accent); }
+
+  .panel { border: 1px solid var(--line); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px; }
+  .panel h2 { font-size: 21px; letter-spacing: -0.02em; }
+  .panel .lead { color: var(--muted); margin-top: -10px; }
+
+  /* 칸 고르기 */
+  .units { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .unit { width: 100%; display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 14px; min-height: 68px; padding: 10px 18px; border: 0; border-radius: 12px; background: var(--surface); text-align: left; cursor: pointer;
+    transition: background-color .15s, transform .12s; }
+  .unit:hover { background: var(--hover); }
+  .unit:active { transform: scale(.99); }
+  .unit .c { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .unit .w { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 600; min-width: 0; }
+  .unit .w small { display: block; font-size: var(--fs-small); color: var(--accent-ink); font-weight: 600; margin-top: 2px; }
+  .unit.mine { background: var(--accent-soft); }
+  .unit.mine .c { color: var(--accent); }
+  .unit.mine:hover { background: #dfe8ff; }
+  .privacy { font-size: 15px; color: var(--muted); }
+
+  /* 입력 */
+  .who-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .who-h .c { font-size: 28px; font-weight: 800; letter-spacing: -0.03em; }
+  .who-h .tlink { margin-left: auto; font-size: 15px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .field .input.big { height: 60px; font-size: 24px; font-weight: 700; text-align: right; padding-right: 48px; }
+  .unitbox { position: relative; }
+  .unitbox i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); font-size: 17px; pointer-events: none; }
+  .field .input.bad { border-color: var(--negative); }
+  .ferr { color: var(--negative); font-size: 15px; font-weight: 600; }
+  .ferr:empty { display: none; }
+  .soft:empty { display: none; }
+  .redo { font-size: 15px; }
+  .after { text-align: center; color: var(--muted); font-size: 15px; }
+  .src { display: flex; gap: 12px; align-items: center; font-size: 15px; color: var(--muted); }
+  .src .ext { width: 44px; height: 44px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+
+  /* 끝 */
+  .ok-mark { width: 56px; height: 56px; border-radius: 50%; background: var(--positive); color: #fff; display: grid; place-items: center; }
+  .sent-kv { display: grid; grid-template-columns: 96px 1fr; gap: 0; font-size: 17px; }
+  .sent-kv dt, .sent-kv dd { padding: 12px 0; border-top: 1px solid var(--rule); }
+  .sent-kv dt { color: var(--muted); }
+  .sent-kv dd { margin: 0; font-weight: 600; }
+  .sent-kv dt:first-of-type, .sent-kv dd:first-of-type { border-top: 0; }
+  .invite { font-size: 15px; color: var(--muted); }
+
+  @media (max-width: 760px) {
+    .bare-top .brand { display: flex; }
+    .head h1 { font-size: 26px; }
+    .panel { padding: 20px 16px; border-radius: 14px; margin: 0 -4px; }
+    .unit { grid-template-columns: 52px 1fr auto; padding: 10px 14px; }
+    .status .track { max-width: none; }
+  }
+</style>
+</head>
+<body>
+<header class="bare-top">
+  <a class="brand" href="index.html" aria-label="고티처 소개">
+    <svg width="22" height="22" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 3l17 8.2-7.4 2.1L10.4 21z" fill="#2251ff"/></svg>고티처
+  </a>
+  <span class="ctx" id="ctx"></span>
+  <span class="end"><span class="lbl">로그인 없이 내요</span></span>
+</header>
+
+<main class="bare" id="m"></main>
+
+<script src="assets/data.js"></script>
+<script src="assets/people.js"></script>
+<script src="assets/shell.js"></script>
+<script>
+(function () {
+  var G = window.GT, U = window.GTU, $ = U.$, esc = U.esc, av = U.av;
+  var q = new URLSearchParams(location.search), root = $('#m');
+  var C = G.collections[0], OWNER = G.members.filter(function (m) { return m.name === G.me.name; })[0];
+  // 이 PC가 기억하는 이름(시연: 박서준). 실제로는 브라우저 저장소
+  var REMEMBER = '박서준';
+  $('#ctx').textContent = G.schoolShort + ' ' + G.space.grade + '학년';
+
+  // 상태: 받는 사람은 다른 반의 값이 아니라 냈는지만 안다
+  var S = { rows: C.rows.map(function (r) { return { cls: r.cls, who: r.who, done: r.v[0] !== null, at: r.at }; }), unit: null, sent: null };
+  function doneN() { return S.rows.filter(function (r) { return r.done; }).length; }
+
+  function head() {
+    var d = doneN(), t = S.rows.length;
+    return '<div class="head"><h1>' + esc(C.title) + '</h1>' +
+      '<p class="meta"><span class="by">' + av(OWNER.name, 'sm') + '<span><b>' + esc(OWNER.name) + '</b> 선생님(' + esc(OWNER.cls) + ')이 걷어요</span></span><span>마감 <b class="num">' + esc(C.due) + '</b></span></p>' +
+      '<div class="status"><div class="track"><i style="width:' + (d / t * 100) + '%"></i></div><span class="n num"><b>' + d + '</b> / ' + t + '반 냈어요</span></div></div>';
+  }
+
+  // (가) 칸 고르기
+  function pick() {
+    root.innerHTML = head() +
+      '<section class="panel" aria-labelledby="pickH"><h2 id="pickH">어느 반 칸을 채우시나요?</h2><p class="lead">가입·로그인 없이 바로 써요. 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>' +
+      '<ul class="units">' + S.rows.map(function (r, i) {
+        var mine = r.who === REMEMBER;
+        return '<li><button class="unit' + (mine ? ' mine' : '') + '" type="button" data-i="' + i + '"><span class="c num">' + esc(r.cls) + '</span>' +
+          '<span class="w">' + av(r.who, 'sm' + (r.done ? '' : ' off')) + '<span>' + esc(r.who) + ' 선생님' + (mine ? '<small>이 PC에서 쓰던 이름이에요</small>' : '') + '</span></span>' +
+          '<span class="st' + (r.done ? ' done' : '') + '">' + (r.done ? '냈어요' : '아직') + '</span></button></li>';
+      }).join('') + '</ul>' +
+      '<p class="privacy">다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.</p></section>';
+    U.$$('.unit').forEach(function (b) { b.onclick = function () { S.unit = +b.dataset.i; form(); window.scrollTo(0, 0); }; });
+  }
+
+  // (나) 입력
+  function form(prev) {
+    var r = S.rows[S.unit], mine = r.who === REMEMBER, v = prev || { a: '', b: '', memo: '', by: mine ? REMEMBER : '' };
+    root.innerHTML = head() +
+      '<form class="panel" id="f" novalidate aria-labelledby="formH">' +
+      '<div class="who-h"><span class="c num">' + esc(r.cls) + '</span><h2 id="formH">' + esc(r.who) + ' 선생님 칸</h2><button class="tlink acc" type="button" id="back">다른 칸 고르기</button></div>' +
+      (r.done && !prev ? '<p class="notice">' + esc(r.cls) + ' 칸은 ' + esc(r.at) + '에 이미 냈어요. 다시 내면 새 값으로 바뀌어요.</p>' : '') +
+      (!mine && !r.done ? '<p class="well">' + esc(r.who) + ' 선생님 대신 내셔도 돼요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>' : '') +
+      '<div class="pair">' +
+        '<label class="field"><span>참가</span><span class="unitbox"><input class="input big num" id="a" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="' + esc(v.a) + '" aria-describedby="aErr"><i>명</i></span></label>' +
+        '<label class="field"><span>불참</span><span class="unitbox"><input class="input big num" id="b" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="' + esc(v.b) + '" aria-describedby="aErr"><i>명</i></span></label>' +
+      '</div>' +
+      '<p class="ferr" id="aErr" role="alert"></p><p class="notice soft" id="soft" role="status"></p>' +
+      '<label class="field"><span>비고 <span class="hint">없으면 비워 두세요</span></span><input class="input lg" id="memo" autocomplete="off" value="' + esc(v.memo) + '" placeholder="예: 전학 예정 1명 포함"></label>' +
+      '<label class="field"><span>내는 사람 <span class="hint">선택 · 대신 내는 분은 이름을 남겨 주세요</span></span><input class="input lg" id="by" autocomplete="name" value="' + esc(v.by) + '" placeholder="이름"></label>' +
+      '<button class="btn pri lg block" type="submit">' + (prev || r.done ? '고쳐서 다시 내기' : '제출하기') + '</button>' +
+      '<p class="after">마감 ' + esc(C.due) + ' 전까지 고칠 수 있어요.</p>' +
+      '<div class="src"><span class="ext">HWPX</span><span>이 값은 ' + esc(OWNER.name) + ' 선생님이 올린 한글 양식(' + esc(C.file) + ')의 ' + esc(r.cls) + ' 줄에 그대로 들어가요.</span></div>' +
+      '</form>';
+    $('#back').onclick = pick;
+    var a = $('#a'), b = $('#b');
+    function clean(el) { var x = el.value.replace(/[^0-9]/g, ''); if (x !== el.value) el.value = x; }
+    function check() {
+      var sum = (+a.value || 0) + (+b.value || 0);
+      $('#soft').textContent = sum > 40 ? '참가와 불참을 더하면 ' + sum + '명이에요. 반 인원이 맞는지 한 번 봐 주세요. 맞으면 그대로 내도 돼요.' : '';
+    }
+    [a, b].forEach(function (el) { el.addEventListener('input', function () { clean(el); el.classList.remove('bad'); $('#aErr').textContent = ''; check(); }); });
+    check();
+    if (!prev) setTimeout(function () { a.focus(); }, 0);
+    $('#f').onsubmit = function (e) {
+      e.preventDefault();
+      var miss = [];
+      if (a.value === '') { miss.push('참가'); a.classList.add('bad'); }
+      if (b.value === '') { miss.push('불참'); b.classList.add('bad'); }
+      if (miss.length) { $('#aErr').textContent = miss.join('·') + ' 인원을 숫자로 써 주세요. 없으면 0이에요.'; (a.value === '' ? a : b).focus(); return; }
+      S.sent = { a: +a.value, b: +b.value, memo: $('#memo').value.trim(), by: $('#by').value.trim(), at: '10/26 11:06' };
+      r.done = true; r.at = S.sent.at;
+      done();
+    };
+  }
+
+  // (다) 끝
+  function done() {
+    var r = S.rows[S.unit], s = S.sent, d = doneN(), t = S.rows.length;
+    root.innerHTML = head() +
+      '<section class="panel" aria-labelledby="okH" tabindex="-1" id="ok">' +
+      '<div class="row" style="gap:16px"><span class="ok-mark">' + U.icon('check', 28) + '</span><div><h2 id="okH">제출했어요</h2><p class="muted">' + esc(OWNER.name) + ' 선생님 합본에 바로 들어갔어요. 이제 ' + d + '/' + t + '반이에요.</p></div></div>' +
+      '<dl class="sent-kv num"><dt>반</dt><dd>' + esc(r.cls) + ' ' + esc(r.who) + ' 선생님</dd><dt>참가</dt><dd>' + s.a + '명</dd><dt>불참</dt><dd>' + s.b + '명</dd>' +
+      '<dt>비고</dt><dd>' + (s.memo ? esc(s.memo) : '<span class="dash">—</span>') + '</dd><dt>낸 사람</dt><dd>' + (s.by ? esc(s.by) + (s.by !== r.who ? ' (대신 냄)' : '') : '<span class="dash">—</span>') + '</dd><dt>시각</dt><dd>' + esc(s.at) + '</dd></dl>' +
+      '<button class="btn sec lg block" type="button" id="redo">고치기</button>' +
+      '<p class="after">마감 ' + esc(C.due) + ' 전까지 고칠 수 있어요.</p></section>' +
+      '<p class="invite" style="margin-top:24px">매일 아침 내 일과와 낼 것을 한 장으로 보려면 <a class="tlink acc" href="today.html">고티처 오늘 화면을 써 보세요</a>.</p>';
+    $('#ok').focus();
+    $('#redo').onclick = function () { form({ a: s.a, b: s.b, memo: s.memo, by: s.by }); };
+  }
+
+  function closed() {
+    root.innerHTML = head() +
+      '<section class="panel" aria-labelledby="clH"><h2 id="clH">마감됐어요</h2>' +
+      '<p>' + esc(C.due) + '에 마감돼서 이 링크로는 더 낼 수 없어요. 늦게라도 내야 하면 ' + esc(OWNER.name) + ' 선생님(' + esc(OWNER.cls) + ')께 말해 주세요. 마감을 다시 열 수 있어요.</p>' +
+      '<button class="btn sec lg block" type="button" id="msg">' + esc(OWNER.name) + ' 선생님께 보낼 문구 복사</button></section>';
+    $('#msg').onclick = function () { U.copy('[고티처] ' + C.title + ' 마감이 지나서 못 냈어요. 다시 열어 주실 수 있을까요?', '문구를 복사했어요. 쿨메신저에 붙여넣으세요.'); };
+  }
+  function notFound() {
+    root.innerHTML = '<div class="head"><h1>링크를 찾을 수 없어요</h1><p class="meta">주소가 잘렸거나, 걷는 선생님이 모으기를 지웠을 수 있어요.</p></div>' +
+      '<section class="panel" aria-labelledby="nfH"><h2 id="nfH">이렇게 해 보세요</h2><ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px"><li>쿨메신저 쪽지의 링크를 끝까지 복사했는지 봐 주세요.</li><li>그래도 안 되면 보낸 선생님께 새 링크를 받아 주세요.</li></ul></section>';
+  }
+
+  if (q.get('c') && q.get('c') !== '7HJ3') notFound();
+  else if (q.get('closed')) closed();
+  else if (q.get('u') && S.rows[+q.get('u')]) { S.unit = +q.get('u'); form(); }
+  else pick();
+})();
+</script>
+</body>
+</html>
