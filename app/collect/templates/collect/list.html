@@ -1,0 +1,109 @@
+{% extends "shell.html" %}
+{% block title %}모으기 · 고티처{% endblock %}
+{% block ptitle %}모으기{% endblock %}
+{% block head %}
+<style>
+  /* design/collect.html — 내가 걷는 것은 얼마나 걷혔고, 내가 낼 것은 무엇이 남았나? 표 s8 + 곁 s4. */
+  .bar { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+  .bar .search { flex: 0 1 316px; }
+  .bar .count { margin-left: auto; font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
+  .tbl td { height: 76px; }
+  .tbl a.ttl { font-weight: 600; text-decoration: none; padding: 6px 0; }
+  .tbl tr.link:hover a.ttl { color: var(--accent); }
+  .tbl .prog { width: 112px; }
+  .tbl .prog .nums { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 15px; }
+  .tbl .prog .nums b { font-weight: 700; }
+  .tbl .prog .nums span { color: var(--muted); font-size: var(--fs-small); }
+  .tbl .due { white-space: nowrap; }
+  .tbl .due.urgent { color: var(--accent-ink); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; font-weight: 600; }
+  .tbl td.act { width: 1%; white-space: nowrap; }
+  .tbl td.act form { display: inline; }
+  .tbl td.c-id { max-width: 0; width: 46%; }
+  .tbl td.c-id .sub2, .tbl td.c-id a.ttl { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbl .stack .av { width: 26px; height: 26px; font-size: 12px; }
+  .tbl tr.empty-row td { height: auto; padding: 16px 0 0; border-top: 0; }
+  .side-b h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .side-b .blk + .blk { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--rule); }
+  .side-b .left { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+  .side-b .left span { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+  .side-b p { font-size: 15px; color: var(--muted); }
+  .side-b p b { color: var(--ink); font-weight: 600; }
+  .msg-src { display: none; }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>모으기</h1>
+    <p class="sub">걷는 중 <b class="num">{{ n_open }}건</b> · 낼 것 <b class="num">{{ n_todo }}건</b>{% if first_todo %}, 가장 급한 건 <b>{{ first_todo.c.title }} {{ first_todo.due }}</b>{% endif %}</p>
+  </div>
+  <a class="btn pri" href="/s/{{ space.token }}/c/new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>새로 모으기</a>
+</div>
+{% if error %}<p class="empty" role="alert" style="margin-bottom:16px">{{ error }}</p>{% endif %}
+
+<nav class="tabs" id="tabs" aria-label="모으기 보기">
+  {% for k, label, n in tabs %}<a href="?tab={{ k }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if k == tab %} aria-current="page"{% endif %}>{{ label }} <span class="c num">{{ n }}</span></a>{% endfor %}
+</nav>
+
+<div class="grid">
+  <section class="s8" aria-labelledby="listH">
+    <h2 class="sr" id="listH">모으기 목록</h2>
+    <form class="bar" method="get" role="search" hx-get="/s/{{ space.token }}/c/" hx-trigger="input changed delay:250ms from:#q, search from:#q" hx-target="#list" hx-select="#list" hx-select-oob="#tabs,#count" hx-swap="outerHTML" hx-replace-url="true">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <label class="search"><span class="sr">제목·보낸 사람으로 찾기</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input class="input" id="q" name="q" type="search" value="{{ q }}" placeholder="제목·보낸 사람으로 찾기" autocomplete="off"></label>
+      <span class="count num" id="count">{{ items|length }}건</span>
+    </form>
+    <div id="list">
+      <table class="tbl">
+        <thead>{% if tab == "todo" %}<tr><th>제목</th><th class="r">마감</th><th class="r"><span class="sr">행동</span></th></tr>
+        {% else %}<tr><th>제목</th><th>낸 선생님</th><th class="r">제출</th><th class="r">마감</th><th class="r">상태</th><th class="r"><span class="sr">행동</span></th></tr>{% endif %}</thead>
+        <tbody>
+        {% for x in items %}{% if tab == "todo" %}
+          <tr>
+            <td class="c-id"><a class="ttl" href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">{{ x.c.title }}</a><span class="sub2">{{ x.from }} · {{ x.src }}</span></td>
+            <td class="r"><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span></td>
+            <td class="act r"><a class="btn ghost sm" href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">내기</a></td>
+          </tr>
+        {% else %}
+          <tr class="link">
+            <td class="c-id"><a class="ttl" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><span class="sub2">{{ x.src }} · {{ x.made|date:"n/j" }} 만듦</span></td>
+            <td><span class="stack" aria-label="낸 {{ x.per }}: {{ x.done_names|default:'없음' }}">{% for r, color, ink in x.done|slice:":4" %}<span class="av sm{% if ink %} ink-t{% endif %}" style="background:{{ color }}">{{ r.who|slice:":1" }}</span>{% endfor %}</span></td>
+            <td class="r"><div class="prog"><div class="nums"><span>낸 {{ x.per }}</span><b class="num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</b></div><div class="track thin{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div></div></td>
+            <td class="r"><span class="due num{% if x.urgent and tab == 'sent' and not x.all %} urgent{% endif %}"><span class="sr">마감 </span>{{ x.due }}</span></td>
+            <td class="r">{% if tab == "past" %}<span class="st">{% if x.c.closed_at %}닫힘{% else %}마감 지남{% endif %}</span>{% elif x.all %}<span class="st done">다 걷힘</span>{% else %}<span class="st">진행 중</span>{% endif %}</td>
+            <td class="act r"><form method="post" action="/s/{{ space.token }}/c/{{ x.c.key }}/again">{% csrf_token %}<button class="btn ghost sm" type="submit" title="칸·받는 사람은 그대로, 낸 값·마감은 비우고 새로 걷어요">다시 걷기</button></form></td>
+          </tr>
+        {% endif %}{% empty %}
+          <tr class="empty-row"><td colspan="{% if tab == 'todo' %}3{% else %}6{% endif %}"><p class="empty">{% if q %}「{{ q }}」에 맞는 {{ noun }}이 없어요. 검색어를 지우면 모두 보여요.{% elif tab == "todo" %}낼 것이 없어요.{% elif tab == "sent" %}걷는 중인 모으기가 없어요. 「새로 모으기」에서 표를 붙여넣으면 바로 만들어져요.{% else %}아직 {{ noun }}이 없어요.{% endif %}</p></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="s4 card side-b" aria-labelledby="nextH">
+    <div class="card-h"><h2 id="nextH">다음 할 일</h2></div>
+    <div class="card-b">
+      {% if side %}
+      <div class="blk"><h3>{{ side.miss_label }} <span class="muted num" style="font-weight:500">{{ side.miss|length }}{{ side.miss_unit }}</span></h3>
+        <p>{{ side_c.c.title }} · 마감 <b class="num">{{ side_c.due }}</b></p>
+        <div class="left">{% for u in side.miss %}<span>{{ u.label }}</span>{% endfor %}</div>
+        <pre class="msg-src" id="nudgeAll">{{ side.nudge_all }}</pre>
+        <button class="btn sec sm" type="button" data-copy="#nudgeAll" data-done="{{ side.nudge_done }}">독촉 문구 복사</button>
+      </div>
+      {% endif %}
+      {% if all_done %}
+      <div class="blk"><h3>다 걷힌 것</h3>
+        <p>{% for x in all_done %}<a class="tlink acc" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a> · 합본 받기{% if not forloop.last %}<br>{% endif %}{% endfor %}</p>
+      </div>
+      {% endif %}
+      {% if not side and not all_done %}
+      <div class="blk"><p>걷는 중인 모으기가 없어요. 지난 것의 「다시 걷기」를 누르면 칸은 그대로 두고 새로 걷어요.</p>
+        <p style="margin-top:10px"><a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p></div>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}

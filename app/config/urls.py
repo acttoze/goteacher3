@@ -3,7 +3,7 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 from accounts import views as accounts
-from collect import export, submit
+from collect import export, lists, submit
 from collect import views as collect
 from spaces import views as spaces
 
@@ -21,6 +21,7 @@ urlpatterns = [
     path("s/<str:space_token>/invite", spaces.new_invite),
     path("s/<str:space_token>/made", spaces.made),
     path("s/<str:space_token>/welcome", spaces.welcome),
+    path("s/<str:space_token>/c/", lists.index),
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),
     path("s/<str:space_token>/c/<str:key>/", collect.detail),
@@ -30,6 +31,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/<str:key>/export.csv", export.export_csv),
     path("s/<str:space_token>/c/<str:key>/copy", export.copy),
     path("s/<str:space_token>/c/<str:key>/footer", export.footer),
+    path("s/<str:space_token>/c/<str:key>/again", lists.again),
     path("c/<str:link_token>", submit.pick),
     path("c/<str:link_token>/outside", submit.outside),
     path("c/<str:link_token>/u/<str:key>", submit.unit),

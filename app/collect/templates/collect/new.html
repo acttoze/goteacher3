@@ -57,7 +57,7 @@
     <h1>새로 모으기</h1>
     <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 동학년 명부로 반마다 만들어지고, 마감은 만든 뒤 정해요.</p>
   </div>
-  <a class="btn ghost" href="/s/{{ space.token }}/">취소</a>
+  <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>
 <form id="newForm" method="post" action="/s/{{ space.token }}/c/new" novalidate>{% csrf_token %}
 <div class="grid">
