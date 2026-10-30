@@ -8,6 +8,7 @@
 """
 import io
 import os
+import re
 import shutil
 import tempfile
 import zipfile
@@ -363,3 +364,166 @@ class QaEdgeTests(UploadTests):
         self.assertEqual(c.get(self.status_url(sf, sp)).status_code, 404)
         self.assertEqual(c.get(self.status_url(sf)).status_code, 404)
         self.assertEqual(c.get(f"/s/{sp.token}/hwp/{sf.key[:-1]}x/status").status_code, 404)
+
+
+@override_settings(ROOT_URLCONF=__name__, REDIS_URL="")
+class PreviewTests(UploadTests):
+    """E4 쪽 미리보기·HWPX 내려주기. 파일은 이 뷰로만, 회원·같은 공간·완료된 것만, 캐시 금지."""
+
+    def run(self, result=None):
+        if not self._testMethodName.startswith("test_pv_"):
+            return result
+        return super().run(result)
+
+    def _done(self, name="명단.hwp", data=None):
+        self.post(upload(name, data or sample_hwp()))
+        return SourceFile.objects.get(name=name)
+
+    def pv(self, sf, space=None):
+        return f"/s/{(space or self.a).token}/hwp/{sf.key}/"
+
+    def dl(self, sf, space=None):
+        return f"/s/{(space or self.a).token}/hwp/{sf.key}/hwpx"
+
+    def assert_no_cache(self, r):
+        cc = r["Cache-Control"]
+        for part in ("no-store", "no-cache", "private", "max-age=0"):
+            self.assertIn(part, cc)
+
+    def test_pv_hwpx_download_member_only(self):
+        sf = self._done()
+        r = self.client.get(self.dl(sf))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "application/hwp+zip")
+        self.assertEqual(r["X-Content-Type-Options"], "nosniff")
+        self.assertIn("attachment", r["Content-Disposition"])
+        self.assertIn(".hwpx", r["Content-Disposition"])
+        self.assert_no_cache(r)
+        body = b"".join(r.streaming_content)
+        with sf.hwpx_file().open("rb") as fh:
+            self.assertEqual(body, fh.read())
+        self.assertEqual(hwp.detect(body), "hwpx")
+
+    def test_pv_original_hwpx_served_as_is(self):
+        sf = self._done("양식.hwpx", sample_hwpx())
+        r = self.client.get(self.dl(sf))
+        self.assertEqual(b"".join(r.streaming_content), sample_hwpx())
+
+    def test_pv_isolation(self):
+        sf = self._done()
+        for url in (self.dl, self.pv):
+            self.assertEqual(self.client.get(url(sf, self.b)).status_code, 404)  # 회원 아닌 공간
+            c = Client()
+            c.force_login(self.ub)
+            self.assertEqual(c.get(url(sf, self.b)).status_code, 404)  # 내 공간 주소에 남의 파일 키
+            self.assertEqual(c.get(url(sf)).status_code, 404)  # 남의 공간 주소
+            self.assertEqual(Client().get(url(sf)).status_code, 302)  # 로그인 안 함
+            self.assertEqual(self.client.post(url(sf)).status_code, 405)
+
+    def test_pv_not_done_or_failed_404(self):
+        sf = self._done()
+        for st in (S.PENDING, S.CONVERTING):
+            SourceFile.objects.filter(pk=sf.pk).update(status=st)
+            self.assertEqual(self.client.get(self.dl(sf)).status_code, 404)
+        sf.refresh_from_db()
+        sf.discard("ConvertError")
+        self.assertEqual(self.client.get(self.dl(sf)).status_code, 404)
+        r = self.client.get(self.pv(sf))
+        self.assertContains(r, "그릴 파일이 없어요")
+
+    def test_pv_page_tables_outline_and_csp(self):
+        sf = self._done()
+        self.assertEqual([(t["rows"], t["cols"], t["rank"]) for t in sf.report["tables"]], [(3, 2, 0)])
+        r = self.client.get(self.pv(sf))
+        self.assertEqual(r.status_code, 200)
+        self.assert_no_cache(r)
+        csp = r["Content-Security-Policy"]
+        self.assertIn("script-src 'self' 'wasm-unsafe-eval'", csp)
+        self.assertNotIn("http", csp.replace(views.FONT_SRC, ""))  # 외부 출처는 글꼴 경로 하나뿐
+        self.assertContains(r, f'data-src="/s/{self.a.token}/hwp/{sf.key}/hwpx"')
+        self.assertContains(r, "hwp/preview.js")
+        self.assertContains(r, '"rows": 3')
+        self.assertNotContains(r, SECRET)  # 문서 글자는 화면 HTML에 싣지 않는다
+        self.assertNotContains(r, "연수 신청")
+        self.assertNotIn(SECRET, repr(sf.report))
+
+    def test_pv_busy_page_polls(self):
+        with override_settings(REDIS_URL="redis://example.invalid:6379/0"), mock.patch("config.queue.get_queue"):
+            self.post(upload("a.hwp", sample_hwp()))
+        sf = SourceFile.objects.get()
+        r = self.client.get(self.pv(sf))
+        self.assertContains(r, 'hx-trigger="every 2s"')
+        self.assertContains(r, "쪽 미리보기가 나와요")
+
+    def test_pv_done_but_file_missing_404(self):
+        sf = self._done()
+        os.remove(sf.hwpx_file().path)  # 디스크에서 사라진 파일(볼륨 복구 실수 등): 500이 아니라 404
+        self.assertEqual(self.client.get(self.dl(sf)).status_code, 404)
+
+    def test_pv_report_tables_keep_section_number_only(self):
+        sf = self._done()
+        for t in sf.report["tables"]:
+            self.assertNotIn("section", t)
+        self.assertNotIn("Contents/", repr(sf.report))
+        self.assertEqual(sf.report["tables"][0]["sec"], 0)
+
+    def test_pv_media_not_public(self):
+        from django.conf import settings
+
+        sf = self._done()
+        self.assertEqual(self.client.get(f"{settings.MEDIA_URL}{sf.original.name}").status_code, 404)
+
+
+class PreviewQaTests(PreviewTests):
+    """E4 QA가 더한 경계. CSP 외부 출처 범위, 고정 사본 무결성, WASM 응답 형식, E4 이전에 변환된 파일."""
+
+    def run(self, result=None):
+        if not self._testMethodName.startswith("test_pvqa_"):
+            return result
+        return super(PreviewTests, self).run(result)
+
+    def test_pvqa_csp_font_only_in_style_and_font(self):
+        from django.conf import settings
+
+        sf = self._done()
+        csp = dict(d.strip().split(" ", 1) for d in self.client.get(self.pv(sf))["Content-Security-Policy"].split(";"))
+        for name, value in csp.items():
+            if name in ("style-src", "font-src"):
+                self.assertIn(views.FONT_SRC, value)
+                self.assertNotIn("http", value.replace(views.FONT_SRC, ""))
+            else:
+                self.assertNotIn("http", value, name)  # 스크립트·연결·이미지는 자기 출처만
+        self.assertNotIn("'unsafe-eval'", csp["script-src"])
+        # gt.css가 실제로 읽는 글꼴 주소가 허용 경로 아래에 있어야 콘솔 오류 없이 글꼴이 뜬다
+        css = (settings.STATICFILES_DIRS[0] / "css" / "gt.css").read_text()
+        imports = re.findall(r'@import url\("(https?://[^"]+)"\)', css)
+        self.assertTrue(imports)
+        for url in imports:
+            self.assertTrue(url.startswith(views.FONT_SRC), url)
+
+    def test_pvqa_vendored_rhwp_matches_source(self):
+        import hashlib
+        from django.conf import settings
+
+        d = settings.STATICFILES_DIRS[0] / "hwp"
+        js = (d / "preview.js").read_text()
+        folder = re.search(r"from '\./(rhwp-[0-9.]+)/rhwp\.js'", js).group(1)
+        src = (d / folder / "SOURCE.txt").read_text()
+        rows = re.findall(r"^sha256\s+([0-9a-f]{64})\s+(\S+)$", src, re.M)
+        self.assertEqual({n for _, n in rows}, {"rhwp.js", "rhwp_bg.wasm", "LICENSE"})
+        for digest, name in rows:
+            self.assertEqual(hashlib.sha256((d / folder / name).read_bytes()).hexdigest(), digest, name)
+        self.assertIn(folder.removeprefix("rhwp-"), src.splitlines()[0])
+
+    def test_pvqa_wasm_served_as_application_wasm(self):
+        from whitenoise.media_types import MediaTypes
+
+        self.assertEqual(MediaTypes().get_type("rhwp_bg.wasm"), "application/wasm")
+
+    def test_pvqa_file_converted_before_e4_has_no_outline(self):
+        sf = self._done()
+        SourceFile.objects.filter(pk=sf.pk).update(report={})  # E4 이전 변환본: report에 tables 없음
+        r = self.client.get(self.pv(sf))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, '<script id="hwpTables" type="application/json">[]</script>', html=False)
+        self.assertEqual(self.client.get(self.dl(sf)).status_code, 200)

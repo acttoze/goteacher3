@@ -15,6 +15,7 @@ from .models import SourceFile
 
 log = logging.getLogger(__name__)
 S = SourceFile.Status
+MAX_TABLES = 1000
 
 
 def _fail(sf, error):
@@ -31,6 +32,10 @@ def convert(pk):
         with sf.original.open("rb") as fh:
             data = fh.read()
         hx, kind, report = hwp.to_hwpx(data)  # hwpx는 변환 없이 zip·XML 전수 검사만
+        # 표 구조 요약(글자 없음). 미리보기가 rhwp 표와 짝을 맞춰 후보를 강조한다(E4). 상한은 DB 보호용.
+        # 구역은 zip 항목 이름 대신 순번(sec)만 둔다. 이름은 hwp.engine.section_names(…)[sec]로 되찾는다.
+        report = {**report, "tables": [{k: v for k, v in t.items() if k != "section"}
+                                       for t in hwp.tables(hx)[:MAX_TABLES]]}
         if kind == SourceFile.Kind.HWP:
             sf.hwpx.save("conv.hwpx", ContentFile(hx), save=False)
     except hwp.HwpError as e:

@@ -1,0 +1,8 @@
+@rhwp/core 0.8.7 (MIT, Edward Kim) — npm 레지스트리 tarball에서 그대로 복사한 고정 사본. CDN에서 받지 않는다.
+https://registry.npmjs.org/@rhwp/core/-/core-0.8.7.tgz
+tarball sha256  30e8a17400583570afec9169baeef3f0785e023e2a51344ed44eb8539a60e6a6
+tarball sha512  sha512-qgNpY9aclCvy9D7cPnpuplu42kUFZCCPhdjAS5HBso4Z4XeHG3uchYdUleQBoas/zEuwfJ7H4/ulepqdL/LXDA==
+sha256  70cde06a369fa7fd4fc8bc8f3d6acaee158596ba1a116a2c72159002b0b5654e  rhwp.js
+sha256  54cf95014312e605c51b98eb9021247ea79ef2bbd0a7080e11c011d0246e3989  rhwp_bg.wasm
+sha256  1c3a7d5643b163a3ead4965e1bea33b832caee5bfca265efe42afcd7bc696b5b  LICENSE
+바꿀 때: npm pack @rhwp/core@<버전> → 위 값 확인 → 폴더 이름(rhwp-<버전>)과 web/static/hwp/preview.js의 import 경로를 함께 바꾼다.

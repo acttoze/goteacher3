@@ -88,6 +88,7 @@ class Table:
     nested: bool          # 다른 표의 칸 안에 들어 있는 표
     has_child: bool       # 칸 안에 다른 표를 품은 표(틀)
     before_text: str = ''  # 표 바로 앞 문단 글자(제목 추정)
+    parent: int | None = None  # 이 표를 품은 가장 가까운 표의 index(중첩 표만)
     role: str = ''
     score: float = 0.0
     grid: dict = field(default_factory=dict)
@@ -127,6 +128,7 @@ def analyze(hwpx: bytes) -> list[Table]:
         root = etree.fromstring(parts[sec], PARSER)
         last_text = ''
         idx = 0
+        seen = {}  # 표 요소 → index (중첩 표의 부모 찾기)
         # 문서 순서로 문단과 표를 훑는다(표 앞 제목 추정용)
         for el in root.iter(HP + 'p', HP + 'tbl'):
             if el.tag == HP + 'p':
@@ -147,6 +149,7 @@ def analyze(hwpx: bytes) -> list[Table]:
                                       tc.get('borderFillIDRef', ''), _has_obj(tc)))
             t = Table(sec, idx, int(el.get('rowCnt', 0)), int(el.get('colCnt', 0)), cells,
                       nested=any(a.tag == HP + 'tc' for a in el.iterancestors()),
+                      parent=next((seen[a] for a in el.iterancestors(HP + 'tbl') if a in seen), None),
                       has_child=el.find('.//' + HP + 'tbl') is not None,
                       before_text=last_text[:60])
             for c in cells:
@@ -155,6 +158,7 @@ def analyze(hwpx: bytes) -> list[Table]:
                         t.grid[(c.row + dr, c.col + dc)] = c
             _classify(t)
             tables.append(t)
+            seen[el] = idx
             idx += 1
     return tables
 

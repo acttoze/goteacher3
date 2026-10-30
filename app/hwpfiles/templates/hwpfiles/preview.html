@@ -1,0 +1,26 @@
+{% extends "shell.html" %}
+{% load static %}
+{# E4 한글 양식 쪽 미리보기(최소). 만들기 화면 한글 양식 탭에 붙이는 일·표 고르기 클릭은 E5. #}
+{% block title %}한글 양식 미리보기 · 고티처{% endblock %}
+{% block ptitle %}한글 양식 미리보기{% endblock %}
+{% block head %}
+<meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+<link rel="stylesheet" href="{% static 'hwp/preview.css' %}">
+<script type="module" src="{% static 'hwp/preview.js' %}"></script>
+{% endblock %}
+{% block main %}
+<div class="card"><div class="card-b pt">
+  <div class="filebar">
+    <span class="ext">{{ f.kind|upper }}</span>
+    <div class="grow"><b>{{ f.name|default:"한글 파일" }}</b><span id="hwpSummary">{% if f.kind == "hwp" %}HWPX로 바꿔 읽었어요 · {% endif %}올린 형식 그대로 돌려받아요</span></div>
+  </div>
+  {% include "hwpfiles/_status.html" %}
+  <p class="pickhint" id="hwpLimit" hidden>쪽이 너무 많아 앞 300쪽만 보여 드려요. 채울 표가 뒤쪽에 있으면 그 부분만 따로 저장해 올려 주세요.</p>
+  <p class="pickhint" id="pickHint" hidden>점선이 고를 수 있는 표예요. 회색은 결재란·안내 표처럼 칸을 채울 표가 아닌 것이에요.</p>
+  <div class="paper-wrap" id="hwpPreview" data-src="/s/{{ space.token }}/hwp/{{ f.key }}/hwpx" data-key="{{ f.key }}" aria-live="polite">
+    <p class="pv-msg" id="hwpMsg">{% if f.status == "done" %}미리보기를 그리는 중이에요…{% elif f.status == "failed" %}미리보기를 그릴 파일이 없어요.{% else %}다 읽으면 여기에 쪽 미리보기가 나와요.{% endif %}</p>
+    <div class="pv-pages" id="hwpPages"></div>
+  </div>
+</div></div>
+{{ tables|json_script:"hwpTables" }}
+{% endblock %}

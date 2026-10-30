@@ -60,6 +60,29 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(cells[(1, 1)]['label'], '1 / 성명')
         self.assertEqual(cells[(1, 2)]['unit'], '명')
 
+    def test_tables_outline_has_no_text(self):
+        hx, _, _ = hwp.to_hwpx(roster())
+        out = hwp.tables(hx)
+        self.assertEqual([(t['sec'], t['index'], t['rows'], t['cols'], t['cells'], t['role'], t['rank'], t['parent'])
+                          for t in out],
+                         [(0, 0, 2, 3, 6, 'approval', None, None), (0, 1, 5, 3, 15, 'data', 0, None)])
+        self.assertNotIn('명단', repr(out))   # 문서 글자는 담지 않는다
+        self.assertNotIn('담당', repr(out))
+        with self.assertRaises(hwp.HwpError):
+            hwp.tables(b'not a zip')
+
+    def test_tables_nested_parent(self):
+        from hwpx.document import HwpxDocument
+        d = HwpxDocument.new()
+        d.add_table(1, 1)
+        outer = d.add_table(2, 2)
+        inner = outer.cell(1, 1).add_table(2, 2)
+        inner.cell(0, 0).add_table(1, 2)
+        d.add_table(1, 3)
+        out = hwp.tables(d.to_bytes())
+        self.assertEqual([(t['index'], t['nested'], t['parent']) for t in out],
+                         [(0, False, None), (1, False, None), (2, True, 1), (3, True, 2), (4, False, None)])
+
     def test_unknown_table(self):
         with self.assertRaises(hwp.FillError):
             hwp.schema(roster(), 'Contents/section0.xml', 9)

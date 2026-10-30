@@ -1,0 +1,29 @@
+/* E4 한글 쪽 미리보기. 모양 기준: design/collect-new.html 한글 양식 탭(.filebar·.paper-wrap·.cand). */
+.card-b.pt { padding-top: 22px; }
+.filebar { display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: var(--surface); border-radius: var(--radius-in); }
+.filebar .ext { width: 48px; height: 48px; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+.filebar .grow { flex: 1; min-width: 0; }
+.filebar b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filebar span { font-size: var(--fs-small); color: var(--muted); }
+.hwp-status { margin: 14px 0 0; font-size: 16px; }
+.hwp-status .err { color: var(--negative); font-weight: 600; }
+.pickhint { margin: 18px 0 10px; font-size: 16px; }
+.paper-wrap { background: var(--surface); border-radius: var(--radius-in); padding: 24px; margin-top: 14px; }
+.pv-msg { text-align: center; color: var(--muted); font-size: 16px; padding: 24px 0; }
+.pv-msg.err { color: var(--negative); font-weight: 600; }
+.pv-msg:empty { display: none; }
+.pv-pages { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+/* 쪽 하나: 너비 최대 800px, 높이는 용지 비율(aspect-ratio)로 미리 잡아 지연 렌더 때 스크롤이 튀지 않게 */
+.pv-page { position: relative; width: 100%; max-width: 800px; background: #fff; border: 1px solid #dcdfe4; } /* taste-skill-ignore: data-ui 한글 쪽 */
+.pv-page > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pv-page .pv-no { position: absolute; right: 10px; bottom: 8px; font-size: 13px; color: var(--muted); }
+.pv-page.fail::after { content: "이 쪽은 그리지 못했어요"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--negative); font-weight: 600; }
+/* 표 영역 겹침 레이어(투명). 클릭 확정은 E5. */
+.pv-layer { position: absolute; inset: 0; pointer-events: none; }
+.cand { position: absolute; outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 2px; } /* taste-skill-ignore: data-ui 표 후보 표시 */
+.cand.no { outline-color: #aeb3bb; }
+.cand .tag { position: absolute; left: -4px; top: -28px; font: 700 13px/1 var(--font); color: #fff; background: var(--accent); padding: 5px 8px; border-radius: 6px; white-space: nowrap; }
+.cand.no .tag { background: #6b7079; }
+/* 위치를 모르는 중첩 후보(rhwp가 쪽에 놓지 않은 표): 품은 표 오른쪽 위에 "이 표 안: 표 N" */
+.cand.has-in { outline-color: var(--accent); }
+.cand .tag.in, .cand.no .tag.in { left: auto; right: -4px; background: var(--accent); }
