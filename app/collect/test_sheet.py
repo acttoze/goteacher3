@@ -36,7 +36,7 @@ class SheetPresetTests(TestCase):
         r = self.client.get(f"/s/{self.a.token}/c/new")
         for label in ("표 붙여넣기", "직접 입력", "자주 쓰는 양식", "한글 양식 올리기"):
             self.assertContains(r, label)
-        self.assertContains(r, 'data-src="hwp" disabled')
+        self.assertNotContains(r, 'data-src="hwp" disabled')  # E5에서 켬
         self.assertContains(r, "2학기 학습준비물 신청")
         self.assertContains(r, "법정의무연수")
 

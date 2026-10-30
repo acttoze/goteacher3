@@ -507,7 +507,7 @@ class PreviewQaTests(PreviewTests):
 
         d = settings.STATICFILES_DIRS[0] / "hwp"
         js = (d / "preview.js").read_text()
-        folder = re.search(r"from '\./(rhwp-[0-9.]+)/rhwp\.js'", js).group(1)
+        folder = re.search(r"import\('\./(rhwp-[0-9.]+)/rhwp\.js'\)", js).group(1)
         src = (d / folder / "SOURCE.txt").read_text()
         rows = re.findall(r"^sha256\s+([0-9a-f]{64})\s+(\S+)$", src, re.M)
         self.assertEqual({n for _, n in rows}, {"rhwp.js", "rhwp_bg.wasm", "LICENSE"})

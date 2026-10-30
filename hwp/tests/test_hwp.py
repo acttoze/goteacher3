@@ -60,6 +60,37 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(cells[(1, 1)]['label'], '1 / 성명')
         self.assertEqual(cells[(1, 2)]['unit'], '명')
 
+    def test_approval_needs_title_cells(self):
+        """E5: 결재란은 칸 글자가 직함 그대로일 때만. 머리글에 '담당'이 든 본문 표는 후보로 남는다."""
+        from hwpx.document import HwpxDocument
+
+        def table(rows):
+            d = HwpxDocument.new()
+            t = d.add_table(len(rows), len(rows[0]))
+            for r, row in enumerate(rows):
+                for c, x in enumerate(row):
+                    if x:
+                        t.set_cell_text(r, c, x)
+            return E.analyze(d.to_bytes())[0].role
+
+        self.assertEqual(table([['담 당', '교무부장', '교 감', '교장'], ['', '', '', '']]), 'approval')
+        self.assertEqual(table([['결재', '담당', ''], ['', '', '']]), 'approval')
+        self.assertEqual(table([['순', '학교명', '담당업무', '이름'], ['1', '', '', '']]), 'data')
+        self.assertEqual(table([['안건 번호', '', '제안년월일 :'], ['제안자 :', '', '담당자 : 방과후'], ['', '', '']]), 'data')
+        self.assertEqual(table([['일정', '추진 내용', '담당'], ['7.26.', '협의', '']]), 'data')
+
+    def test_corner_frame_box_is_frame(self):
+        """E5: 모서리 빈 칸 + 아래 줄 전체를 차지하는 칸 안에 표를 품은 '참고' 상자는 틀(후보 아님)."""
+        from hwpx.document import HwpxDocument
+        d = HwpxDocument.new()
+        t = d.add_table(3, 3)
+        t.merge_cells(0, 1, 1, 1)
+        t.set_cell_text(0, 1, '참고')
+        t.merge_cells(2, 0, 2, 2)
+        t.cell(2, 0).add_table(2, 2)
+        ts = E.analyze(d.to_bytes())
+        self.assertEqual((ts[0].role, ts[1].nested), ('frame', True))
+
     def test_tables_outline_has_no_text(self):
         hx, _, _ = hwp.to_hwpx(roster())
         out = hwp.tables(hx)

@@ -19,7 +19,11 @@ from .safety import (MAX_CELL_TEXT, PARSER, ConvertError, FillError, HwpError,
 
 HP = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
 SEC_RE = re.compile(r'Contents/section(\d+)\.xml$')
-APPROVAL_RE = re.compile(r'결\s*재|담\s*당|교\s*감|교\s*장|부\s*장|기\s*안|협\s*조|전\s*결')
+# 결재란: 칸 글자(띄어쓰기 뺀 것)가 직함 그대로인 칸. 본문 표 머리글의 '담당'·'담당 업무'나
+# 글상자 문장 속 '교장' 같은 것은 결재란이 아니다(E5: 안건 제출서·명단 표가 결재란으로 빠지던 문제).
+APPROVAL_CELL = re.compile(r'^(결재|전결|대결|담당|담당자|기안|기안자|계|교감|교장|학교장|원감|원장|협조|검토|확인|'
+                           r'담임|담임교사|주무관|장학사|장학관|국장|과장|팀장|\S{0,6}부장|\S{0,4}실장)$')
+APPROVAL_SIGN = {'결재', '전결', '대결'}
 HEADER_HINT = re.compile(r'성\s*명|이\s*름|반|번\s*호|학\s*년|비\s*고|연\s*번|소\s*속|직\s*위|구\s*분|순|과\s*목|희망|여\s*부|인\s*원|계')
 UNIT = re.compile(r'^\s*(명|개|원|천원|%|회|시간|건|일|학급|권|매)\s*$')
 TOTAL = re.compile(r'^\s*(합\s*계|소\s*계|총\s*계|계)\s*$')
@@ -163,12 +167,23 @@ def analyze(hwpx: bytes) -> list[Table]:
     return tables
 
 
+def _is_approval(t: Table) -> bool:
+    """작은 표(3행·12칸 이하)에 '결재·전결' 칸이 있거나 서로 다른 직함 칸이 2개 이상."""
+    if t.rows > 3 or len(t.cells) > 12:
+        return False
+    titles = {x for x in (re.sub(r'\s+', '', c.text) for c in t.cells) if APPROVAL_CELL.match(x)}
+    return bool(titles & APPROVAL_SIGN) or len(titles) >= 2
+
+
 def _classify(t: Table):
     alltext = ' '.join(c.text for c in t.cells)
     empties = [c for c in t.cells if not c.text and not c.has_nested and not c.has_obj]
-    if t.has_child and len(empties) < 2:
-        t.role = 'frame'          # 칸 안에 표를 품은 바깥 틀(자체 입력 칸 거의 없음)
-    elif APPROVAL_RE.search(alltext) and t.rows <= 3 and len(t.cells) <= 12:
+    # 칸 안에 표를 품은 바깥 틀(자체 입력 칸 거의 없음). 3행 이하에 표를 품은 칸이 너비 전체이면
+    # 빈 칸 몇 개는 모서리 장식이다('참고' 상자 등, E5: 결재란 규칙을 좁히자 1순위로 올라오던 것).
+    corner = t.rows <= 3 and len(empties) <= 4 and any(c.has_nested and c.cs == t.cols for c in t.cells)
+    if t.has_child and (len(empties) < 2 or corner):
+        t.role = 'frame'
+    elif _is_approval(t):
         t.role = 'approval'       # 결재란
     elif t.rows <= 1 or t.cols <= 1 or len(t.cells) <= 2:
         t.role = 'layout'         # 제목 상자·글상자 대용

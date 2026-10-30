@@ -18,7 +18,7 @@
 .pv-page > img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .pv-page .pv-no { position: absolute; right: 10px; bottom: 8px; font-size: 13px; color: var(--muted); }
 .pv-page.fail::after { content: "이 쪽은 그리지 못했어요"; position: absolute; inset: 0; display: grid; place-items: center; color: var(--negative); font-weight: 600; }
-/* 표 영역 겹침 레이어(투명). 클릭 확정은 E5. */
+/* 표 영역 겹침 레이어(투명). 고르기 화면(.picking)에서만 표 영역을 누를 수 있다(E5). */
 .pv-layer { position: absolute; inset: 0; pointer-events: none; }
 .cand { position: absolute; outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 2px; } /* taste-skill-ignore: data-ui 표 후보 표시 */
 .cand.no { outline-color: #aeb3bb; }
@@ -27,3 +27,22 @@
 /* 위치를 모르는 중첩 후보(rhwp가 쪽에 놓지 않은 표): 품은 표 오른쪽 위에 "이 표 안: 표 N" */
 .cand.has-in { outline-color: var(--accent); }
 .cand .tag.in, .cand.no .tag.in { left: auto; right: -4px; background: var(--accent); }
+/* E5 표 고르기: 추천(1순위)은 굵은 점선, 고른 표는 실선 + 옅은 바탕. 회색 표도 누를 수 있다. */
+.cand.best { outline-width: 3px; }
+.picking .cand[data-id] { pointer-events: auto; cursor: pointer; transition: background-color .15s, outline-color .15s; }
+.picking .cand[data-id]:hover, .picking .cand[data-id]:focus-visible { background: rgba(34, 81, 255, .06); outline-color: var(--accent); } /* taste-skill-ignore: data-ui 표 글자가 비치게 */
+.picking .cand.no[data-id]:hover .tag { background: var(--accent); }
+.cand.on, .picking .cand.on:hover { outline-style: solid; outline-color: var(--accent); background: rgba(34, 81, 255, .08); } /* taste-skill-ignore: data-ui 고른 표 */
+.cand.on .tag { background: var(--ink); }
+.cand.on .tag::before { content: "✓ 고름 · "; }
+.cand .tag.in { display: inline-flex; gap: 6px; align-items: center; pointer-events: auto; }
+.in-pick { font: inherit; font-size: 15px; min-height: 40px; color: #fff; background: rgba(255, 255, 255, .18); border: 0; border-radius: 4px; padding: 0 12px; cursor: pointer; } /* taste-skill-ignore: data-ui 중첩 표 고르기 */
+.in-pick:hover, .in-pick.on { background: #fff; color: var(--accent); }
+.hwp-pick .filebar .btn { flex: none; }
+.pick-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 6px; }
+.pick-chips .pchip { height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--control); background: #fff; font: 600 15px/1 var(--font); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.pick-chips .pchip span { font-weight: 500; color: var(--muted); font-size: 14px; }
+.pick-chips .pchip.best { border-color: var(--accent); color: var(--accent); }
+.pick-chips .pchip:hover { background: var(--accent-soft); }
+.pick-chips .pchip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pick-chips .pchip.on span { color: #fff; }

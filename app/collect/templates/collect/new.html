@@ -4,6 +4,9 @@
 {% block ptitle %}새로 모으기{% endblock %}
 {% block head %}
 <script src="{% static 'js/collect_new.js' %}" defer></script>
+<meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
+<link rel="stylesheet" href="{% static 'hwp/preview.css' %}">
+<script type="module" src="{% static 'hwp/preview.js' %}"></script>
 <style>
   /* design/collect-new.html — 무엇을, 누구에게서 받나? 왼쪽 8 + 오른쪽 4(붙어 따라옴). 한글 양식·직접 입력·자주 쓰는 양식은 C3·E에서. */
   .sec-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
@@ -12,7 +15,13 @@
   .card-b.pt { padding-top: 22px; }
   .msg-inline { margin-top: 10px; font-size: 15px; color: var(--negative); font-weight: 600; }
   .seg { margin: 22px 0 4px; }
-  .seg button[disabled] { color: var(--faint); cursor: default; }
+  .drop { display: flex; align-items: center; gap: 16px; margin-top: 16px; padding: 22px; border: 1px dashed var(--control); border-radius: var(--radius-in); cursor: pointer; transition: border-color .15s, background-color .15s; }
+  .drop[hidden] { display: none; }
+  .drop:hover, .drop:focus-within, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop b { display: block; font-size: 17px; }
+  .drop span span { font-size: 15px; color: var(--muted); }
+  .drop svg { color: var(--muted); flex: none; }
+  #hwpBox .hwp-pick { margin-top: 16px; }
   [data-pane][hidden] { display: none; }
   .paste-tools { display: flex; align-items: center; margin: 16px 0 8px; }
   .paste-tools b { font-size: 15px; }
@@ -69,10 +78,20 @@
         {% if errors.title %}<p class="field-err" id="eTitle">{{ errors.title }}</p>{% endif %}
         <input type="hidden" name="src" id="src" value="{{ src }}">
         <div class="seg" role="group" aria-label="양식 가져오기">
-          <button type="button" data-src="hwp" disabled title="준비 중이에요">한글 양식 올리기 · 준비 중</button>
           {% for k, label in srcs %}<button type="button" data-src="{{ k }}" aria-pressed="{% if k == src %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
         </div>
         {% if errors.src %}<p class="msg-inline" role="alert">{{ errors.src }}</p>{% endif %}
+        <div data-pane="hwp"{% if src != "hwp" %} hidden{% endif %}>
+          <input type="hidden" name="hwp" id="hwpKey" value="{{ hwp.f.key|default:'' }}">
+          <input type="hidden" id="hwpTable" value="">
+          <label class="drop" id="hwpDrop"{% if hwp %} hidden{% endif %} data-upload="/s/{{ space.token }}/hwp/upload?pick=1">
+            <input type="file" accept=".hwp,.hwpx" id="hwpFile" class="sr">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 9l6-6 6 6M5 20h14"/></svg>
+            <span><b>hwp·hwpx 파일을 끌어다 놓거나 눌러서 고르세요</b><span>본문·결재란은 그대로 두고, 다 모이면 같은 파일의 그 표 칸만 채워 돌려드려요. 30MB까지.</span></span></label>
+          <div id="hwpUpMsg" aria-live="polite"></div>
+          <div id="hwpBox">{% if hwp %}{% include "hwpfiles/_pick.html" with f=hwp.f tables=hwp.tables cands=hwp.cands picked=hwp.picked %}{% endif %}</div>
+          {% if errors.hwp %}<p class="msg-inline" role="alert">{{ errors.hwp }}</p>{% endif %}
+        </div>
         <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>
         <div class="paste-tools"><b>표 붙여넣기</b><button class="btn ghost sm" type="button" id="sample">예시 표 넣기</button></div>
         <label class="field"><span class="sr">표 붙여넣기</span><textarea class="textarea" id="paste" name="paste" spellcheck="false"
@@ -109,7 +128,7 @@
     </section>
     <section class="card" aria-labelledby="audH"><div class="card-b pt">
       <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>{% include "collect/_aud.html" %}</div>
-      <div data-pane="sheet preset"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2><span class="r num">동학년 {{ roster|length }}반</span></div>
+      <div data-pane="sheet preset hwp"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2><span class="r num">동학년 {{ roster|length }}반</span></div>
         <ul class="list aud">{% for r in roster %}<li><span class="cl">{{ r.unit }}</span><span class="grow">{{ r.who }}</span><span class="r">칸 자동</span></li>{% empty %}<li><span class="muted">아직 반을 고른 선생님이 없어요.</span></li>{% endfor %}</ul>
         <p class="small muted" style="margin-top:8px">동학년 명부로 반마다 한 줄씩 만들어요. 연수 이수 양식은 전담 포함 {{ roster_all }}명, 한 사람마다 한 줄이에요.</p></div>
       {% if errors.aud %}<p class="msg-inline" role="alert">{{ errors.aud }}</p>{% endif %}

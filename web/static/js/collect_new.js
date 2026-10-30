@@ -49,15 +49,75 @@
   if (!src) return;
   function show(v) {
     src.value = v;
-    document.querySelectorAll('[data-src]').forEach(function (b) { if (!b.disabled) b.setAttribute('aria-pressed', String(b.dataset.src === v)); });
+    document.querySelectorAll('button[data-src]').forEach(function (b) { if (!b.disabled) b.setAttribute('aria-pressed', String(b.dataset.src === v)); });
     document.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane.split(' ').indexOf(v) < 0; });
   }
-  document.querySelectorAll('[data-src]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.src); }); });
+  document.querySelectorAll('button[data-src]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.src); }); });
   var add = document.getElementById('addCol');
   if (add) add.addEventListener('click', function () {
     var next = document.querySelector('tr[data-col][hidden]');
     if (!next) { document.getElementById('addColMsg').textContent = '직접 입력은 칸 6개까지예요. 더 많으면 표를 붙여넣어 주세요.'; return; }
     next.hidden = false;
     next.querySelector('input').focus();
+  });
+})();
+
+// E5 한글 양식: 파일을 올리면 고르기 부분 화면(hwpfiles/_pick.html)이 #hwpBox에 들어온다.
+// 읽는 동안은 그 화면이 스스로 2초마다 바뀌고, 다 읽으면 web/static/hwp/preview.js가 쪽을 그리고 표 고르기를 붙인다.
+(function () {
+  var drop = document.getElementById('hwpDrop'), file = document.getElementById('hwpFile');
+  if (!drop || !file) return;
+  var box = document.getElementById('hwpBox'), msg = document.getElementById('hwpUpMsg'), key = document.getElementById('hwpKey');
+  var busy = false;
+  function csrf() { var x = document.querySelector('[name=csrfmiddlewaretoken]'); return x ? x.value : ''; }
+  function say(text) {
+    msg.textContent = '';
+    if (!text) return;
+    var p = document.createElement('p');
+    p.className = 'err';
+    p.setAttribute('role', 'alert');
+    p.textContent = text;
+    msg.appendChild(p);
+  }
+  function send(f) {
+    if (!f || busy) return;
+    busy = true;
+    say('');
+    msg.innerHTML = '<p class="hwp-status">올리는 중이에요…</p>';
+    var fd = new FormData();
+    fd.append('file', f);
+    fetch(drop.dataset.upload, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } })
+      .then(function (r) { return r.text().then(function (h) { return { status: r.status, h: h }; }); })
+      .then(function (r) {
+        if (r.status === 400 || r.status === 429) { say(new DOMParser().parseFromString(r.h, 'text/html').body.textContent.trim()); return; }  // 거부 문구(hwpfiles/_reject.html)는 글자로만
+        if (r.status !== 200) { say('올리지 못했어요. 화면을 새로 고친 뒤 다시 올려 주세요.'); return; }
+        msg.textContent = '';
+        box.innerHTML = r.h;
+        drop.hidden = true;
+        var p = document.getElementById('hwpPick');
+        key.value = p ? p.dataset.key : '';
+        htmx.process(box);
+        document.dispatchEvent(new Event('gt-hwp-mount'));
+        var t = document.getElementById('title');
+        if (!t.value.trim()) { t.value = f.name.replace(/\.(hwpx?)$/i, '').slice(0, 200); t.dispatchEvent(new Event('input')); }
+      })
+      .catch(function () { say('올리지 못했어요. 인터넷 연결을 확인하고 다시 올려 주세요.'); })
+      .then(function () { busy = false; file.value = ''; });
+  }
+  file.addEventListener('change', function () { send(file.files[0]); });
+  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault();
+    drop.classList.remove('over');
+    send(e.dataTransfer && e.dataTransfer.files[0]);
+  });
+  box.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-hwp-reset]')) return;
+    box.textContent = '';
+    key.value = '';
+    say('');
+    drop.hidden = false;
+    file.focus();
   });
 })();

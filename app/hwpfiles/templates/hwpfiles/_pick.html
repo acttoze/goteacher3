@@ -1,0 +1,27 @@
+{% comment %}E5 만들기 화면 '한글 양식' 탭: 파일 막대 + 읽는 상태 + (끝나면) 후보 단추·쪽 미리보기 위 표 고르기.
+   읽는 중이면 이 블록이 통째로 2초마다 바뀐다. 표 글자는 없다(표 번호·줄·칸 수만). 그리기·클릭은 web/static/hwp/preview.js. {% endcomment %}
+<div id="hwpPick" class="hwp-pick" data-key="{{ f.key }}" data-status="{{ f.status }}"
+  {% if f.busy %}hx-get="/s/{{ space.token }}/hwp/{{ f.key }}/pick" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <div class="filebar">
+    <span class="ext">{{ f.kind|upper }}</span>
+    <div class="grow"><b>{{ f.name|default:"한글 파일" }}</b><span id="hwpSummary">{% if f.kind == "hwp" %}HWPX로 바꿔 읽었어요 · {% endif %}올린 형식 그대로 돌려받아요</span></div>
+    <button class="btn ghost sm" type="button" data-hwp-reset>다른 파일</button>
+  </div>
+  {% include "hwpfiles/_status.html" with nopoll=1 %}
+  {% if f.status == "done" %}
+  <p class="pickhint" id="pickHint" aria-live="polite">{% if picked %}<b>표 {{ picked.no }}</b> — 이 표로 받아요. 다 모이면 이 표 칸만 채워 같은 파일로 돌려드려요. 다른 표를 누르면 바뀌어요.{% elif cands %}취합할 표를 <b>한 번 눌러</b> 고르세요. <b>추천</b>은 빈 칸·머리글로 짐작한 것이라 틀릴 수 있어요. 회색 표도 누를 수 있어요.{% elif tables %}추천할 표를 찾지 못했어요(빈 칸이 있는 표가 없어요). 받을 표를 미리보기에서 눌러 직접 고르세요.{% else %}이 파일에서 표를 찾지 못했어요. 칸을 채워 받을 표가 있는 한글 파일을 올려 주세요.{% endif %}</p>
+  {% if cands %}<div class="pick-chips" role="group" aria-label="추천 순서대로 본 표 후보">{% for t in cands %}
+    <button type="button" class="pchip{% if forloop.first %} best{% endif %}{% if picked and picked.sec == t.sec and picked.index == t.index %} on{% endif %}" data-sec="{{ t.sec }}" data-index="{{ t.index }}" aria-pressed="{% if picked and picked.sec == t.sec and picked.index == t.index %}true{% else %}false{% endif %}">{% if forloop.first %}추천{% else %}후보 {{ forloop.counter }}{% endif %} · 표 {{ t.no }}<span>{{ t.rows }}줄 × {{ t.cols }}칸</span></button>{% endfor %}
+  </div>{% endif %}
+  <p class="msg-inline" id="pickErr" role="alert"></p>
+  <p class="pickhint" id="hwpLimit" hidden>쪽이 너무 많아 앞 300쪽만 보여 드려요. 채울 표가 뒤쪽에 있으면 그 부분만 따로 저장해 올려 주세요.</p>
+  {% if tables %}
+  <div class="paper-wrap" id="hwpPreview" data-src="/s/{{ space.token }}/hwp/{{ f.key }}/hwpx" data-key="{{ f.key }}"
+    data-pick="/s/{{ space.token }}/hwp/{{ f.key }}/pick"{% if picked %} data-picked="{{ picked.sec }}/{{ picked.index }}"{% endif %} aria-live="polite">
+    <p class="pv-msg" id="hwpMsg">미리보기를 그리는 중이에요…</p>
+    <div class="pv-pages" id="hwpPages"></div>
+  </div>
+  {{ tables|json_script:"hwpTables" }}
+  {% endif %}
+  {% endif %}
+</div>

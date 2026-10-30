@@ -4,15 +4,22 @@
 - 저장 경로는 파일 이름을 쓰지 않고 hwp/<공간 번호>/<key>.<형식> 로 만든다(경로 조작 차단).
 - 상한: 회원당 진행 중 변환 HWP_IN_FLIGHT건, 공간당 저장 HWP_SPACE_QUOTA·서비스 전체 HWP_TOTAL_QUOTA(원본+변환).
 - MEDIA_URL로 서빙하지 않는다. 내려받기는 회원 확인 뷰로만(E6).
-- 표 위치·칸 매핑은 교사가 표를 고르는 E5·E6에서 붙인다(지금 쓰지 않는 필드는 두지 않음).
+- 표 위치(E5): 교사가 미리보기에서 눌러 확정한 표 = (table_sec, table_index). report["tables"] 안에 있는 것만 저장한다.
+  table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
+  칸 매핑은 E6.
 - 보관 기간 자동 삭제(파일 포함)는 E3.
 - report["tables"]: hwp.tables 결과(표 구역·순서·행·열·칸 수·후보 순위, 글자 없음). 미리보기(E4)가 쓴다.
 """
+import io
+import zipfile
 from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+
+import hwp
+from hwp.engine import section_names
 
 from spaces.models import Member, Space, SpaceQuerySet, new_token
 
@@ -66,6 +73,8 @@ class SourceFile(models.Model):
         "변환 보고", default=dict, blank=True, help_text='{"unconverted": [...], "dropped": [...]} 요소 종류 이름만'
     )
     error = models.CharField("실패 종류(예외 이름)", max_length=40, blank=True)
+    table_sec = models.PositiveSmallIntegerField("고른 표 구역 순번", null=True, blank=True)
+    table_index = models.PositiveIntegerField("고른 표 순서(구역 안, 중첩 포함)", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     converted_at = models.DateTimeField(null=True, blank=True)
 
@@ -103,6 +112,30 @@ class SourceFile(models.Model):
     def hwpx_file(self):
         """채우기에 쓸 HWPX. 원본이 hwpx면 원본 그대로."""
         return self.original if self.kind == self.Kind.HWPX else self.hwpx
+
+    def table_at(self, sec, index):
+        """변환 보고의 표 요약 하나(없으면 None). no 는 미리보기에 보이는 '표 N'(문서 전체 순서, 1부터)."""
+        for no, t in enumerate(self.report.get("tables", []), 1):
+            if t.get("sec") == sec and t.get("index") == index:
+                return {**t, "no": no}
+        return None
+
+    @property
+    def picked(self):
+        """교사가 확정한 표의 요약(안 골랐으면 None)."""
+        if self.table_index is None or self.table_sec is None:
+            return None
+        return self.table_at(self.table_sec, self.table_index)
+
+    def picked_schema(self):
+        """고른 표의 입력 칸(hwp.schema). 칸 확인(E6)이 쓴다. 고른 표가 없으면 None."""
+        if self.picked is None:
+            return None
+        with self.hwpx_file().open("rb") as fh:
+            data = fh.read()
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            section = section_names(z.namelist())[self.table_sec]
+        return hwp.schema(data, section, self.table_index)
 
     def error_text(self):
         return ERROR_TEXT.get(self.error, ERROR_DEFAULT)

@@ -9,4 +9,5 @@ urlpatterns = [
     path("hwp/<str:key>/status", views.status),
     path("hwp/<str:key>/", views.preview),
     path("hwp/<str:key>/hwpx", views.hwpx),
+    path("hwp/<str:key>/pick", views.pick),
 ]

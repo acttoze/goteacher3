@@ -17,6 +17,8 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from hwpfiles.models import SourceFile
+from hwpfiles.views import PREVIEW_CSP, pick_ctx
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
@@ -88,7 +90,7 @@ def _sheet_cols(post):
 def new(request):
     space = request.space
     title, text, errors, src = "", "", {}, "paste"
-    p = error = None
+    p = error = sf = None
     if request.method == "POST":
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
@@ -120,6 +122,17 @@ def new(request):
                 c = _create_cols(request, title or f"{cols[0][0]} 조사", Collection.Source.SHEET,
                                  [(n, k) for n, k, _ in cols], SHEET_HEAD, multi, options=[o for _, _, o in cols])
                 return redirect(f"/s/{space.token}/c/{c.key}/")
+        elif src == "hwp":
+            # E5: 표 확정까지. 칸 확인·모으기 만들기는 E6(SourceFile.picked_schema()로 칸을 만든다).
+            sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64]).first()
+            if not title:
+                errors["title"] = "제목을 적어 주세요."
+            if sf is None or sf.status != SourceFile.Status.DONE:
+                errors["hwp"] = "한글 파일을 올려 주세요. 다 읽으면 표를 고를 수 있어요."
+            elif sf.picked is None:
+                errors["hwp"] = "취합할 표를 미리보기에서 한 번 눌러 골라 주세요."
+            else:
+                errors["hwp"] = "표를 골랐어요. 다음 단계(칸 확인)는 곧 열려요. 지금은 표 붙여넣기로 만들어 주세요."
         elif src == "paste":
             text, how = request.POST.get("paste", ""), request.POST.get("pii", "")
             p, error = _read(text, how)
@@ -137,12 +150,16 @@ def new(request):
         else:
             src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
     ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src,
-                     srcs=[("paste", "표 붙여넣기"), ("sheet", "직접 입력"), ("preset", "자주 쓰는 양식")],
+                     srcs=[("hwp", "한글 양식 올리기"), ("paste", "표 붙여넣기"), ("sheet", "직접 입력"),
+                           ("preset", "자주 쓰는 양식")],
+                     hwp=pick_ctx(sf) if sf else None,
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
                      presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")))
     ctx.update(_paste_ctx(p, error))
-    return render(request, "collect/new.html", ctx, status=400 if errors else 200)
+    resp = render(request, "collect/new.html", ctx, status=400 if errors else 200)
+    resp["Content-Security-Policy"] = PREVIEW_CSP  # 한글 쪽 미리보기(WASM)를 이 화면에서 그린다
+    return resp
 
 
 def _create_cols(request, title, source, fields, unit_head, multi, options=None, roster="class"):
