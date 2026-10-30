@@ -167,3 +167,10 @@ class NeisPrototypeParityTests(SimpleTestCase):
             {"name": "우유", "allergy": [], "self": False},
         ])
         self.assertEqual((r["kcal"], r["count"]), (0, None))
+
+    def test_leading_dot_and_star_removed(self):
+        """리드 결정(G1): 학교가 붙인 앞 점·별표 표시는 뺀다('.찹쌀현미밥' → '찹쌀현미밥')."""
+        r = self.parse({"MLSV_YMD": "20261030", "CAL_INFO": "",
+                        "DDISH_NM": ".찹쌀현미밥<br/>. 돼지국밥(5.6)<br/>*깍두기*(9)<br/>..우유"})
+        self.assertEqual([d["name"] for d in r["dishes"]], ["찹쌀현미밥", "돼지국밥", "깍두기", "우유"])
+        self.assertEqual(r["dishes"][1]["allergy"], [5, 6])

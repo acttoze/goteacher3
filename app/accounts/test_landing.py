@@ -64,7 +64,7 @@ class LandingTests(TestCase):
         self.assertTemplateUsed(r, "spaces/start_school.html")  # 동학년 없으면 학교 찾기
         space = _space()
         Member.objects.create(space=space, user=u, name="송민재", cls="4-1")
-        self.assertEqual(self.client.get("/")["Location"], f"/s/{space.token}/")
+        self.assertEqual(self.client.get("/")["Location"], f"/s/{space.token}/today")  # G1: 첫 화면은 오늘
 
     def test_login_required_goes_to_start(self):
         space = _space()

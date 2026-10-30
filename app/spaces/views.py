@@ -32,15 +32,39 @@ FALLBACK_CLASSES = ["1", "2", "3", "4"]  # NEIS 학급 정보가 없을 때(prot
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
 
 
+# 숫자를 읽은 소리의 받침(종성 번호, 0 = 없음). 일·칠·팔은 ㄹ(8): '으로' 대신 '로'.
+_DIGIT_T = {"0": 21, "1": 8, "2": 0, "3": 16, "4": 0, "5": 0, "6": 1, "7": 8, "8": 8, "9": 0}
+_PLACE_T = [(4, 4), (3, 4), (2, 1), (1, 17)]  # 만·천(ㄴ) · 백(ㄱ) · 십(ㅂ): 끝의 0 개수
+
+
+def _final(word):
+    """마지막 글자의 받침 번호. 한글이면 그 받침, 숫자로 끝나면 읽는 소리(13:10 → 십, 15:00 → 영). 그 밖은 None."""
+    w = str(word).rstrip()
+    if not w:
+        return None
+    code = ord(w[-1]) - 0xAC00
+    if 0 <= code <= 11171:
+        return code % 28
+    if not w[-1].isdigit():
+        return None
+    digits = w[len(w.rstrip("0123456789")):]
+    zeros = len(digits) - len(digits.rstrip("0"))
+    if zeros == len(digits):  # 00·0 → 영
+        return _DIGIT_T["0"]
+    for n, t in _PLACE_T:
+        if zeros >= n:
+            return t
+    return _DIGIT_T[digits[-1]]
+
+
 def _josa(word, a, b):
-    """받침 따라 조사(design shell.js의 U.josa와 같다)."""
-    code = ord(word[-1]) - 0xAC00 if word else -1
-    if not 0 <= code <= 11171:
+    """받침 따라 조사(design shell.js의 U.josa). 숫자로 끝나면 읽는 소리 기준(리드 결정, G1)."""
+    t = _final(word)
+    if not t:
         return b
-    t = code % 28
     if a == "으로" and t == 8:
         return b
-    return a if t else b
+    return a
 
 
 def _cls_label(cls):
@@ -63,10 +87,10 @@ def _clean_name(raw):
 
 @require_GET
 def home(request):
-    """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 화면, 없으면 학교 찾기."""
+    """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
     mine = _my_space(request.user) if request.user.is_authenticated else None
-    if mine:
-        return redirect(f"/s/{mine.token}/")
+    if mine:  # design: 로그인 뒤 첫 화면은 오늘(brand → today.html)
+        return redirect(f"/s/{mine.token}/today")
     if not request.user.is_authenticated:  # 로그인 전: 소개 페이지(G5). 시작 화면은 /start
         return render(request, "landing.html")
     if is_guest(request.user):  # 동학년 만들기는 구글 회원만

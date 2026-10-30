@@ -43,7 +43,21 @@
     else fail();
   });
 
+  // 한 줄 일정(오늘): 올리면 칸을 비우고, Esc·바깥을 누르면 미리보기를 닫고, n으로 칸에 들어간다(design shell.js).
+  function hideQ() { var q = document.getElementById('qpop'); if (q) q.hidden = true; }
+  document.addEventListener('htmx:afterRequest', function (e) {
+    var f = e.detail.elt;
+    if (f && f.id === 'quickForm' && e.detail.successful && !e.detail.xhr.getResponseHeader('HX-Retarget')) { f.reset(); f.querySelector('input[name=line]').focus(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    var q = document.getElementById('quick');
+    if (!q) return;
+    if (e.target === q && e.key === 'Escape') hideQ();
+    else if (e.key === 'n' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector('.scrim:not([hidden])')) { e.preventDefault(); q.focus(); }
+  });
+
   document.addEventListener('click', function (e) {
+    if (!e.target.closest('.quick')) hideQ();
     if (e.target.closest('#bellBtn')) {
       var p = document.getElementById('bellPop'), open = p.hidden;
       p.hidden = !open; e.target.closest('#bellBtn').setAttribute('aria-expanded', String(open));

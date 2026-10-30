@@ -1,0 +1,114 @@
+{% extends "shell.html" %}
+{% block title %}오늘 · 고티처{% endblock %}
+{% block ptitle %}오늘{% endblock %}
+{% block head %}
+<style>
+  /* design/today.html — 오늘 내가 놓치면 안 되는 것과, 동학년은 지금 무엇을 하나? 위 줄 8/4, 아래 줄 7/5. */
+  h1 .due { color: var(--accent); }
+  .title h1 { font-size: 32px; }
+
+  /* 블록 일과판 */
+  .day { padding: 0 var(--pad) var(--pad); flex: 1; display: flex; flex-direction: column; }
+  .dgrid { display: grid; grid-template-columns: 96px 1fr 1fr 1fr 1fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 1; }
+  .dgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px 12px; min-width: 0; position: relative; }
+  .dgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--muted); font-weight: 600; }
+  .dgrid > .hd { border-top: 0; }
+  .hd b { display: block; font-size: 16px; }
+  .hd span { font-size: var(--fs-small); color: var(--muted); }
+  .hd.now b { color: var(--accent); }
+  .col-now { background: var(--accent-soft); }
+  .ev { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; font-size: 15px; line-height: 1.35; padding: 8px 10px; border-radius: 8px; background: var(--surface); margin-bottom: 6px; position: relative; }
+  .ev:hover { background: var(--hover); }
+  .col-now .ev { background: #fff; }
+  .ev:last-child { margin-bottom: 0; }
+  .ev .p { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+  .ev.mine { background: var(--ink); color: #fff; }
+  .ev.mine .p { color: #c9ccd2; }
+  .ev .chg { display: block; color: var(--accent-ink); font-weight: 700; font-size: var(--fs-small); margin-top: 2px; }
+  .ev del { color: var(--muted); font-weight: 400; }
+  .ev.mine del { color: #a7abb3; }
+  .span4 { grid-column: 2 / span 4; display: flex; align-items: center; gap: 14px; font-size: 15px; flex-wrap: wrap; }
+  .span4 .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+  .lunch b { font-weight: 700; white-space: nowrap; }
+  .lunch .dish { flex: 1 1 0; min-width: 0; }
+  .lunch .alg { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); margin-top: -6px; }
+  .untimed { grid-column: 2 / span 4; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; font-size: 15px; }
+  .untimed > div { flex: 1 1 260px; }
+  .bprog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .bprog i { flex: 1; height: 6px; border-radius: 999px; background: var(--accent-track); overflow: hidden; }
+  .bprog i b { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .bprog span { font-size: var(--fs-small); font-weight: 700; color: var(--accent); }
+
+  /* 낼 것 */
+  .todo { padding: 0 var(--pad) 8px; }
+  .todo li { min-height: 72px; }
+  .todo .t a { text-decoration: none; display: inline-block; padding: 6px 0; }
+  .todo .t a:hover { color: var(--accent); }
+  .todo .due { font-size: 15px; font-weight: 600; text-align: right; white-space: nowrap; }
+  .todo .due.urgent { color: var(--accent-ink); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; }
+
+  /* 내가 걷는 것 */
+  .sent { padding: 0 var(--pad) var(--pad); display: flex; flex-direction: column; gap: 18px; }
+  .sent .t { font-weight: 700; font-size: 17px; text-decoration: none; display: inline-block; padding: 6px 0; }
+  .sent .t:hover { color: var(--accent); }
+  .sent .m { font-size: var(--fs-small); color: var(--muted); }
+  .sent .big { margin: 6px 0 8px; }
+
+  /* 바뀐 것 */
+  .feed { padding: 0 var(--pad); }
+  .feed li { align-items: flex-start; padding: 12px 0; }
+  .feed li.none { display: block; border: 0; }
+  .feed .x { font-size: 15px; line-height: 1.45; }
+  .feed del { color: var(--muted); }
+  .feed .when { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+  .feed li.new .when { color: var(--accent); font-weight: 600; }
+
+  /* 한 줄 입력 미리보기(prototype qpop) */
+  .qpop { top: 48px; left: 0; right: 0; padding: 10px 12px; }
+  .qpop .ph { padding: 4px 0 8px; }
+  .qpop .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .qpop .pill .k { color: var(--muted); font-weight: 500; }
+  .qpop .pill.miss { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); } /* taste-skill-ignore: 비어 있는 칩 */
+  .qpop .qwarn { margin-top: 10px; font-size: 15px; color: var(--pill-warn-ink); background: var(--pill-warn-bg); border-radius: 8px; padding: 8px 10px; }
+  .qpop .qerr { font-size: 15px; color: var(--negative); padding: 4px 0; }
+  .qpop .pf { padding: 10px 0 2px; margin-top: 10px; }
+</style>
+{% endblock %}
+{% block quick %}
+<form class="quick" id="quickForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#live" hx-swap="outerHTML" autocomplete="off">
+  {% csrf_token %}
+  <label><span class="sr">한 줄로 일정 추가</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  <input id="quick" name="line" maxlength="200" placeholder="한 줄로 일정 추가 (예: 내일 2블록 과학실 안전교육)" aria-describedby="qpop"
+    hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms, focus" hx-target="#qpop" hx-swap="outerHTML"></label>
+  <div class="pop qpop" id="qpop" hidden></div>
+</form>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1 id="finding">{% if urgent %}{{ urgent.c.title }}, <span class="due num">{{ urgent.due }}</span> 마감이에요{% elif n_todo %}오늘 마감은 다 냈어요. 남은 건 {{ n_todo }}건이에요{% else %}오늘 낼 것은 모두 끝났어요{% endif %}</h1>
+    <p class="sub">{{ date_label }} · {% if now_slot %}지금 <b>{{ now_slot.label }} {{ now_slot.from }}~{% if now_slot.k != "pm" %}{{ now_slot.to }}{% endif %}</b>{% elif weekend %}주말이에요{% else %}{{ first.label }} {{ first.from }} 시작 전{% endif %} · 남은 내 일 <b class="num">{{ n_todo }}건</b></p>
+  </div>
+  {% if urgent %}<a class="btn pri" href="/c/{{ urgent.c.link_token }}/u/{{ urgent.row.key }}">{{ urgent.c.title|truncatechars:16 }} 내기</a>{% else %}<a class="btn pri" aria-disabled="true">오늘 마감 없음</a>{% endif %}
+</div>
+
+{% include "today/_live.html" %}
+
+<div class="grid stretch" style="margin-top:var(--gap)">
+  <section class="card s7" aria-labelledby="todoH">
+    <div class="card-h"><h2 id="todoH">내가 낼 것</h2><span class="n num">{{ n_todo }}</span><span class="r">마감순 · <a class="tlink" href="/s/{{ space.token }}/c/?tab=todo">모두 보기</a></span></div>
+    <ul class="list todo">
+      {% for x in todo %}<li><div class="grow"><div class="t"><a href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">{{ x.c.title }}</a></div><div class="m">{{ x.from }} · {{ x.src }}</div></div><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span><a class="btn ghost sm" href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">내기</a></li>
+      {% empty %}<li style="display:block;border:0"><p class="empty">오늘 낼 것은 모두 끝났어요.</p></li>{% endfor %}
+    </ul>
+  </section>
+  <section class="card s5" aria-labelledby="sentH">
+    <div class="card-h"><h2 id="sentH">내가 걷는 것</h2><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">모두 보기</a></span></div>
+    <div class="sent">
+      {% for x in sent %}<div><a class="t" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><div class="m">마감 {{ x.due }}</div>
+        <div class="big"><b class="num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</b><span>냈어요</span></div><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div></div>
+      {% empty %}<p class="empty">걷는 중인 모으기가 없어요. <a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{# 한 줄 입력 미리보기(prototype renderQ): 제목은 쓴 그대로, 칩은 검색·충돌 경고용 #}
+<div class="pop qpop" id="qpop"{% if empty %} hidden{% endif %} role="status" aria-live="polite">
+{% if error %}<p class="qerr" role="alert">{{ error }}</p>{% elif p %}
+  <div class="ph"><b>{{ p.title }}</b></div>
+  <div class="chips">
+    <span class="pill"><span class="k">날짜</span>{{ dates }}{% if not p.date_given %} (오늘){% endif %}</span>
+    <span class="pill{% if not slot %} miss{% endif %}"><span class="k">시간</span>{{ slot|default:"시간 미정" }}</span>
+    <span class="pill{% if not p.place %} miss{% endif %}"><span class="k">장소</span>{{ p.place|default:"없음" }}</span>
+    {% if p.target %}<span class="pill"><span class="k">대상</span>{{ p.target }}</span>{% endif %}
+  </div>
+  {% if conf %}<p class="qwarn" role="alert">{{ conf }}</p>{% endif %}
+  <div class="pf">제목은 쓴 문장 그대로(날짜 표현만 빠짐) · 블록·장소로 겹침을 알려 드려요 · <b>Enter</b> 올리기 <b>Esc</b> 닫기</div>
+{% endif %}
+</div>

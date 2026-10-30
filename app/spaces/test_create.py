@@ -133,7 +133,7 @@ class CreateFlowTests(NeisMocked):
 
     def test_home_goes_to_my_space(self):
         loc = self.space_url()
-        self.assertEqual(self.client.get("/")["Location"], loc)
+        self.assertEqual(self.client.get("/")["Location"], loc + "today")  # G1: 첫 화면은 오늘
 
     def test_school_reused_by_neis_code(self):
         self.make()

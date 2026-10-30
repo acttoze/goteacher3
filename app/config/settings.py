@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "spaces",
     "collect",
     "hwpfiles",
+    "today",
 ]
 
 MIDDLEWARE = [

@@ -70,7 +70,7 @@ class JoinFlowTests(InviteBase):
         fresh.cookies[DEVICE_COOKIE] = raw
         r = fresh.get(f"/s/{self.space.token}/")
         self.assertContains(r, "정하은 (나)")
-        self.assertEqual(fresh.get("/")["Location"], f"/s/{self.space.token}/")
+        self.assertEqual(fresh.get("/")["Location"], f"/s/{self.space.token}/today")
         self.assertNotEqual(DeviceToken.objects.get().token_hash, raw)  # 해시만 저장
 
     def test_name_is_cleaned_and_required(self):

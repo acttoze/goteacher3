@@ -106,7 +106,9 @@ def _dish(raw):
     if m:
         allergy = [int(x) for x in m.group(1).split(".") if x.strip().isdigit() and 1 <= int(x) <= 19]
         s = s[: m.start()].strip()
-    return {"name": re.sub(r"\([^)]*\)", "", s).replace("*", "").strip(), "allergy": allergy, "self": "(자율)" in s}
+    name = re.sub(r"\([^)]*\)", "", s).replace("*", "").strip()
+    name = re.sub(r"^[.\s]+", "", name)  # 학교가 붙인 앞 점('.찹쌀현미밥') — 리드 결정(G1), meal.js는 별표만 뺌
+    return {"name": name, "allergy": allergy, "self": "(자율)" in s}
 
 
 def _js_round(value):

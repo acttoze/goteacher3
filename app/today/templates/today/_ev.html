@@ -1,0 +1,1 @@
+<button type="button" class="ev{% if x.mine %} mine{% endif %}" data-open="#ev-{{ x.e.key }}" aria-haspopup="dialog">{{ x.e.title }}{% for w, a, b in x.e.changed_from %}<span class="chg">{{ w }} <del>{{ a }}</del> → {{ b }}</span>{% endfor %}{% if x.meta %}<span class="p">{{ x.meta }}</span>{% endif %}</button>

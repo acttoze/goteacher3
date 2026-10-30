@@ -1,0 +1,43 @@
+{# 오늘 일과 + 동학년 바뀐 것. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다. #}
+<div class="grid stretch" id="live"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+  <section class="card s8" aria-labelledby="dayH">
+    <div class="card-h"><h2 id="dayH">오늘 일과</h2><span class="n num">{{ n_events }}</span><span class="r">일정을 누르면 날짜·블록·장소를 바꿔요</span></div>
+    <div class="day"><div class="dgrid" id="dgrid">
+      <div class="lbl hd"></div>
+      {% for s in cols %}<div class="hd{% if s.now %} now col-now{% endif %}"><b>{{ s.label }}{% if s.now %} · 지금{% endif %}</b><span class="num">{{ s.time }}</span>{% if s.now and pct is not None %}<div class="bprog" title="블록 진행"><i><b style="width:{{ pct }}%"></b></i><span class="num">{{ now_hm }}</span></div>{% endif %}</div>{% endfor %}
+      <div class="lbl">{{ space.grade }}학년 일정</div>
+      {% for s in cols %}<div class="{% if s.now %}col-now{% endif %}">{% for x in s.events %}{% include "today/_ev.html" %}{% endfor %}</div>{% endfor %}
+      <div class="lbl">학사일정</div>
+      <div class="span4">{% if neis_names %}<span>{{ neis_names|join:" · " }}</span><span class="k">NEIS</span>{% else %}<span class="muted">오늘 학사일정이 없어요</span>{% endif %}</div>
+      <div class="lbl">점심 12:20</div>
+      <div class="span4 lunch">{% if meal %}<b>급식</b><span class="dish">{{ meal.dishes|join:" · " }}</span><span class="k num">{{ meal.kcal }}kcal</span>{% if meal.allergy %}<span class="alg">알레르기 {{ meal.allergy|join:" · " }}</span>{% endif %}{% else %}<span class="muted">오늘 급식 정보가 없어요</span>{% endif %}</div>
+      <div class="lbl">시간 미정</div>
+      <div class="untimed">{% for x in untimed %}<div>{% include "today/_ev.html" %}</div>{% empty %}<span class="muted">블록 없이 올린 일정이 여기 모여요</span>{% endfor %}</div>
+    </div><!-- /dgrid --></div>
+    {% for x in events %}
+    <div class="scrim" id="ev-{{ x.e.key }}" hidden>
+      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#live" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
+        <div class="db">
+          <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.by.name|default:"알 수 없음" }}</p>
+          <div class="grid" style="gap:12px">
+            <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
+            <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">시간 미정</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
+            <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
+          </div>
+        </div>
+        <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-target="#live" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit">저장</button></div>
+      </form>
+    </div>
+    {% endfor %}
+  </section>
+  <section class="card s4" aria-labelledby="feedH">
+    <div class="card-h"><h2 id="feedH">동학년 바뀐 것</h2><span class="r">어제부터</span></div>
+    <ul class="list feed" id="feed">
+      {% for f in feed %}<li class="{% if f.new %}new arrive{% endif %}"><span class="av{% if f.ink %} ink-t{% endif %}" style="background:{{ f.color }}" aria-hidden="true">{{ f.who|slice:":1" }}</span><div class="x"><b>{{ f.who }}</b> 선생님이 {{ f.e.title }}{% if f.changes %} {% for w, a, b in f.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}{{ f.ro }} 바꿨어요{% else %}{{ f.eul }} 올렸어요 <span class="muted">· {{ f.when_ev }}</span>{% endif %}<span class="when">{{ f.at }}</span></div></li>
+      {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 동학년 모두에게 보여요.</p></li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% if oob %}<div class="pop qpop" id="qpop" hidden hx-swap-oob="true"></div>{% endif %}
