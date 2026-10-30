@@ -30,4 +30,5 @@ jobs:
           SECRET_KEY: ci-dummy-not-secret
         run: |
           uv sync --frozen
+          uv run python -m unittest discover -s hwp/tests -t .
           cd app && uv run python manage.py test
