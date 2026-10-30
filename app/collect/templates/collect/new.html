@@ -21,6 +21,13 @@
   .colchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
   .colchips span { height: 36px; padding: 0 14px; border-radius: 999px; background: var(--surface); display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; }
   .colchips span.pre { color: var(--muted); font-weight: 500; }
+  .colchips span.warn { background: var(--pill-neg-bg); color: var(--pill-neg-ink); }
+  .pii { margin-top: 16px; padding: 16px 18px; border-radius: var(--radius-in); background: var(--pill-neg-bg); color: var(--pill-neg-ink); }
+  .pii b { color: #6a1517; }
+  .pii p { font-size: 16px; }
+  .pii .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .pii .btn.sec { background: #fff; }
+  .ok-line { margin-top: 14px; font-size: 15px; color: var(--positive); font-weight: 600; }
   .fields td { height: 56px; }
   .fields .select { width: 140px; height: 40px; }
   .fields .pre { color: var(--muted); }
@@ -73,6 +80,7 @@
           hx-post="/s/{{ space.token }}/c/new/preview" hx-trigger="input changed delay:400ms, gt-pasted" hx-target="#pasteOut" hx-sync="this:replace"
           {% if errors.paste %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
         <input type="hidden" name="html" id="pasteHtml" value="">
+        <input type="hidden" name="pii" id="piiHow" value="{{ pii_how }}">
         <div id="pasteOut" aria-live="polite">{% if errors.paste %}<p class="msg-inline" role="alert">{{ errors.paste }}</p>{% else %}{% include "collect/_paste_out.html" %}{% endif %}</div>
         </div>
         <div data-pane="sheet"{% if src != "sheet" %} hidden{% endif %}>
@@ -121,6 +129,7 @@
 보낸 사람: {{ me.name }} ({{ me.cls }})</div>
           <div class="go" style="margin-top:18px">
             <button class="btn pri lg block" type="submit">만들고 링크 받기</button>
+            {% if errors.pii %}<p class="msg-inline" role="alert">{{ errors.pii }}</p>{% endif %}
             <p>마감은 만든 뒤 정해요. 만들면 링크가 든 쪽지를 복사할 수 있어요.</p>
           </div>
         </div>

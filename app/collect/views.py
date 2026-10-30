@@ -19,7 +19,7 @@ from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
 from .models import Cell, Collection, Field, Row
-from .paste import YES_NO, PasteError, guess_kind, clean_text, html_to_tsv, parse
+from .paste import YES_NO, PasteError, clean_text, guess_kind, html_to_tsv, parse, student_info
 from .presets import PRESETS
 from .recipients import roster_rows
 from .submit import NA, _head, _matrix, _need
@@ -30,18 +30,38 @@ SHEET_COLS = 6  # 직접 입력 칸 수(design: 더 많으면 표 붙여넣기)
 SHEET_HEAD = ["학년반", "담임"]  # prototype lockCols(담임만·반별 1칸)
 
 
-def _read(text):
-    """(파싱 결과, 오류 문구). 빈 글자는 둘 다 None."""
+def _read(text, how=""):
+    """(파싱 결과, 오류 문구). 빈 글자는 둘 다 None. how: 학생 정보 칸 정리(design data-pii: count·drop)."""
     if not text.strip():
         return None, None
     try:
-        return parse(text), None
+        return _pii(parse(text), how), None
     except PasteError as e:
         return None, str(e)
 
 
+PII_COUNT = "참가 인원(명)"  # design '인원 수로 바꾸기'가 넣는 칸
+PII_MSG = "학생 개인정보로 보이는 열을 먼저 정리해 주세요."  # design check()
+
+
+def _pii(p, how):
+    """C7: 학생 정보 칸을 p["pii"]에 적는다. how=count면 빼고 인원 칸 하나로, drop이면 빼기만(design resolved)."""
+    pii = [f["name"] for f in p["fields"] if student_info(f["name"])]
+    if pii and how in ("count", "drop"):
+        p["fields"] = [f for f in p["fields"] if not student_info(f["name"])]
+        if how == "count" and PII_COUNT not in [f["name"] for f in p["fields"]]:
+            p["fields"].append({"name": PII_COUNT, "kind": "number", "options": []})
+        if not p["fields"]:
+            raise PasteError("받을 칸이 없어요. 학생 열을 빼고 나니 남은 칸이 없어요. 「인원 수로 바꾸기」를 눌러 주세요.")
+        p["resolved"], pii = how, []
+    for f in p["fields"]:
+        f["pii"] = f["name"] in pii
+    p["pii"], p["ask"] = pii, [f["name"] for f in p["fields"] if not f["pii"]]
+    return p
+
+
 def _paste_ctx(p, error):
-    return {"p": p, "error": error, "kinds": KINDS}
+    return {"p": p, "error": error, "kinds": KINDS, "pii_how": (p or {}).get("resolved", "")}
 
 
 def _sheet_cols(post):
@@ -83,8 +103,12 @@ def new(request):
         elif src == "sheet":
             cols = _sheet_cols(request.POST)
             multi = request.POST.get("multi") == "on"
+            pii = [n for n, _, _ in cols if student_info(n)]
             if not cols:
                 errors["sheet"] = "받을 칸 이름을 하나 이상 적어 주세요."
+            elif pii:  # C7: 브라우저 경고만 믿지 않는다
+                errors["sheet"] = (f"학생 개인정보로 보이는 칸이 있어요: {', '.join(pii)}. "
+                                   "고티처는 교직원 정보만 받아요. 이 칸은 빼거나 반별 인원 수(예: 참가 인원(명))로 바꿔 주세요.")
             elif not roster_rows(space, "class"):
                 errors["aud"] = no_one
             else:
@@ -95,12 +119,14 @@ def new(request):
                                  [(n, k) for n, k, _ in cols], SHEET_HEAD, multi, options=[o for _, _, o in cols])
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         elif src == "paste":
-            text = request.POST.get("paste", "")
-            p, error = _read(text)
+            text, how = request.POST.get("paste", ""), request.POST.get("pii", "")
+            p, error = _read(text, how)
             if not title:
                 errors["title"] = "제목을 적어 주세요."
             if not p:
                 errors["paste"] = error or "표를 붙여넣어 주세요. 한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 붙여넣으면 돼요."
+            elif p["pii"]:  # C7: 학생 정보 칸이 남아 있으면 만들지 않는다
+                errors["pii"] = PII_MSG
             if not errors and not roster_rows(space, "class"):
                 errors["aud"] = no_one
             if not errors:
@@ -165,7 +191,7 @@ def preview(request):
         tsv = html_to_tsv(html) if html else ""
     except PasteError as e:  # 너무 큰 표: 바꾼 글자를 싣지 않는다
         return render(request, "collect/_paste_out.html", {**_paste_ctx(None, str(e)), "oob": True})
-    p, error = _read(tsv or request.POST.get("paste", ""))
+    p, error = _read(tsv or request.POST.get("paste", ""), request.POST.get("pii", ""))
     if html and not tsv:
         error = "붙여넣은 내용에서 표를 찾지 못했어요. 표를 드래그해 다시 복사해 주세요."
     ctx = _paste_ctx(p, error)

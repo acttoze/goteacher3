@@ -2,13 +2,17 @@
 {% if tsv %}<textarea id="tsvOut" hidden>{{ tsv }}</textarea>{% endif %}
 {% if error %}<p class="msg-inline" role="alert">{{ error }}</p>{% endif %}
 {% if p %}
-<div class="colchips" aria-label="찾은 열">{% for h in p.head %}<span{% if h in p.unit_cols %} class="pre"{% endif %}>{{ h }}{% if h in p.unit_cols %} · 미리 채움{% endif %}</span>{% endfor %}</div>
+<div class="colchips" aria-label="찾은 열">{% for h in p.head %}<span{% if h in p.pii %} class="warn"{% elif h in p.unit_cols %} class="pre"{% endif %}>{{ h }}{% if h in p.unit_cols %} · 미리 채움{% endif %}</span>{% endfor %}</div>
 <p class="small muted" style="margin-top:10px">열 {{ p.head|length }}개를 찾았어요. 받는 사람 줄은 동학년 명부로 만들어요. 표가 다르게 읽혔으면 위 칸에서 바로 고쳐도 돼요.</p>
+{% if p.pii %}<div class="pii" role="alert"><p><b>학생 개인정보로 보이는 열이 {{ p.pii|length }}개 있어요: {{ p.pii|join:", " }}</b></p>
+  <p style="margin-top:4px">고티처는 교직원 정보만 받아요. 이 열은 빼고 반별 인원 수로 받을까요?</p>
+  <div class="acts"><button class="btn ink sm" type="button" data-pii="count">인원 수로 바꾸기</button><button class="btn sec sm" type="button" data-pii="drop">이 열 빼기</button></div></div>
+{% elif p.resolved %}<p class="ok-line">{% if p.resolved == "count" %}학생 열을 빼고 「참가 인원(명)」 칸으로 바꿨어요.{% else %}학생 열을 뺐어요.{% endif %}</p>{% endif %}
 <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받을 칸</h3><span class="r num">입력 {{ p.fields|length }}칸 · 미리 채움 {{ p.unit_cols|length }}칸</span></div>
 <table class="tbl fields"><thead><tr><th>칸</th><th>받는 방식</th><th class="r">형식</th></tr></thead><tbody>
 {% for h in p.unit_cols %}<tr><td class="id">{{ h }}</td><td class="pre">받는 사람 칸 · 동학년 명부로 채움</td><td class="r"><span class="dash">—</span></td></tr>{% endfor %}
-{% for f in p.fields %}<tr><td class="id">{{ f.name }}</td><td>선생님이 입력{% if f.options %}<span class="small muted"> · {{ f.options|join:", "|truncatechars:40 }}</span>{% endif %}</td>
-  <td class="r"><select class="select" name="kind_{{ forloop.counter0 }}" aria-label="{{ f.name }} 형식">{% for k, label in kinds %}<option value="{{ k }}"{% if k == f.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>{% endfor %}
+{% for f in p.fields %}<tr><td class="id">{{ f.name }}</td>{% if f.pii %}<td><span class="pill neg">학생 정보 · 받을 수 없어요</span></td><td class="r"><span class="dash">—</span></td></tr>{% else %}<td>선생님이 입력{% if f.options %}<span class="small muted"> · {{ f.options|join:", "|truncatechars:40 }}</span>{% endif %}</td>
+  <td class="r"><select class="select" name="kind_{{ forloop.counter0 }}" aria-label="{{ f.name }} 형식">{% for k, label in kinds %}<option value="{{ k }}"{% if k == f.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>{% endif %}{% endfor %}
 </tbody></table>
 {% endif %}
 {% if oob %}{% include "collect/_aud.html" %}{% include "collect/_msg_fields.html" %}{% endif %}

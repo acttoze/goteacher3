@@ -2,7 +2,7 @@
 // 한글에서 표를 복사하면 글자(text/plain)에는 칸 구분이 없고 표는 HTML에만 있다(research/05: 649줄×1칸).
 // 그래서 HTML에 표가 있으면 그 HTML을 미리보기 요청에 한 번 실어 보내고, 서버가 돌려준 TSV로 입력 칸을 채운다.
 (function () {
-  var ta = document.getElementById('paste'), html = document.getElementById('pasteHtml');
+  var ta = document.getElementById('paste'), html = document.getElementById('pasteHtml'), how = document.getElementById('piiHow');
   if (!ta || !html) return;
   var SAMPLE = '반\t담임\t참가(명)\t불참(명)\t비고\n4-1\t\t\t\t\n4-2\t\t\t\t\n4-3\t\t\t\t\n4-4\t\t\t\t\n4-5\t\t\t\t\n합계\t\t\t\t';
 
@@ -11,6 +11,15 @@
     if (!h || !/<table[\s>]/i.test(h)) return;  // 표가 없으면 글자(엑셀·시트의 탭 글자) 그대로
     e.preventDefault();
     html.value = h;
+    how.value = '';
+    htmx.trigger(ta, 'gt-pasted');
+  });
+  // C7 학생 정보 열: 새로 붙이거나 고치면 고른 정리(인원 수로·빼기)를 지운다(design resolved)
+  ta.addEventListener('input', function () { how.value = ''; });
+  document.getElementById('pasteOut').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pii]');
+    if (!b) return;
+    how.value = b.dataset.pii;
     htmx.trigger(ta, 'gt-pasted');
   });
   document.body.addEventListener('htmx:afterRequest', function (e) {
@@ -22,6 +31,7 @@
   });
   document.getElementById('sample').addEventListener('click', function () {
     ta.value = SAMPLE;
+    how.value = '';
     var t = document.getElementById('title');
     if (!t.value.trim()) { t.value = '학예회 반별 참가 인원'; t.dispatchEvent(new Event('input')); }
     htmx.trigger(ta, 'gt-pasted');
