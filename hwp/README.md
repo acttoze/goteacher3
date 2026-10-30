@@ -20,7 +20,9 @@ if hwp.output_format(kind) == 'hwp':
 - 오류는 모두 `HwpError` 하위(`UnsupportedFormat`·`TooLarge`·`UnsafeFile`·`ConvertError`·`FillError`). 문구와 `FillError.problems`에는 (구역, 표, 행, 열) 주소와 사유만 담긴다. 문서 내용은 넣지 않는다.
 - 게이트 ③이 실패하면 환경 변수 `GT_HWP_OUTPUT=hwpx` 하나로 hwp 원본도 hwpx로 돌려준다(`output_format`).
 - 상한: 업로드 30MB, zip 풀린 총량 200MB, 항목 1,000개, 칸 글자 2,000자. 표본 1,376개 최대치(17MB·52MB·67개)에 여유를 둔 값이다.
-- hwp(OLE) 안쪽 압축 스트림은 python-hwpx가 푼다. 그래서 시간·메모리 상한은 큐 작업 쪽에서 건다(E3).
+- hwp(OLE) 안쪽 압축 스트림: python-hwpx는 스트림 하나를 256MB까지 풀지만 스트림 수에 총량 상한이 없다. 그래서 변환 전 `check_ole`가 모든 스트림을 1MB 조각으로 풀며 크기만 세어 풀린 총량 200MB·스트림 1,000개를 넘으면 `UnsafeFile`로 거부한다(표본 hwp 1,136개 최대 123MB·81개·0.5초). 시간·메모리는 worker 상한(300초·2.5GB, 스왑 없음)이 한 번 더 막는다.
+- zip 항목은 저장·deflate만 받는다(CPython은 bzip2·lzma를 조각 상한 없이 푼다). XML은 UTF-8만, `<!DOCTYPE`·`<!ENTITY`가 있으면 거부한다(python-hwpx가 읽기 전에). 우리 파서는 `resolve_entities=False`·`no_network`·`huge_tree=False`.
+- 악성 표본 묶음: `hwp/tests/test_malicious.py`(폭탄·엔티티·경로 조작, 표본은 테스트 안에서 만든다).
 
 ## 테스트·벤치
 

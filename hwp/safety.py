@@ -8,11 +8,13 @@
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import os
 import re
 import struct
 import zipfile
+import zlib
 
 from lxml import etree
 
@@ -25,6 +27,17 @@ HWP_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 # 엔티티 해석·네트워크 끔. huge_tree도 끈다(python-hwpx 내부 파서와 같은 설정).
 PARSER = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)
+
+
+@contextlib.contextmanager
+def safe_lxml():
+    """python-hwpx 가 parser 없이 부르는 etree.fromstring(hwp5.writer·table_structure 등)도 PARSER 설정으로.
+    lxml 기본 파서는 스레드마다 따로라 이 스레드에만 걸리고, 끝나면 lxml 기본값으로 되돌린다."""
+    etree.set_default_parser(etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False))
+    try:
+        yield
+    finally:
+        etree.set_default_parser()
 
 # 게이트 ③(한컴 실기)이 실패하면 GT_HWP_OUTPUT=hwpx 한 줄로 hwp 원본도 hwpx로 돌려준다.
 OUTPUT_ENV = 'GT_HWP_OUTPUT'
@@ -80,6 +93,8 @@ def _bad_name(n: str) -> bool:
 HWP_DIR_NAME = 'FileHeader'.encode('utf-16-le')
 HWP_SIGNATURE = b'HWP Document File'
 HWPX_MIMETYPE = b'application/hwp+zip'
+# HWPX 가 쓰는 방식만. CPython 은 bzip2·lzma 항목을 조각 크기 상한 없이 풀어(ZipExtFile._read1) 조각 읽기가 무력해진다.
+ZIP_METHODS = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
 CHUNK = 1024 * 1024          # zip 항목 조각 읽기 크기(worker 메모리 절약)
 MAX_CENTRAL_DIR = 1024 * 1024  # 중앙 디렉터리 크기(표본 최대 항목 67개라 수 KB)
 EOCD = struct.Struct('<4s4H2LH')  # 서명, 디스크 번호 2, 항목 수 2, 디렉터리 크기·위치, 주석 길이
@@ -126,6 +141,8 @@ def _check_listing(infos) -> None:
             raise UnsafeFile('zip 항목 경로가 허용되지 않음')
         if i.flag_bits & 0x1:
             raise UnsafeFile('암호화된 zip 항목')
+        if i.compress_type not in ZIP_METHODS:
+            raise UnsafeFile('zip 압축 방식이 허용되지 않음')
         total += i.file_size
         if total > MAX_UNZIPPED:
             raise UnsafeFile(f'풀린 크기가 {MAX_UNZIPPED // (1024 * 1024)}MB를 넘음')
@@ -187,6 +204,54 @@ def check_zip(data: bytes) -> None:
                 raise
             except Exception as e:  # BadZipFile(CRC·크기), zlib.error, NotImplementedError(압축 방식) 등
                 raise UnsafeFile(f'{i.filename}: zip 항목 손상({type(e).__name__})') from e
+
+
+def _inflated_size(raw: bytes, budget: int) -> int:
+    """raw deflate(HWP 압축 스트림)를 CHUNK 조각으로 풀며 크기만 센다(쌓지 않음). budget 을 넘으면 거기서 멈춘다.
+    압축 스트림이 아니면(zlib.error·덜 끝남) 원래 길이 이상으로 센다."""
+    d, n, buf = zlib.decompressobj(-15), 0, raw
+    try:
+        while buf and not d.eof:   # 스트림 끝 뒤의 바이트는 python-hwpx 도 풀지 않는다
+            out = d.decompress(buf, CHUNK)
+            n += len(out)
+            if n > budget:
+                return n
+            if not out and len(d.unconsumed_tail) == len(buf):
+                break   # 더 나아가지 못함
+            buf = d.unconsumed_tail
+        if d.eof:
+            return n
+    except zlib.error:
+        pass
+    return max(n, len(raw))   # 압축 스트림이 아니거나 덜 끝남: 그대로 둔 크기 이상으로 센다
+
+
+def check_ole(data: bytes) -> None:
+    """hwp(OLE) 압축 폭탄 검사. python-hwpx 는 스트림 하나를 256MB까지 풀지만 스트림 수에는 총량 상한이 없다.
+    변환 전에 모든 스트림을 조각으로 풀어 보며 풀린 총량이 MAX_UNZIPPED(hwpx와 같은 200MB)를 넘으면 거부한다.
+    표본 hwp 1,136개 실측 최대치에 여유를 둔 값이다(README). 구조가 깨진 OLE 는 ConvertError."""
+    from hwpx.hwp5.cfb import CompoundFile
+    try:
+        cf = CompoundFile(bytes(data))
+        paths = cf.stream_paths()
+    except Exception as e:
+        raise ConvertError(f'hwp 구조 오류({type(e).__name__})') from e
+    if len(paths) > MAX_ENTRIES:
+        raise UnsafeFile(f'hwp 스트림이 {MAX_ENTRIES}개를 넘음')
+    total = 0
+    for p in paths:
+        # 읽은 원래 크기도 총량에 넣는다. 섹터 체인을 여러 스트림이 공유하면 30MB 파일로 수십 GB를 복사하게 되므로
+        # 디렉터리의 선언 크기로 읽기 전에 먼저 거른다.
+        size = cf.entry(p).size
+        if total + size > MAX_UNZIPPED:
+            raise UnsafeFile(f'풀린 크기가 {MAX_UNZIPPED // (1024 * 1024)}MB를 넘음')
+        try:
+            raw = cf.read(p)
+        except Exception as e:
+            raise ConvertError(f'hwp 구조 오류({type(e).__name__})') from e
+        total += max(len(raw), _inflated_size(raw, MAX_UNZIPPED - total))
+        if total > MAX_UNZIPPED:
+            raise UnsafeFile(f'풀린 크기가 {MAX_UNZIPPED // (1024 * 1024)}MB를 넘음')
 
 
 _ENC_RE = re.compile(rb'^<\?xml[^>]*?encoding\s*=\s*["\']([A-Za-z0-9._-]+)["\']')

@@ -8,7 +8,7 @@
   table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
   칸 매핑(E6): 칸 확인으로 만든 모으기(collection, 파일 하나에 하나)와 cellmap(collect/hwpform.cellmap — 줄마다
   [Field.pos 또는 unit·who, 행, 열, 단위]). F1 채우기가 이것만으로 hwp.fill 값을 만든다.
-- 보관 기간 자동 삭제(파일 포함)는 E3.
+- 보관 기간 자동 삭제·행이 지워질 때 파일 삭제는 retention.py(관리 명령 purge, E3).
 - report["tables"]: hwp.tables 결과(표 구역·순서·행·열·칸 수·후보 순위, 글자 없음). 미리보기(E4)가 쓴다.
 """
 import io

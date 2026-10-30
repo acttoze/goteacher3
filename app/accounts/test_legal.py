@@ -21,7 +21,8 @@ class LegalPageTests(TestCase):
     def test_privacy_keeps_retention_and_processor(self):
         body = Client().get("/privacy").content.decode()
         self.assertIn("Oracle(Oracle Cloud Infrastructure, 춘천 리전)", body)
-        self.assertIn("마감 후 1년", body)
+        self.assertIn("마지막 제출·수정) 후 1년", body)
+        self.assertIn("만든 날부터 3년", body)
         self.assertIn("(7일)", body)
 
     def test_home_links_legal(self):

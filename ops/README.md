@@ -33,5 +33,10 @@
 정기 작업(D3·G2): crontab 5분마다 `remind`(🔔 리마인드 쌓기) 다음 `push_digest`(08:20·12:20·14:40 묶음 웹 푸시).
 같은 줄에서 순서대로 부른다(08:20 리마인드가 아침 묶음에 들어가게). 두 명령 모두 여러 번 불려도 한 번만 보낸다.
 
+보관 기간 삭제(E3): crontab 하루 한 번 03:40(04:30 DB 백업 전) `purge` — 마지막 활동 1년·만든 뒤 3년 지난 모으기(제출 값·
+올린 파일·결과 파일), 모으기에 안 쓴 올린 파일(24시간), 멈춘 한글 작업, 고아 파일, 저장 크기 정합. 건수만 출력한다.
+`40 3 * * * cd <저장소> && docker compose -f ops/compose.yml exec -T goteacher-app python manage.py purge`
+먼저 보기: 같은 명령 끝에 `--dry-run`(지우지 않고 건수만).
+
 VAPID 키(G2) 만들기 — 서버에서 한 번, 출력은 `ops/.env`에만 붙이고 화면·저장소에 남기지 않는다:
 `docker compose -f ops/compose.yml exec -T goteacher-app python -c "from py_vapid import Vapid; from py_vapid.utils import b64urlencode as e; from cryptography.hazmat.primitives import serialization as s; v=Vapid(); v.generate_keys(); print('VAPID_PRIVATE_KEY='+e(v.private_key.private_numbers().private_value.to_bytes(32,'big'))); print('VAPID_PUBLIC_KEY='+e(v.public_key.public_bytes(s.Encoding.X962, s.PublicFormat.UncompressedPoint)))" >> ops/.env`

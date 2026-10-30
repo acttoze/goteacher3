@@ -384,7 +384,8 @@ def _nudge(c, miss, vals, fields, per):
 def detail(request, key):
     """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
     c = get_in_space_or_404(Collection, request, key=key)
-    ctx = _space_ctx(request, page="collect", **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
+    ctx = _space_ctx(request, page="collect", can_delete=_owner(request, c),
+                     **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
                      hwp_result=result_ctx(request.space, c) if c.source == Collection.Source.HWP else None)
     return render(request, "collect/detail.html", ctx)
 
@@ -483,6 +484,19 @@ def lock(request, key):
     ctx = {"space": request.space, "oob": True, "lock_toast": toast,
            **_link_ctx(request, c), **_board(c), **_due_ctx(request, c)}
     return render(request, "collect/_lock_out.html", ctx)
+
+
+@require_POST
+def delete(request, key):
+    """모으기 지우기(처리방침 3항 '요청자가 지우면 파기', 만든 사람만). 칸·줄·제출 값·알림·결과 파일은 CASCADE.
+    올린 한글 파일(SourceFile)은 SET_NULL이라 E3 purge처럼 따로 지운다. 디스크 파일은 E3 post_delete가 커밋 뒤 지운다."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    if not _owner(request, c):
+        return HttpResponseForbidden("모으기는 만든 선생님만 지울 수 있어요.")
+    with transaction.atomic():
+        SourceFile.objects.in_space(request.space).filter(collection=c).delete()
+        c.delete()
+    return redirect(f"/s/{request.space.token}/c/")
 
 
 @never_cache

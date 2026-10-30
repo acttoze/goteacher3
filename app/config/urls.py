@@ -43,6 +43,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
     path("s/<str:space_token>/c/<str:key>/due", collect.due),
     path("s/<str:space_token>/c/<str:key>/lock", collect.lock),
+    path("s/<str:space_token>/c/<str:key>/delete", collect.delete),
     path("s/<str:space_token>/c/<str:key>/export.csv", export.export_csv),
     path("s/<str:space_token>/c/<str:key>/copy", export.copy),
     path("s/<str:space_token>/c/<str:key>/footer", export.footer),

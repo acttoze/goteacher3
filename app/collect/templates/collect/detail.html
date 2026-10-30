@@ -49,6 +49,8 @@
   .fl b { display: block; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fl span.d { font-size: var(--fs-small); color: var(--muted); }
   .fl .grow { min-width: 0; flex: 1 1 180px; }
+  /* 모으기 지우기: design에 자리가 없어 내보내기 옆 칸 아래, 덜 눈에 띄게. 대화상자는 이 칸 안(.main.narrow > * 폭 제한을 피해) */
+  .del-row { display: flex; align-items: flex-end; justify-content: flex-end; }
 </style>
 {% endblock %}
 {% block main %}
@@ -79,5 +81,18 @@
       </ul>
     </div>
   </section>
+  {% if can_delete %}
+  <div class="s4 del-row">
+    <button class="btn ghost" type="button" data-open="#delDlg">이 모으기 지우기</button>
+    <div class="scrim" id="delDlg" hidden>
+      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="delDlgH" method="post" action="/s/{{ space.token }}/c/{{ c.key }}/delete">
+        {% csrf_token %}
+        <div class="dh"><h2 id="delDlgH">「{{ c.title }}」 모으기를 지울까요?</h2></div>
+        <div class="db"><p>받은 값·올린 한글 파일·결과 파일이 모두 지워지고 되돌릴 수 없어요. 백업에는 7일 동안 남아요.</p></div>
+        <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">지우기</button></div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

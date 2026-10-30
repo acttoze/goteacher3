@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from .safety import (MAX_CELL_TEXT, PARSER, ConvertError, FillError, HwpError,
-                     check_zip, detect)
+                     check_ole, check_zip, detect, safe_lxml)
 
 HP = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
 SEC_RE = re.compile(r'Contents/section(\d+)\.xml$')
@@ -43,9 +43,11 @@ def to_hwpx(data: bytes) -> tuple[bytes, str, dict]:
         check_zip(data)
         return bytes(data), kind, {}
     from hwpx.hwp5.package import convert, to_hwpx_bytes
+    check_ole(data)  # python-hwpx 가 풀기 전에 압축 폭탄을 거른다
     try:
-        c = convert(bytes(data))
-        hwpx = to_hwpx_bytes(c.files)
+        with safe_lxml():
+            c = convert(bytes(data))
+            hwpx = to_hwpx_bytes(c.files)
     except HwpError:
         raise
     except Exception as e:  # 손상·암호·배포용 등. 내용 대신 예외 종류만.
@@ -66,8 +68,11 @@ def section_names(parts) -> list[str]:
 
 
 def to_hwp(hwpx: bytes) -> bytes:
+    """hwp5.writer 는 lxml 기본 파서로 hwpx XML 을 읽는다 → 먼저 check_zip(DTD·엔티티 거부), 안전 파서로 감싼다."""
     from hwpx.hwp5.writer import write_hwp5
-    return write_hwp5(parts_of(hwpx))
+    check_zip(hwpx)
+    with safe_lxml():
+        return write_hwp5(parts_of(hwpx))
 
 
 # ---------------------------------------------------------------- 분석
@@ -337,7 +342,8 @@ def fill_lib(hwpx: bytes, section: str, table_index: int, values: dict) -> bytes
     from hwpx.table_patch import fill_cells
     cells = [{'section_path': section, 'table_index': table_index, 'row': r, 'col': c, 'text': v}
              for (r, c), v in values.items()]
-    res = fill_cells(hwpx, cells)
+    with safe_lxml():
+        res = fill_cells(hwpx, cells)
     if res.skipped:
         raise FillError(f'건너뛴 칸 {len(res.skipped)}건',
                         [((s.section_path, s.table_index, s.row, s.col), s.reason) for s in res.skipped])
@@ -382,8 +388,9 @@ def add_rows(hwpx: bytes, section: str, table_index: int, ref_row: int, count: i
     op = ({'op': 'insert_row_by_clone', 'ref_row': ref_row} if h == 1 else
           {'op': 'insert_block_by_clone', 'ref_rows': [start, end]})
     try:
-        res = apply_table_ops(hwpx, [{**op, 'section_path': section, 'table_index': table_index,
-                                      'count': count, 'blank': True}])
+        with safe_lxml():
+            res = apply_table_ops(hwpx, [{**op, 'section_path': section, 'table_index': table_index,
+                                          'count': count, 'blank': True}])
     except Exception as e:
         raise FillError('행 추가 실패', [(where, f'insert row failed ({type(e).__name__})')]) from e
     if res.skipped:   # 중첩 표 등 python-hwpx 가 구조 편집을 건너뜀(사유 문구에 문서 내용 없음)

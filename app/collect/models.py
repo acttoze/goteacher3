@@ -34,11 +34,18 @@ class Collection(models.Model):
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     link_token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    # 마지막 수정(마감 바꾸기·잠그기·다시 열기 등). 보관 기간(E3 purge)의 활동 기준. update_fields 저장에도 바뀐다.
+    updated_at = models.DateTimeField(auto_now=True)
 
     objects = SpaceQuerySet.as_manager()
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = {*kwargs["update_fields"], "updated_at"}
+        super().save(*args, **kwargs)
 
 
 def get_by_link_or_404(link_token):
