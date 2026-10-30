@@ -34,6 +34,12 @@ class NeisMocked(TestCase):
         self.client.post("/new/school", {"i": school_i})
         return self.client.post("/new/class", {"grade": grade, "cls": cls, "name": name})
 
+    def space_url(self, **kw):
+        """만들면 4단계 확인 화면(/made)으로 간다(B7). 동학년 주소만 돌려준다."""
+        loc = self.make(**kw)["Location"]
+        self.assertTrue(loc.endswith("/made"), loc)
+        return loc.removesuffix("made")
+
 
 class LoginRequiredTests(NeisMocked):
     def test_anonymous_home_is_google_start_no_search(self):
@@ -108,7 +114,7 @@ class CreateFlowTests(NeisMocked):
     def test_create_makes_school_space_member_and_redirects(self):
         r = self.make()
         space = Space.objects.get()
-        self.assertEqual(r["Location"], f"/s/{space.token}/")
+        self.assertEqual(r["Location"], f"/s/{space.token}/made")
         self.assertEqual((space.school.neis_code, space.school.name), ("7531234", "새솔초등학교"))
         self.assertEqual((space.grade, space.name), (4, "새솔초 4학년"))
         m = Member.objects.in_space(space).get()
@@ -116,7 +122,7 @@ class CreateFlowTests(NeisMocked):
         self.assertNotIn("new_school", self.client.session)
 
     def test_space_page_after_create(self):
-        r = self.client.get(self.make()["Location"])
+        r = self.client.get(self.space_url())
         self.assertContains(r, "새솔초 4학년")
         self.assertContains(r, "송민재 (나)")
         self.assertContains(r, "구글 가입 · 만든 사람")
@@ -125,7 +131,7 @@ class CreateFlowTests(NeisMocked):
         self.assertNotContains(r, "티로드")
 
     def test_home_goes_to_my_space(self):
-        loc = self.make()["Location"]
+        loc = self.space_url()
         self.assertEqual(self.client.get("/")["Location"], loc)
 
     def test_school_reused_by_neis_code(self):
@@ -179,7 +185,7 @@ class SpaceIsolationB6Tests(NeisMocked):
     def setUp(self):
         super().setUp()
         self.client.force_login(self.user)
-        self.url = self.make()["Location"]
+        self.url = self.space_url()
 
     def test_other_user_404(self):
         self.client.force_login(User.objects.create(username="google:x"))
@@ -188,7 +194,7 @@ class SpaceIsolationB6Tests(NeisMocked):
     def test_other_space_member_404_and_list_isolated(self):
         other = User.objects.create(username="google:y", first_name="이나래")
         self.client.force_login(other)
-        other_url = self.make(grade=5, cls="5-1", name="이나래")["Location"]
+        other_url = self.space_url(grade=5, cls="5-1", name="이나래")
         self.assertEqual(self.client.get(self.url).status_code, 404)
         r = self.client.get(other_url)
         self.assertContains(r, "이나래")
@@ -235,7 +241,7 @@ class QaB6EdgeTests(NeisMocked):
         self.assertEqual(self.client.get("/new/school").status_code, 405)
 
     def test_space_page_when_neis_classes_missing(self):
-        url = self.make()["Location"]
+        url = self.space_url()
         self.mocks[1].return_value = []  # 동학년 화면에서 NEIS 학급 조회 실패
         r = self.client.get(url)
         self.assertContains(r, "송민재 (나)")
@@ -244,7 +250,7 @@ class QaB6EdgeTests(NeisMocked):
 
     def test_space_page_member_outside_neis_slots(self):
         # 만들 때 반(4-5)이 이후 NEIS 학급(3개 반)에 없으면 칸을 하나 더한다.
-        url = self.make(cls="4-5")["Location"]
+        url = self.space_url(cls="4-5")
         self.mocks[1].return_value = ["1", "2", "3"]
         r = self.client.get(url)
         self.assertContains(r, "1</b><span class=\"num\">/ 5칸")  # 3반 + 전담 + 칸 밖 1
@@ -259,7 +265,7 @@ class HardeningB6Tests(NeisMocked):
         self.client.force_login(self.user)
 
     def test_member_cannot_create_second_space(self):
-        url = self.make()["Location"]
+        url = self.space_url()
         self.client.get("/", {"q": "새솔"})  # 회원이면 홈은 내 동학년으로 보낸다
         session = self.client.session
         session["new_school"] = SCHOOLS[1]
@@ -271,7 +277,7 @@ class HardeningB6Tests(NeisMocked):
         self.assertEqual(self.client.post("/new/school", {"i": 0})["Location"], url)
 
     def test_double_submit_makes_one_space(self):
-        loc = self.make()["Location"]
+        loc = self.space_url()
         r = self.client.post("/new/class", {"grade": 4, "cls": "4-1", "name": "송민재"})
         self.assertEqual(r["Location"], loc)
         self.assertEqual((Space.objects.count(), Member.objects.count()), (1, 1))

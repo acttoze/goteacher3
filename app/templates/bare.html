@@ -4,12 +4,12 @@
 <header class="bare-top">
   <a class="brand" href="/">{% include "_mark.html" %}고티처</a>
   {% block ctx %}{% endblock %}
-  {% if user.is_authenticated %}
+  {% block end %}{% if user.is_authenticated %}
   <span class="end">
     <span class="lbl">{{ user.first_name|default:user.email }} 선생님</span>
     <form method="post" action="/auth/logout">{% csrf_token %}<button class="btn sec sm" type="submit">이 PC에서 로그아웃</button></form>
   </span>
-  {% endif %}
+  {% endif %}{% endblock %}
 </header>
 <main class="bare wide" id="main">
 {% block main %}{% endblock %}

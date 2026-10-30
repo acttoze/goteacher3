@@ -1,0 +1,18 @@
+{% extends "bare.html" %}
+{% block title %}들어왔어요 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_join_style.html" %}{% endblock %}
+{% block ctx %}<span class="ctx">{{ space.name }}</span>{% endblock %}
+{% block main %}
+<div class="done-h"><span class="ck"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><h1 class="inv-h">들어왔어요, {{ me.name }} 선생님</h1></div>
+<p class="by">{{ space.name }} 동학년 · {{ my_label }} · 동학년 모으기가 생기면 여기서 같이 채워요.</p>
+<section class="card form" aria-labelledby="whoH"><h2 id="whoH">함께 쓰는 선생님 {{ rows|length }}명</h2>
+  <div class="wrap-row"><span class="stack">{% for r in rows %}<span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span>{% endfor %}</span>
+    <span class="muted">{% for r in rows %}{{ r.m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></div>
+  <div><a class="btn pri lg" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
+</section>
+<section class="card next-card" aria-labelledby="gH"><h2 id="gH">다른 PC에서도 쓰려면 <span class="small muted" style="font-weight:400">선택</span></h2>
+  <p class="muted">교실 PC와 교무실 PC를 같이 쓰거나 PC가 초기화돼도, 구글 계정으로 이어 두면 그대로 이어져요.</p>
+  {% if guest %}<div><a class="gbtn" href="/auth/google/login?next=/s/{{ space.token }}/welcome"><svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>구글 계정으로 이어 두기</a></div>
+  {% else %}<p class="ok-line">구글 계정으로 이어 뒀어요. 다른 PC에서도 구글로 들어오면 돼요.</p>{% endif %}
+</section>
+{% endblock %}

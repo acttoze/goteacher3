@@ -1,0 +1,21 @@
+{# 들어온 선생님 카드. 동학년 화면과 5초 폴링(/s/<token>/members)이 같이 쓴다. #}
+<section class="card s7" id="roster" aria-labelledby="inH" hx-get="/s/{{ space.token }}/members" hx-trigger="every 5s" hx-swap="outerHTML">
+  <div class="card-h"><h2 id="inH">들어온 선생님</h2><span class="r">들어오면 여기에 바로 떠요</span></div>
+  <div class="card-b">
+    <div class="prog-wrap"><div class="head-num"><b class="num">{{ filled }}</b><span class="num">/ {{ total }}칸 들어왔어요</span></div><div class="track"><i style="width:{{ pct }}%"></i></div></div>
+    <ul class="list" id="slots">
+      {% for r in rows %}
+      <li class="who-row"><span class="av lg{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span><span class="c">{{ r.label }}</span>
+        <div class="n"><b>{{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
+        <span class="at">{{ r.at|date:"n월 j일" }} 들어옴</span></li>
+      {% endfor %}
+      {% for label in waiting %}
+      <li class="who-row wait"><span class="av lg ghost">{{ label|slice:":1" }}</span><span class="c">{{ label }}</span>
+        <div class="n"><b>아직이에요</b><div class="m">{{ label }} 선생님께 링크를 보내 보세요</div></div>
+        <button class="tlink acc" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요 · {{ label }} 선생님께 보내 주세요">다시 보내기</button></li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="card-f"><button class="btn sec sm" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 다시 복사</button>
+    <span>{% if waiting %}아직 {{ waiting|length }}칸 남았어요{% else %}동학년이 모두 들어왔어요{% endif %}</span></div>
+</section>

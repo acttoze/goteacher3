@@ -9,6 +9,21 @@ from django.utils import timezone
 
 DEVICE_COOKIE = "gt_device"
 DEVICE_AGE = timedelta(days=365)
+# 초대 링크로 이름만 고르고 들어온 사람(B7). 구글 없는 User로 만들어 기기 토큰 흐름을 그대로 쓴다.
+GUEST_PREFIX = "guest:"
+
+
+def is_guest(user):
+    return getattr(user, "username", "").startswith(GUEST_PREFIX)
+
+
+def new_guest(name):
+    from django.contrib.auth import get_user_model
+
+    user = get_user_model()(username=GUEST_PREFIX + secrets.token_urlsafe(24), first_name=name[:150])
+    user.set_unusable_password()
+    user.save()
+    return user
 
 
 def hash_token(raw):

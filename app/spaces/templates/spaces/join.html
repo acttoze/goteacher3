@@ -1,0 +1,40 @@
+{% extends "bare.html" %}
+{% block title %}동학년 초대 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_join_style.html" %}{% endblock %}
+{% block ctx %}{% if space %}<span class="ctx">{{ space.name }}</span>{% endif %}{% endblock %}
+{% block end %}<span class="end"><span class="lbl">가입·비밀번호 없음</span></span>{% endblock %}
+{% block main %}
+{% if missing %}
+  <h1 class="inv-h">초대 링크를 찾을 수 없어요</h1>
+  <p class="by">링크가 새로 바뀌었거나 동학년이 없어졌을 수 있어요. 초대한 선생님께 새 링크를 받아 주세요.</p>
+{% elif mine %}
+  <h1 class="inv-h">{{ space.name }} 동학년에<br>초대받았어요</h1>
+  <section class="card form" aria-label="이미 들어간 동학년">
+    <p class="notice" role="alert">이미 {{ mine.name }} 동학년에 들어가 있어요. 고티처는 한 선생님이 동학년 하나만 쓸 수 있어요.</p>
+    <div><a class="btn pri lg" href="/s/{{ mine.token }}/">내 동학년으로 가기</a></div>
+  </section>
+{% else %}
+  <h1 class="inv-h">{{ space.name }} 동학년에<br>초대받았어요</h1>
+  <p class="by"><span>{% if creator %}<b>{{ creator.name }}</b> 선생님({{ creator.cls }})이 만들었어요 · {% endif %}선생님 {{ n }}명</span></p>
+  <form class="card form" method="post" action="/join" aria-labelledby="pickH">
+    {% csrf_token %}
+    <h2 id="pickH">몇 반이세요?</h2>
+    <div class="slots" id="sl" role="group" aria-labelledby="pickH" data-pick="cls"{% if errors.cls %} aria-invalid="true" aria-describedby="sl-err"{% endif %}>
+      {% for c in choices %}
+      <button type="button" class="slot{% if not c.who %} open{% endif %}" data-v="{{ c.cls }}" aria-pressed="{% if c.cls == cls %}true{% else %}false{% endif %}"
+        {% if c.who %}data-toast="{{ c.who.m.name }} 선생님이 이미 들어온 반이에요. 같은 반이면 그대로 들어와도 돼요."{% endif %}>
+        {% if c.who %}<span class="av{% if c.who.ink %} ink-t{% endif %}" style="background:{{ c.who.color }}">{{ c.who.m.name|slice:":1" }}</span>{% else %}<span class="av ghost">{{ c.label|slice:":1" }}</span>{% endif %}
+        <span><b>{{ c.label }}</b><span class="w">{% if c.who %}{{ c.who.m.name }} · 들어옴{% else %}아직 아무도 없어요{% endif %}</span></span></button>
+      {% endfor %}
+    </div>
+    <input type="hidden" name="cls" value="{{ cls }}">
+    {% if errors.cls %}<p class="field-err" id="sl-err" role="alert">{{ errors.cls }}</p>{% endif %}
+    <label class="field"><span>이름</span>
+      <input class="input lg" id="nm" name="name" value="{{ name }}" maxlength="40" autocomplete="name" style="max-width:320px"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
+      {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}
+    </label>
+    <div><button class="btn pri lg" type="submit">들어가기</button></div>
+    <p class="note">이 PC 브라우저가 기억해서 다음부터는 바로 열려요. 비밀번호도 문자 인증도 없어요.</p>
+  </form>
+{% endif %}
+{% endblock %}

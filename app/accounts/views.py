@@ -13,7 +13,9 @@ from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token
+from spaces.models import Member, absorb_guest
+
+from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token, is_guest
 
 log = logging.getLogger(__name__)
 
@@ -91,19 +93,37 @@ def google_callback(request):
         log.warning("구글 로그인 실패: %s", type(e).__name__)  # 코드·토큰 값은 남기지 않는다
         return _fail(request, 502, "구글과 연결하지 못했어요. 잠시 뒤 다시 해 주세요.")
 
-    user, created = get_user_model().objects.get_or_create(username=f"google:{sub}")
+    User = get_user_model()
+    user = User.objects.filter(username=f"google:{sub}").first()
+    guest = request.user if is_guest(request.user) else None
+    if guest and user is None:  # 이름만 들어온 사람이 구글을 처음 잇는다: 같은 사용자 그대로
+        user, guest = guest, None
+        user.username = f"google:{sub}"
+        # 손님일 때 받은 다른 PC의 기기 토큰·세션은 모두 끊는다(같은 반·이름으로 들어온 남이 구글 계정을 얻지 않게).
+        # 이 PC 토큰은 아래 set_device_cookie가 새로 준다. 비밀번호 해시를 바꾸면 다른 세션의 인증 해시가 맞지 않게 된다.
+        DeviceToken.objects.filter(user=user).delete()
+        user.set_unusable_password()
+    elif guest:  # 이미 있는 구글 계정에 합친다. R1: 교사 한 명은 동학년 하나
+        if not Member.objects.filter(user=user).exclude(space__members__user=guest).exists():
+            absorb_guest(guest, user)
+        else:
+            return _fail(request, 409, "이 구글 계정은 이미 다른 동학년에 들어가 있어요. 한 선생님은 동학년 하나만 쓸 수 있어요.")
+    if user is None:
+        user = User(username=f"google:{sub}")
+        user.set_unusable_password()
     if info.get("email_verified") is not True:
         email = ""  # 확인 안 된 이메일은 저장하지 않는다(신원 확인은 sub로만)
     user.email, user.first_name = email[:254], name[:150]
-    if created:
-        user.set_unusable_password()
     user.save()
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    return set_device_cookie(request, redirect(next_url), user)
 
+
+def set_device_cookie(request, response, user):
+    """이 PC를 user로 1년 기억한다. 같은 PC의 예전 토큰은 지우고 새로 발급(쌓이지 않게)."""
     old = request.COOKIES.get(DEVICE_COOKIE)
-    if old:  # 같은 PC의 예전 토큰은 지우고 새로 발급(쌓이지 않게)
+    if old:
         DeviceToken.objects.filter(token_hash=hash_token(old)).delete()
-    response = redirect(next_url)
     response.set_cookie(
         DEVICE_COOKIE,
         DeviceToken.issue(user),

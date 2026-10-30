@@ -1,0 +1,16 @@
+{% extends "bare.html" %}
+{% block title %}동학년을 만들었어요 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_start_style.html" %}{% endblock %}
+{% block ctx %}<span class="ctx">동학년 만들기</span>{% endblock %}
+{% block main %}
+{# design/start.html 4단계 #}
+{% include "spaces/_steps.html" with n=4 label="동학년 만들기" pct=100 %}
+<h1 class="st-h">{{ space.name }} 동학년을 만들었어요</h1>
+<p class="st-lead">이제 초대 링크를 동학년 선생님들께 보내면 돼요. 들어오는 선생님이 동학년 화면에 바로 떠요.</p>
+<section class="card form" style="margin-top:32px" aria-label="만든 동학년">
+  <div class="done-box"><span class="av xl{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span>
+    <div><b style="font-size:20px">{{ me.name }} 선생님 · {{ space.grade }}학년 {{ my_label }}</b><p class="muted" style="margin-top:4px">{{ space.school.name }} {{ space.grade }}학년 동학년 · 만든 사람</p></div></div>
+  <div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="초대 링크를 복사했어요">링크 복사</button></div>
+  <div class="wrap-row"><a class="btn pri lg" href="/s/{{ space.token }}/">동학년 화면으로</a><span class="small muted">쪽지 문구와 QR은 동학년 화면에 있어요.</span></div>
+</section>
+{% endblock %}

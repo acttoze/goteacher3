@@ -12,6 +12,7 @@ dependencies = [
     "python-hwpx==6.10.*",
     "lxml>=4.9,<7",
     "whitenoise>=6.8",
+    "segno>=1.6.6",
 ]
 
 [tool.uv]

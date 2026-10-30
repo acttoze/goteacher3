@@ -1,0 +1,18 @@
+{# 초대하기 카드(design/grade.html). 링크·쪽지 문구는 data-copy가 #lk·#msg에서 읽는다. #}
+<section class="card" id="invite" aria-labelledby="ivH">
+  <div class="card-h"><h2 id="ivH">초대하기</h2><span class="r">가입 없이 이름만 고르면 돼요</span></div>
+  <div class="card-b">
+    <div class="inv">
+      <div class="qr"><img class="qr-img" src="{{ qr }}" alt="초대 링크 QR 코드" width="112" height="112"></div>
+      <div class="stack-y" style="gap:12px">
+        <div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="초대 링크를 복사했어요">복사</button></div>
+        <p class="small muted">쿨메신저로 보내거나, 연구실에 QR을 붙여 두세요. 링크를 연 선생님은 반과 이름만 골라요.</p>
+        {% if reissued %}<p class="small" role="status" style="color:var(--positive);font-weight:700">새 링크를 만들었어요. 예전 링크는 닫혔어요.</p>{% endif %}
+        {% if is_creator %}<form method="post" action="/s/{{ space.token }}/invite" hx-post="/s/{{ space.token }}/invite" hx-target="#invite" hx-swap="outerHTML"
+          hx-confirm="예전 링크는 바로 닫히고, 이미 들어온 선생님은 그대로예요. 새 링크를 만들까요?">{% csrf_token %}<button class="tlink small" type="submit">링크 새로 만들기</button></form>{% endif %}
+      </div>
+    </div>
+    <div class="msg-h"><b>쪽지 문구</b><span class="small muted">쿨메신저에 그대로 붙여넣기</span></div>
+    <div class="well msg" id="msg">{{ msg }}</div>
+  </div>
+</section>

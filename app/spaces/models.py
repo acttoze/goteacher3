@@ -55,7 +55,11 @@ class Space(models.Model):
 
 
 class Member(models.Model):
-    """이름만 고르고 들어온 사람도 Member. user는 구글로 로그인한 회원만(27번 4-1의 oauth_id)."""
+    """이름만 고르고 들어온 사람도 Member.
+
+    user: 구글 회원(google:<sub>) 또는 초대 링크로 이름만 들어온 손님(guest:<토큰>, accounts.is_guest).
+    손님도 User라서 기기 토큰·소속 확인 미들웨어를 그대로 쓴다. 구글을 이으면 absorb_guest로 합친다.
+    """
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="members")
     user = models.ForeignKey(
@@ -76,3 +80,14 @@ class Member(models.Model):
 
     def __str__(self):
         return f"{self.name}({self.cls})"
+
+
+def absorb_guest(guest, user):
+    """손님(guest)의 회원 자리를 user로 옮기고 손님을 지운다. 같은 공간에 둘 다 있으면 user 쪽을 남긴다.
+
+    손님의 기기 토큰·세션은 옮기지 않는다(같은 반·이름으로 들어온 다른 PC가 구글 계정을 얻지 않게).
+    손님 User를 지우면 그 기기 토큰(CASCADE)과 세션(사용자 없음)이 함께 끊긴다.
+    """
+    Member.objects.filter(user=guest).exclude(space__members__user=user).update(user=user)
+    Member.objects.filter(user=guest).delete()
+    guest.delete()
