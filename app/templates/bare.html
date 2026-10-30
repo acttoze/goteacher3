@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{# 셸 없는 화면(가입·동학년 만들기): design/start.html의 위 줄 + 가운데 한 열 #}
+{% block body %}
+<header class="bare-top">
+  <a class="brand" href="/">{% include "_mark.html" %}고티처</a>
+  {% block ctx %}{% endblock %}
+  {% if user.is_authenticated %}
+  <span class="end">
+    <span class="lbl">{{ user.first_name|default:user.email }} 선생님</span>
+    <form method="post" action="/auth/logout">{% csrf_token %}<button class="btn sec sm" type="submit">이 PC에서 로그아웃</button></form>
+  </span>
+  {% endif %}
+</header>
+<main class="bare wide" id="main">
+{% block main %}{% endblock %}
+</main>
+{% endblock %}

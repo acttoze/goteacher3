@@ -1,0 +1,17 @@
+{% extends "bare.html" %}
+{% block title %}학교 찾기 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_start_style.html" %}{% endblock %}
+{% block ctx %}<span class="ctx">동학년 만들기</span>{% endblock %}
+{% block main %}
+{% include "spaces/_steps.html" with n=2 label="학교 찾기" pct=50 %}
+<h1 class="st-h">어느 학교 선생님이세요?</h1>
+<p class="st-lead">학교 이름 일부만 써도 돼요. 나이스 학교 정보에서 찾아요.</p>
+<section class="card form" style="margin-top:32px" aria-label="학교 찾기">
+  <form class="sf" action="/" method="get" hx-get="/" hx-target="#res" hx-push-url="true" hx-disabled-elt="find button">
+    <label class="search"><span class="sr">학교 이름</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input class="input lg" name="q" value="{{ q }}" autocomplete="off" placeholder="예: 새솔초" maxlength="40" autofocus></label>
+    <button class="btn ink lg" type="submit">찾기</button>
+  </form>
+  <div id="res" aria-live="polite">{% include "spaces/_schools.html" %}</div>
+</section>
+{% endblock %}

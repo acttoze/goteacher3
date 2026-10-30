@@ -1,0 +1,11 @@
+{% extends "bare.html" %}
+{% block title %}내 학년 · 반 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_start_style.html" %}{% endblock %}
+{% block ctx %}<span class="ctx">동학년 만들기</span>{% endblock %}
+{% block main %}
+{% include "spaces/_steps.html" with n=3 label="내 학년 · 반" pct=75 %}
+<h1 class="st-h">담임 학년과 반을 골라 주세요</h1>
+<p class="school-line" style="margin-top:12px"><b>{{ school.name }}</b><span class="muted">{{ school.office }}</span><a class="tlink acc" href="/">학교 바꾸기</a></p>
+{% include "spaces/_class_form.html" %}
+<p class="back"><a class="tlink" href="/">이전 단계로</a></p>
+{% endblock %}

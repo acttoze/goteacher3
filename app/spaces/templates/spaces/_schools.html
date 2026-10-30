@@ -1,0 +1,12 @@
+{% if error %}<p class="empty">{{ error }}</p>
+{% elif schools %}
+<p class="small muted">{% if more %}{{ total }}곳 중 {{ schools|length }}곳만 보여요. 이름을 더 정확히 써 주세요.{% else %}{{ schools|length }}곳을 찾았어요{% endif %}</p>
+<ul class="results">
+  {% for s in schools %}
+  <li><form method="post" action="/new/school">{% csrf_token %}<input type="hidden" name="i" value="{{ forloop.counter0 }}">
+    <button type="submit"><span><b>{{ s.name }}</b><div class="m">{{ s.office }}{% if s.address %} · {{ s.address }}{% endif %}</div></span><span class="btn sec sm go">이 학교</span></button>
+  </form></li>
+  {% endfor %}
+</ul>
+{% elif q %}<p class="empty">「{{ q }}」{{ josa }} 찾은 학교가 없어요. 이름을 줄여서 다시 써 보세요.</p>
+{% endif %}

@@ -1,0 +1,24 @@
+<form class="card form" id="classForm" method="post" action="/new/class" style="margin-top:28px" aria-label="학년·반·이름">
+  {% csrf_token %}
+  <input type="hidden" name="grade" value="{{ grade }}">
+  <div class="field"><span>담임 학년</span>
+    <div class="picks" role="group" aria-label="담임 학년">
+      {% for n in grades %}<button class="pick" type="button" aria-pressed="{% if n == grade %}true{% else %}false{% endif %}"
+        hx-get="/new/class" hx-vals='{"grade": {{ n }}}' hx-include="#nm" hx-target="#classForm" hx-swap="outerHTML">{{ n }}학년</button>{% endfor %}
+    </div>
+  </div>
+  <div class="field"><span>반</span>
+    <div class="picks" id="cp" role="group" aria-label="반" data-pick="cls"{% if errors.cls %} aria-invalid="true" aria-describedby="cp-err"{% endif %}>
+      {% for c, label in classes %}<button class="pick" type="button" data-v="{{ c }}" aria-pressed="{% if c == cls %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+    </div>
+    <input type="hidden" name="cls" value="{{ cls }}">
+    {% if errors.cls %}<p class="field-err" id="cp-err" role="alert">{{ errors.cls }}</p>{% endif %}
+    <span class="hint">{% if from_neis %}나이스 학급 정보: {{ grade }}학년 {{ n_classes }}개 반{% else %}나이스 학급 정보를 가져오지 못해 {{ n_classes }}개 반으로 보여요{% endif %}</span>
+  </div>
+  <label class="field"><span>이름</span>
+    <input class="input lg" id="nm" name="name" value="{{ name }}" maxlength="40" style="max-width:320px" autocomplete="off"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
+    {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}
+    <span class="hint">구글 계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span>
+  </label>
+  <div class="wrap-row"><button class="btn pri lg" type="submit">{{ grade }}학년 동학년 만들기</button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div>
+</form>

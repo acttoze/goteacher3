@@ -16,6 +16,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
 COPY web ./web
+RUN SECRET_KEY=build-only python app/manage.py collectstatic --noinput -v 0
 
 RUN useradd --system --no-create-home gt
 USER gt

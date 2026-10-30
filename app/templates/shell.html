@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{# design/assets/shell.js의 공통 틀. 아직 없는 기능(오늘·모으기·일정·양식 자료실·설정·알림·접속 중)은 넣지 않는다. #}
+{% block html_attr %} class="has-shell"{% endblock %}
+{% block body %}
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<aside class="side" aria-label="고티처 메뉴">
+  <a class="brand" href="/" aria-label="고티처 처음으로">{% include "_mark.html" %}<span class="wm">고티처</span></a>
+  <p class="group">{{ space.grade }}학년 동학년</p>
+  <nav class="nav sub" aria-label="동학년">
+    <a href="/s/{{ space.token }}/"{% if page == "grade" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 6.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.5 2 3 4.2"/></svg><span>선생님 {{ rows|length }}명</span></a>
+  </nav>
+  <div class="me"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ space.grade }}학년 {{ my_label }}</span></div></div>
+</aside>
+<header class="top">
+  <b class="ptitle">{% include "_mark.html" with size=20 %}{% block ptitle %}고티처{% endblock %}</b>
+  <form class="online" method="post" action="/auth/logout">{% csrf_token %}<button class="btn ghost sm" type="submit">이 PC에서 로그아웃</button></form>
+  <div class="switch" aria-label="공간: {{ space.name }}"><span class="av sm" style="background:var(--ink)">{{ space.grade }}</span><span><b>{{ space.name }}</b><span>동학년 공간 · {{ rows|length }}명</span></span></div>
+</header>
+<main class="main narrow" id="main" tabindex="-1" style="outline:none">
+{% block main %}{% endblock %}
+</main>
+{% endblock %}

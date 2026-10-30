@@ -8,6 +8,10 @@ dependencies = [
     "dj-database-url>=2.3",
     "psycopg[binary]>=3.2",
     "gunicorn>=23",
+    # hwp/ 한글 엔진. 6.10 고정(벤치 근거). pyhwp(AGPL)는 쓰지 않는다.
+    "python-hwpx==6.10.*",
+    "lxml>=4.9,<7",
+    "whitenoise>=6.8",
 ]
 
 [tool.uv]

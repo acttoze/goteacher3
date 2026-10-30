@@ -1,0 +1,52 @@
+{% extends "shell.html" %}
+{% block title %}동학년 · 고티처{% endblock %}
+{% block ptitle %}선생님 {{ rows|length }}명{% endblock %}
+{% block head %}
+<style>
+  /* design/grade.html — 우리 학년 선생님이 다 들어왔나? 위 줄 7/5. 초대 링크·QR·쪽지 문구와 실시간 반영은 B7. */
+  .list > li.who-row { display: grid; grid-template-columns: 40px 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 74px; }
+  .who-row .c { font-weight: 700; font-size: 17px; }
+  .who-row .n b { font-size: 17px; }
+  .who-row .n .m { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
+  .who-row .at { font-size: var(--fs-small); color: var(--muted); text-align: right; white-space: nowrap; }
+  .who-row.wait .c, .who-row.wait .n b { color: var(--muted); }
+  .head-num { display: flex; align-items: baseline; gap: 6px; }
+  .head-num b { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; color: var(--accent); line-height: 1; }
+  .head-num span { color: var(--muted); font-size: 17px; }
+  .prog-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>{{ space.name }}</h1>
+    <p class="sub">{{ space.school.name }} · 동학년 공간 · 만든 사람 <b>{{ creator.name }}</b> · {{ space.created_at|date:"n월 j일" }}부터</p>
+  </div>
+</div>
+
+<div class="grid stretch">
+  <section class="card s7" aria-labelledby="inH">
+    <div class="card-h"><h2 id="inH">들어온 선생님</h2><span class="r">초대 링크로 들어오면 여기에 떠요</span></div>
+    <div class="card-b">
+      <div class="prog-wrap"><div class="head-num"><b class="num">{{ filled }}</b><span class="num">/ {{ total }}칸 들어왔어요</span></div><div class="track"><i style="width:{{ pct }}%"></i></div></div>
+      <ul class="list" id="slots">
+        {% for r in rows %}
+        <li class="who-row"><span class="av lg{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span><span class="c">{{ r.label }}</span>
+          <div class="n"><b>{{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
+          <span class="at">{{ r.at|date:"n월 j일" }} 들어옴</span></li>
+        {% endfor %}
+        {% for label in waiting %}
+        <li class="who-row wait"><span class="av lg ghost">{{ label|slice:":1" }}</span><span class="c">{{ label }}</span>
+          <div class="n"><b>아직이에요</b><div class="m">초대 링크를 받으면 들어와요</div></div><span></span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  <div class="stack-y s5">
+    <section class="card" aria-labelledby="ivH">
+      <div class="card-h"><h2 id="ivH">초대하기</h2><span class="r">가입 없이 이름만 고르면 돼요</span></div>
+      <div class="card-b"><p class="empty">초대 링크와 QR, 쿨메신저 쪽지 문구가 여기에 생겨요. 곧 열려요.</p></div>
+    </section>
+  </div>
+</div>
+{% endblock %}
