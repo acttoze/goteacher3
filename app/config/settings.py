@@ -38,6 +38,8 @@ if DEBUG:
 # 구글 로그인. 리디렉션 주소는 SITE_URL + "/auth/google/callback"
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+# NEIS 오픈API 대표 인증키. 비우면 키 없이 부른다(한 번에 5건 제한).
+NEIS_KEY = os.environ.get("NEIS_KEY", "")
 
 CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith("https://") else []
 
