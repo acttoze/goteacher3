@@ -1,0 +1,16 @@
+# 이미지에는 pyproject.toml·uv.lock·.python-version·app/·web/만 들어간다(ops/Dockerfile).
+.git
+.venv
+**/.env
+**/.env.*
+**/__pycache__
+**/*.pyc
+app/db.sqlite3
+staticfiles
+archive
+design
+drafts
+meeting
+prototype
+research
+server.log

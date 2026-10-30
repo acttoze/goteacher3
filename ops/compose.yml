@@ -1,0 +1,81 @@
+# 고티처 스테이징(t.goteacher.xyz). 서버: /home/ubuntu/prod/goteacher/ops 에서
+#   docker compose up -d --build
+# 공용 서버다. 이 프로젝트(goteacher) 밖의 컨테이너·네트워크·볼륨은 건드리지 않는다.
+# Traefik 값(네트워크 infra · 진입점 web/websecure · 리졸버 letsencrypt)은
+# 2026-10-30 서버의 traefik 컨테이너 inspect로 읽어 확인한 값이다.
+name: goteacher
+
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+
+services:
+  # 서비스 이름이 infra 네트워크의 DNS 별칭이 되므로 겹치지 않게 goteacher-app으로 둔다.
+  goteacher-app:
+    <<: *common
+    build: { context: .., dockerfile: ops/Dockerfile }
+    image: goteacher-app:latest
+    env_file: .env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks: [default, infra]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: infra
+      traefik.http.routers.gt-staging.rule: Host(`t.goteacher.xyz`)
+      traefik.http.routers.gt-staging.entrypoints: websecure
+      traefik.http.routers.gt-staging.tls: "true"
+      traefik.http.routers.gt-staging.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-staging.service: gt-staging
+      traefik.http.routers.gt-staging-http.rule: Host(`t.goteacher.xyz`)
+      traefik.http.routers.gt-staging-http.entrypoints: web
+      traefik.http.routers.gt-staging-http.middlewares: gt-staging-redirect
+      traefik.http.routers.gt-staging-http.service: gt-staging
+      traefik.http.middlewares.gt-staging-redirect.redirectscheme.scheme: https
+      traefik.http.middlewares.gt-staging-redirect.redirectscheme.permanent: "true"
+      traefik.http.services.gt-staging.loadbalancer.server.port: "8000"
+
+  # 작업 큐(RQ worker)는 rq 의존성이 생기는 D3/E2 때 이 자리에 추가한다.
+
+  db:
+    <<: *common
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: goteacher
+      POSTGRES_USER: goteacher
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD가 .env에 필요}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    mem_limit: 512m
+    shm_size: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goteacher -d goteacher"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ports 없음: 밖에 열지 않는다(goteacher_default 네트워크 안에서만).
+
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    volumes: [redisdata:/data]
+    mem_limit: 128m
+    # ports 없음
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  infra:
+    external: true
