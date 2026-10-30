@@ -15,7 +15,8 @@
   .bar .count { margin-left: auto; font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
 
   .tbl td { height: 76px; }
-  .tbl a.ttl { font-weight: 600; text-decoration: none; }
+  .tbl a.ttl { font-weight: 600; text-decoration: none; padding: 6px 0; }
+  @media (max-width: 760px) { .tbl a.ttl { padding: 10px 0; } }
   .tbl tr.link:hover a.ttl { color: var(--accent); }
   .tbl .prog { width: 168px; }
   .tbl .prog .nums { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 15px; }

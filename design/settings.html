@@ -176,8 +176,11 @@
     if (k === 'device') $('#lo2').onclick = function () { $('#d2').innerHTML = '<div><b>교무실 PC · 웨일</b><div class="m">로그아웃했어요</div></div><span class="small muted">—</span>'; saved(); };
   }
   $('#lvIn').oninput = function () { $('#lvYes').disabled = this.value.trim() !== '새솔초 4학년'; };
-  $('#lvNo').onclick = function () { $('#leave').hidden = true; };
-  $('#lvYes').onclick = function () { $('#leave').hidden = true; U.toast('시안이라 실제로 나가지는 않아요.'); };
+  function closeLeave() { $('#leave').hidden = true; var o = $('#out'); if (o) o.focus(); }
+  $('#lvNo').onclick = closeLeave;
+  $('#lvYes').onclick = function () { closeLeave(); U.toast('시안이라 실제로 나가지는 않아요.'); };
+  $('#leave').addEventListener('click', function (e) { if (e.target === this) closeLeave(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#leave').hidden) closeLeave(); });
   window.addEventListener('hashchange', route);
   route();
 })();

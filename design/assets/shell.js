@@ -23,6 +23,22 @@
       el.classList.add('show');
       clearTimeout(U._t); U._t = setTimeout(function () { el.classList.remove('show'); el.style.pointerEvents = 'none'; }, undo ? 4200 : 2800);
     },
+    // 칸 옆 오류: 원인·고칠 방법을 칸 바로 아래에 남기고, 칸과 연결하고, 칸으로 포커스를 옮긴다
+    fieldError: function (el, msg, focusEl) {
+      if (!el) return;
+      var id = (el.id || ('f' + Math.random().toString(36).slice(2, 7))) + '-err';
+      U.clearError(el);
+      var p = document.createElement('p'); p.className = 'field-err'; p.id = id; p.setAttribute('role', 'alert'); p.textContent = msg;
+      el.insertAdjacentElement('afterend', p);
+      el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', id);
+      var f = focusEl || (el.matches('input,select,textarea,button') ? el : el.querySelector('button,input'));
+      if (f) f.focus();
+    },
+    clearError: function (el) {
+      if (!el) return;
+      var id = el.getAttribute('aria-describedby'); if (id && id.slice(-4) === '-err') { var p = document.getElementById(id); if (p) p.remove(); el.removeAttribute('aria-describedby'); }
+      el.removeAttribute('aria-invalid');
+    },
     copy: function (txt, msg) {
       var ok = function () { U.toast(msg || '복사했어요'); };
       if (navigator.clipboard) navigator.clipboard.writeText(txt).then(ok, function () { U.toast(txt); }); else U.toast(txt);
@@ -130,6 +146,12 @@
 
     document.body.insertBefore(top, document.body.firstChild);
     document.body.insertBefore(side, document.body.firstChild);
+    // 키보드 사용자: 메뉴를 건너뛰고 본문으로
+    document.documentElement.classList.add('has-shell');
+    var main = document.querySelector('main');
+    if (main) { if (!main.id) main.id = 'main'; main.setAttribute('tabindex', '-1'); main.style.outline = 'none'; }
+    var skip = document.createElement('a'); skip.className = 'skip'; skip.href = '#' + (main ? main.id : 'main'); skip.textContent = '본문으로 건너뛰기';
+    document.body.insertBefore(skip, document.body.firstChild);
 
     // 알림 묶음
     var bell = document.createElement('div');
@@ -164,7 +186,7 @@
     toggle(U.$('#bellBtn'), bell);
     toggle(U.$('#spaceBtn'), sp);
     document.addEventListener('click', function (e) { if (!e.target.closest('.pop')) { U.$$('.pop').forEach(function (p) { p.hidden = true; }); U.$$('.top [aria-expanded]').forEach(function (b) { b.setAttribute('aria-expanded', 'false'); }); } });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') U.$$('.pop').forEach(function (p) { p.hidden = true; }); });
+    document.addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; U.$$('.pop').forEach(function (p) { p.hidden = true; }); var b = U.$('.top [aria-expanded="true"]'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); } });
     U.$('#spInvite').onclick = function () { U.copy(G.space.invite, '초대 링크를 복사했어요 · ' + G.space.invite); };
 
     // 한 줄 일정

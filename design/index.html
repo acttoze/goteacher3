@@ -20,7 +20,7 @@
   section.part > p { color: var(--muted); margin-bottom: 24px; }
   .tbl td.flow { font-size: var(--fs-small); color: var(--muted); font-weight: 600; padding: 36px 0 10px; }
   .scr td:first-child { width: 220px; }
-  .scr a { text-decoration: none; font-weight: 700; }
+  .scr a { text-decoration: none; font-weight: 700; display: inline-block; padding: 8px 0; }
   .scr a:hover { color: var(--accent); }
   .scr .q { color: var(--ink); }
   .scr .f { color: var(--faint); font-size: var(--fs-small); white-space: nowrap; }
@@ -53,7 +53,7 @@
 </style>
 </head>
 <body>
-<div class="doc">
+<main class="doc" id="main">
   <header class="doc-top">
     <svg width="24" height="24" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 3l17 8.2-7.4 2.1L10.4 21z" fill="#2251ff"/></svg><b>고티처</b>
     <span class="end"><a class="btn sec sm" href="landing.html">소개 페이지</a><a class="btn pri sm" href="today.html">오늘 화면부터 보기</a></span>
@@ -128,7 +128,7 @@
       <li><b>PC 우선</b>1536×750에서 첫 화면이 다 보여야 해요. 좁은 폭은 쌓기만, 받는 사람 제출 화면만 폰도 꼼꼼히.</li>
     </ul>
   </section>
-</div>
+</main>
 
 <script src="assets/data.js"></script>
 <script src="assets/people.js"></script>

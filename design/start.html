@@ -137,7 +137,7 @@
       '<p class="school-line" style="margin-top:12px"><b>' + esc(S.school.name) + '</b><span class="muted">' + esc(S.school.office) + '</span><button class="tlink acc" type="button" id="chg">학교 바꾸기</button></p>' +
       '<section class="card form" style="margin-top:28px" aria-label="학년·반·이름">' +
       '<div class="field"><span>담임 학년</span><div class="picks" id="gp">' + [1, 2, 3, 4, 5, 6].map(function (n) { return '<button class="pick" type="button" data-g="' + n + '" aria-pressed="' + (n === S.grade) + '">' + n + '학년</button>'; }).join('') + '</div></div>' +
-      '<div class="field"><span>반</span><div class="picks" id="cp"></div><span class="hint" id="neis"></span></div>' +
+      '<div class="field"><span>반</span><div class="picks" id="cp" role="group" aria-label="반"></div><span class="hint" id="neis"></span></div>' +
       '<label class="field"><span>이름</span><input class="input lg" id="nm" value="' + esc(S.name) + '" style="max-width:320px"><span class="hint">구글 계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span></label>' +
       '<div class="wrap-row"><button class="btn pri lg" type="button" id="mk"></button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div></section>' + back();
     function drawCls() {
@@ -145,16 +145,17 @@
       $('#cp').innerHTML = list.map(function (c) { var l = c.split('-')[1]; return '<button class="pick" type="button" data-c="' + c + '" aria-pressed="' + (c === S.cls) + '">' + (l === '전담' ? '전담' : l + '반') + '</button>'; }).join('');
       $('#neis').textContent = '나이스 학급 정보: ' + S.grade + '학년 ' + classes + '개 반';
       $('#mk').textContent = S.grade + '학년 동학년 만들기';
-      U.$$('[data-c]').forEach(function (b) { b.onclick = function () { S.cls = b.dataset.c; drawCls(); }; });
+      U.$$('[data-c]').forEach(function (b) { b.onclick = function () { S.cls = b.dataset.c; U.clearError($('#cp')); drawCls(); }; });
     }
     U.$$('[data-g]').forEach(function (b) { b.onclick = function () { S.grade = +b.dataset.g; S.cls = ''; U.$$('[data-g]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); drawCls(); }; });
     $('#chg').onclick = function () { S.step = 2; render(); };
     $('#mk').onclick = function () {
       var nm = $('#nm').value.trim();
-      if (!S.cls) return U.toast('반을 골라 주세요.');
-      if (!nm) { $('#nm').focus(); return U.toast('이름을 써 주세요.'); }
+      if (!S.cls) return U.fieldError($('#cp'), '반을 하나 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요.');
+      if (!nm) return U.fieldError($('#nm'), '동학년에게 보일 이름을 써 주세요.');
       S.name = nm; S.step = 4; render();
     };
+    $('#nm').addEventListener('input', function () { U.clearError(this); });
     drawCls(); bindBack();
   }
 

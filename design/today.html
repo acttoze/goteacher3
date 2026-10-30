@@ -62,12 +62,14 @@
   .todo li { display: grid; grid-template-columns: 28px 1fr auto; gap: 14px; min-height: 84px; overflow: hidden;
     transition: opacity .3s var(--ease), min-height .35s var(--ease), max-height .35s var(--ease); max-height: 120px; }
   .todo li.gone { opacity: 0; min-height: 0; max-height: 0; padding: 0; border-top-color: transparent; }
-  .todo .t a { text-decoration: none; }
+  .todo .t a { text-decoration: none; display: inline-block; padding: 6px 0; }
   .todo .t a:hover { color: var(--accent); }
   .todo .due { font-size: 15px; font-weight: 600; text-align: right; white-space: nowrap; }
   .todo .due.urgent { color: var(--accent-ink); background: var(--accent-soft); padding: 3px 9px; border-radius: 999px; }
   .ck { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #aeb3bb; background: var(--bg); cursor: pointer; display: grid; place-items: center; padding: 0;
     transition: background-color .18s, border-color .18s, transform .18s var(--ease); }
+  .ck { position: relative; }
+  .ck::after { content: ""; position: absolute; inset: -9px; } /* 보이는 칸 28, 누르는 곳 46 */
   .ck:hover { border-color: var(--accent); }
   .ck svg { opacity: 0; transform: scale(.4); transition: opacity .18s, transform .25s cubic-bezier(.3, 1.6, .5, 1); color: #fff; }
   .done .ck { background: var(--accent); border-color: var(--accent); transform: scale(1.08); }
@@ -76,7 +78,7 @@
 
   /* 내가 걷는 것 */
   .sent { padding: 0 var(--pad); display: flex; flex-direction: column; gap: 14px; }
-  .sent .t { font-weight: 700; font-size: 17px; text-decoration: none; }
+  .sent .t { font-weight: 700; font-size: 17px; text-decoration: none; display: inline-block; padding: 6px 0; }
   .sent .t:hover { color: var(--accent); }
   .sent .m { font-size: var(--fs-small); color: var(--muted); }
   .who-list li { min-height: 40px; padding: 0; border: 0; gap: 10px; font-size: 15px; }
@@ -99,6 +101,7 @@
     .dgrid > .lbl { background: var(--surface); }
     .dgrid > .lbl.hd:first-child { display: none; }
     .lunch, .untimed { grid-column: auto; flex-wrap: wrap; }
+    .todo .t a, .sent .t { padding: 11px 0; }
   }
 </style>
 </head>

@@ -64,7 +64,7 @@
   function form() {
     m.innerHTML = '<h1 class="inv-h">' + esc(G.space.name) + ' 동학년에<br>초대받았어요</h1>' +
       '<p class="by">' + U.av(G.space.by, 'sm') + '<span><b>' + esc(G.space.by) + '</b> 선생님(4-1)이 만들었어요 · 선생님 ' + G.members.length + '명</span></p>' +
-      '<section class="card form" aria-labelledby="pickH"><h2 id="pickH">몇 반이세요?</h2><div class="slots" id="sl"></div>' +
+      '<section class="card form" aria-labelledby="pickH"><h2 id="pickH">몇 반이세요?</h2><div class="slots" id="sl" role="group" aria-labelledby="pickH"></div>' +
       '<label class="field"><span>이름</span><input class="input lg" id="nm" value="' + esc(S.name) + '" autocomplete="name" style="max-width:320px"></label>' +
       '<div><button class="btn pri lg" type="button" id="go">들어가기</button></div>' +
       '<p class="note">이 PC 브라우저가 기억해서 다음부터는 바로 열려요. 비밀번호도 문자 인증도 없어요.</p></section>';
@@ -75,16 +75,17 @@
           '<span><b>' + esc(s.label) + '</b><span class="w">' + (s.who ? esc(s.who) + ' · 들어옴' : '아직 아무도 없어요') + '</span></span></button>';
       }).join('');
       U.$$('[data-c]').forEach(function (b) { b.onclick = function () {
-        S.cls = b.dataset.c; draw();
+        S.cls = b.dataset.c; U.clearError($('#sl')); draw();
         var s = slots.filter(function (x) { return x.cls === S.cls; })[0];
         if (s.who) U.toast(s.who + ' 선생님이 이미 들어온 반이에요. 같은 반이면 그대로 들어와도 돼요.');
       }; });
     }
     draw();
+    $('#nm').addEventListener('input', function () { U.clearError(this); });
     $('#go').onclick = function () {
       var nm = $('#nm').value.trim();
-      if (!S.cls) return U.toast('반을 골라 주세요.');
-      if (!nm) { $('#nm').focus(); return U.toast('이름을 써 주세요.'); }
+      if (!S.cls) return U.fieldError($('#sl'), '몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요.');
+      if (!nm) return U.fieldError($('#nm'), '동학년에게 보일 이름을 써 주세요.');
       S.name = nm; done();
     };
   }
