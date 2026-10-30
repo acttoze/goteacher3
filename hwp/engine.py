@@ -256,7 +256,7 @@ def schema(t: Table) -> dict:
             if not row_lab:  # 왼쪽이 비면 위 칸을 라벨로
                 up = t.grid.get((r - 1, c)) if r else None
                 row_lab = [' '.join(up.text.split())] if up and up.text else []
-        label = ' / '.join(x for x in [' · '.join(row_lab), ' > '.join(col_lab)] if x) or f'({r},{c})'
+        label = ' / '.join(x for x in [' · '.join(row_lab), ' > '.join(col_lab)] if x) or f'{r + 1}행 {c + 1}열'  # 라벨이 없으면 사람이 읽는 1부터 센 위치
         inputs.append({'row': r, 'col': c, 'rowSpan': cell.rs, 'colSpan': cell.cs, 'label': label,
                        'unit': unit.group(1) if unit else ''})
     # 같은 라벨이 여러 칸이면(예: 1반 행이 3줄) 순번을 붙인다
@@ -268,8 +268,31 @@ def schema(t: Table) -> dict:
         if seen[i['label']] > 1:
             cnt[i['label']] = cnt.get(i['label'], 0) + 1
             i['label'] += f" #{cnt[i['label']]}"
+    # 칸 확인(E6)용: 열 머리글(머리글 행 글자를 ' > '로)과 자료 행의 행 머리(행 머리 열 글자를 ' · '로).
+    col_heads = []
+    for c in range(C):
+        parts = []
+        for hr in range(hdr):
+            h = t.grid.get((hr, c))
+            if h and h.text and (not parts or parts[-1] != ' '.join(h.text.split())):
+                parts.append(' '.join(h.text.split()))
+        col_heads.append(' > '.join(parts))
+    # 행 머리는 그 줄 왼쪽에서 첫 빈 칸 전까지의 글자(빈 줄이 섞여 행 머리 열 수가 0이 돼도 반 이름을 잃지 않게)
+    row_heads = []
+    for r in data_rows:
+        parts, seen_cells = [], set()
+        for c in range(C):
+            x = t.grid.get((r, c))
+            if x is None or id(x) in seen_cells:
+                continue
+            if not x.text or x.has_nested or x.has_obj or UNIT.match(x.text):
+                break
+            seen_cells.add(id(x))
+            parts.append(' '.join(x.text.split()))
+        row_heads.append([r, ' · '.join(parts)])
     return {'section': t.section, 'index': t.index, 'rows': R, 'cols': C,
-            'kind': kind, 'header_rows': hdr, 'label_cols': lab, 'total_rows': sorted(total_rows), 'inputs': inputs}
+            'kind': kind, 'header_rows': hdr, 'label_cols': lab, 'total_rows': sorted(total_rows), 'inputs': inputs,
+            'col_heads': col_heads, 'row_heads': row_heads}
 
 
 # ---------------------------------------------------------------- 채우기

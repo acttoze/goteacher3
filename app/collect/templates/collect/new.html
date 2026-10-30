@@ -40,6 +40,22 @@
   .fields td { height: 56px; }
   .fields .select { width: 140px; height: 40px; }
   .fields .pre { color: var(--muted); }
+  /* E6 한글 양식 칸 확인: C2 받을 칸 표와 같은 모양 + 이름 고치기·받는 방식·받는 줄 */
+  .hwp-fields .input { height: 40px; width: 100%; max-width: 280px; }
+  .hwp-fields .where { display: block; margin-top: 4px; }
+  .hwp-fields .pill { margin-top: 6px; }
+  .hwp-fields .select.role { width: 190px; }
+  .hwp-fields td { padding-top: 8px; padding-bottom: 8px; }
+  .hwp-fields tr.off .input, .hwp-rows tr.off td.id { color: var(--muted); }
+  .hwp-rows-box { max-height: 420px; overflow-y: auto; }
+  .hwp-rows, .hwp-fields { table-layout: fixed; width: 100%; }
+  .hwp-rows th:nth-child(1) { width: 55%; } .hwp-rows th:nth-child(3), .hwp-fields th:nth-child(3) { width: 160px; }
+  .hwp-fields th:nth-child(2) { width: 214px; }
+  .hwp-rows td { height: 52px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hwp-rows .toggle { display: inline-block; vertical-align: middle; }
+  .hwp-fields .where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hwp-rows .pre { color: var(--muted); }
+  .note-line { margin-top: 10px; font-size: 15px; color: var(--muted); }
   .aud li { min-height: 56px; padding: 6px 0; }
   .aud .cl { min-width: 44px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .aud .r { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
@@ -90,7 +106,8 @@
             <span><b>hwp·hwpx 파일을 끌어다 놓거나 눌러서 고르세요</b><span>본문·결재란은 그대로 두고, 다 모이면 같은 파일의 그 표 칸만 채워 돌려드려요. 30MB까지.</span></span></label>
           <div id="hwpUpMsg" aria-live="polite"></div>
           <div id="hwpBox">{% if hwp %}{% include "hwpfiles/_pick.html" with f=hwp.f tables=hwp.tables cands=hwp.cands picked=hwp.picked %}{% endif %}</div>
-          {% if errors.hwp %}<p class="msg-inline" role="alert">{{ errors.hwp }}</p>{% endif %}
+          <div id="hwpFields" data-url="/s/{{ space.token }}/c/new/hwp/">{% if hwpf %}{% include "collect/_hwp_fields.html" %}{% endif %}</div>
+          {% if errors.hwp and errors.hwp != hwpf.error %}<p class="msg-inline" role="alert">{{ errors.hwp }}</p>{% endif %}
         </div>
         <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>
         <div class="paste-tools"><b>표 붙여넣기</b><button class="btn ghost sm" type="button" id="sample">예시 표 넣기</button></div>

@@ -23,6 +23,7 @@ from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
 from .models import Cell, Collection, Field, Row
+from . import hwpform
 from .paste import YES_NO, PasteError, clean_text, guess_kind, html_to_tsv, parse, student_info
 from .presets import PRESETS
 from .recipients import roster_rows
@@ -90,7 +91,7 @@ def _sheet_cols(post):
 def new(request):
     space = request.space
     title, text, errors, src = "", "", {}, "paste"
-    p = error = sf = None
+    p = error = sf = hwpf = None
     if request.method == "POST":
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
@@ -123,16 +124,31 @@ def new(request):
                                  [(n, k) for n, k, _ in cols], SHEET_HEAD, multi, options=[o for _, _, o in cols])
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         elif src == "hwp":
-            # E5: 표 확정까지. 칸 확인·모으기 만들기는 E6(SourceFile.picked_schema()로 칸을 만든다).
+            # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 모으기를 만든다(hwpform).
             sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64]).first()
             if not title:
                 errors["title"] = "제목을 적어 주세요."
             if sf is None or sf.status != SourceFile.Status.DONE:
-                errors["hwp"] = "한글 파일을 올려 주세요. 다 읽으면 표를 고를 수 있어요."
+                sf, errors["hwp"] = None, "한글 파일을 올려 주세요. 다 읽으면 표를 고를 수 있어요."
             elif sf.picked is None:
                 errors["hwp"] = "취합할 표를 미리보기에서 한 번 눌러 골라 주세요."
+            elif request.POST.get("hwp_table") != f"{sf.table_sec}/{sf.table_index}":
+                hwpf = _hwp_form(request, sf, None)
+                errors["hwp"] = hwpform.STALE
             else:
-                errors["hwp"] = "표를 골랐어요. 다음 단계(칸 확인)는 곧 열려요. 지금은 표 붙여넣기로 만들어 주세요."
+                hwpf = _hwp_form(request, sf, request.POST)
+                if hwpf["error"]:
+                    errors["hwp"] = hwpf["error"]
+                elif sf.collection_id:
+                    errors["hwp"] = ("이 한글 파일로는 이미 모으기를 만들었어요. 같은 양식으로 또 걷으려면 그 모으기에서 "
+                                     "「다시 걷기」를 쓰거나 파일을 다시 올려 주세요.")
+                elif not roster_rows(space, "class"):
+                    errors["aud"] = no_one
+                elif not errors:
+                    c = _create_hwp(request, title, sf, hwpf)
+                    if c is not None:
+                        return redirect(f"/s/{space.token}/c/{c.key}/")
+                    errors["hwp"] = "다른 창에서 이 파일로 모으기를 먼저 만들었어요. 모으기 목록을 확인해 주세요."
         elif src == "paste":
             text, how = request.POST.get("paste", ""), request.POST.get("pii", "")
             p, error = _read(text, how)
@@ -152,7 +168,7 @@ def new(request):
     ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src,
                      srcs=[("hwp", "한글 양식 올리기"), ("paste", "표 붙여넣기"), ("sheet", "직접 입력"),
                            ("preset", "자주 쓰는 양식")],
-                     hwp=pick_ctx(sf) if sf else None,
+                     hwp=pick_ctx(sf) if sf else None, hwpf=hwpf,
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
                      presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")))
@@ -199,6 +215,57 @@ def _create(request, title, p):
             fields.append(Field(collection=c, pos=i, name=f["name"], kind=kind, options=options if kind == "select" else []))
         Field.objects.bulk_create(fields)
         _roster_rows(c, request.space, "class")
+    return c
+
+
+def _hwp_form(request, sf, post):
+    """칸 확인 값(hwpform.read) + 명부 ↔ 표 줄 짝. 화면(_hwp_fields.html)과 만들기가 같이 쓴다."""
+    form = hwpform.read(sf.picked_schema(), post)
+    roster = roster_rows(request.space, "class")
+    pairs, spare = hwpform.plan(form, roster, request.space.grade)
+    form.update(f=sf, pairs=pairs, spare=spare, short=sum(r is None for _, r in pairs) if form["mode"] == "rows" else 0,
+                table=f"{sf.table_sec}/{sf.table_index}", picked=sf.picked, roles=hwpform.ROLES, kinds=KINDS,
+                adds=[m for m, r in pairs if r is None] if form["mode"] == "rows" else [])
+    who = {r: m for m, r in pairs if r is not None}
+    for x in form["rows"]:
+        x["who"] = who.get(x["r"])
+    form["on"] = sum(x["on"] for x in form["rows"])
+    return form
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def hwp_fields(request, key):
+    """E6 칸 확인 부분 화면(htmx). GET: 표를 고른 직후 자동 추정 그대로. POST: 고친 값으로 다시 그림(저장 안 함).
+    회원·같은 공간·완료되고 표를 고른 파일만. 다른 공간 파일 키는 404."""
+    sf = get_in_space_or_404(SourceFile, request, key=key)
+    if sf.status != SourceFile.Status.DONE or sf.picked is None:
+        return render(request, "collect/_hwp_fields.html", {"gone": True}, status=409)
+    post = request.POST if request.method == "POST" else None
+    if post is not None and post.get("hwp_table") != f"{sf.table_sec}/{sf.table_index}":
+        post = None  # 그 사이 다른 표를 골랐으면 새 표의 자동 추정으로
+    form = _hwp_form(request, sf, post)
+    return render(request, "collect/_hwp_fields.html", {"hwpf": form, "space": request.space, "oob": True})
+
+
+def _create_hwp(request, title, sf, form):
+    """한글 양식: 켠 입력 칸만 Field + 동학년 명부 줄(C4) + SourceFile 연결·칸 매핑. 동시에 두 번 만들면 None."""
+    s = sf.picked_schema()
+    with transaction.atomic():
+        locked = SourceFile.objects.select_for_update().get(pk=sf.pk)
+        if locked.collection_id:
+            return None
+        c = Collection.objects.create(space=request.space, created_by=request.member, title=title,
+                                      source=Collection.Source.HWP, allow_outside=_outside(request), unit_head=SHEET_HEAD)
+        Field.objects.bulk_create([Field(collection=c, pos=i, name=it["name"], kind=it["kind"],
+                                         options=it["options"] if it["kind"] == "select" else [])
+                                   for i, it in enumerate(form["inputs"])])
+        _roster_rows(c, request.space, "class")
+        rows = list(c.rows.order_by("pos"))
+        got = hwpform.assign(form["rows"], roster_rows(request.space, "class"), request.space.grade) if form["mode"] == "rows" else []
+        locked.collection = c
+        locked.cellmap = hwpform.cellmap(s, locked.table_sec, form, rows, got)
+        locked.save(update_fields=["collection", "cellmap"])
     return c
 
 

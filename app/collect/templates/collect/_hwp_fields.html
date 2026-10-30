@@ -1,0 +1,42 @@
+{% comment %}E6 칸 확인(한글 양식): 고른 표의 자동 라벨 → 다듬기·켜고 끄기·반/이름 열 배정·형식, 받는 줄(명부 ↔ 표 줄).
+   design/collect-new.html '받을 칸' 표 모양(C2 붙여넣기와 같은 .tbl.fields). 바꾸면 htmx로 다시 그린다(저장은 '만들고 링크 받기'에서).
+   표 글자(머리글·행 머리)는 자동 이스케이프. {% endcomment %}
+{% if gone %}<div id="hwpCheck"><p class="msg-inline" role="alert">표를 고른 뒤 칸을 확인할 수 있어요. 미리보기에서 표를 다시 눌러 주세요.</p></div>
+{% else %}
+<div id="hwpCheck" class="hwp-check" hx-post="/s/{{ space.token }}/c/new/hwp/{{ hwpf.f.key }}" hx-trigger="change" hx-target="this" hx-swap="outerHTML" hx-sync="this:replace">
+  <input type="hidden" name="hwp_sent" value="1">
+  <input type="hidden" name="hwp_table" value="{{ hwpf.table }}">
+  <input type="hidden" name="hwp_items" value="{{ hwpf.items|length }}">
+  <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받을 칸 확인</h3><span class="r num">입력 {{ hwpf.inputs|length }}칸 · 명부로 채움 {{ hwpf.n_pre }}칸</span></div>
+  <p class="small muted">표 {{ hwpf.picked.no }}의 머리글로 칸 이름을 짐작했어요. 이름을 다듬고, 받지 않을 칸은 「받지 않음」으로 끄세요. 반·이름 열은 칸으로 받지 않고 동학년 명부로 채워요.</p>
+  <table class="tbl fields hwp-fields"><thead><tr><th>칸 이름</th><th>받는 방식</th><th class="r">형식</th></tr></thead><tbody>
+  {% for it in hwpf.items %}<tr{% if it.role == "off" %} class="off"{% endif %}>
+    <td><input class="input" id="hf{{ it.i }}n" name="item_{{ it.i }}_name" value="{{ it.name }}" maxlength="100" aria-label="{{ it.where }} 칸 이름">
+      <span class="where small muted">{{ it.where }}{% if it.head and it.head != it.name %} · 표 머리글 「{{ it.head|truncatechars:40 }}」{% endif %}</span>
+      {% if it.pii %}<span class="pill neg">학생 정보 · 받을 수 없어요</span>{% endif %}</td>
+    <td><select class="select role" id="hf{{ it.i }}r" name="item_{{ it.i }}_role" aria-label="{{ it.name }} 받는 방식">{% for k, label in hwpf.roles %}<option value="{{ k }}"{% if k == it.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+    <td class="r">{% if it.role == "input" %}<select class="select" id="hf{{ it.i }}k" name="item_{{ it.i }}_kind" aria-label="{{ it.name }} 형식">{% for k, label in hwpf.kinds %}<option value="{{ k }}"{% if k == it.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% else %}<input type="hidden" name="item_{{ it.i }}_kind" value="{{ it.kind }}"><span class="dash">—</span>{% endif %}</td>
+  </tr>{% endfor %}
+  {% for x in hwpf.rows %}{% if x.total %}<tr><td class="id">합계 줄{% if x.head %} · {{ x.head|truncatechars:30 }}{% endif %}</td><td class="pre">받지 않아요 · 표에 그대로 둬요</td><td class="r"><span class="dash">—</span></td></tr>{% endif %}{% endfor %}
+  </tbody></table>
+  {% if hwpf.mode == "rows" %}
+  <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받는 줄</h3><span class="r num">표 줄 {{ hwpf.on }}개 · 동학년 {{ hwpf.pairs|length }}반</span></div>
+  <p class="small muted">반마다 표의 한 줄을 채워요. 줄 머리가 반(4-1·1반)이면 그 반 줄에, 아니면 위에서부터 차례로 넣어요. 소계처럼 받지 않을 줄은 끄세요.</p>
+  <div class="hwp-rows-box"><table class="tbl hwp-rows"><thead><tr><th>표 줄</th><th>채울 선생님</th><th class="r">받기</th></tr></thead><tbody>
+  {% for x in hwpf.rows %}{% if not x.total %}<tr{% if not x.on %} class="off"{% endif %}>
+    <td class="id">{{ x.r|add:1 }}번째 줄{% if x.head %} · {{ x.head|truncatechars:30 }}{% endif %}</td>
+    <td>{% if x.who %}{{ x.who.unit }} {{ x.who.who }}{% elif x.on %}<span class="muted">비워 둬요</span>{% else %}<span class="dash">—</span>{% endif %}</td>
+    <td class="r"><label class="toggle"><input type="checkbox" id="hr{{ x.r }}" name="row_{{ x.r }}"{% if x.on %} checked{% endif %} aria-label="{{ x.r|add:1 }}번째 줄 받기"><i></i></label></td>
+  </tr>{% endif %}{% endfor %}
+  {% for m in hwpf.adds %}<tr><td class="pre">줄 더하기</td><td>{{ m.unit }} {{ m.who }}</td><td class="r"><span class="dash">—</span></td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if hwpf.short %}<p class="note-line">표 줄이 {{ hwpf.short }}개 모자라요. 다 모이면 표 끝에 줄을 {{ hwpf.short }}개 더해 채워요.</p>{% endif %}
+  {% if hwpf.spare > 0 %}<p class="note-line">남는 표 줄 {{ hwpf.spare }}개는 비워 둬요.</p>{% endif %}
+  {% else %}
+  <p class="note-line">이 표는 머리글 없는 신청서 모양이에요. 선생님마다 이 칸들을 채워 내요.</p>
+  {% endif %}
+  {% if hwpf.error %}<p class="msg-inline" role="alert">{{ hwpf.error }}</p>{% endif %}
+</div>
+{% if oob %}<span id="msgFields" hx-swap-oob="true">{% if hwpf.inputs %}
+받는 칸: {% for it in hwpf.inputs %}{{ it.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</span>{% endif %}
+{% endif %}

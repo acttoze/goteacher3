@@ -59,6 +59,9 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual(sorted(cells), [(1, 1), (1, 2), (2, 1), (2, 2), (3, 1), (3, 2)])  # 합계 행 제외
         self.assertEqual(cells[(1, 1)]['label'], '1 / 성명')
         self.assertEqual(cells[(1, 2)]['unit'], '명')
+        # E6 칸 확인: 열 머리글·자료 행의 행 머리 글자(합계 행 포함, 칸 확인이 빼기를 보여 준다)
+        self.assertEqual(s['col_heads'], ['번호', '성명', '인원'])
+        self.assertEqual(s['row_heads'], [[1, '1'], [2, '2'], [3, '3'], [4, '합계']])
 
     def test_approval_needs_title_cells(self):
         """E5: 결재란은 칸 글자가 직함 그대로일 때만. 머리글에 '담당'이 든 본문 표는 후보로 남는다."""

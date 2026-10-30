@@ -6,7 +6,8 @@
 - MEDIA_URL로 서빙하지 않는다. 내려받기는 회원 확인 뷰로만(E6).
 - 표 위치(E5): 교사가 미리보기에서 눌러 확정한 표 = (table_sec, table_index). report["tables"] 안에 있는 것만 저장한다.
   table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
-  칸 매핑은 E6.
+  칸 매핑(E6): 칸 확인으로 만든 모으기(collection, 파일 하나에 하나)와 cellmap(collect/hwpform.cellmap — 줄마다
+  [Field.pos 또는 unit·who, 행, 열, 단위]). F1 채우기가 이것만으로 hwp.fill 값을 만든다.
 - 보관 기간 자동 삭제(파일 포함)는 E3.
 - report["tables"]: hwp.tables 결과(표 구역·순서·행·열·칸 수·후보 순위, 글자 없음). 미리보기(E4)가 쓴다.
 """
@@ -75,6 +76,9 @@ class SourceFile(models.Model):
     error = models.CharField("실패 종류(예외 이름)", max_length=40, blank=True)
     table_sec = models.PositiveSmallIntegerField("고른 표 구역 순번", null=True, blank=True)
     table_index = models.PositiveIntegerField("고른 표 순서(구역 안, 중첩 포함)", null=True, blank=True)
+    collection = models.OneToOneField("collect.Collection", on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name="source_file", verbose_name="이 파일로 만든 모으기")
+    cellmap = models.JSONField("칸 매핑(E6)", default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     converted_at = models.DateTimeField(null=True, blank=True)
 

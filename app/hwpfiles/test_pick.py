@@ -180,7 +180,7 @@ class PickTests(TestCase):
         self.assertContains(r, 'id="hwpPick"', status_code=400)  # 올린 파일은 그대로 다시 보인다
         self.pick(sf, sec=0, index=1)
         r = self.new(hwp=sf.key)
-        self.assertContains(r, "다음 단계(칸 확인)는 곧 열려요", status_code=400)  # E6 자리
+        self.assertContains(r, "받을 칸 확인", status_code=400)  # E6 칸 확인이 이어서 보인다(칸 값 없이 보내면 다시 확인)
         self.assertContains(r, 'data-picked="0/1"', status_code=400)
 
     def test_new_hwp_other_space_key_ignored(self):

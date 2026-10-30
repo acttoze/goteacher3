@@ -30,6 +30,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/", lists.index),
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),
+    path("s/<str:space_token>/c/new/hwp/<str:key>", collect.hwp_fields),  # E6 칸 확인
     path("s/<str:space_token>/c/<str:key>/", collect.detail),
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
     path("s/<str:space_token>/c/<str:key>/due", collect.due),

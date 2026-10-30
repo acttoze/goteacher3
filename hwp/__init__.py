@@ -77,7 +77,8 @@ def tables(hwpx: bytes) -> list[dict]:
 
 @_guard
 def schema(hwpx: bytes, section: str, index: int) -> dict:
-    """고른 표의 입력 칸 목록. inputs[i] = {row, col, rowSpan, colSpan, label, unit}."""
+    """고른 표의 입력 칸 목록. inputs[i] = {row, col, rowSpan, colSpan, label, unit}.
+    col_heads[c] = 열 머리글, row_heads = [[행, 행 머리 글자], ...](자료 행만). 칸 확인(E6) 화면이 쓴다."""
     return _e.schema(_e.find_table(_e.analyze(hwpx), section, index))
 
 

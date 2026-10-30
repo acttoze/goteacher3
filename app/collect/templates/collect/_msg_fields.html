@@ -1,2 +1,3 @@
-<span id="msgFields"{% if oob %} hx-swap-oob="true"{% endif %}>{% if p %}
+<span id="msgFields"{% if oob %} hx-swap-oob="true"{% endif %}>{% if hwpf.inputs %}
+받는 칸: {% for it in hwpf.inputs %}{{ it.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% elif p %}
 받는 칸: {{ p.ask|join:", " }}{% endif %}</span>

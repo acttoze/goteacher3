@@ -112,9 +112,16 @@
     drop.classList.remove('over');
     send(e.dataTransfer && e.dataTransfer.files[0]);
   });
+  // E6 칸 확인: 표를 확정하면(preview.js 'gt-hwp-picked') 그 표의 칸 확인 부분 화면을 받아 온다.
+  var fields = document.getElementById('hwpFields');
+  document.addEventListener('gt-hwp-picked', function () {
+    if (!fields || !key.value) return;
+    htmx.ajax('GET', fields.dataset.url + encodeURIComponent(key.value), { target: '#hwpFields', swap: 'innerHTML' });
+  });
   box.addEventListener('click', function (e) {
     if (!e.target.closest('[data-hwp-reset]')) return;
     box.textContent = '';
+    if (fields) fields.textContent = '';
     key.value = '';
     say('');
     drop.hidden = false;
