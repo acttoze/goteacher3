@@ -49,3 +49,5 @@
 - 손님 계정 남발·검색 빈도 제한은 G3.
 - 붙여넣기 구조 오류 r05(빈 열 오른쪽의 채워진 열)·r10(반복 머리글 줄) — `expectedFailure`로 기록.
 - OCI Object Storage 버킷 미구성(E2 업로드 전 필요).
+- 받는 사람 줄은 항상 동학년 명부로 만든다(prototype `TR.audRows`·design 동일). 반이 아닌 줄 이름의 표(점검표 등)는 줄 이름을 잃음 → D7 리허설에서 확인.
+- 방식 탭(`.seg button`)·작은 버튼이 36px로 "버튼 40px+" 기준보다 작음 — `design/assets/gt.css` 확정 값 그대로. 디자인 점검 때 함께.

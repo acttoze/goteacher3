@@ -1,7 +1,7 @@
 """C3 자주 쓰는 양식 2종 — prototype/assets/data.js TR.preset·TR.TRAININGS 그대로(칸 이름·형식·여러 줄·제목).
 
 예산(10만 원)·안내 문구·연수별 기간·대상·담당은 모델(27번 4-1)에 자리가 없어 옮기지 않는다.
-받는 사람 줄(담임 24명+도움반 / 전 교직원)은 C4에서 동학년 명부로 만든다.
+받는 사람 줄은 동학년 명부로 만든다(recipients.roster_rows).
 """
 TRAININGS = [
     "4대폭력 예방교육", "감염병 예방교육", "개인정보보호 교육", "직장 내 장애인식개선교육", "청렴교육",
@@ -17,6 +17,7 @@ PRESETS = {
         "cols": "물품명 · 수량 · 단가 · 금액 · 구입 링크",
         "multi": True,
         "unit_head": ["학년반", "담임"],
+        "roster": "class",  # prototype: 담임 + 도움반(동학년판에는 도움반 없음)
         "fields": [("물품명", "text"), ("수량", "number"), ("단가", "number"), ("금액", "calc"), ("구입 링크", "url")],
     },
     "training": {
@@ -25,6 +26,7 @@ PRESETS = {
         "cols": "성명 · 연수명마다 이수번호",
         "multi": False,
         "unit_head": ["직위", "성명"],
+        "roster": "people",  # prototype: 전 교직원 → 동학년 전원(전담 포함)
         "fields": [(n, "text") for n in TRAININGS],
     },
 }

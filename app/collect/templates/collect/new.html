@@ -48,7 +48,7 @@
 <div class="title">
   <div class="grow">
     <h1>새로 모으기</h1>
-    <p class="sub">한글·엑셀 표를 붙여넣으면 머리글은 받을 칸이 되고, 반·이름 열은 받는 사람 줄이 돼요. 마감은 만든 뒤 정해요.</p>
+    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 동학년 명부로 반마다 만들어지고, 마감은 만든 뒤 정해요.</p>
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/">취소</a>
 </div>
@@ -101,8 +101,12 @@
     </section>
     <section class="card" aria-labelledby="audH"><div class="card-b pt">
       <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>{% include "collect/_aud.html" %}</div>
-      <div data-pane="sheet preset"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2></div>
-        <p class="muted">직접 입력·자주 쓰는 양식은 칸만 먼저 만들어요. 받는 사람 줄은 동학년 명부로 채우는 기능이 붙으면 들어가요.</p></div>
+      <div data-pane="sheet preset"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2><span class="r num">동학년 {{ roster|length }}반</span></div>
+        <ul class="list aud">{% for r in roster %}<li><span class="cl">{{ r.unit }}</span><span class="grow">{{ r.who }}</span><span class="r">칸 자동</span></li>{% empty %}<li><span class="muted">아직 반을 고른 선생님이 없어요.</span></li>{% endfor %}</ul>
+        <p class="small muted" style="margin-top:8px">동학년 명부로 반마다 한 줄씩 만들어요. 연수 이수 양식은 전담 포함 {{ roster_all }}명, 한 사람마다 한 줄이에요.</p></div>
+      {% if errors.aud %}<p class="msg-inline" role="alert">{{ errors.aud }}</p>{% endif %}
+      <label class="opt"><span class="toggle"><input type="checkbox" name="outside"{% if outside %} checked{% endif %}><i></i></span>
+        <span><b>명부 밖 선생님도 링크로 받기</b><span>전담·교무실·다른 학년 선생님은 같은 링크를 열어 칸을 고르거나 이름을 적어 내요. 마감되면 링크가 닫혀요.</span></span></label>
     </div></section>
   </div>
   <aside class="s4" aria-label="쪽지와 만들기">

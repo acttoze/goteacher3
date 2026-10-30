@@ -68,11 +68,11 @@ class NewCollectionTests(TestCase):
         c = Collection.objects.get()
         self.assertRedirects(r, self.url(tail=f"c/{c.key}/"), fetch_redirect_response=False)
         self.assertEqual((c.space, c.created_by, c.source, c.title), (self.a, self.ma, "paste", "학예회 참가"))
-        self.assertEqual(c.unit_head, ["반", "담임"])
+        self.assertEqual(c.unit_head, ["학년반", "담임"])
         self.assertEqual([(f.name, f.kind, f.options) for f in c.fields.all()],
                          [("참가(명)", "number", []), ("희망 여부", "select", ["예", "아니오"]), ("비고", "text", [])])
-        self.assertEqual([(r.unit, r.who) for r in c.rows.all()], [("4-1", "김가람"), ("4-2", "")])
-        self.assertEqual(len({r.key for r in c.rows.all()}), 2)
+        # 명부 우선: 표의 4-1·4-2 줄이 아니라 동학년 명부(김가람 4-1 한 명)
+        self.assertEqual([(r.unit, r.who, r.member) for r in c.rows.all()], [("4-1", "김가람", self.ma)])
         self.assertFalse(Cell.objects.exists())  # 빈 칸을 미리 만들지 않는다
 
     def test_create_from_hwp_fixture_tsv(self):
@@ -81,7 +81,7 @@ class NewCollectionTests(TestCase):
         self.create(paste=tsv)
         c = Collection.objects.get()
         self.assertEqual(c.fields.count(), 4)
-        self.assertEqual(list(c.rows.values_list("unit", flat=True)), ["4학년 1", "4학년 2", "4학년 3"])
+        self.assertEqual(list(c.rows.values_list("unit", flat=True)), ["4-1"])
 
     def test_kind_override_and_invalid_kind(self):
         self.create(kind_0="text", kind_1="calc", kind_2="select")
@@ -104,7 +104,7 @@ class NewCollectionTests(TestCase):
         self.create()
         self.create(title="둘째")
         c1, c2 = Collection.objects.order_by("pk")
-        self.assertEqual(set(Row.objects.filter(collection=c2).values_list("pos", flat=True)), {0, 1})
+        self.assertEqual(set(Row.objects.filter(collection=c2).values_list("pos", flat=True)), {0})
         self.assertEqual(Field.objects.filter(collection=c1).count(), 3)
 
     def test_made_page(self):
@@ -113,7 +113,7 @@ class NewCollectionTests(TestCase):
         r = self.client.get(self.url(tail=f"c/{c.key}/"))
         self.assertContains(r, "학예회 참가")
         self.assertContains(r, f"https://t.goteacher.xyz/c/{c.link_token}")
-        self.assertContains(r, "받는 사람 2줄")
+        self.assertContains(r, "받는 사람 1줄")
         self.assertNotRegex(r.content.decode(), rf"/c/{c.pk}(?![\w-])")  # 순번 ID를 주소에 쓰지 않는다
 
     # ---- 미리보기(htmx)
@@ -124,7 +124,7 @@ class NewCollectionTests(TestCase):
         self.assertContains(r, "반\t담임\t참가(명)")
         self.assertContains(r, 'name="kind_0"')
         self.assertContains(r, '<div id="aud" hx-swap-oob="true">')  # 받는 사람 카드·쪽지 칸도 함께 갱신
-        self.assertContains(r, "4-5")
+        self.assertContains(r, "명부로 1줄을 만들어요")
         self.assertNotContains(r, "<TABLE")
         self.assertNotContains(r, "HStyle0")
         self.assertNotContains(r, "결재")
