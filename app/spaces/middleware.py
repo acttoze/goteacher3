@@ -1,12 +1,18 @@
-from django.shortcuts import get_object_or_404
+from urllib.parse import urlencode
 
-from .models import Space
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect
+
+from .models import Member, Space
 
 
 class SpaceMiddleware:
-    """URL에 <space_token>이 있으면 공간을 찾아 request.space에 둔다. 없는 토큰이면 404.
+    """URL에 <space_token>이 있으면 공간과 내 회원 정보를 request.space·request.member에 둔다.
 
+    - 익명이면 토큰을 찾아보기 전에 로그인 화면으로(토큰 존재 여부를 알려 주지 않는다).
+    - 없는 토큰이거나 그 공간 회원이 아니면 404.
     space_token은 뷰 인자에서 빼므로, 공간 주소의 뷰는 request.space만 쓴다.
+    초대(B7)·받는 사람 제출(C5)은 /s/ 밖의 자기 토큰 주소를 쓴다.
     """
 
     def __init__(self, get_response):
@@ -14,10 +20,18 @@ class SpaceMiddleware:
 
     def __call__(self, request):
         request.space = None
+        request.member = None
         return self.get_response(request)
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         token = view_kwargs.pop("space_token", None)
-        if token is not None:
-            request.space = get_object_or_404(Space, invite_token=token)
+        if token is None:
+            return None
+        if not request.user.is_authenticated:
+            return redirect("/?" + urlencode({"next": request.get_full_path()}, safe="/"))
+        space = get_object_or_404(Space, token=token)
+        member = Member.objects.in_space(space).filter(user=request.user).first()
+        if member is None:
+            raise Http404
+        request.space, request.member = space, member
         return None

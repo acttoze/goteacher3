@@ -35,6 +35,10 @@ if _site_host and _site_host not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_site_host)
 if DEBUG:
     ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+# 구글 로그인. 리디렉션 주소는 SITE_URL + "/auth/google/callback"
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
 CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith("https://") else []
 
 INSTALLED_APPS = [
@@ -44,6 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "accounts",
     "spaces",
 ]
 
@@ -53,6 +58,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "accounts.middleware.DeviceTokenMiddleware",
     "spaces.middleware.SpaceMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -97,8 +103,13 @@ STATIC_ROOT = REPO_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# 세션·기기 쿠키: 스크립트에서 못 읽고, 구글에서 돌아오는 최상위 GET(콜백)에는 실려야 하므로 Lax
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
 # Traefik 뒤에서 HTTPS 판별
 if not DEBUG:
+    SECURE_HSTS_SECONDS = 3600  # 짧게 시작, 안정되면 늘린다
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

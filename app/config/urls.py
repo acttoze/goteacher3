@@ -1,9 +1,7 @@
 from django.http import HttpResponse
 from django.urls import path
 
-
-def home(request):
-    return HttpResponse("hello 고티처", content_type="text/plain; charset=utf-8")
+from accounts import views as accounts
 
 
 def healthz(request):
@@ -11,6 +9,9 @@ def healthz(request):
 
 
 urlpatterns = [
-    path("", home),
+    path("", accounts.home),
+    path("auth/google/login", accounts.google_login),
+    path("auth/google/callback", accounts.google_callback),
+    path("auth/logout", accounts.logout_view),
     path("healthz", healthz),
 ]
