@@ -1,4 +1,6 @@
 """B4 구글 로그인 + 기기 토큰. 구글 응답은 accounts.views._http_json을 목으로 바꾼다."""
+import base64
+import hashlib
 from datetime import timedelta
 from unittest import mock
 from urllib.error import URLError
@@ -18,7 +20,7 @@ GOOGLE = dict(
     SITE_URL="http://localhost:8000",
 )
 TOKEN = {"access_token": "at-123", "id_token": "x.y.z", "token_type": "Bearer"}
-INFO = {"sub": "1098765", "email": "kim@school.kr", "name": "김가람", "picture": "https://x/p.png"}
+INFO = {"sub": "1098765", "email": "kim@school.kr", "email_verified": True, "name": "김가람", "picture": "https://x/p.png"}
 
 
 @override_settings(**GOOGLE)
@@ -281,3 +283,77 @@ class QAEdgeTests(TestCase):
         self.assertNotContains(self.client.get("/"), "티로드")
         self.client.force_login(self.user)
         self.assertNotContains(self.client.get("/"), "티로드")
+
+
+@override_settings(**GOOGLE)
+class SecurityFollowupTests(TestCase):
+    """B4 보안 검토 후속: 재로그인 토큰 교체, CSRF 회전, PKCE, email_verified."""
+
+    def start(self):
+        r = self.client.get("/auth/google/login")
+        return parse_qs(urlparse(r["Location"]).query)
+
+    def callback(self, state, info=INFO):
+        with mock.patch("accounts.views._http_json", side_effect=[TOKEN, info]) as m:
+            r = self.client.get("/auth/google/callback", {"state": state, "code": "c"})
+        return r, m
+
+    def test_relogin_replaces_old_device_token(self):
+        r, _ = self.callback(self.start()["state"][0])
+        old = r.cookies[DEVICE_COOKIE].value
+        self.client.logout()  # 세션만 끊고 기기 쿠키는 남은 채 다시 로그인
+        self.client.cookies[DEVICE_COOKIE] = old
+        r, _ = self.callback(self.start()["state"][0])
+        new = r.cookies[DEVICE_COOKIE].value
+        self.assertNotEqual(old, new)
+        self.assertEqual(list(DeviceToken.objects.values_list("token_hash", flat=True)), [hash_token(new)])
+
+    def test_relogin_keeps_other_pcs_tokens(self):
+        user = User.objects.create(username="google:1098765")
+        other_pc = DeviceToken.issue(user)
+        self.callback(self.start()["state"][0])
+        self.assertTrue(DeviceToken.objects.filter(token_hash=hash_token(other_pc)).exists())
+        self.assertEqual(DeviceToken.objects.count(), 2)
+
+    def test_form_opened_before_session_loss_still_posts(self):
+        # 로그인 상태에서 폼을 열어 두었는데 세션이 끊김 → 기기 쿠키 재식별(login()이 CSRF 회전) 후에도 그 폼 POST가 통과
+        user = User.objects.create(username="google:2", first_name="정한결")
+        raw = DeviceToken.issue(user)
+        c = self.client_class(enforce_csrf_checks=True)
+        c.force_login(user)
+        c.cookies[DEVICE_COOKIE] = raw
+        token = str(c.get("/").context["csrf_token"])
+        c.cookies.pop("sessionid")
+        r = c.post("/auth/logout", {"csrfmiddlewaretoken": token})
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("csrftoken", r.cookies)  # 회전은 그대로 일어난다(새 토큰 발급)
+
+    def test_pkce_s256_challenge_and_verifier_used_once(self):
+        q = self.start()
+        self.assertEqual(q["code_challenge_method"], ["S256"])
+        verifier = self.client.session["google_verifier"]
+        self.assertGreaterEqual(len(verifier), 43)
+        expected = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+        self.assertEqual(q["code_challenge"], [expected])
+        r, m = self.callback(q["state"][0])
+        body = parse_qs(m.call_args_list[0].args[0].data.decode())
+        self.assertEqual(body["code_verifier"], [verifier])
+        self.assertNotIn("google_verifier", self.client.session)
+
+    def test_callback_without_verifier_rejected(self):
+        state = self.start()["state"][0]
+        s = self.client.session
+        del s["google_verifier"]
+        s.save()
+        r, m = self.callback(state)
+        self.assertEqual(r.status_code, 400)
+        m.assert_not_called()
+
+    def test_unverified_email_not_stored(self):
+        for flag in (False, None):
+            info = {k: v for k, v in INFO.items() if k != "email_verified"}
+            if flag is not None:
+                info["email_verified"] = flag
+            self.client.logout()
+            self.callback(self.start()["state"][0], info=info)
+            self.assertEqual(User.objects.get().email, "", flag)
