@@ -12,3 +12,10 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+# 린트는 오류급만(B2). 스타일 규칙은 넓히지 않는다. 버전은 CI에서 고정.
+[tool.ruff]
+include = ["app/**/*.py", "hwp/**/*.py", "ops/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]

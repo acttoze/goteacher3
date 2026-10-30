@@ -16,3 +16,6 @@ __pycache__/
 *.pyc
 db.sqlite3
 staticfiles/
+
+# 서버 운영 산출물(백업·배포 기록). 서버 clone 안 /var/
+/var/

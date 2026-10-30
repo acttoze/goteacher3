@@ -1,0 +1,33 @@
+# B2: main 푸시 → 린트·테스트. 배포는 서버(ops/deploy.sh, 1분마다)가 이 작업의
+# 체크 결과(이름 "test")가 success일 때만 가져간다. 작업 이름을 바꾸면 deploy.sh도 바꿀 것.
+name: ci
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.8"
+          enable-cache: true
+      - name: lint
+        run: uvx ruff@0.17.3 check .
+      - name: test
+        env:
+          SECRET_KEY: ci-dummy-not-secret
+        run: |
+          uv sync --frozen
+          cd app && uv run python manage.py test

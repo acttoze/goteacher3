@@ -28,6 +28,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+      start_interval: 2s  # 배포 때 up --wait가 빨리 끝나게(B2)
     networks: [default, infra]
     labels:
       traefik.enable: "true"
