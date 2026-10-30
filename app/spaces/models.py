@@ -11,10 +11,14 @@ def new_token():
 
 
 class SpaceQuerySet(models.QuerySet):
+    """space_lookup: 공간까지 가는 조회 경로. 공간 FK가 없는 자식 모델은 부모를 거쳐 간다(예: "collection__space")."""
+
+    space_lookup = "space"
+
     def in_space(self, space):
         if space is None or space.pk is None:
             raise ValueError("공간 없이 공간 소속 데이터를 조회할 수 없습니다.")
-        return self.filter(space=space)
+        return self.filter(**{self.space_lookup: space})
 
 
 def get_in_space_or_404(model, request, **lookup):
