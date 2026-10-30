@@ -10,4 +10,6 @@ urlpatterns = [
     path("hwp/<str:key>/", views.preview),
     path("hwp/<str:key>/hwpx", views.hwpx),
     path("hwp/<str:key>/pick", views.pick),
+    path("c/<str:key>/hwp", views.result),  # F1 한글 파일로 받기
+    path("hwp/out/<str:key>/<str:which>", views.result_file),
 ]

@@ -18,7 +18,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from hwpfiles.models import SourceFile
-from hwpfiles.views import PREVIEW_CSP, pick_ctx
+from hwpfiles.views import PREVIEW_CSP, pick_ctx, result_ctx
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
@@ -384,7 +384,8 @@ def _nudge(c, miss, vals, fields, per):
 def detail(request, key):
     """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
     c = get_in_space_or_404(Collection, request, key=key)
-    ctx = _space_ctx(request, page="collect", **_link_ctx(request, c), **_board(c), **_due_ctx(request, c))
+    ctx = _space_ctx(request, page="collect", **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
+                     hwp_result=result_ctx(request.space, c) if c.source == Collection.Source.HWP else None)
     return render(request, "collect/detail.html", ctx)
 
 

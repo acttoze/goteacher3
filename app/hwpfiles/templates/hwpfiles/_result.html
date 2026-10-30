@@ -1,0 +1,22 @@
+{% comment %}F1 한글 파일로 받기(합본 화면 내보내기 목록의 한 줄). 만드는 중이면 2초마다 자신을 다시 불러온다(htmx).
+   값은 싣지 않는다(문제 칸은 행·열 주소만). 화면 다듬기·미리보기·글자 줄이기는 F2.{% endcomment %}
+{% with r=hr.r c=hr.c %}
+<li id="hwpResult" role="status" aria-live="polite" data-status="{{ r.status|default:'none' }}"
+  {% if r.busy %}hx-get="/s/{{ space.token }}/c/{{ c.key }}/hwp" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <span class="ext">한글</span>
+  <div class="grow"><b>원본 한글 양식에 채워 받기</b>
+    {% if msg %}<span class="d err" role="alert">{{ msg }}</span>
+    {% elif r.busy %}<span class="d">한글 파일을 만드는 중이에요. 큰 양식은 1분 넘게 걸릴 수 있어요.</span>
+    {% elif r.status == "done" %}
+      <span class="d">{{ r.done_at|date:"n/j H:i" }} 기준으로 만들었어요.{% if r.added %} 표에 줄 {{ r.added }}개를 더했어요.{% endif %}{% if r.bundle %} 선생님마다 한 부씩 {{ r.copies }}부예요.{% endif %}</span>
+      {% if r.left_out %}<span class="d err">이 표에는 줄을 더할 수 없어(표 안의 표 등) {{ r.left_out }}줄은 넣지 못했어요. CSV에서 확인해 한글에서 줄을 더해 주세요.</span>{% endif %}
+      {% if r.dropped %}<span class="d err">표에 그 칸이 없어(원래 글자가 있는 줄) 넣지 못한 값이 {{ r.dropped }}개 있어요. CSV에서 확인해 주세요.</span>{% endif %}
+      {% if r.conflicts %}<span class="d err">같은 칸에 값이 둘 온 곳이 {{ r.conflicts|length }}군데 있어 먼저 낸 값을 넣었어요. 한글에서 확인해 주세요.</span>{% endif %}
+      <span class="d">{% with n=r.names %}{% if n.file %}<a href="/s/{{ space.token }}/hwp/out/{{ r.key }}/file" download>{{ n.file }}</a> · {% endif %}<a href="/s/{{ space.token }}/hwp/out/{{ r.key }}/hwpx" download>{{ n.hwpx }}</a>{% endwith %}</span>
+    {% elif r.status == "failed" %}
+      <span class="d err" role="alert">{{ r.error_text }}{% with p=r.problem_text %}{% if p %} (문제 칸: {{ p }}){% endif %}{% endwith %}</span>
+    {% else %}<span class="d">{{ hr.src.name|default:"올린 한글 양식" }}의 고른 표에 지금까지 낸 값을 넣어요.</span>{% endif %}
+  </div>
+  {% if not r.busy %}<form hx-post="/s/{{ space.token }}/c/{{ c.key }}/hwp" hx-target="#hwpResult" hx-swap="outerHTML">{% csrf_token %}<button class="btn sec sm" type="submit">{% if r.status == "done" %}다시 만들기{% else %}한글 파일로 받기{% endif %}</button></form>{% endif %}
+</li>
+{% endwith %}

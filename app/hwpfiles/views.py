@@ -9,12 +9,16 @@
 - 표 고르기(E5): 만들기 화면이 ?pick=1 로 올리면 상태 대신 고르기 부분 화면(_pick.html)이 오고, 그 화면이
   변환이 끝날 때까지 자신을 폴링한다. 끝나면 미리보기 위 표를 눌러 확정(POST pick, CSRF).
   확정은 회원·같은 공간·완료된 파일·report["tables"] 안의 표 위치일 때만 저장한다.
+- 한글 파일로 받기(F1): 합본 화면에서 POST → 채우기 작업을 큐 'hwp'에 넣고 부분 화면이 2초마다 상태를 본다.
+  끝나면 내려받기 링크(올린 형식 + hwpx). 회원·같은 공간만, 캐시 금지, 파일 이름은 RFC 5987(Django FileResponse).
+  회원당 진행 중 한글 작업(변환 + 채우기) HWP_IN_FLIGHT건. 같은 모으기 작업이 진행 중이면 새로 만들지 않는다.
 """
 import logging
 import re
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
@@ -25,8 +29,10 @@ from config import queue
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
-from .models import SourceFile
-from .tasks import convert
+from collect.models import Collection
+
+from .models import ResultFile, SourceFile, in_flight, lock_member
+from .tasks import convert, fill_result
 
 log = logging.getLogger(__name__)
 MB = 1024 * 1024
@@ -90,10 +96,6 @@ def upload(request):
         return _reject(request, "Empty")
     if f.size > settings.HWP_MAX_UPLOAD:
         return _reject(request, "TooLarge")
-    busy = SourceFile.objects.in_space(request.space).filter(
-        created_by=request.member, status__in=[SourceFile.Status.PENDING, SourceFile.Status.CONVERTING])
-    if busy.count() >= settings.HWP_IN_FLIGHT:
-        return _reject(request, BUSY, status=429)
     data = f.read()
     try:
         kind = hwp.sniff(data)
@@ -106,8 +108,12 @@ def upload(request):
     if SourceFile.used_bytes() + len(data) > settings.HWP_TOTAL_QUOTA:
         return _reject(request, "TotalQuota")
     # 행을 먼저 만들고 파일을 쓴다. 쓰다 실패하면 행을 지워 고아(행 없는 파일·파일 없는 행)를 남기지 않는다.
-    sf = SourceFile.objects.create(space=request.space, created_by=request.member, name=_clean_name(f.name),
-                                   kind=kind, size=len(data), stored=len(data))
+    with transaction.atomic():  # 진행 중 상한: 회원 잠금 안에서 세고 만든다(동시 요청 우회 막기)
+        lock_member(request.member)
+        if in_flight(request.space, request.member) >= settings.HWP_IN_FLIGHT:
+            return _reject(request, BUSY, status=429)
+        sf = SourceFile.objects.create(space=request.space, created_by=request.member, name=_clean_name(f.name),
+                                       kind=kind, size=len(data), stored=len(data))
     try:
         sf.original.save("original", ContentFile(data))
     except BaseException:
@@ -183,6 +189,75 @@ def hwpx(request, key):
         raise Http404
     stem = re.sub(r"\.(hwpx?|HWPX?)$", "", sf.name) or "한글양식"
     resp = FileResponse(fh, as_attachment=True, filename=f"{stem}.hwpx", content_type=HWPX_TYPE)
+    resp["X-Content-Type-Options"] = "nosniff"
+    resp["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    return resp
+
+
+RESULT_TYPES = {"hwp": "application/x-hwp", "hwpx": HWPX_TYPE}
+RESULT_BUSY = "앞서 맡긴 한글 작업이 끝난 뒤 다시 눌러 주세요."
+
+
+def result_ctx(space, c):
+    """합본 화면의 '한글 파일로 받기' 줄 값. 한글 양식으로 만든 모으기(칸 매핑 있음)가 아니면 None."""
+    sf = SourceFile.objects.in_space(space).filter(collection=c, status=SourceFile.Status.DONE).first()
+    if sf is None or not sf.cellmap:
+        return None
+    rf = ResultFile.objects.in_space(space).filter(collection=c).order_by("-created_at", "-id").first()
+    if rf is not None:
+        rf.expire_if_stuck()
+    return {"src": sf, "r": rf, "c": c}
+
+
+def _result_part(request, ctx, msg="", status=200):
+    return render(request, "hwpfiles/_result.html", {"hr": ctx, "msg": msg, "space": request.space}, status=status)
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def result(request, key):
+    """GET: 한글 파일로 받기 상태(부분 화면, 진행 중이면 2초 폴링). POST: 채우기 작업 맡기기."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    ctx = result_ctx(request.space, c)
+    if ctx is None:
+        raise Http404
+    if request.method == "GET" or (ctx["r"] is not None and ctx["r"].busy):
+        return _result_part(request, ctx)
+    if SourceFile.used_bytes(request.space) >= settings.HWP_SPACE_QUOTA:
+        return _result_part(request, ctx, REJECT["Quota"], status=400)
+    if SourceFile.used_bytes() >= settings.HWP_TOTAL_QUOTA:
+        return _result_part(request, ctx, REJECT["TotalQuota"], status=400)
+    sf = ctx["src"]
+    with transaction.atomic():  # 회원 잠금 안에서 세고 만든다(동시 요청으로 상한·같은 모으기 중복 우회 막기)
+        lock_member(request.member)
+        busy = ResultFile.objects.in_space(request.space).filter(
+            collection=c, status__in=[ResultFile.Status.PENDING, ResultFile.Status.FILLING]).first()
+        if busy is not None:
+            return _result_part(request, {**ctx, "r": busy})
+        if in_flight(request.space, request.member) >= settings.HWP_IN_FLIGHT:
+            return _result_part(request, ctx, RESULT_BUSY, status=429)
+        rf = ResultFile.objects.create(space=request.space, source=sf, collection=c, created_by=request.member,
+                                       fmt=hwp.output_format(sf.kind), bundle=sf.cellmap.get("mode") == "cells")
+    queue.enqueue(fill_result, rf.pk, queue_name=queue.HWP_QUEUE)
+    rf.refresh_from_db()  # 큐 없이(로컬·CI) 바로 끝났으면 결과를 보인다
+    return _result_part(request, {**ctx, "r": rf})
+
+
+@never_cache
+@require_GET
+def result_file(request, key, which):
+    """채운 결과 내려받기. which = file(올린 형식) | hwpx. 회원·같은 공간·완료된 것만."""
+    rf = get_in_space_or_404(ResultFile, request, key=key)
+    f = getattr(rf, which, None) if which in ("file", "hwpx") else None
+    if rf.status != ResultFile.Status.DONE or not f:
+        raise Http404
+    try:
+        fh = f.open("rb")
+    except FileNotFoundError:
+        log.warning("hwp result missing result=%s", rf.pk)
+        raise Http404
+    ctype = "application/zip" if rf.bundle else RESULT_TYPES[rf.fmt if which == "file" else "hwpx"]
+    resp = FileResponse(fh, as_attachment=True, filename=rf.names()[which], content_type=ctype)
     resp["X-Content-Type-Options"] = "nosniff"
     resp["Content-Security-Policy"] = "default-src 'none'; sandbox"
     return resp

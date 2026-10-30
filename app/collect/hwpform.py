@@ -5,6 +5,7 @@
   머리글이 없는 신청서형(kv)은 빈 칸마다 칸 하나(mode "cells"): 모든 줄이 같은 칸 주소를 가진다(1인 1부, 묶기는 F1).
 - 받는 사람 줄은 항상 동학년 명부(리드 결정, C4). 표의 반·이름 열은 칸으로 받지 않고 명부로 채운다(역할 unit·who).
 - 합계·소계 행(hwp.schema total_rows)은 늘 뺀다. 그 밖의 줄도 교사가 끌 수 있다.
+- 받을 칸이 다 있는 표 줄만 받는다(_full_rows). 원래 글자가 있는 줄은 끄고 짝짓지 않는다(값을 받고 못 넣는 일 없게).
 - 명부 ↔ 표 줄: 행 머리 글자가 반(4-1·1반·4학년 1반)이면 그 반 줄에, 아니면 남은 줄에 차례로. 표 줄이 모자라면
   r=None(다 모이면 F1이 '+행 추가'로 표 끝에 줄을 더해 채움 — research/04 '모자라면 행 추가'). 남는 표 줄은 비워 둔다.
 - 칸 매핑(SourceFile.cellmap): 줄(Row.key)마다 [무엇, 행, 열, 단위]. 무엇 = Field.pos 또는 "unit"·"who"(명부 값).
@@ -127,6 +128,8 @@ def read(s, post=None):
     for it in out:
         if it["kind"] == "select" and not it["options"]:
             it["options"] = list(YES_NO)
+    if mode == "rows":
+        _full_rows(out, rows, post is None or not post.get("hwp_sent"))
     names = _dedupe([it["name"] for it in out if it["role"] == "input"])
     for it, n in zip([it for it in out if it["role"] == "input"], names):
         it["name"] = n
@@ -143,9 +146,33 @@ def read(s, post=None):
     elif pii:
         error = PII_MSG.format(", ".join(pii))
     elif mode == "rows" and not any(x["on"] for x in rows):
-        error = "받을 표 줄을 하나 이상 남겨 주세요."
+        error = ("받을 표 줄을 하나 이상 남겨 주세요." if any(x["full"] for x in rows) else
+                 "켠 칸이 다 있는 표 줄이 없어요. 줄마다 칸이 없는 칸(예: 합쳐진 비고)은 「받지 않음」으로 꺼 주세요.")
     return {"mode": mode, "items": out, "rows": rows, "error": error, "stale": stale,
             "inputs": inputs, "n_pre": sum(it["role"] in ("unit", "who") for it in out)}
+
+
+def _full_rows(out, rows, default):
+    """줄마다 받을 칸이 다 있는 표 줄만 받는다(F1 리드 결정: 값을 받고 표에 못 넣는 일이 없게).
+    원래 글자가 있는 줄(부분 채움 표)·병합으로 칸이 없는 줄은 x["full"]=False → 끄고 명부와 짝짓지 않는다.
+    기본값(처음 화면)에서는 표 줄 절반 미만에만 칸이 있는 열(세로 병합 비고 등)을 「받지 않음」으로 둔다.
+    그래도 다 갖춘 줄이 없으면 칸이 가장 적은 열부터 끈다."""
+    body = [x for x in rows if not x["total"]]
+
+    def inputs():
+        return [it for it in out if it["role"] == "input"]
+
+    def full(r):
+        return all(r in it["cells"] for it in inputs())
+    if default and body:
+        for it in inputs():
+            if len(inputs()) > 1 and sum(x["r"] in it["cells"] for x in body) * 2 < len(body):
+                it["role"] = "off"
+        while len(inputs()) > 1 and not any(full(x["r"]) for x in body):
+            min(inputs(), key=lambda it: len(it["cells"]))["role"] = "off"
+    for x in rows:
+        x["full"] = not x["total"] and full(x["r"])
+        x["on"] = x["on"] and x["full"]
 
 
 def _class_of(text, grade):

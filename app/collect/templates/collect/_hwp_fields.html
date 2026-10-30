@@ -25,8 +25,8 @@
   <div class="hwp-rows-box"><table class="tbl hwp-rows"><thead><tr><th>표 줄</th><th>채울 선생님</th><th class="r">받기</th></tr></thead><tbody>
   {% for x in hwpf.rows %}{% if not x.total %}<tr{% if not x.on %} class="off"{% endif %}>
     <td class="id">{{ x.r|add:1 }}번째 줄{% if x.head %} · {{ x.head|truncatechars:30 }}{% endif %}</td>
-    <td>{% if x.who %}{{ x.who.unit }} {{ x.who.who }}{% elif x.on %}<span class="muted">비워 둬요</span>{% else %}<span class="dash">—</span>{% endif %}</td>
-    <td class="r"><label class="toggle"><input type="checkbox" id="hr{{ x.r }}" name="row_{{ x.r }}"{% if x.on %} checked{% endif %} aria-label="{{ x.r|add:1 }}번째 줄 받기"><i></i></label></td>
+    <td>{% if x.who %}{{ x.who.unit }} {{ x.who.who }}{% elif x.on %}<span class="muted">비워 둬요</span>{% elif not x.full %}<span class="muted">이 줄엔 받을 칸이 없어요(이미 글자가 있음)</span>{% else %}<span class="dash">—</span>{% endif %}</td>
+    <td class="r">{% if x.full %}<label class="toggle"><input type="checkbox" id="hr{{ x.r }}" name="row_{{ x.r }}"{% if x.on %} checked{% endif %} aria-label="{{ x.r|add:1 }}번째 줄 받기"><i></i></label>{% else %}<span class="dash">—</span>{% endif %}</td>
   </tr>{% endif %}{% endfor %}
   {% for m in hwpf.adds %}<tr><td class="pre">줄 더하기</td><td>{{ m.unit }} {{ m.who }}</td><td class="r"><span class="dash">—</span></td></tr>{% endfor %}
   </tbody></table></div>

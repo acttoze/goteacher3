@@ -148,6 +148,32 @@ class HwpFieldsTests(TestCase):
         sf = self.upload(table_doc(CLASS_TABLE))
         self.assertEqual(self.client.get(self.fields_url(sf)).status_code, 409)
 
+    # ---- 줄마다 칸이 다 있는 표 줄만(F1 리드: 값을 받고 표에 못 넣는 일 없게)
+    def test_rows_without_cells_not_paired_and_sparse_column_off(self):
+        doc = table_doc([["반", "담임", "참가(명)", "비고"], ["4-1", "", "", "있음"], ["4-2", "", "휴업", "있음"],
+                         ["4-3", "", "", ""]])
+        sf = self.picked(doc)
+        f = self.client.get(self.fields_url(sf)).context["hwpf"]
+        self.assertEqual([(it["name"], it["role"]) for it in f["items"]],
+                         [("담임", "who"), ("참가(명)", "input"), ("비고", "off")])   # 비고는 3줄 중 1줄에만 칸
+        self.assertEqual([(x["r"], x["full"], x["on"]) for x in f["rows"]], [(1, True, True), (2, False, False), (3, True, True)])
+        self.assertEqual([r for _m, r in f["pairs"]], [1, None, 3, None])        # 4-2 는 휴업 줄과 짝짓지 않음
+        self.assertContains(self.client.get(self.fields_url(sf)), "이 줄엔 받을 칸이 없어요")
+        # 켤 수 없는 줄을 보내도 끈 것으로. 드문 열(비고)을 켜면 두 칸이 다 있는 4-3 줄만 받는다.
+        r = self.client.post(self.fields_url(sf), self.form(sf, row_2="on"))
+        self.assertFalse(r.context["hwpf"]["rows"][1]["on"])
+        self.assertEqual(self.create(sf, item_2_role="input", row_2="on").status_code, 302)
+        sf.refresh_from_db()
+        self.assertEqual([ln["r"] for ln in sf.cellmap["lines"]], [None, None, 3, None])
+
+    def test_no_full_row_rejected(self):
+        doc = table_doc([["반", "담임", "참가(명)", "비고"], ["4-1", "", "", "있음"], ["4-2", "", "휴업", ""]])
+        sf = self.picked(doc)
+        r = self.create(sf, item_1_role="input", item_2_role="input")  # 참가는 1줄, 비고는 2줄에만 칸 → 둘 다 있는 줄 없음
+        self.assertEqual(r.status_code, 400)
+        self.assertContains(r, "켠 칸이 다 있는 표 줄이 없어요", status_code=400)
+        self.assertFalse(Collection.objects.filter(space=self.a).exists())
+
     # ---- 만들기
     def test_create_collection_fields_rows_cellmap(self):
         sf = self.picked()

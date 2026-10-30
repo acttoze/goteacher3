@@ -9,12 +9,14 @@ kind = hwp.sniff(upload)                        # 웹 요청 안: 매직 바이�
 hwpx, kind, report = hwp.to_hwpx(upload)        # 매직 바이트 판별·크기·zip 가드·hwp→HWPX 변환
 cands = hwp.candidates(hwpx)                    # 표 후보 점수순. 자동 확정 금지(1순위 적중 약 70%)
 s = hwp.schema(hwpx, section, index)            # 입력 칸·라벨·합계 행
+hwpx = hwp.add_rows(hwpx, section, index, ref_row, n)  # 명부가 표 줄보다 많을 때 ref_row 아래 빈 줄 n개(검증 포함)
 out = hwp.fill(hwpx, section, index, values)    # values={(r, c): '값'} → 검증 통과한 hwpx
 if hwp.output_format(kind) == 'hwp':
     out_hwp = hwp.to_hwp(out, section, index, values)   # HWP 5.0 다시 쓰고 되읽어 확인
 ```
 
 - `fill`은 재파싱 검증(`verify`: 값·구조·다른 칸·다른 표·바뀐 파트)과 `zip_ok`를 통과한 결과만 돌려준다. `to_hwp`는 HWP 5.0으로 다시 쓴 뒤 되읽어 값을 확인한다. 채우기는 한 번만 돌고 hwpx·hwp 둘 다 줄 수 있다.
+- 표 안에 표가 있으면, 바깥 칸 주소가 안쪽 표 칸 주소와 같은 칸은 입력 칸에서 빼고 `fill`도 거부한다(python-hwpx `fill_cells`가 그 주소를 안쪽 표에 씀).
 - 오류는 모두 `HwpError` 하위(`UnsupportedFormat`·`TooLarge`·`UnsafeFile`·`ConvertError`·`FillError`). 문구와 `FillError.problems`에는 (구역, 표, 행, 열) 주소와 사유만 담긴다. 문서 내용은 넣지 않는다.
 - 게이트 ③이 실패하면 환경 변수 `GT_HWP_OUTPUT=hwpx` 하나로 hwp 원본도 hwpx로 돌려준다(`output_format`).
 - 상한: 업로드 30MB, zip 풀린 총량 200MB, 항목 1,000개, 칸 글자 2,000자. 표본 1,376개 최대치(17MB·52MB·67개)에 여유를 둔 값이다.

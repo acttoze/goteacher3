@@ -200,8 +200,11 @@ class UploadTests(TestCase):
         self.assertFalse(SourceFile.objects.exists())
 
     def test_unexpected_error_marks_failed_and_reraises(self):
-        with mock.patch.object(hwp, "to_hwpx", side_effect=MemoryError), self.assertRaises(MemoryError):
+        # rq 에는 실패로 남기되 예외 문구(문서 글자가 섞일 수 있음)는 버리고 종류만(F1 리드 확인 5)
+        with mock.patch.object(hwp, "to_hwpx", side_effect=ValueError("문서 글자")), self.assertRaises(RuntimeError) as cm:
             self.post(upload("a.hwp", sample_hwp()))
+        self.assertEqual(str(cm.exception), "hwp convert failed (ValueError)")
+        self.assertIsNone(cm.exception.__cause__)
         self.assertEqual(SourceFile.objects.get().status, S.FAILED)
 
     # ---- 거부(400, 저장 안 함)

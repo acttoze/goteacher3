@@ -28,6 +28,7 @@ HEADER_HINT = re.compile(r'성\s*명|이\s*름|반|번\s*호|학\s*년|비\s*고
 UNIT = re.compile(r'^\s*(명|개|원|천원|%|회|시간|건|일|학급|권|매)\s*$')
 TOTAL = re.compile(r'^\s*(합\s*계|소\s*계|총\s*계|계)\s*$')
 # XML 1.0 에 넣을 수 없는 제어 문자(탭·줄바꿈 제외)
+MAX_ADD_ROWS = 300   # 한 번에 더할 줄(동학년 명부·명부 밖 줄 상한보다 넉넉히)
 BAD_CHARS = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]')
 
 
@@ -96,6 +97,8 @@ class Table:
     role: str = ''
     score: float = 0.0
     grid: dict = field(default_factory=dict)
+    # 안쪽(자손) 표들의 칸 주소. python-hwpx fill_cells 는 바깥 칸 주소가 이것과 같으면 안쪽 표에 쓴다(F1 QA).
+    inner_addrs: set = field(default_factory=set)
 
 
 def _cell_text(tc) -> str:
@@ -164,6 +167,12 @@ def analyze(hwpx: bytes) -> list[Table]:
             tables.append(t)
             seen[el] = idx
             idx += 1
+        mine = {x.index: x for x in tables if x.section == sec}
+        for x in mine.values():
+            up = x.parent
+            while up is not None:
+                mine[up].inner_addrs.update((c.row, c.col) for c in x.cells)
+                up = mine[up].parent
     return tables
 
 
@@ -235,7 +244,7 @@ def schema(t: Table) -> dict:
     total_rows = {r for (r, c), x in anchors.items() if c < max(lab, 1) and TOTAL.match(x.text or '')}
     for (r, c), cell in sorted(anchors.items()):
         unit = UNIT.match(cell.text or '')
-        if (cell.text and not unit) or cell.has_nested or cell.has_obj or r < hdr:
+        if (cell.text and not unit) or cell.has_nested or cell.has_obj or r < hdr or (r, c) in t.inner_addrs:
             continue
         if r in total_rows:      # 합계 행은 입력이 아니라 자동 계산 대상
             continue
@@ -310,6 +319,8 @@ def check_values(t: Table, values: dict) -> dict:
             problems.append((addr, 'not an anchor cell'))
         elif anchors[k].has_nested or anchors[k].has_obj:
             problems.append((addr, 'cell holds table/object'))
+        elif k in t.inner_addrs:
+            problems.append((addr, 'address shared with inner table'))
         elif not isinstance(v, str):
             problems.append((addr, 'value not str'))
         elif len(v) > MAX_CELL_TEXT:
@@ -333,6 +344,84 @@ def fill_lib(hwpx: bytes, section: str, table_index: int, values: dict) -> bytes
     if not res.open_safety.get('ok', True):
         raise FillError('open_safety 실패')
     return res.data
+
+
+def row_block(t: Table, ref_row: int) -> tuple[int, int]:
+    """ref_row 에서 시작하는 줄 묶음(그 줄에서 시작한 칸이 세로 병합으로 여러 칸 높이인 한 줄)의 (첫 줄, 끝 줄).
+    위에서 내려오는 큰 칸(여러 줄을 덮는 '4학년' 등)은 묶음을 넓히지 않는다 — 한 줄 복제가 그 칸을 늘린다."""
+    end = ref_row
+    while True:   # 묶음 안에서 시작한 칸이 더 아래로 이어지면 묶음을 넓힌다
+        new = max(c.row + c.rs - 1 for c in t.cells if ref_row <= c.row <= end)
+        if new == end:
+            return ref_row, end
+        end = new
+
+
+def add_rows(hwpx: bytes, section: str, table_index: int, ref_row: int, count: int) -> bytes:
+    """ref_row 줄(묶음) 아래에 빈 줄(묶음) count 개. 줄 하나가 한 칸 높이면 insert_row_by_clone(blank),
+    세로 병합으로 여러 칸 높이면 그 묶음을 insert_block_by_clone 으로 복제하고 복제된 글자를 비운다.
+    더한 줄 수 = count × 묶음 높이(호출하는 쪽은 표 줄 수 차이로 안다).
+
+    검증: zip_ok, 표 수 같음, 그 표 줄 수, 원래 칸 글자는 (줄을 밀어) 그대로, 더한 줄은 비어 있음,
+    다른 표 글자 그대로, 파트 추가·삭제 없음, 바뀐 파트는 그 구역만. 실패하면 FillError(주소·사유만).
+    """
+    where = (section, table_index, ref_row, None)
+    before = analyze(hwpx)
+    t = find_table(before, section, table_index)
+    if not isinstance(count, int) or not isinstance(ref_row, int) or count < 0 or count > MAX_ADD_ROWS:
+        raise FillError('더할 줄 수 오류', [(where, f'count must be 0..{MAX_ADD_ROWS}')])
+    if not 0 <= ref_row < t.rows:
+        raise FillError('기준 줄 없음', [(where, 'ref row out of table')])
+    if count == 0:
+        return hwpx
+    start, end = row_block(t, ref_row)
+    h = end - start + 1
+    if h * count > MAX_ADD_ROWS:
+        raise FillError('더할 줄 수 오류', [(where, f'rows must be <= {MAX_ADD_ROWS}')])
+    from hwpx.table_patch import apply_table_ops
+    op = ({'op': 'insert_row_by_clone', 'ref_row': ref_row} if h == 1 else
+          {'op': 'insert_block_by_clone', 'ref_rows': [start, end]})
+    try:
+        res = apply_table_ops(hwpx, [{**op, 'section_path': section, 'table_index': table_index,
+                                      'count': count, 'blank': True}])
+    except Exception as e:
+        raise FillError('행 추가 실패', [(where, f'insert row failed ({type(e).__name__})')]) from e
+    if res.skipped:   # 중첩 표 등 python-hwpx 가 구조 편집을 건너뜀(사유 문구에 문서 내용 없음)
+        raise FillError('행 추가 실패', [(where, f'insert row skipped: {x.reason[:80]}') for x in res.skipped])
+    if not res.open_safety.get('ok', True):
+        raise FillError('행 추가 실패', [(where, 'open_safety failed')])
+    out = res.data
+    added = range(end + 1, end + 1 + count * h)
+    leftover = {(c.row, c.col): '' for c in find_table(analyze(out), section, table_index).cells
+                if c.row in added and c.text}
+    if leftover:  # 묶음 복제는 글자를 그대로 둔다 → 비운다
+        out = fill_lib(out, section, table_index, leftover)
+    bad = [f'zip: {x}' for x in zip_ok(out)]
+    tb = [x for x in before if x.section == section]
+    ta = [x for x in analyze(out) if x.section == section]
+    if len(tb) != len(ta):
+        bad.append('table count changed')
+    else:
+        a = ta[table_index]
+        if a.rows != t.rows + count * h:
+            bad.append('row count')
+        moved = {(c.row + (count * h if c.row > end else 0), c.col): c.text for c in t.cells}
+        now = {(c.row, c.col): c.text for c in a.cells}
+        if any(now.get(k) != v for k, v in moved.items()):
+            bad.append('existing cells changed')
+        if any(now[k] for k in now if k[0] in added):
+            bad.append('new row not blank')
+        if any(x.index != table_index and [c.text for c in x.cells] != [c.text for c in y.cells]
+               for x, y in zip(tb, ta)):
+            bad.append('other tables changed')
+    pb, pa = parts_of(hwpx), parts_of(out)
+    if set(pb) ^ set(pa):
+        bad.append('parts added/removed')
+    if not {n for n in pb if pb[n] != pa.get(n)} <= {section}:
+        bad.append('other parts changed')
+    if bad:
+        raise FillError('행 추가 검증 실패', [(where, x) for x in bad])
+    return out
 
 
 # ---------------------------------------------------------------- 검증
