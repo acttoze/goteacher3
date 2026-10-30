@@ -1,21 +1,28 @@
 """C2·C3 새로 모으기 — 표 붙여넣기·직접 입력·자주 쓰는 양식. 동작은 prototype collectNew, 모습은 design/collect-new.html.
+C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 5초 폴링). 동작은 prototype collectDetail, 모습은 design/collect-detail.html.
 
 붙여넣은 HTML은 미리보기 요청에서 한 번 TSV로 바꿔 돌려줄 뿐 저장·렌더하지 않는다(paste.py).
 만들 때는 TSV를 다시 읽어 Collection(source=paste) + Field + Row를 만든다. Cell은 만들지 않는다(낸 시각 계산).
 공간 소속은 SpaceMiddleware가 확인하고, 조회는 모두 in_space()를 거친다.
 """
+import re
+from decimal import Decimal, InvalidOperation
+
 from django.conf import settings
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
-from .models import Collection, Field, Row
+from .models import Cell, Collection, Field, Row
 from .paste import YES_NO, PasteError, guess_kind, clean_text, html_to_tsv, parse
 from .presets import PRESETS
 from .recipients import roster_rows
+from .submit import NA, _head, _matrix, _need
 
 # design TYPES(받는 방식 고르기). 자동 계산(calc)·링크(url)는 여기서 고르지 않는다.
 KINDS = [("number", "숫자"), ("text", "글자"), ("select", "고르기"), ("date", "날짜")]
@@ -166,17 +173,87 @@ def preview(request):
     return render(request, "collect/_paste_out.html", ctx)
 
 
-@require_GET
-def made(request, key):
-    """만든 뒤 확인(합본 화면은 C6). 제목·칸·줄 수와 받는 사람에게 보낼 쪽지."""
-    c = get_in_space_or_404(Collection, request, key=key)
+def _num(v):
+    """숫자 칸 값 → Decimal(아니면 None)."""
+    try:
+        return Decimal(v.replace(",", "")) if v else None
+    except InvalidOperation:
+        return None
+
+
+def _fmt(n):
+    return "" if n is None else f"{n.normalize():,f}" if n != n.to_integral() else f"{int(n):,}"
+
+
+def _board(c):
+    """합본 표·진행·미제출. 냈는지는 받는 사람 화면과 같은 판정(submit._units)을 쓴다. 값은 템플릿이 이스케이프한다."""
+    ctx = _head(c)
     fields = list(c.fields.all())
-    n_rows = c.rows.count()
+    nums = [f for f in fields if f.kind == Field.Kind.NUMBER]
+    matrix, need, now = _matrix(c), _need(c), timezone.now()
+    vals, last = {}, {}
+    for rid, fid, v, by, at in Cell.objects.in_space(c.space).filter(row__collection=c).values_list("row_id", "field_id", "value", "by", "at"):
+        vals.setdefault(rid, {})[fid] = v
+        if rid not in last or at > last[rid][0]:
+            last[rid] = (at, by)
+    groups = {}
+    for r in c.rows.all():
+        groups.setdefault((r.unit, r.who, r.member_id) if c.multi else r.pk, []).append(r)
+    sums = {f.pk: Decimal(0) for f in fields if f.kind in (Field.Kind.NUMBER, Field.Kind.CALC)}
+    for u in ctx["units"]:
+        r0 = u["row"]
+        group = groups[(r0.unit, r0.who, r0.member_id) if c.multi else r0.pk]
+        lines = [r for r in group if r.pk in vals] or group[:1]
+        u["lines"] = []
+        for r in lines:
+            rv, cells = vals.get(r.pk, {}), []
+            for f in fields:
+                v = rv.get(f.pk, "")
+                if f.kind == Field.Kind.CALC:  # prototype itemAmount: 숫자 칸이 둘 이상이면 곱
+                    ns = [_num(rv.get(n.pk, "")) or 0 for n in nums]
+                    n = Decimal(1)
+                    for x in ns:
+                        n *= x
+                    n = n if len(ns) >= 2 and r.pk in vals else None
+                elif f.kind == Field.Kind.NUMBER:
+                    n = _num(v)
+                else:
+                    n = None
+                if n is not None and f.pk in sums:
+                    sums[f.pk] += n
+                cell = {"v": v, "r": f.pk in sums, "show": _fmt(n) if f.pk in sums else v}
+                if f.kind == Field.Kind.URL:
+                    cell["href"] = v if re.match(r"https?://", v) else None  # 다른 스킴은 글자로만
+                if matrix:
+                    cell["mark"] = "na" if v == NA else "ok" if v else "no"
+                cells.append(cell)
+            u["lines"].append(cells)
+        at_by = max((last[r.pk] for r in group if r.pk in last), default=None, key=lambda x: x[0])
+        u["by"] = at_by[1] if at_by else ""
+        u["proxy"] = bool(u["by"]) and u["by"] != r0.who
+        u["n_cells"] = sum(len(vals.get(r.pk, {})) for r in group)
+        u["just"] = bool(u["at"]) and (now - u["at"]).total_seconds() < 6  # 방금 들어온 줄 한 번 깜빡임
+    ctx.update(fields=fields, matrix=matrix, need=need, sums=[_fmt(sums[f.pk]) if f.pk in sums else "" for f in fields],
+               has_sum=bool(sums) and not matrix, miss=[u for u in ctx["units"] if not u["done"]])
+    return ctx
+
+
+@never_cache  # 공용 PC: 로그아웃 뒤 '뒤로 가기'로 합본 값이 보이지 않게
+@require_GET
+def detail(request, key):
+    """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
+    c = get_in_space_or_404(Collection, request, key=key)
     link = f"{settings.SITE_URL}/c/{c.link_token}"
     me = request.member
     msg = (f"[고티처] {c.title}\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.\n"
-           f"받는 칸: {', '.join(f.name for f in fields)}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
-    labels = dict(KINDS)
-    ctx = _space_ctx(request, page="collect", c=c, n_rows=n_rows, link=link, msg=msg,
-                     fields=[(f, labels.get(f.kind, f.get_kind_display())) for f in fields])
-    return render(request, "collect/made.html", ctx)
+           f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
+    ctx = _space_ctx(request, page="collect", link=link, msg=msg, **_board(c))
+    return render(request, "collect/detail.html", ctx)
+
+
+@never_cache
+@require_GET
+def live(request, key):
+    """합본 카드만(htmx 5초 폴링). 공간 확인은 detail과 같다."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    return render(request, "collect/_board.html", {"space": request.space, **_board(c)})

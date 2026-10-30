@@ -113,7 +113,7 @@ class NewCollectionTests(TestCase):
         r = self.client.get(self.url(tail=f"c/{c.key}/"))
         self.assertContains(r, "학예회 참가")
         self.assertContains(r, f"https://t.goteacher.xyz/c/{c.link_token}")
-        self.assertContains(r, "받는 사람 1줄")
+        self.assertContains(r, "/ 1반 냈어요")  # C6 합본
         self.assertNotRegex(r.content.decode(), rf"/c/{c.pk}(?![\w-])")  # 순번 ID를 주소에 쓰지 않는다
 
     # ---- 미리보기(htmx)

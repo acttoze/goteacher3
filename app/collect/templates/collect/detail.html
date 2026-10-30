@@ -1,0 +1,61 @@
+{% extends "shell.html" %}
+{% block title %}{{ c.title }} · 모으기 · 고티처{% endblock %}
+{% block ptitle %}합본{% endblock %}
+{% block head %}
+<style>
+  /* design/collect-detail.html. 마감 바꾸기·독촉·한글로 받기·활동 기록은 D1~D5에서 이 화면에 붙인다. */
+  .live-wrap { padding: 0 var(--pad) var(--pad); overflow-x: auto; }
+  .live td { height: 60px; }
+  .live td.cell .v { display: block; font-weight: 600; font-size: 17px; }
+  .live td.cell.r .v { text-align: right; }
+  .live td.memo { color: var(--muted); font-size: 15px; }
+  .live td.at { white-space: nowrap; }
+  .live td.at .t { font-size: 15px; }
+  .live td.at .t small { display: block; font-size: var(--fs-small); color: var(--muted); }
+  .live tr.empty-row td.cls, .live tr.empty-row td.nm { color: var(--muted); }
+  .live tr.cont td { border-top-style: dashed; }
+  .live td.mx { text-align: center; font-weight: 700; }
+  .live td.mx.ok { color: var(--positive); }
+  .live td.mx.no, .live td.mx.na { color: var(--faint); }
+  .live tfoot td { height: 56px; }
+  /* design은 진행 막대가 카드 아래. 반이 많아도 1536×750 첫 화면에 진행·미제출이 보이도록 표 위에 둔다. */
+  .prog { padding: 0 var(--pad) 18px; }
+  .prog .bar { display: flex; align-items: center; gap: 14px; }
+  .prog .track { flex: 1; }
+  .prog .n { font-weight: 700; white-space: nowrap; }
+  .prog .n b { color: var(--accent); }
+  .miss { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+  .miss .lb { font-size: 15px; color: var(--muted); margin-right: 4px; }
+  .sheet { display: flex; flex-direction: column; }
+  .lk .note { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .note-msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; margin: 0; }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>{{ c.title }}</h1>
+    <p class="sub">{% if c.due %}마감 <b class="num">{{ c.due|date:"n/j H:i" }}</b>{% else %}마감 미정{% endif %} · {{ c.get_source_display }} · 낸 값은 4초마다 저절로 들어와요</p>
+  </div>
+  <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a>
+</div>
+<div class="grid stretch">
+  {% include "collect/_board.html" %}
+  <div class="s4 stack-y">
+    <section class="card lk" aria-labelledby="lkH">
+      <div class="card-h"><h2 id="lkH">받는 링크</h2></div>
+      <div class="card-b">
+        <div class="joined"><label class="sr" for="lk">받는 링크</label><input class="input num" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="받는 링크를 복사했어요">복사</button></div>
+        <p class="note">링크 하나로 모두 내요. 로그인은 없고, 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="mH">
+      <div class="card-h"><h2 id="mH">받는 선생님에게 갈 쪽지</h2></div>
+      <div class="card-b">
+        <p class="note-msg" id="msg">{{ msg }}</p>
+        <button class="btn pri block" style="margin-top:12px" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
