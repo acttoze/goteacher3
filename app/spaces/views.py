@@ -63,11 +63,13 @@ def _clean_name(raw):
 
 @require_GET
 def home(request):
-    """익명: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 화면, 없으면 학교 찾기."""
+    """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 화면, 없으면 학교 찾기."""
     mine = _my_space(request.user) if request.user.is_authenticated else None
     if mine:
         return redirect(f"/s/{mine.token}/")
-    if not request.user.is_authenticated or is_guest(request.user):  # 동학년 만들기는 구글 회원만
+    if not request.user.is_authenticated:  # 로그인 전: 소개 페이지(G5). 시작 화면은 /start
+        return render(request, "landing.html")
+    if is_guest(request.user):  # 동학년 만들기는 구글 회원만
         return login_home(request)
 
     q = request.GET.get("q", "").strip()[:40]

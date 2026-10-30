@@ -39,6 +39,7 @@ urlpatterns = [
     path("c/<str:link_token>/u/<str:key>", submit.unit),
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
+    path("start", accounts.home),  # 시작 화면(구글로 시작하기). 로그인 전 / 는 소개 페이지
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),

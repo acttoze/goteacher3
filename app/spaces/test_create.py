@@ -42,18 +42,19 @@ class NeisMocked(TestCase):
 
 
 class LoginRequiredTests(NeisMocked):
-    def test_anonymous_home_is_google_start_no_search(self):
+    def test_anonymous_home_is_landing_no_search(self):
         r = self.client.get("/", {"q": "새솔"})
-        self.assertContains(r, "구글 계정으로 시작하기")
+        self.assertTemplateUsed(r, "landing.html")
+        self.assertContains(r, 'href="/start"')
         self.mocks[0].assert_not_called()
 
     def test_anonymous_cannot_pick_or_create(self):
         r = self.client.post("/new/school", {"i": 0})
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(r["Location"].startswith("/?next="))
+        self.assertTrue(r["Location"].startswith("/start?next="))
         r = self.client.post("/new/class", {"grade": 4, "cls": "4-1", "name": "x"})
         self.assertEqual(r.status_code, 302)
-        self.assertTrue(r["Location"].startswith("/?next="))
+        self.assertTrue(r["Location"].startswith("/start?next="))
         self.assertEqual((School.objects.count(), Space.objects.count(), Member.objects.count()), (0, 0, 0))
 
 
@@ -203,7 +204,7 @@ class SpaceIsolationB6Tests(NeisMocked):
     def test_anonymous_redirected_to_login(self):
         self.client.logout()
         r = self.client.get(self.url)
-        self.assertEqual(r["Location"], f"/?next={self.url}")
+        self.assertEqual(r["Location"], f"/start?next={self.url}")
 
     def test_space_url_is_token_not_id(self):
         space = Space.objects.get()

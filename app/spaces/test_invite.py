@@ -178,7 +178,7 @@ class IsolationTests(InviteBase):
 
     def test_anonymous_poll_goes_to_login(self):
         r = Client().get(f"/s/{self.space.token}/members")
-        self.assertTrue(r["Location"].startswith("/?next="))
+        self.assertTrue(r["Location"].startswith("/start?next="))
         r = Client().get(f"/s/{self.space.token}/members", headers={"HX-Request": "true"})
         self.assertEqual((r.status_code, r["HX-Redirect"]), (204, "/"))
 

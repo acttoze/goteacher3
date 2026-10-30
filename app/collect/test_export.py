@@ -215,7 +215,7 @@ class ExportTests(TestCase):
             self.assertEqual(c.get(self.url(tail)).status_code, 404)
             r = Client().get(self.url(tail))
             self.assertEqual(r.status_code, 302)
-            self.assertTrue(r["Location"].startswith("/?next="))
+            self.assertTrue(r["Location"].startswith("/start?next="))
         self.assertEqual(c.post(self.url("footer")).status_code, 404)
 
     # ---- QA 보강(D4): 엑셀 호환 경계값·파일 이름·왕복·꼬리말 반영·잠그기 응답

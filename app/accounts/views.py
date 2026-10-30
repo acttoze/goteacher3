@@ -43,7 +43,10 @@ def _fail(request, status, message):
 
 @require_GET
 def home(request):
-    return render(request, "accounts/home.html", {"next": _safe_next(request.GET.get("next"))})
+    next_url = _safe_next(request.GET.get("next"))
+    if request.user.is_authenticated and not is_guest(request.user):  # 이미 구글 로그인: 시작 화면 대신 가려던 곳으로
+        return redirect(next_url)
+    return render(request, "accounts/home.html", {"next": next_url})
 
 
 @require_GET

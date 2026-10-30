@@ -32,7 +32,7 @@ class SpaceMiddleware:
                 r = HttpResponse(status=204)
                 r["HX-Redirect"] = "/"
                 return r
-            return redirect("/?" + urlencode({"next": request.get_full_path()}, safe="/"))
+            return redirect("/start?" + urlencode({"next": request.get_full_path()}, safe="/"))
         space = get_object_or_404(Space, token=token)
         member = Member.objects.in_space(space).filter(user=request.user).first()
         if member is None:

@@ -276,7 +276,7 @@ class QAEdgeTests(TestCase):
         self.assertFalse(DeviceToken.objects.exists())
 
     def test_home_next_sanitized(self):
-        r = self.client.get("/", {"next": "https://evil.example/"})
+        r = self.client.get("/start", {"next": "https://evil.example/"})
         self.assertNotContains(r, "evil.example")
 
     def test_no_old_name_on_home(self):

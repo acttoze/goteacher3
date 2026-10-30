@@ -103,7 +103,7 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = []
-LOGIN_URL = "/"  # 로그인 화면은 첫 화면(구글로 시작하기)
+LOGIN_URL = "/start"  # 시작 화면(구글로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"

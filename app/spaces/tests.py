@@ -150,7 +150,7 @@ class SpaceMembershipTests(TestCase):
     def test_anonymous_with_valid_link_is_sent_to_login_not_inside(self):
         r = self.client.get(f"/s/{self.a.token}/members/")
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(r["Location"], f"/?next=/s/{self.a.token}/members/")
+        self.assertEqual(r["Location"], f"/start?next=/s/{self.a.token}/members/")
 
     def test_anonymous_unknown_token_same_answer(self):
         # 토큰이 있는지 없는지 익명에게 알려 주지 않는다

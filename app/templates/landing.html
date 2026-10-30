@@ -1,0 +1,214 @@
+{% load static %}<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>고티처 — 동학년이 한 양식을 동시에</title>
+<meta name="description" content="고티처는 동학년 취합 도구입니다. 한글 양식을 올리고 링크 하나를 보내면 다섯 반이 한 표를 동시에 채우고, 그 양식 그대로 돌려받습니다.">
+<link rel="stylesheet" href="{% static 'css/landing.css' %}">
+</head>
+{# G5 소개 페이지 = design/landing.html. 로그인 전 / 에서만 보인다. 없는 화면(오늘·자료실)으로 가는 링크는 뺐다. #}
+<body class="no-js">
+<script>document.body.classList.remove('no-js');</script>
+
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="/" aria-label="고티처 처음으로">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M4 3l17 8.2-7.4 2.1L10.4 21z" fill="#2251ff"/></svg>
+      고티처
+    </a>
+    <nav aria-label="주 메뉴">
+      <a href="#how">걷는 법</a>
+      <a href="#line">한 줄 일정</a>
+      <a href="#today">오늘 화면</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a class="btn keep" href="/start">구글로 시작</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="h1">
+      <h1 id="h1">
+        <span class="ln">한 양식을
+          <span class="slot" aria-hidden="true" id="slot"></span><span class="sr">다섯 명이</span></span>
+        <span class="ln">동시에 채워요</span>
+      </h1>
+      <div class="grid hero-row">
+        <div class="hero-copy">
+          <p class="lead rise">고티처는 동학년 취합 도구예요. 한글 양식을 올리고 링크 하나만 보내면, 다섯 반이 한 표를 함께 채우고 그 양식 그대로 돌려받아요.</p>
+          <div class="acts rise" style="--d:80ms">
+            <a class="btn" href="/start">구글로 시작하기</a>
+            <a class="tlink" href="#how">걷는 법 보기</a>
+          </div>
+          <p class="facts rise" style="--d:160ms">동학년판 무료 · 베타 11월 30일 · 정식 12월 14일(월)</p>
+        </div>
+        <div class="hero-ui shutter" id="heroUi">
+          <div class="sheet" data-ui id="sheet">
+            <div class="sheet-h">
+              <span class="t">학예회 반별 참가 인원</span>
+              <span class="meta">2026_학예회_참가인원.hwpx · 마감 10/27(화) 12:00</span>
+              <span class="stack" id="liveStack" aria-label="지금 같이 보는 선생님"></span>
+            </div>
+            <table class="live" id="live">
+              <caption class="sr">학예회 반별 참가 인원 취합표</caption>
+              <thead><tr><th>반</th><th>담임</th><th class="r">참가(명)</th><th class="r">불참(명)</th><th class="r">상태</th></tr></thead>
+              <tbody></tbody>
+              <tfoot><tr><td><b>합계</b></td><td></td><td class="r"><b id="sumA">0</b></td><td class="r"><b id="sumB">0</b></td><td></td></tr></tfoot>
+            </table>
+            <div class="sheet-f">
+              <div class="prog"><span>제출</span><div class="bar"><b id="progBar" style="width:0%"></b></div><span class="n" id="progN">0 / 5반</span></div>
+              <button class="mini" id="nudge" type="button">독촉 문구 복사</button>
+              <button class="mini pri" id="dl" type="button">한글 양식으로 받기</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="type" id="line" aria-labelledby="lineH">
+      <div class="grid">
+        <h2 id="lineH" class="rise">일정은 한 줄이면 돼요</h2>
+        <p class="intro rise" style="--d:80ms">날짜·블록·장소를 아무렇게나 써도 알아서 나눠서 동학년 오늘 화면에 올려요.</p>
+      </div>
+      <div class="typer" data-ui>
+        <div class="line"><label for="q" class="sr">한 줄로 일정 쓰기</label><input id="q" value="내일 2블록 과학실 안전교육" autocomplete="off" spellcheck="false"></div>
+      </div>
+      <div class="grid typer-row">
+        <div class="answer" data-ui>
+          <div class="card" id="ans" aria-live="polite"></div>
+          <p class="res" id="ansRes"></p>
+        </div>
+        <div class="examples">
+          <p>이렇게도 써 보세요</p>
+          <button type="button" data-q="모레 3블록 체육관 학예회 리허설">모레 3블록 체육관 학예회 리허설</button>
+          <button type="button" data-q="금요일 방과후 4-1 교실 학년협의">금요일 방과후 4-1 교실 학년협의</button>
+          <button type="button" data-q="10/30 현장체험학습">10/30 현장체험학습</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec how" id="how" aria-labelledby="howH">
+      <h2 id="howH" class="rise">올리고, 보내고, 받기</h2>
+      <div class="stages" data-ui>
+        <div class="stage s1 rise"><span class="d">양식 올리기</span><span class="cl">hwp·hwpx나 표를 붙여넣으면 칸이 돼요.</span></div>
+        <div class="stage s2 rise" style="--d:70ms"><span class="d">링크 보내기</span><span class="cl">쿨메신저에 링크 한 줄.</span></div>
+        <div class="stage s3 rise" style="--d:140ms"><span class="d">다섯 반이 함께 채우는 시간</span><span class="who" id="howWho"></span><span class="cl">로그인 없이 링크로 내고, 대신 내기도 돼요.</span></div>
+        <div class="stage s4 rise" style="--d:210ms"><span class="d">한글로 받기</span><span class="cl">올린 양식 그대로, hwpx도 함께.</span></div>
+      </div>
+      <div class="clauses">
+        <p style="flex:12 1 0">먼저 <b>hwp·hwpx</b>나 한글·엑셀 표를 붙여넣으면 칸이 돼요.</p>
+        <p style="flex:12 1 0">다음 <b>쿨메신저</b>에 링크 한 줄.</p>
+        <p style="flex:58 1 0">그다음은 선생님들 몫. 로그인 없이 링크로 내고, 바쁜 반은 <b>대신 내기</b>도 돼요. 낸 칸은 바로 합본에 들어가요.</p>
+        <p style="flex:18 1 0">끝으로 <b>올린 양식 그대로</b>, hwpx도 함께.</p>
+      </div>
+    </section>
+
+    <div class="fields" aria-label="고티처가 하는 일">
+      <section class="field f1">
+        <p class="ex rise">받는 선생님은 가입도 로그인도 필요 없어요. 링크를 열어 자기 칸에 쓰면 끝이고, 바쁜 반은 옆 반이 대신 내도 돼요.</p>
+        <h2 class="rise" style="--d:90ms">링크 하나면<br>끝</h2>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="받는 선생님이 보는 제출 화면">
+          <div class="row"><span class="url">goteacher.xyz/c/4Q2K</span><span style="font-size:15px;color:var(--muted)">로그인 없음</span></div>
+          <div class="ttl">학예회 반별 참가 인원 · 누구 칸인가요?</div>
+          <div class="row"><span class="chip">4-3</span><span class="chip on">4-4 이수빈</span><span class="chip">4-5</span></div>
+          <div class="row"><span class="fld">참가 <b>22</b></span><span class="fld">불참 <b>1</b></span></div>
+          <div class="row"><span class="tog"><span class="sw"></span>옆 반 대신 내기 · 김도윤</span><span class="go">내기</span></div>
+        </div></div>
+      </section>
+      <section class="field f2 m">
+        <p class="ex rise">hwp·hwpx 원본을 올리면 다섯 반 답을 그 양식에 채워서 돌려줘요. 올린 형식과 hwpx 두 가지로 받아요.</p>
+        <h3 class="rise" style="--d:90ms">한글 양식<br>그대로</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="올린 양식과 돌려받는 파일">
+          <div class="file"><span class="ext k">HWP</span><div><b>2026_학예회_참가인원.hwp</b><span>올린 원본 · 표 1개를 칸으로 골랐어요</span></div></div>
+          <div class="file"><span class="ext">HWP</span><div><b>2026_학예회_참가인원_합본.hwp</b><span>다섯 반 답을 원본 서식 그대로</span></div></div>
+          <div class="file"><span class="ext">HWPX</span><div><b>2026_학예회_참가인원_합본.hwpx</b><span>같은 내용, hwpx로도</span></div></div>
+        </div></div>
+      </section>
+      <section class="field f3">
+        <p class="ex rise">알림은 하루 세 번(08:20 · 12:20 · 방과후)으로 묶어서 보내요. 수업 중에는 창을 띄우지 않아요.</p>
+        <h3 class="rise" style="--d:90ms">수업 중엔<br>조용히</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="하루 세 번 묶음 알림">
+          <div class="time"><b>08:20</b><span>아침 묶음 · 오늘 마감과 바뀐 것</span><span class="c">2건</span></div>
+          <div class="time mute"><b>1·2블록</b><span class="q">수업 중 · 창 알림 없음</span><span class="c">조용</span></div>
+          <div class="time"><b>12:20</b><span>점심 묶음 · 2블록 끝</span><span class="c">3건</span></div>
+          <div class="time mute"><b>3블록</b><span class="q">수업 중 · 창 알림 없음</span><span class="c">조용</span></div>
+          <div class="time"><b>방과후</b><span>마지막 묶음 · 내일 준비</span><span class="c">1건</span></div>
+        </div></div>
+      </section>
+      <section class="field f4 m">
+        <p class="ex rise">학생 이름·연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내해요. 교직원 정보만 다루고, 데이터는 오라클 클라우드 춘천 리전에 국내 보관해요.</p>
+        <h3 class="rise" style="--d:90ms">학생 정보는<br>안 받아요</h3>
+        <div class="proof rise" style="--d:160ms"><div class="pf" data-ui aria-label="학생 정보 열 경고">
+          <div class="ttl">붙여넣은 표의 열</div>
+          <div class="cols"><span>반</span><span>담임</span><span class="warn">학생 이름</span><span class="warn">보호자 연락처</span><span>참가 인원</span></div>
+          <div class="note">학생 이름·연락처로 보이는 열이 2개 있어요. 이 열은 빼고 반별 인원 수로 받을까요?</div>
+          <div class="row"><span class="chip">그대로 두기</span><span class="go">인원 수로 바꾸기</span></div>
+        </div></div>
+      </section>
+    </div>
+
+    <section class="sec today-sec" id="today" aria-labelledby="todayH">
+      <div class="grid">
+        <div class="st-col">
+          <h2 id="todayH" class="rise">아침엔 오늘 한 장</h2>
+          <p class="lead rise" style="--d:80ms">출근하면 가장 급한 것 하나, 지금 블록, 어제 이후 바뀐 것이 한 화면에 있어요.</p>
+          <ul class="rise" style="--d:160ms">
+            <li>NEIS 학사일정·급식은 자동으로 들어와요</li>
+            <li>동학년이 바꾼 장소·시간은 누가 바꿨는지와 함께</li>
+            <li>낼 것은 체크하면 사라지고, 보낸 것은 누가 냈는지 보여요</li>
+          </ul>
+        </div>
+        <div class="today-ui rise" style="--d:120ms">
+          <div class="tdy" data-ui id="tdy"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec faq" id="faq" aria-labelledby="faqH">
+      <div class="grid">
+        <h2 id="faqH" class="rise">먼저 물어보시는 것</h2>
+        <div class="qs">
+          <details class="rise"><summary>정말 무료인가요?</summary><p>동학년판은 무료예요. 베타는 11월 30일, 정식은 12월 14일(월)에 열어요.</p></details>
+          <details class="rise"><summary>받는 선생님도 가입해야 하나요?</summary><p>아니요. 링크 하나로 제출해요. 로그인이 없고, 다른 선생님이 대신 내는 것도 돼요. 동학년 공간에 초대받은 선생님은 가입 없이 이름만 고르고 들어와요.</p></details>
+          <details class="rise"><summary>한글 파일이 정말 그대로 나오나요?</summary><p>hwp·hwpx 원본 양식을 올리면 그 양식에 칸을 채워 돌려드려요. 올린 형식과 hwpx 두 가지로 내려받아요.</p></details>
+          <details class="rise"><summary>학생 명단도 걷을 수 있나요?</summary><p>학생 정보는 받지 않아요. 교직원 정보만 다뤄요. 학생 이름·연락처로 보이는 열은 경고하고 인원 수로 바꾸게 안내해요.</p></details>
+          <details class="rise"><summary>알림이 수업을 방해하지 않나요?</summary><p>알림은 하루 세 번(08:20 · 12:20 · 방과후)으로 묶어서 보내고, 수업 중에는 창을 띄우지 않아요.</p></details>
+          <details class="rise"><summary>데이터는 어디에 저장되나요?</summary><p>오라클 클라우드 춘천 리전에 저장해요. 데이터는 국내에 보관돼요.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec cta" id="start" aria-labelledby="ctaH">
+      {# design의 "베타가 열리면 메일" 수집 폼은 저장 기능이 없어 구글로 시작하기로 바꿨다 #}
+      <h2 id="ctaH" class="rise"><span class="l">구글 계정 하나로</span>
+      <span class="l"><a class="go" href="/start">바로 시작해요</a></span></h2>
+      <p class="after rise" style="--d:80ms">동학년판은 무료예요. 베타는 11월 30일, 정식은 12월 14일(월)에 열어요.</p>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="grid">
+    <div class="inv">
+      <h2>동학년을<br>초대하세요</h2>
+      <a class="btn paper" href="/start">구글로 시작하기</a>
+    </div>
+    <div class="links">
+      <a href="#today">오늘 화면</a>
+      <a href="#how">걷는 법</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a>
+    </div>
+  </div>
+  <div class="legal">
+    <span>고티처 · 동학년판 무료 · 데이터 국내 보관(오라클 클라우드 춘천)</span>
+    <span><a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a></span>
+  </div>
+  <p class="word" aria-hidden="true">고티처</p>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="{% static 'js/landing.js' %}"></script>
+</body>
+</html>
