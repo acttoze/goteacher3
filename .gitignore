@@ -9,3 +9,10 @@ client_secret_*.json
 
 # 디자인 작업 임시 파일(taste-skill)
 .taste-skill/
+
+# 파이썬·Django
+.venv/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
