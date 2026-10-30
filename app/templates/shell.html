@@ -8,6 +8,7 @@
   <p class="group">{{ space.grade }}학년 동학년</p>
   <nav class="nav sub" aria-label="동학년">
     <a href="/s/{{ space.token }}/"{% if page == "grade" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 6.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.5 2 3 4.2"/></svg><span>선생님 {{ rows|length }}명</span></a>
+    <a href="/s/{{ space.token }}/c/new"{% if page == "collect" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></svg><span>새로 모으기</span></a>
   </nav>
   <div class="me"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ space.grade }}학년 {{ my_label }}</span></div></div>
 </aside>

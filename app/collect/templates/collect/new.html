@@ -1,0 +1,81 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}새로 모으기 · 고티처{% endblock %}
+{% block ptitle %}새로 모으기{% endblock %}
+{% block head %}
+<script src="{% static 'js/collect_new.js' %}" defer></script>
+<style>
+  /* design/collect-new.html — 무엇을, 누구에게서 받나? 왼쪽 8 + 오른쪽 4(붙어 따라옴). 한글 양식·직접 입력·자주 쓰는 양식은 C3·E에서. */
+  .sec-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+  .sec-h h2 { font-size: var(--fs-section); font-weight: 700; letter-spacing: -0.02em; }
+  .sec-h .r { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
+  .card-b.pt { padding-top: 22px; }
+  .msg-inline { margin-top: 10px; font-size: 15px; color: var(--negative); font-weight: 600; }
+  .paste-tools { display: flex; align-items: center; margin: 22px 0 8px; }
+  .paste-tools b { font-size: 15px; }
+  .paste-tools .btn { margin-left: auto; }
+  #paste { min-height: 132px; font-variant-numeric: tabular-nums; tab-size: 12; white-space: pre; overflow-x: auto; }
+  .colchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .colchips span { height: 36px; padding: 0 14px; border-radius: 999px; background: var(--surface); display: inline-flex; align-items: center; font-size: 15px; font-weight: 600; }
+  .colchips span.pre { color: var(--muted); font-weight: 500; }
+  .fields td { height: 56px; }
+  .fields .select { width: 140px; height: 40px; }
+  .fields .pre { color: var(--muted); }
+  .aud li { min-height: 56px; padding: 6px 0; }
+  .aud .cl { min-width: 44px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .aud .r { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
+  .rail { position: sticky; top: calc(var(--topbar) + 28px); }
+  .note-msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; }
+  .go { display: flex; flex-direction: column; gap: 8px; }
+  .go p { font-size: var(--fs-small); color: var(--muted); }
+  @media (max-width: 1100px) { .rail { position: static; } }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>새로 모으기</h1>
+    <p class="sub">한글·엑셀 표를 붙여넣으면 머리글은 받을 칸이 되고, 반·이름 열은 받는 사람 줄이 돼요. 마감은 만든 뒤 정해요.</p>
+  </div>
+  <a class="btn ghost" href="/s/{{ space.token }}/">취소</a>
+</div>
+<form id="newForm" method="post" action="/s/{{ space.token }}/c/new" novalidate>{% csrf_token %}
+<div class="grid">
+  <div class="s8 stack-y">
+    <section class="card" aria-labelledby="formH">
+      <div class="card-b pt">
+        <div class="sec-h"><h2 id="formH">무엇을 받나요</h2><span class="r">교직원 정보만 받아요 · 학생 개인정보는 받지 않아요</span></div>
+        <label class="field"><span>제목</span><input class="input lg" id="title" name="title" value="{{ title }}" maxlength="200" placeholder="예: 학예회 반별 참가 인원" autocomplete="off"{% if errors.title %} aria-invalid="true" aria-describedby="eTitle"{% endif %}></label>
+        {% if errors.title %}<p class="field-err" id="eTitle">{{ errors.title }}</p>{% endif %}
+        <div class="paste-tools"><b>표 붙여넣기</b><button class="btn ghost sm" type="button" id="sample">예시 표 넣기</button></div>
+        <label class="field"><span class="sr">표 붙여넣기</span><textarea class="textarea" id="paste" name="paste" spellcheck="false"
+          placeholder="한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 여기에 붙여넣기(Ctrl+V) 하세요."
+          hx-post="/s/{{ space.token }}/c/new/preview" hx-trigger="input changed delay:400ms, gt-pasted" hx-target="#pasteOut" hx-sync="this:replace"
+          {% if errors.paste %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
+        <input type="hidden" name="html" id="pasteHtml" value="">
+        <div id="pasteOut" aria-live="polite">{% if errors.paste %}<p class="msg-inline" role="alert">{{ errors.paste }}</p>{% else %}{% include "collect/_paste_out.html" %}{% endif %}</div>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="audH"><div class="card-b pt">{% include "collect/_aud.html" %}</div></section>
+  </div>
+  <aside class="s4" aria-label="쪽지와 만들기">
+    <div class="rail stack-y">
+      <section class="card" aria-labelledby="msgH">
+        <div class="card-h"><h2 id="msgH">받는 선생님에게 갈 쪽지</h2></div>
+        <div class="card-b"><div class="note-msg" id="msg">[고티처] <span data-title>{{ title|default:"(제목)" }}</span>
+
+아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.{% include "collect/_msg_fields.html" %}
+(링크는 만들면 생겨요)
+
+보낸 사람: {{ me.name }} ({{ me.cls }})</div>
+          <div class="go" style="margin-top:18px">
+            <button class="btn pri lg block" type="submit">만들고 링크 받기</button>
+            <p>마감은 만든 뒤 정해요. 만들면 링크가 든 쪽지를 복사할 수 있어요.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </aside>
+</div>
+</form>
+{% endblock %}

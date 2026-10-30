@@ -1,0 +1,38 @@
+{% extends "shell.html" %}
+{% block title %}{{ c.title }} · 고티처{% endblock %}
+{% block ptitle %}모으기를 만들었어요{% endblock %}
+{% block head %}
+<style>
+  /* 만든 뒤 확인(자리 표시). 합본·마감 화면(design/collect-detail.html)은 C6에서 이 주소에 들어온다. */
+  .facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .linkrow { display: flex; gap: 10px; margin-top: 18px; }
+  .linkrow .input { flex: 1; }
+  .note-msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>{{ c.title }}</h1>
+    <p class="sub">만들었어요. 쪽지를 복사해 쿨메신저에 붙여넣으세요. 마감 정하기와 합본은 이 화면에 곧 붙어요.</p>
+  </div>
+  <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a>
+</div>
+<div class="grid">
+  <section class="card s7" aria-labelledby="fH">
+    <div class="card-h"><h2 id="fH">받을 칸</h2><span class="r num">입력 {{ fields|length }}칸 · 받는 사람 {{ n_rows }}줄</span></div>
+    <div class="card-b">
+      <ul class="list">{% for f, label in fields %}<li><b class="grow">{{ f.name }}</b><span class="pill">{{ label }}</span></li>{% endfor %}</ul>
+      {% if c.unit_head %}<p class="small muted" style="margin-top:12px">받는 사람 칸: {{ c.unit_head|join:" · " }}</p>{% endif %}
+    </div>
+  </section>
+  <section class="card s5" aria-labelledby="mH">
+    <div class="card-h"><h2 id="mH">받는 선생님에게 갈 쪽지</h2></div>
+    <div class="card-b">
+      <div class="note-msg" id="msg">{{ msg }}</div>
+      <div class="linkrow"><label class="sr" for="lk">받는 링크</label><input class="input" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="링크를 복사했어요">링크 복사</button></div>
+      <button class="btn pri lg block" style="margin-top:12px" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,2 @@
+<span id="msgFields"{% if oob %} hx-swap-oob="true"{% endif %}>{% if p %}
+받는 칸: {% for f in p.fields %}{{ f.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}</span>

@@ -1,0 +1,14 @@
+{# 붙여넣기 미리보기(htmx). 값은 모두 자동 이스케이프. tsv: 클립보드 HTML을 바꾼 글자(입력 칸에 넣을 것) #}
+{% if tsv %}<textarea id="tsvOut" hidden>{{ tsv }}</textarea>{% endif %}
+{% if error %}<p class="msg-inline" role="alert">{{ error }}</p>{% endif %}
+{% if p %}
+<div class="colchips" aria-label="찾은 열">{% for h in p.head %}<span{% if h in p.unit_cols %} class="pre"{% endif %}>{{ h }}{% if h in p.unit_cols %} · 미리 채움{% endif %}</span>{% endfor %}</div>
+<p class="small muted" style="margin-top:10px">열 {{ p.head|length }}개, 받는 사람 줄 {{ p.rows|length }}개를 찾았어요. 표가 다르게 읽혔으면 위 칸에서 바로 고쳐도 돼요.</p>
+<div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받을 칸</h3><span class="r num">입력 {{ p.fields|length }}칸 · 미리 채움 {{ p.unit_cols|length }}칸</span></div>
+<table class="tbl fields"><thead><tr><th>칸</th><th>받는 방식</th><th class="r">형식</th></tr></thead><tbody>
+{% for h in p.unit_cols %}<tr><td class="id">{{ h }}</td><td class="pre">받는 사람 칸 · 표에서 미리 채움</td><td class="r"><span class="dash">—</span></td></tr>{% endfor %}
+{% for f in p.fields %}<tr><td class="id">{{ f.name }}</td><td>선생님이 입력{% if f.options %}<span class="small muted"> · {{ f.options|join:", "|truncatechars:40 }}</span>{% endif %}</td>
+  <td class="r"><select class="select" name="kind_{{ forloop.counter0 }}" aria-label="{{ f.name }} 형식">{% for k, label in kinds %}<option value="{{ k }}"{% if k == f.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>{% endfor %}
+</tbody></table>
+{% endif %}
+{% if oob %}{% include "collect/_aud.html" %}{% include "collect/_msg_fields.html" %}{% endif %}
