@@ -24,6 +24,8 @@
   // 저장 뒤 바뀐 내용에 [data-autocopy="알림"]이 있으면 그 단추의 복사를 한 번 한다(prototype: 마감 저장 = 안내 문구 복사).
   // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
   document.addEventListener('htmx:afterSwap', function () {
+    var t = document.querySelector('[data-toast-now]');  // 저장 결과 한 줄(마감하고 잠그기·다시 열기)
+    if (t) { toast(t.dataset.toastNow); t.removeAttribute('data-toast-now'); }
     var b = document.querySelector('[data-autocopy]');
     if (!b) return;
     var msg = b.dataset.autocopy, src = document.querySelector(b.dataset.copy);
@@ -44,13 +46,16 @@
       closeDlg(e.target.closest('.scrim'));
       return;
     }
-    // 복사: <button data-copy="#id" data-done="알림">. 입력 칸이면 value, 아니면 글자. htmx로 바뀐 내용도 누를 때 읽는다.
-    var c = e.target.closest('[data-copy]');
+    // 복사: <button data-copy="#id" data-done="알림"> 또는 <button data-text="글자">. 입력 칸이면 value, 아니면 글자.
+    // htmx로 바뀐 내용도 누를 때 읽는다. 원본에 data-done이 있으면 그 알림, 원본 글자가 비면 알림만 띄운다.
+    var c = e.target.closest('[data-copy],[data-text]');
     if (c) {
-      var src = document.querySelector(c.dataset.copy);
-      if (!src) return;
-      var text = 'value' in src && src.tagName === 'INPUT' ? src.value : src.textContent;
-      var done = function () { toast(c.dataset.done || '복사했어요'); };
+      var src = c.dataset.copy ? document.querySelector(c.dataset.copy) : null;
+      if (c.dataset.text == null && !src) return;
+      var text = c.dataset.text != null ? c.dataset.text : src.tagName === 'INPUT' ? src.value : src.textContent;
+      var msg = (src && src.dataset.done) || c.dataset.done || '복사했어요';
+      if (!text.trim()) { toast(msg); return; }
+      var done = function () { toast(msg); };
       if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { toast(text); });
       else toast(text);
       return;

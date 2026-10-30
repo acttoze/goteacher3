@@ -1,11 +1,13 @@
 {# 합본 카드. 화면 전체(detail)와 4초 폴링(live — 기준 "5초 안에 뜸"을 최악에도 지키려고)이 같이 쓴다. 값은 자동 이스케이프만(|safe 금지). #}
-<section class="card s8 sheet" id="board" aria-labelledby="liveH" hx-get="/s/{{ space.token }}/c/{{ c.key }}/live" hx-trigger="every 4s" hx-swap="outerHTML">
+<section class="card s8 sheet" id="board"{% if oob %} hx-swap-oob="true"{% endif %} aria-labelledby="liveH" hx-get="/s/{{ space.token }}/c/{{ c.key }}/live" hx-trigger="every 4s" hx-swap="outerHTML">
   <div class="card-h"><h2 id="liveH">합본</h2>
     {% if c.closed_at %}<span class="pill">마감됨</span>{% elif n_total and n_done == n_total %}<span class="pill pos">다 걷힘</span>{% else %}<span class="pill acc">받는 중</span>{% endif %}
     <span class="r">4초마다 새로 봐요</span></div>
   <div class="prog">
     <div class="bar"><div class="track{% if n_total and n_done == n_total %} done{% endif %}"><i style="width:{{ pct }}%"></i></div><span class="n num"><b>{{ n_done }}</b> / {{ n_total }}{{ per }} 냈어요</span></div>
-    {% if miss %}<div class="miss" aria-label="아직 안 낸 {{ per }}"><span class="lb">남은 {% if per == "반" %}반{% else %}분{% endif %} {{ miss|length }}</span>{% for u in miss %}<span class="pill" data-miss="{{ u.row.unit }}">{{ u.row.unit }}{% if u.row.who %} {{ u.row.who }}{% endif %}</span>{% endfor %}</div>{% endif %}
+    {% if miss %}<div class="miss" aria-label="아직 안 낸 {{ per }}"><span class="lb">{{ miss_label }} {{ miss|length|add:miss_more }}{{ miss_unit }}</span>{% for u in miss %}<button class="btn sec chip" type="button" data-miss="{{ u.row.unit }}" data-text="{{ u.nudge }}" data-done="{{ u.label }} 쪽 문구를 복사했어요.">{{ u.label }}</button>{% endfor %}{% if miss_more %}<span class="lb">외 {{ miss_more }}{{ miss_unit }}</span>{% endif %}</div>
+    <p class="miss-note">{% if per == "반" %}반{% else %}이름{% endif %}을 누르면 그 선생님께 보낼 쪽지 문구가 복사됩니다{% if matrix %} (안 한 연수만 적어서){% endif %}. 일일이 명단과 대조하지 않아도 돼요.</p>{% endif %}
+    <p class="sr" id="nudgeAll" data-done="{{ nudge_done }}">{{ nudge_all }}</p>
   </div>
   <div class="live-wrap">
     <table class="tbl live">
@@ -18,9 +20,9 @@
           {% for x in cells %}{% if matrix %}<td class="mx {{ x.mark }}"{% if x.v %} title="{{ x.v }}"{% endif %}>{% if x.mark == "ok" %}✓{% elif x.mark == "na" %}－{% else %}·{% endif %}</td>
           {% elif x.href %}<td class="cell"><a class="tlink acc" href="{{ x.href }}" target="_blank" rel="noopener noreferrer" title="{{ x.v }}">링크</a></td>
           {% else %}<td class="cell{% if x.r %} r num{% endif %}"><span class="v">{% if x.show %}{{ x.show }}{% elif not u.done %}<span class="dash">—</span>{% endif %}</span></td>{% endif %}{% endfor %}
-          {% if forloop.first %}<td class="at r" rowspan="{{ u.lines|length }}">{% if u.done %}<span class="t num">{{ u.at|date:"n/j H:i" }}{% if u.proxy %}<small>{{ u.by }} 대신 냄</small>{% endif %}</span>
+          {% if forloop.first %}<td class="at r" rowspan="{{ u.lines|length }}">{% if u.done %}<span class="t num">{{ u.at|date:"n/j H:i" }}{% if u.late %}<small class="late">지각</small>{% endif %}{% if u.proxy %}<small>{{ u.by }} 대신 냄</small>{% endif %}</span>
             {% elif matrix and u.n_cells %}<span class="t num">{{ u.n_cells }}/{{ need }}칸<small>{{ u.at|date:"n/j H:i" }}</small></span>
-            {% else %}<span class="st">미제출</span>{% endif %}</td>{% endif %}
+            {% elif c.closed_at %}<span class="st late">안 냄</span>{% else %}<span class="st">미제출</span>{% endif %}</td>{% endif %}
         </tr>{% endfor %}{% endfor %}
       </tbody>
       {% if has_sum %}<tfoot><tr><td>합계</td><td></td>{% for s in sums %}<td class="r num">{{ s }}</td>{% endfor %}<td class="r num">{{ n_done }}/{{ n_total }}{{ per }}</td></tr></tfoot>{% endif %}

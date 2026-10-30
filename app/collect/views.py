@@ -261,9 +261,36 @@ def _board(c):
         u["proxy"] = bool(u["by"]) and u["by"] != r0.who
         u["n_cells"] = sum(len(vals.get(r.pk, {})) for r in group)
         u["just"] = bool(u["at"]) and (now - u["at"]).total_seconds() < 6  # 방금 들어온 줄 한 번 깜빡임
+    miss = [u for u in ctx["units"] if not u["done"]]
     ctx.update(fields=fields, matrix=matrix, need=need, sums=[_fmt(sums[f.pk]) if f.pk in sums else "" for f in fields],
-               has_sum=bool(sums) and not matrix, miss=[u for u in ctx["units"] if not u["done"]])
+               has_sum=bool(sums) and not matrix, miss=miss[:MISS_SHOW], miss_more=len(miss) - len(miss[:MISS_SHOW]),
+               **_nudge(c, miss, vals, fields, ctx["per"]))
     return ctx
+
+
+MISS_SHOW = 18  # prototype missShow
+
+
+def _nudge(c, miss, vals, fields, per):
+    """D2 독촉 문구(prototype collectDetail .miss button·#remindAll). 칩 문구는 그 줄로 바로 가는 링크.
+    받는 사람 모드: 담임(학년반) = 'hr', 그 밖 = 사람. 연수 이수는 안 한 연수만 적는다."""
+    matrix, hr, link, dt = _matrix(c), c.unit_head[:1] == ["학년반"], f"{settings.SITE_URL}/c/{c.link_token}", _due_text(c)
+    for u in miss:
+        r, rv = u["row"], vals.get(u["row"].pk, {})
+        u["label"] = f"{r.unit} {r.who}".strip() if hr or c.multi else r.who or r.unit
+        if matrix:
+            what = "아직 이수번호가 없는 연수: " + ", ".join(f.name for f in fields if f.kind != Field.Kind.CALC and not rv.get(f.pk))
+        else:
+            what = f"{r.unit if hr else '선생님'} 칸이 아직 비어 있어요."
+        u["nudge"] = f"{r.who or r.unit} 선생님, 「{c.title}」 {what} {dt}\n{link}/u/{r.key}"
+    label = "덜 마친 사람" if matrix else "미제출 반" if c.multi else "미제출"
+    if not miss:
+        return {"nudge_all": "", "nudge_done": f"모두 냈어요. 독촉할 {'반' if per == '반' else '분'}이 없어요.",
+                "miss_label": label, "miss_unit": ""}
+    return {"nudge_all": f"[고티처] 「{c.title}」 아직 다 못 채운 분: {', '.join(u['label'] for u in miss)}\n"
+                         f"{dt} · 링크에서 {_where(c)}만 채워 주세요.\n{link}",
+            "nudge_done": f"{label} {len(miss)} 독촉 문구를 복사했어요.", "miss_label": label,
+            "miss_unit": "개 반" if per == "반" else "명"}
 
 
 @never_cache  # 공용 PC: 로그아웃 뒤 '뒤로 가기'로 합본 값이 보이지 않게
@@ -271,12 +298,36 @@ def _board(c):
 def detail(request, key):
     """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
     c = get_in_space_or_404(Collection, request, key=key)
+    ctx = _space_ctx(request, page="collect", **_link_ctx(request, c), **_board(c), **_due_ctx(request, c))
+    return render(request, "collect/detail.html", ctx)
+
+
+def _link_ctx(request, c):
+    """받는 링크 카드: 링크와 처음 보낼 쪽지 문구(design에 쪽지 카드가 없어 이 카드의 단추로 복사)."""
     link = f"{settings.SITE_URL}/c/{c.link_token}"
     me = request.member
     msg = (f"[고티처] {c.title}\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.\n"
            f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
-    ctx = _space_ctx(request, page="collect", link=link, msg=msg, **_board(c), **_due_ctx(request, c))
-    return render(request, "collect/detail.html", ctx)
+    return {"link": link, "msg": msg}
+
+
+def _owner(request, c):
+    """prototype c.mine: 만든 사람만 마감을 정하고 잠근다."""
+    return c.created_by_id is not None and c.created_by_id == request.member.pk
+
+
+def _due_text(c):
+    """prototype 마감 표기(app.js 854): 오늘이면 '오늘 17:00', 아니면 '11/3(화) 17:00'(TR.fmt), 없으면 '마감 미정'."""
+    if not c.due:
+        return "마감 미정"
+    due = timezone.localtime(c.due)
+    if due.date() == timezone.localdate():
+        return f"오늘 {due:%H:%M}"
+    return f"{due.month}/{due.day}({'월화수목금토일'[due.weekday()]}) {due:%H:%M}"
+
+
+def _where(c):
+    return "내 줄" if _matrix(c) else "우리 반 칸" if c.unit_head[:1] == ["학년반"] else "내 칸"
 
 
 WD = "월화수목금토일"
@@ -286,8 +337,7 @@ def _due_ctx(request, c, saved=None, error=None):
     """마감 카드(design 마감 카드 + prototype dueBox). 바꾸기는 만든 사람만(prototype c.mine).
     saved: 방금 정함(first)·바꿈 — 안내 문구의 '안내/변경'과 알림 문구에 쓴다."""
     now = timezone.localtime()
-    ctx = {"can_due": c.created_by_id is not None and c.created_by_id == request.member.pk,
-           "due_saved": saved, "due_error": error}
+    ctx = {"can_due": _owner(request, c), "due_saved": saved, "due_error": error}
     if not c.due:
         d = (now + timedelta(days=4)).date()  # prototype 기본값: 오늘+4일 17:00
         return {**ctx, "due_d": d.isoformat(), "due_t": "17:00"}
@@ -296,11 +346,9 @@ def _due_ctx(request, c, saved=None, error=None):
     h, m = int(left.total_seconds() // 3600), round(left.total_seconds() % 3600 / 60)
     if m == 60:
         h, m = h + 1, 0
-    # prototype due 문구: 오늘이면 '오늘 17:00', 아니면 '11/3 17:00'
-    short = ("오늘 " if due.date() == now.date() else f"{due.month}/{due.day} ") + due.strftime("%H:%M")
-    where = "내 줄" if _matrix(c) else "우리 반 칸" if c.unit_head[:1] == ["학년반"] else "내 칸"
+    short = _due_text(c)
     notice = (f"[고티처] 「{c.title}」 마감 {'안내' if saved != 'changed' else '변경'}: {short}\n"
-              f"아직 안 채운 분은 링크에서 {where}만 채워 주세요.\n{settings.SITE_URL}/c/{c.link_token}")
+              f"아직 안 채운 분은 링크에서 {_where(c)}만 채워 주세요.\n{settings.SITE_URL}/c/{c.link_token}")
     return {**ctx, "due_d": due.date().isoformat(), "due_t": due.strftime("%H:%M"), "due_short": short,
             "due_label": f"{due.month}/{due.day}({WD[due.weekday()]}) {due.strftime('%H:%M')}",
             "due_left": "마감 시각이 지났어요" if left.total_seconds() <= 0
@@ -312,8 +360,10 @@ def _due_ctx(request, c, saved=None, error=None):
 def due(request, key):
     """마감 정하기·바꾸기(htmx). 날짜·시각은 Asia/Seoul. 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
     c = get_in_space_or_404(Collection, request, key=key)
-    if c.created_by_id is None or c.created_by_id != request.member.pk:
+    if not _owner(request, c):
         return HttpResponseForbidden("마감은 만든 선생님만 바꿀 수 있어요.")
+    if c.closed_at:  # design: 잠근 동안 '마감 바꾸기' 꺼짐
+        return HttpResponseForbidden("잠근 동안은 마감을 바꿀 수 없어요. 다시 연 뒤 바꿔 주세요.")
     try:
         d = datetime.strptime(request.POST.get("date", ""), "%Y-%m-%d").date()
         t = datetime.strptime(request.POST.get("time", "") or "17:00", "%H:%M").time()
@@ -325,6 +375,27 @@ def due(request, key):
     c.save(update_fields=["due"])
     return render(request, "collect/_due.html", {"c": c, "space": request.space, "oob": True,
                                                   **_due_ctx(request, c, saved=saved)})
+
+
+@require_POST
+def lock(request, key):
+    """D5 마감하고 잠그기·다시 열기(htmx, 만든 사람만). 잠그면 받는 링크가 더 받지 않는다(submit은 잠금 안에서 다시 확인).
+    마감 카드를 바꾸고, 합본('마감됨'·'안 냄')과 받는 링크 카드는 함께 바꾼다(oob)."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    if not _owner(request, c):
+        return HttpResponseForbidden("마감하고 잠그기는 만든 선생님만 할 수 있어요.")
+    reopen = request.POST.get("open") == "1"
+    with transaction.atomic():  # 들어오던 제출과 순서를 정한다(submit.unit도 같은 줄을 잠근다)
+        c = Collection.objects.select_for_update().get(pk=c.pk)
+        if reopen:
+            c.closed_at = None
+        elif not c.closed_at:
+            c.closed_at = timezone.now()
+        c.save(update_fields=["closed_at"])
+    toast = "다시 열었어요. 링크로 다시 낼 수 있어요." if reopen else "마감하고 잠갔어요. 링크로는 더 낼 수 없어요."
+    ctx = {"space": request.space, "oob": True, "lock_toast": toast,
+           **_link_ctx(request, c), **_board(c), **_due_ctx(request, c)}
+    return render(request, "collect/_lock_out.html", ctx)
 
 
 @never_cache

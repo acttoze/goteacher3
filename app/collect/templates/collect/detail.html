@@ -3,7 +3,7 @@
 {% block ptitle %}합본{% endblock %}
 {% block head %}
 <style>
-  /* design/collect-detail.html. 독촉·한글로 받기·활동 기록은 D1~D5에서 이 화면에 붙인다. */
+  /* design/collect-detail.html. 한글로 받기·활동 기록은 D3·D4에서 이 화면에 붙인다. */
   .live-wrap { padding: 0 var(--pad) var(--pad); overflow-x: auto; }
   .live td { height: 60px; }
   .live td.cell .v { display: block; font-weight: 600; font-size: 17px; }
@@ -31,7 +31,12 @@
   .due-left { margin-top: 4px; color: var(--muted); }
   .rail-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   .lk .note { font-size: 15px; color: var(--muted); margin-top: 10px; }
-  .note-msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; margin: 0; }
+  .rail-acts form { display: contents; }
+  .lk.locked .joined .input { color: var(--faint); text-decoration: line-through; }
+  /* D2 미제출 칩: 누르면 그 반 독촉 문구 복사(prototype .miss button). 40px 단추 */
+  .miss .chip { padding: 0 16px; }
+  .miss-note { margin: 8px 0 0; font-size: var(--fs-small); color: var(--muted); }
+  .live td.at .t small.late { color: var(--negative); font-weight: 700; }
 </style>
 {% endblock %}
 {% block main %}
@@ -40,26 +45,14 @@
     <h1>{{ c.title }}</h1>
     <p class="sub" id="dueSub">{% include "collect/_due_sub.html" %}</p>
   </div>
+  <button class="btn sec" type="button" data-copy="#nudgeAll">한 번에 독촉 문구 복사</button>
   <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a>
 </div>
 <div class="grid stretch">
   {% include "collect/_board.html" %}
   <div class="s4 stack-y">
     {% include "collect/_due.html" %}
-    <section class="card lk" aria-labelledby="lkH">
-      <div class="card-h"><h2 id="lkH">받는 링크</h2></div>
-      <div class="card-b">
-        <div class="joined"><label class="sr" for="lk">받는 링크</label><input class="input num" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="받는 링크를 복사했어요">복사</button></div>
-        <p class="note">링크 하나로 모두 내요. 로그인은 없고, 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>
-      </div>
-    </section>
-    <section class="card" aria-labelledby="mH">
-      <div class="card-h"><h2 id="mH">받는 선생님에게 갈 쪽지</h2></div>
-      <div class="card-b">
-        <p class="note-msg" id="msg">{{ msg }}</p>
-        <button class="btn pri block" style="margin-top:12px" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>
-      </div>
-    </section>
+    {% include "collect/_link.html" %}
   </div>
 </div>
 {% endblock %}

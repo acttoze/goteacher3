@@ -96,7 +96,7 @@ class BoardTests(TestCase):
         self.assertContains(r, "버스 1대")
         self.assertContains(r, ">40<")  # 숫자 칸 합계
         self.assertContains(r, "김가람 대신 냄")  # 4-2를 김가람이 대신 냄
-        self.assertContains(r, "남은 반")
+        self.assertContains(r, "미제출 1개 반")  # prototype missLabel·missUnit
         self.assertContains(r, 'data-miss="4-3"')
         self.assertNotContains(r, 'data-miss="4-1"')
 

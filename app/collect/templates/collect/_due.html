@@ -4,15 +4,16 @@
   <div class="card-b">
     {% if c.due %}
     <p class="due-big num">{{ due_label }}</p>
-    <p class="due-left">{{ due_left }}</p>
     {% else %}
     <p class="due-big">{% if can_due %}마감을 아직 정하지 않았어요{% else %}마감 미정{% endif %}</p>
-    <p class="due-left">{% if can_due %}만들 때는 마감을 받지 않아요. 정하면 받는 선생님 화면에 마감이 보여요.{% else %}만든 선생님이 정하면 여기에 보여요.{% endif %}</p>
     {% endif %}
+    <p class="due-left">{% if c.closed_at %}마감하고 잠갔어요. 링크로는 더 낼 수 없어요.{% elif c.due %}{{ due_left }}{% elif can_due %}만들 때는 마감을 받지 않아요. 정하면 받는 선생님 화면에 마감이 보여요.{% else %}만든 선생님이 정하면 여기에 보여요.{% endif %}</p>
     {% if can_due %}
     <div class="rail-acts">
-      <button class="btn {% if c.due %}sec{% else %}pri{% endif %}" type="button" data-open="#dueDlg">{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</button>
-      {% if notice %}<button class="btn ink" type="button" data-copy="#notice" data-done="마감 안내 문구를 복사했어요. 쿨메신저에 붙여넣으세요."{% if due_saved %} data-autocopy="마감을 {{ due_short }}{% if due_saved == 'first' %}로 정했어요{% else %}로 바꿨어요{% endif %}. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요."{% endif %}>마감 안내 문구 복사</button>{% endif %}
+      <button class="btn {% if c.due %}sec{% else %}pri{% endif %}" type="button" data-open="#dueDlg"{% if c.closed_at %} disabled{% endif %}>{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</button>
+      {# D5 마감하고 잠그기·다시 열기(design #lock). 잠그면 받는 링크가 더 받지 않는다. #}
+      <form hx-post="/s/{{ space.token }}/c/{{ c.key }}/lock" hx-target="#dueCard" hx-swap="outerHTML">{% csrf_token %}{% if c.closed_at %}<input type="hidden" name="open" value="1">{% endif %}<button class="btn ghost" type="submit"{% if lock_toast %} data-toast-now="{{ lock_toast }}"{% endif %}>{% if c.closed_at %}다시 열기{% else %}마감하고 잠그기{% endif %}</button></form>
+      {% if notice and not c.closed_at %}<button class="btn ink" type="button" data-copy="#notice" data-done="마감 안내 문구를 복사했어요. 쿨메신저에 붙여넣으세요."{% if due_saved %} data-autocopy="마감을 {{ due_short }}{% if due_saved == 'first' %}로 정했어요{% else %}로 바꿨어요{% endif %}. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요."{% endif %}>마감 안내 문구 복사</button>{% endif %}
     </div>
     {% if notice %}<p class="sr" id="notice">{{ notice }}</p>{% endif %}
     <div class="scrim" id="dueDlg"{% if not due_error %} hidden{% endif %}>

@@ -130,12 +130,12 @@ class DueTests(TestCase):
     def test_notice_has_due_and_link(self):
         r = self.post()
         body = r.content.decode()
-        self.assertIn("[고티처] 「학예회 참가 인원」 마감 안내: 11/3 17:00", body)
+        self.assertIn("[고티처] 「학예회 참가 인원」 마감 안내: 11/3(수) 17:00", body)
         self.assertIn("아직 안 채운 분은 링크에서 우리 반 칸만 채워 주세요.", body)
         self.assertIn(f"https://t.goteacher.xyz/c/{self.c.link_token}", body)
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
         self.assertIn("마감 안내 문구 복사", page)
-        self.assertIn("마감 안내: 11/3 17:00", page)
+        self.assertIn("마감 안내: 11/3(수) 17:00", page)
 
     def test_no_notice_before_due(self):
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
@@ -212,7 +212,7 @@ class DueQATests(TestCase):
         now = at_seoul(2026, 10, 30, 23, 30)
         with mock.patch("django.utils.timezone.now", return_value=now):
             body = self.post("2026-10-31", "00:00").content.decode()
-        self.assertIn("마감 안내: 10/31 00:00", body)
+        self.assertIn("마감 안내: 10/31(토) 00:00", body)
         self.assertIn("0시간 30분 남았어요", body)
 
     def test_left_text_days_and_passed(self):
@@ -261,12 +261,12 @@ class DueQATests(TestCase):
     # 안내 문구·알림 문구 변형(prototype: 안내/변경, 정했어요/바꿨어요, 내 줄/우리 반 칸/내 칸)
     def test_toast_text_first_and_changed(self):
         b1 = self.post().content.decode()
-        self.assertIn("마감을 11/3 17:00로 정했어요. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.", b1)
+        self.assertIn("마감을 11/3(수) 17:00로 정했어요. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.", b1)
         b2 = self.post("2027-11-05", "12:30").content.decode()
-        self.assertIn("마감을 11/5 12:30로 바꿨어요.", b2)
+        self.assertIn("마감을 11/5(금) 12:30로 바꿨어요.", b2)
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
         self.assertNotIn("data-autocopy", page)  # 다시 열 때는 저절로 복사하지 않음
-        self.assertIn("마감 안내: 11/5 12:30", page)  # 처음 연 화면은 '안내'
+        self.assertIn("마감 안내: 11/5(금) 12:30", page)  # 처음 연 화면은 '안내'
 
     def test_notice_where_variants(self):
         self.c.unit_head = ["이름"]
