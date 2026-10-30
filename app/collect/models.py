@@ -124,3 +124,33 @@ class Cell(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["row", "field"], name="uniq_cell_row_field"),
         ]
+
+
+class Notification(models.Model):
+    """🔔 알림 한 건(D3 자동 리마인드). 받는 회원 한 명 것. 같은 줄·종류·날짜에는 하나만(cron이 여러 번 불러도).
+
+    text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
+    """
+
+    class Kind(models.TextChoices):
+        D1 = "d1", "마감 전날"
+        D0 = "d0", "마감 당일"
+
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")
+    row = models.ForeignKey(Row, on_delete=models.CASCADE, related_name="notifications")
+    kind = models.CharField("종류", max_length=10, choices=Kind.choices)
+    day = models.DateField("보낸 날")
+    text = models.CharField("문구", max_length=300)
+    link = models.CharField("링크", max_length=300)
+    read = models.BooleanField("읽음", default=False)
+    key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = SpaceQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["row", "kind", "day"], name="uniq_notice_row_kind_day"),
+        ]

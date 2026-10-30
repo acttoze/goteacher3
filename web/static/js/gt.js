@@ -20,7 +20,15 @@
   document.addEventListener('keydown', function (e) {
     var d = document.querySelector('.scrim:not([hidden])');
     if (e.key === 'Escape' && d) closeDlg(d);
+    else if (e.key === 'Escape' && closePops()) document.getElementById('bellBtn').focus();
   });
+  // 🔔 알림 목록(design .pop): 단추로 열고 닫는다. 목록은 htmx가 열 때마다 서버에서 받는다(hx-get).
+  function closePops() {
+    var b = document.getElementById('bellBtn'), p = document.getElementById('bellPop');
+    if (!b || !p || p.hidden) return false;
+    p.hidden = true; b.setAttribute('aria-expanded', 'false');
+    return true;
+  }
   // 저장 뒤 바뀐 내용에 [data-autocopy="알림"]이 있으면 그 단추의 복사를 한 번 한다(prototype: 마감 저장 = 안내 문구 복사).
   // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
   document.addEventListener('htmx:afterSwap', function () {
@@ -36,6 +44,12 @@
   });
 
   document.addEventListener('click', function (e) {
+    if (e.target.closest('#bellBtn')) {
+      var p = document.getElementById('bellPop'), open = p.hidden;
+      p.hidden = !open; e.target.closest('#bellBtn').setAttribute('aria-expanded', String(open));
+      return;
+    }
+    if (!e.target.closest('.pop')) closePops();
     var o = e.target.closest('[data-open]');
     if (o) {
       var d = document.querySelector(o.dataset.open);
