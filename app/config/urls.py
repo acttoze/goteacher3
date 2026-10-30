@@ -3,7 +3,7 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 from accounts import views as accounts
-from collect import bell, export, lists, submit
+from collect import bell, export, lists, push, submit
 from collect import views as collect
 from library import views as library
 from spaces import views as spaces
@@ -24,6 +24,9 @@ urlpatterns = [
     path("s/<str:space_token>/welcome", spaces.welcome),
     path("s/<str:space_token>/bell", bell.index),
     path("s/<str:space_token>/bell/<str:key>", bell.read),
+    path("s/<str:space_token>/push", push.subscribe),
+    path("s/<str:space_token>/push/off", push.unsubscribe),
+    path("s/<str:space_token>/push/mine", push.mine),
     path("s/<str:space_token>/c/", lists.index),
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),

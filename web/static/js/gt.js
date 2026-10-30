@@ -43,6 +43,81 @@
     else fail();
   });
 
+  // 이 PC에서 알림 받기(G2). 🔔 목록이 열리면 이 브라우저 구독 상태로 단추를 맞춘다. 권한 요청은 단추를 누를 때만.
+  var SW = '/static/sw.js';
+  function pushOk() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function csrf() { var i = document.querySelector('input[name=csrfmiddlewaretoken]'); return i ? i.value : ''; }
+  function vapidKey(s) {
+    var raw = atob((s + '='.repeat((4 - s.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(raw, function (c) { return c.charCodeAt(0); });
+  }
+  function post(url, body) {
+    return fetch(url, { method: 'POST', credentials: 'same-origin', body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() } })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); });
+  }
+  function mySub() {
+    return navigator.serviceWorker.getRegistration(SW).then(function (reg) { return reg ? reg.pushManager.getSubscription() : null; });
+  }
+  function activated(reg) {  // 서비스 워커 범위(/static/) 밖 화면이라 serviceWorker.ready 대신 직접 기다린다
+    var w = reg.installing || reg.waiting;
+    if (reg.active || !w) return Promise.resolve(reg);
+    return new Promise(function (ok) { w.addEventListener('statechange', function () { if (w.state === 'activated') ok(reg); }); });
+  }
+  function pushSync() {
+    var btn = document.getElementById('pushBtn'), msg = document.getElementById('pushMsg');
+    if (!btn) return;
+    if (!pushOk()) { btn.hidden = true; msg.textContent = '이 브라우저는 알림을 받을 수 없어요.'; return; }
+    if (Notification.permission === 'denied') { btn.disabled = true; msg.textContent = '브라우저 설정에서 고티처 알림이 막혀 있어요.'; return; }
+    var box = document.getElementById('pushBox');
+    mySub().then(function (sub) {
+      if (!sub || Notification.permission !== 'granted') return false;
+      // 이 브라우저 구독이 지금 회원 것인지 서버에 묻는다. 앞사람 것이면 '꺼짐'으로 보이고, 켜면 지금 회원으로 옮긴다.
+      return fetch(box.dataset.mine, { method: 'POST', credentials: 'same-origin', body: JSON.stringify({ endpoint: sub.endpoint }),
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() } })
+        .then(function (r) { return r.ok ? r.json() : { mine: false }; }).then(function (d) { return !!d.mine; });
+    }).catch(function () { return false; }).then(function (on) {
+      btn.dataset.state = on ? 'on' : 'off';
+      btn.textContent = on ? '이 PC에서 알림 끄기' : '이 PC에서 알림 받기';
+      msg.textContent = on ? '이 PC에서 받고 있어요.' : '';
+      btn.disabled = false;
+    });
+  }
+  // 로그아웃: 이 PC 브라우저 구독을 서버에서 지우고 브라우저에서도 끊은 뒤 나간다(공용 PC에 앞사람 알림이 뜨지 않게).
+  // 서버도 로그아웃 때 이 PC 기기 토큰에 묶인 구독을 지운다. 어떤 경우에도 2초 안에는 로그아웃한다.
+  document.addEventListener('submit', function (e) {
+    var f = e.target;
+    if (f.id !== 'logoutForm' || !pushOk()) return;
+    e.preventDefault();
+    var done = false, go = function () { if (!done) { done = true; f.submit(); } }, t = setTimeout(go, 2000);
+    mySub().then(function (sub) {
+      if (!sub) return;
+      return post(f.dataset.pushOff, { endpoint: sub.endpoint }).catch(function () {}).then(function () { return sub.unsubscribe(); });
+    }).catch(function () {}).then(function () { clearTimeout(t); go(); });
+  });
+  function pushToggle(btn) {
+    var box = document.getElementById('pushBox'), msg = document.getElementById('pushMsg'), on = btn.dataset.state !== 'on';
+    btn.disabled = true;
+    var job = on
+      ? Notification.requestPermission().then(function (p) {
+          if (p !== 'granted') throw new Error('perm');
+          return navigator.serviceWorker.register(SW).then(activated);
+        }).then(function (reg) {
+          return reg.pushManager.getSubscription().then(function (s) {
+            return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(box.dataset.vapid) });
+          });
+        }).then(function (sub) { return post(box.dataset.on, sub.toJSON()); })
+      : mySub().then(function (sub) {
+          if (sub) return post(box.dataset.off, { endpoint: sub.endpoint }).then(function () { return sub.unsubscribe(); });
+        });
+    job.then(function () { toast(on ? '이 PC에서 묶음 알림을 받아요.' : '이 PC에서 알림을 껐어요.'); pushSync(); },
+      function (err) {
+        pushSync();
+        msg.textContent = err.message === 'perm' ? '알림을 허용해야 받을 수 있어요.' : '바꾸지 못했어요. 잠시 뒤 다시 눌러 주세요.';
+      });
+  }
+  document.addEventListener('htmx:afterSwap', function (e) { if (e.target.id === 'bellPop') pushSync(); });
+
   // 한 줄 일정(오늘): 올리면 칸을 비우고, Esc·바깥을 누르면 미리보기를 닫고, n으로 칸에 들어간다(design shell.js).
   function hideQ() { var q = document.getElementById('qpop'); if (q) q.hidden = true; }
   document.addEventListener('htmx:afterRequest', function (e) {
@@ -58,6 +133,8 @@
 
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.quick')) hideQ();
+    var pb = e.target.closest('#pushBtn');
+    if (pb) { pushToggle(pb); return; }
     if (e.target.closest('#bellBtn')) {
       var p = document.getElementById('bellPop'), open = p.hidden;
       p.hidden = !open; e.target.closest('#bellBtn').setAttribute('aria-expanded', String(open));

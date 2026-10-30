@@ -144,6 +144,7 @@ class Notification(models.Model):
     text = models.CharField("문구", max_length=300)
     link = models.CharField("링크", max_length=300)
     read = models.BooleanField("읽음", default=False)
+    pushed = models.BooleanField("웹 푸시 묶음으로 보냄", default=False)  # G2: 한 번 묶어 보낸 것은 다음 묶음에 다시 넣지 않는다
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -154,3 +155,33 @@ class Notification(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["row", "kind", "day"], name="uniq_notice_row_kind_day"),
         ]
+
+
+class PushSubscription(models.Model):
+    """G2 웹 푸시 구독: 회원 한 명의 브라우저(기기) 하나. endpoint는 푸시 서비스 주소(기기마다 다름, 유일).
+
+    푸시 서비스가 404·410을 주면 지운다(collect.push). 같은 브라우저 구독을 다른 회원이 켜면 그 회원 것으로 옮긴다.
+    """
+
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="push_subscriptions")
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="push_subscriptions")
+    endpoint = models.CharField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    # 구독한 PC의 기기 토큰(있으면). 그 PC에서 로그아웃하면 기기 토큰과 함께 지워진다(공용 PC에 앞사람 알림이 뜨지 않게).
+    device = models.ForeignKey("accounts.DeviceToken", on_delete=models.CASCADE, null=True, blank=True,
+                               related_name="push_subscriptions")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = SpaceQuerySet.as_manager()
+
+
+class PushRound(models.Model):
+    """G2 묶음 한 번(날짜·묶음). cron이 5분마다 불러도 같은 묶음은 한 번만 보내게 하는 표시. 공간 데이터 아님."""
+
+    day = models.DateField()
+    slot = models.CharField(max_length=10)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["day", "slot"], name="uniq_push_round")]

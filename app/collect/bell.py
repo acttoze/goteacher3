@@ -3,10 +3,11 @@
 remind(): 서버 cron이 5분마다 `manage.py remind`로 부른다. 보낼 때가 된 것만, 한 번씩만 만든다.
 - 마감 전날 08:20 이후 첫 실행 → D-1, 마감 당일 08:20 이후 첫 실행 → 당일(마감 시각 전까지).
 - 대상: 잠그지 않은 모으기의 아직 안 낸 줄(submit._units)의 회원. 명부 밖 줄(회원 없음)은 뺀다.
-- 중복은 DB 유일 조건(줄·종류·날짜)이 막는다. 웹 푸시·묶음 시각(12:20·방과후)은 G2.
+- 중복은 DB 유일 조건(줄·종류·날짜)이 막는다. 웹 푸시 묶음(08:20·12:20·방과후)은 G2 collect.push.
 """
 from datetime import time, timedelta
 
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.functional import SimpleLazyObject
@@ -16,6 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from spaces.models import Member
 
 from .models import Collection, Notification
+from .push import next_at
 from .submit import _units
 
 SEND_AT = time(8, 20)
@@ -47,10 +49,11 @@ def _mine(request):
 
 
 def unread(request):
-    """컨텍스트 프로세서: 공통 틀(shell.html) 🔔의 안 읽은 수. 쓰는 화면에서만 센다."""
+    """컨텍스트 프로세서: 공통 틀(shell.html) 🔔의 안 읽은 수(쓰는 화면에서만 센다)와 다음 묶음 시각(G2)."""
     if getattr(request, "member", None) is None:
         return {}
-    return {"bell_n": SimpleLazyObject(lambda: _mine(request).filter(read=False).count())}
+    return {"bell_n": SimpleLazyObject(lambda: _mine(request).filter(read=False).count()),
+            "bell_next": next_at(timezone.now())}
 
 
 @never_cache
@@ -59,7 +62,8 @@ def index(request):
     """🔔 목록(htmx 부분 뷰). 내 알림만, 최근 20건."""
     mine = _mine(request)
     return render(request, "collect/_bell.html", {"space": request.space, "items": mine[:20],
-                                                  "unread_n": mine.filter(read=False).count()})
+                                                  "unread_n": mine.filter(read=False).count(),
+                                                  "vapid": settings.VAPID_PUBLIC_KEY})
 
 
 @never_cache

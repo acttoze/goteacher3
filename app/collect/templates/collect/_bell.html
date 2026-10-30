@@ -5,4 +5,7 @@
 {% empty %}
 <p class="pi muted">아직 알림이 없어요.</p>
 {% endfor %}
-<div class="pf">마감 전날과 당일 08:20에 아직 안 낸 모으기를 여기로 알려 드려요.</div>
+<div class="pf">마감 전날과 당일 08:20에 아직 안 낸 모으기를 여기로 알려 드려요. 브라우저 알림은 08:20·12:20·방과후(14:40)에 묶어서만 띄우고, 수업 중에는 띄우지 않아요.</div>
+{% if vapid %}<div class="pf" id="pushBox" data-vapid="{{ vapid }}" data-on="/s/{{ space.token }}/push" data-off="/s/{{ space.token }}/push/off" data-mine="/s/{{ space.token }}/push/mine">
+<button class="btn sec" type="button" id="pushBtn" disabled>이 PC에서 알림 받기</button> <span id="pushMsg" role="status"></span>
+</div>{% endif %}

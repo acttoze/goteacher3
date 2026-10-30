@@ -21,3 +21,9 @@
 
 공용 서버 규칙: 이 프로젝트 밖의 컨테이너·네트워크·볼륨과 Traefik 설정은 건드리지 않는다.
 `docker system prune`·`volume prune` 금지. DB·Redis 포트는 호스트에 열지 않는다.
+
+정기 작업(D3·G2): crontab 5분마다 `remind`(🔔 리마인드 쌓기) 다음 `push_digest`(08:20·12:20·14:40 묶음 웹 푸시).
+같은 줄에서 순서대로 부른다(08:20 리마인드가 아침 묶음에 들어가게). 두 명령 모두 여러 번 불려도 한 번만 보낸다.
+
+VAPID 키(G2) 만들기 — 서버에서 한 번, 출력은 `ops/.env`에만 붙이고 화면·저장소에 남기지 않는다:
+`docker compose -f ops/compose.yml exec -T goteacher-app python -c "from py_vapid import Vapid; from py_vapid.utils import b64urlencode as e; from cryptography.hazmat.primitives import serialization as s; v=Vapid(); v.generate_keys(); print('VAPID_PRIVATE_KEY='+e(v.private_key.private_numbers().private_value.to_bytes(32,'big'))); print('VAPID_PUBLIC_KEY='+e(v.public_key.public_bytes(s.Encoding.X962, s.PublicFormat.UncompressedPoint)))" >> ops/.env`

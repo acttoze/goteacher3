@@ -155,7 +155,7 @@ class BellViewTests(Base):
     def test_shell_shows_unread_count(self):
         body = self.client.get(f"/s/{self.a.token}/").content.decode()
         self.assertIn('id="bellBtn"', body)
-        self.assertIn('<b class="num">1</b>', body)
+        self.assertIn('안 읽은 알림 1건', body)
         self.assertIn('class="dot-n"', body)
 
     def test_list_only_mine(self):
@@ -175,7 +175,7 @@ class BellViewTests(Base):
         self.n2.refresh_from_db()
         self.assertTrue(self.n2.read)
         body = self.client.get(f"/s/{self.a.token}/").content.decode()
-        self.assertIn('<b class="num">0</b>', body)
+        self.assertIn('안 읽은 알림 0건', body)
         self.assertNotIn('class="dot-n"', body)
 
     def test_read_requires_post(self):

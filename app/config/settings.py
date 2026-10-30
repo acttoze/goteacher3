@@ -45,6 +45,10 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 NEIS_KEY = os.environ.get("NEIS_KEY", "")
 # 작업 큐(config/queue.py). 비우면(로컬·CI) 큐 없이 그 자리에서 실행한다.
 REDIS_URL = os.environ.get("REDIS_URL", "")
+# 웹 푸시(G2). 비우면 구독 단추를 숨기고 보내지 않는다. 키 만드는 법은 ops/README.md
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@goteacher.xyz")
 RQ_JOB_TIMEOUT = 300  # 작업당 상한(초). 한글 변환 표본 최대 205초(30번 리드 결정)
 
 CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith("https://") else []

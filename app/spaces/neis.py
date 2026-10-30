@@ -95,6 +95,14 @@ def schedule(atpt, code, start, end):
     return [{"ymd": r["AA_YMD"], "name": r["EVENT_NM"]} for r in rows if r.get("EVENT_NM") != "토요휴업일"]
 
 
+def day_off(atpt, code, d):
+    """그날이 학교 쉬는 날인가(G2 묶음 알림). 수업공제일 휴업일·공휴일이거나 행사 이름에 '방학'. NEIS 실패면 False."""
+    ymd = f"{d:%Y%m%d}"
+    params = {"ATPT_OFCDC_SC_CODE": atpt, "SD_SCHUL_CODE": code, "AA_FROM_YMD": ymd, "AA_TO_YMD": ymd}
+    rows, _ = _get("SchoolSchedule", params, HOUR)  # schedule()과 같은 캐시 키
+    return any(r.get("SBTR_DD_SC_NM") in ("휴업일", "공휴일") or "방학" in r.get("EVENT_NM", "") for r in rows)
+
+
 def _lines(s):
     return [x.replace("&amp;", "&").strip() for x in re.split(r"<br\s*/?>", s or "", flags=re.I) if x.strip()]
 
