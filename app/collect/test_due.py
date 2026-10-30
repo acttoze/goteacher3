@@ -166,7 +166,7 @@ class DueTests(TestCase):
 
 
 # ---- QA 추가(D1 경계 사례): 시간대 경계·남은 시간·지각 반영·토큰 바꿔 끼우기·문구 변형
-from datetime import timedelta, timezone as dt_tz  # noqa: E402
+from datetime import timezone as dt_tz  # noqa: E402
 from unittest import mock  # noqa: E402
 
 from .models import Cell  # noqa: E402
