@@ -1,5 +1,6 @@
 """고티처 설정. 값은 모두 환경변수에서 읽는다(.env.example 참고)."""
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -8,6 +9,8 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # app/
 REPO_DIR = BASE_DIR.parent
+if str(REPO_DIR) not in sys.path:  # 저장소 루트의 hwp 패키지(Django 없는 한글 엔진)를 import 하려고
+    sys.path.append(str(REPO_DIR))
 
 # 로컬 편의: 저장소 루트 .env가 있으면 읽는다(이미 설정된 환경변수가 우선).
 _env_file = REPO_DIR / ".env"
@@ -56,6 +59,7 @@ INSTALLED_APPS = [
     "accounts",
     "spaces",
     "collect",
+    "hwpfiles",
 ]
 
 MIDDLEWARE = [
@@ -112,6 +116,19 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
 }
+
+# 올린 한글 파일(E2). 서버는 볼륨 /srv/media(ops/compose.yml). MEDIA_URL로 서빙하지 않는다(내려받기는 회원 확인 뷰로만).
+MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(REPO_DIR / "media"))
+FILE_UPLOAD_PERMISSIONS = 0o600
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
+# 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일이 아닌 본문은 Django 기본(2.5MB) 그대로,
+# 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다. 선언 크기 초과는 뷰가 본문 읽기 전에 거부.
+HWP_MAX_UPLOAD = 30 * 1024 * 1024
+HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
+HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 공간 하나의 저장 총량(원본+변환한 HWPX)
+HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 20 * 1024**3))  # 서비스 전체(서버 디스크 보호)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

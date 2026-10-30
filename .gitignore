@@ -19,3 +19,6 @@ staticfiles/
 
 # 서버 운영 산출물(백업·배포 기록). 서버 clone 안 /var/
 /var/
+
+# 로컬 올린 파일(E2, 서버는 /srv/media 볼륨)
+/media/

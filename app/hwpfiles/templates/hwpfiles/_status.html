@@ -1,0 +1,14 @@
+{# E2 변환 상태. 대기·변환 중이면 2초마다 자신을 다시 불러온다(htmx). 알림(G2) 전까지 변환 보고는 여기 문구로. #}
+<div id="hwp-{{ f.key }}" class="hwp-status" role="status" aria-live="polite" data-status="{{ f.status }}"
+  {% if f.busy %}hx-get="/s/{{ space.token }}/hwp/{{ f.key }}/status" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  {% if f.busy %}
+  <p><b>{{ f.name|default:"한글 파일" }}</b> — 한글 양식을 읽는 중이에요. 큰 파일은 1분 넘게 걸릴 수 있어요.</p>
+  {% elif f.status == "done" %}
+  <p><b>{{ f.name|default:"한글 파일" }}</b> — 읽기 끝났어요.</p>
+  {% with labels=f.report_labels %}{% if labels %}
+  <p class="hint">변환하며 원본의 일부 요소({{ labels|join:", " }})는 옮기지 못했어요. 표와 글자는 그대로예요.</p>
+  {% endif %}{% endwith %}
+  {% else %}
+  <p class="err" role="alert">{{ f.error_text }}</p>
+  {% endif %}
+</div>

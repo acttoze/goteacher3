@@ -5,6 +5,7 @@ python-hwpx **6.10 고정**(Apache-2.0). pyhwp(AGPL)는 쓰지 않는다.
 
 ```python
 import hwp
+kind = hwp.sniff(upload)                        # 웹 요청 안: 매직 바이트·크기·가벼운 구조만(압축 안 풂)
 hwpx, kind, report = hwp.to_hwpx(upload)        # 매직 바이트 판별·크기·zip 가드·hwp→HWPX 변환
 cands = hwp.candidates(hwpx)                    # 표 후보 점수순. 자동 확정 금지(1순위 적중 약 70%)
 s = hwp.schema(hwpx, section, index)            # 입력 칸·라벨·합계 행

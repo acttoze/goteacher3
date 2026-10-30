@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from django.urls import path
+from django.urls import include, path
 from django.views.generic import TemplateView
 
 from accounts import views as accounts
@@ -40,5 +40,6 @@ urlpatterns = [
     path("auth/logout", accounts.logout_view),
     path("privacy", TemplateView.as_view(template_name="legal/privacy.html")),
     path("terms", TemplateView.as_view(template_name="legal/terms.html")),
+    path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("healthz", healthz),
 ]

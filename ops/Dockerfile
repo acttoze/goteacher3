@@ -15,10 +15,13 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
+COPY hwp ./hwp
 COPY web ./web
 RUN SECRET_KEY=build-only python app/manage.py collectstatic --noinput -v 0
 
-RUN useradd --system --no-create-home gt
+RUN useradd --system --no-create-home gt \
+    && mkdir -p /srv/media && chown gt /srv/media && chmod 700 /srv/media  # 올린 한글 파일 볼륨(새 볼륨이 이 소유권을 받음)
+ENV MEDIA_ROOT=/srv/media
 USER gt
 
 EXPOSE 8000

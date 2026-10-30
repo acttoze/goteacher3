@@ -1,6 +1,7 @@
 """고티처 한글(HWP/HWPX) 엔진. Django 없이 바이트를 받아 바이트나 dict 를 돌려준다.
 
 흐름(meeting/27 4-2장)
+    kind = sniff(upload_bytes)                      # 웹 요청 안: 매직 바이트·크기·가벼운 구조(압축 안 풂)
     hwpx, kind, report = to_hwpx(upload_bytes)      # 판별·제한·zip 가드·hwp→HWPX 변환
     cands = candidates(hwpx)                        # 표 후보 점수순(자동 확정 금지, 1순위 적중 약 70%)
     s = schema(hwpx, section, index)                # 교사가 고른 표의 입력 칸·라벨
@@ -17,10 +18,10 @@ import functools
 from . import engine as _e
 from .safety import (MAX_CELL_TEXT, MAX_ENTRIES, MAX_UNZIPPED, MAX_UPLOAD, ConvertError,
                      FillError, HwpError, TooLarge, UnsafeFile, UnsupportedFormat, detect,
-                     output_format)
+                     output_format, sniff)
 
 __all__ = [
-    'detect', 'to_hwpx', 'candidates', 'schema', 'fill', 'to_hwp', 'verify', 'zip_ok', 'output_format',
+    'detect', 'sniff', 'to_hwpx', 'candidates', 'schema', 'fill', 'to_hwp', 'verify', 'zip_ok', 'output_format',
     'HwpError', 'UnsupportedFormat', 'TooLarge', 'UnsafeFile', 'ConvertError', 'FillError',
     'MAX_UPLOAD', 'MAX_UNZIPPED', 'MAX_ENTRIES', 'MAX_CELL_TEXT',
 ]

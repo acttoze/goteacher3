@@ -21,6 +21,7 @@ services:
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_started }
+    volumes: [media:/srv/media]  # 올린 한글 파일(E2). worker와 공유
     mem_limit: 512m
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
@@ -54,12 +55,15 @@ services:
     pull_policy: never
     env_file: .env
     working_dir: /srv/app
-    command: ["python", "-m", "config.worker"]
+    # 두 큐를 한 프로세스가 default 먼저 듣는다(한글 변환 hwp 큐가 길어도 default 작업이 앞에 선다).
+    command: ["python", "-m", "config.worker", "default", "hwp"]
+    volumes: [media:/srv/media]
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_started }
     # 한글 변환 1건 약 2GB 추정(30번) + worker 본체. 동시 1건(프로세스 1개)
     mem_limit: 2560m
+    memswap_limit: 2560m  # 스왑 금지(공용 서버 보호). 넘으면 작업만 죽고 실패 처리
     # 배포 때 진행 중 작업을 30초까지 기다리고, 넘으면 끊는다(작업은 실패 목록으로)
     stop_grace_period: 30s
     labels:
@@ -93,6 +97,7 @@ services:
 volumes:
   pgdata:
   redisdata:
+  media:  # goteacher_media. 보관 기간 자동 삭제는 E3
 
 networks:
   infra:
