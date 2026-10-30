@@ -1,4 +1,4 @@
-"""C2 새로 모으기 — 표 붙여넣기. 동작은 prototype collectNew(붙여넣기), 모습은 design/collect-new.html.
+"""C2·C3 새로 모으기 — 표 붙여넣기·직접 입력·자주 쓰는 양식. 동작은 prototype collectNew, 모습은 design/collect-new.html.
 
 붙여넣은 HTML은 미리보기 요청에서 한 번 TSV로 바꿔 돌려줄 뿐 저장·렌더하지 않는다(paste.py).
 만들 때는 TSV를 다시 읽어 Collection(source=paste) + Field + Row를 만든다. Cell은 만들지 않는다(낸 시각 계산).
@@ -13,11 +13,14 @@ from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
 from .models import Collection, Field, Row
-from .paste import YES_NO, PasteError, clean_text, html_to_tsv, parse
+from .paste import YES_NO, PasteError, guess_kind, clean_text, html_to_tsv, parse
+from .presets import PRESETS
 
 # design TYPES(받는 방식 고르기). 자동 계산(calc)·링크(url)는 여기서 고르지 않는다.
 KINDS = [("number", "숫자"), ("text", "글자"), ("select", "고르기"), ("date", "날짜")]
 SHOW_ROWS = 40  # 미리보기에 보이는 받는 사람 줄
+SHEET_COLS = 6  # 직접 입력 칸 수(design: 더 많으면 표 붙여넣기)
+SHEET_HEAD = ["학년반", "담임"]  # prototype lockCols(담임만·반별 1칸)
 
 
 def _read(text):
@@ -36,25 +39,77 @@ def _paste_ctx(p, error):
             "more_rows": max(0, len(rows) - SHOW_ROWS)}
 
 
+def _sheet_cols(post):
+    """직접 입력 칸: [(이름, 형식, 보기)]. 형식이 비면 이름으로 추정(design guess), 고르기 보기가 비면 예·아니오(prototype)."""
+    valid, out, seen = {k for k, _ in KINDS}, [], {}
+    for i in range(SHEET_COLS):
+        name = clean_text(post.get(f"col_name_{i}", ""))[:90]
+        if not name:
+            continue
+        seen[name] = seen.get(name, 0) + 1
+        if seen[name] > 1:
+            name = f"{name} ({seen[name]})"
+        kind = post.get(f"col_kind_{i}", "")
+        kind = kind if kind in valid else guess_kind(name, [])[0]
+        opts = [clean_text(o)[:100] for o in post.get(f"col_opts_{i}", "").split(",")] if kind == "select" else []
+        opts = [o for o in opts if o][:20] or (YES_NO if kind == "select" else [])
+        out.append((name, kind, opts))
+    return out
+
+
 @require_http_methods(["GET", "POST"])
 def new(request):
     space = request.space
-    title, text, errors = "", "", {}
+    title, text, errors, src = "", "", {}, "paste"
     p = error = None
     if request.method == "POST":
+        src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
-        text = request.POST.get("paste", "")
-        p, error = _read(text)
-        if not title:
-            errors["title"] = "제목을 적어 주세요."
-        if not p:
-            errors["paste"] = error or "표를 붙여넣어 주세요. 한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 붙여넣으면 돼요."
-        if not errors:
-            c = _create(request, title, p)
-            return redirect(f"/s/{space.token}/c/{c.key}/")
-    ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors)
+        if src == "preset":
+            spec = PRESETS.get(request.POST.get("preset", ""))
+            if spec:
+                c = _create_cols(request, spec["title"], Collection.Source.PRESET, spec["fields"],
+                                 spec["unit_head"], spec["multi"])
+                return redirect(f"/s/{space.token}/c/{c.key}/")
+            errors["preset"] = "양식을 하나 골라 주세요."
+        elif src == "sheet":
+            cols = _sheet_cols(request.POST)
+            if not cols:
+                errors["sheet"] = "받을 칸 이름을 하나 이상 적어 주세요."
+            else:
+                c = _create_cols(request, title or f"{cols[0][0]} 조사", Collection.Source.SHEET,
+                                 [(n, k) for n, k, _ in cols], SHEET_HEAD, request.POST.get("multi") == "on",
+                                 options=[o for _, _, o in cols])
+                return redirect(f"/s/{space.token}/c/{c.key}/")
+        elif src == "paste":
+            text = request.POST.get("paste", "")
+            p, error = _read(text)
+            if not title:
+                errors["title"] = "제목을 적어 주세요."
+            if not p:
+                errors["paste"] = error or "표를 붙여넣어 주세요. 한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 붙여넣으면 돼요."
+            if not errors:
+                c = _create(request, title, p)
+                return redirect(f"/s/{space.token}/c/{c.key}/")
+        else:
+            src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
+    ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src,
+                     srcs=[("paste", "표 붙여넣기"), ("sheet", "직접 입력"), ("preset", "자주 쓰는 양식")],
+                     sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
+                     presets=PRESETS.items(), multi=request.POST.get("multi") == "on")
     ctx.update(_paste_ctx(p, error))
     return render(request, "collect/new.html", ctx, status=400 if errors else 200)
+
+
+def _create_cols(request, title, source, fields, unit_head, multi, options=None):
+    """직접 입력·양식: 칸만 만든다. 받는 사람 줄은 C4(동학년 명부), 칸 값(Cell)은 내는 사람이 만든다."""
+    options = options or [[] for _ in fields]
+    with transaction.atomic():
+        c = Collection.objects.create(space=request.space, created_by=request.member, title=title[:200],
+                                      source=source, unit_head=unit_head, multi=multi)
+        Field.objects.bulk_create([Field(collection=c, pos=i, name=n, kind=k, options=o)
+                                   for i, ((n, k), o) in enumerate(zip(fields, options))])
+    return c
 
 
 def _create(request, title, p):

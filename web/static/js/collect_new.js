@@ -32,3 +32,22 @@
     document.querySelectorAll('[data-title]').forEach(function (x) { x.textContent = v; });
   });
 })();
+
+// C3: 가져오는 방식 탭(표 붙여넣기·직접 입력·자주 쓰는 양식). 고른 방식은 숨은 칸 src로 서버에 간다.
+(function () {
+  var src = document.getElementById('src');
+  if (!src) return;
+  function show(v) {
+    src.value = v;
+    document.querySelectorAll('[data-src]').forEach(function (b) { if (!b.disabled) b.setAttribute('aria-pressed', String(b.dataset.src === v)); });
+    document.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane.split(' ').indexOf(v) < 0; });
+  }
+  document.querySelectorAll('[data-src]').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.src); }); });
+  var add = document.getElementById('addCol');
+  if (add) add.addEventListener('click', function () {
+    var next = document.querySelector('tr[data-col][hidden]');
+    if (!next) { document.getElementById('addColMsg').textContent = '직접 입력은 칸 6개까지예요. 더 많으면 표를 붙여넣어 주세요.'; return; }
+    next.hidden = false;
+    next.querySelector('input').focus();
+  });
+})();

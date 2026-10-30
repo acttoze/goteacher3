@@ -226,7 +226,7 @@ def _bare(s):
     return re.sub(r"\s+", "", s)
 
 
-def _guess(name, values):
+def guess_kind(name, values):
     """design guess(): 머리글로 먼저, 글자면 적힌 값으로. 반환 (kind, options)."""
     n = _bare(name)
     vals = [v for v in values if v and not FILLER.match(v) and v != "-"]
@@ -309,6 +309,6 @@ def parse(text):
             rows.append({"unit": u, "who": w})
     fields = []
     for c in inputs:
-        kind, options = _guess(name[c], values[c])
+        kind, options = guess_kind(name[c], values[c])
         fields.append({"name": name[c], "kind": kind, "options": options})
     return {"head": head, "unit_cols": [name[c] for c in units], "unit_head": unit_head, "fields": fields, "rows": rows}

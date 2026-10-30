@@ -11,7 +11,10 @@
   .sec-h .r { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
   .card-b.pt { padding-top: 22px; }
   .msg-inline { margin-top: 10px; font-size: 15px; color: var(--negative); font-weight: 600; }
-  .paste-tools { display: flex; align-items: center; margin: 22px 0 8px; }
+  .seg { margin: 22px 0 4px; }
+  .seg button[disabled] { color: var(--faint); cursor: default; }
+  [data-pane][hidden] { display: none; }
+  .paste-tools { display: flex; align-items: center; margin: 16px 0 8px; }
   .paste-tools b { font-size: 15px; }
   .paste-tools .btn { margin-left: auto; }
   #paste { min-height: 132px; font-variant-numeric: tabular-nums; tab-size: 12; white-space: pre; overflow-x: auto; }
@@ -24,6 +27,16 @@
   .aud li { min-height: 56px; padding: 6px 0; }
   .aud .cl { min-width: 44px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .aud .r { margin-left: auto; font-size: var(--fs-small); color: var(--muted); }
+  .sheet-t td { height: 60px; }
+  .sheet-t .input { height: 40px; }
+  .sheet-t .select { width: 130px; height: 40px; }
+  .sheet-t .lock { color: var(--muted); }
+  .opt { display: flex; align-items: flex-start; gap: 14px; margin-top: 16px; padding: 14px 16px; background: var(--surface); border-radius: var(--radius-in); }
+  .opt b { display: block; }
+  .opt span span { font-size: 15px; color: var(--muted); }
+  .presets li { gap: 20px; min-height: 92px; }
+  .presets .t { font-size: 17px; font-weight: 700; }
+  .presets .m { font-size: 15px; color: var(--muted); }
   .rail { position: sticky; top: calc(var(--topbar) + 28px); }
   .note-msg { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; }
   .go { display: flex; flex-direction: column; gap: 8px; }
@@ -47,6 +60,13 @@
         <div class="sec-h"><h2 id="formH">무엇을 받나요</h2><span class="r">교직원 정보만 받아요 · 학생 개인정보는 받지 않아요</span></div>
         <label class="field"><span>제목</span><input class="input lg" id="title" name="title" value="{{ title }}" maxlength="200" placeholder="예: 학예회 반별 참가 인원" autocomplete="off"{% if errors.title %} aria-invalid="true" aria-describedby="eTitle"{% endif %}></label>
         {% if errors.title %}<p class="field-err" id="eTitle">{{ errors.title }}</p>{% endif %}
+        <input type="hidden" name="src" id="src" value="{{ src }}">
+        <div class="seg" role="group" aria-label="양식 가져오기">
+          <button type="button" data-src="hwp" disabled title="준비 중이에요">한글 양식 올리기 · 준비 중</button>
+          {% for k, label in srcs %}<button type="button" data-src="{{ k }}" aria-pressed="{% if k == src %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+        </div>
+        {% if errors.src %}<p class="msg-inline" role="alert">{{ errors.src }}</p>{% endif %}
+        <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>
         <div class="paste-tools"><b>표 붙여넣기</b><button class="btn ghost sm" type="button" id="sample">예시 표 넣기</button></div>
         <label class="field"><span class="sr">표 붙여넣기</span><textarea class="textarea" id="paste" name="paste" spellcheck="false"
           placeholder="한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 여기에 붙여넣기(Ctrl+V) 하세요."
@@ -54,9 +74,36 @@
           {% if errors.paste %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
         <input type="hidden" name="html" id="pasteHtml" value="">
         <div id="pasteOut" aria-live="polite">{% if errors.paste %}<p class="msg-inline" role="alert">{{ errors.paste }}</p>{% else %}{% include "collect/_paste_out.html" %}{% endif %}</div>
+        </div>
+        <div data-pane="sheet"{% if src != "sheet" %} hidden{% endif %}>
+          <p class="muted" style="margin:16px 0 8px">받을 칸 이름을 적으세요. 학년반·담임은 자동으로 들어가요. 형식을 비워 두면 이름으로 짐작해요.</p>
+          <table class="tbl sheet-t"><thead><tr><th>칸 이름</th><th>형식</th><th>고르기 보기(쉼표로)</th></tr></thead><tbody>
+            <tr><td class="lock">학년반 · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
+            <tr><td class="lock">담임 · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
+            {% for col in sheet_cols %}<tr data-col{% if forloop.counter > 3 and not col.name %} hidden{% endif %}>
+              <td><input class="input" name="col_name_{{ col.i }}" value="{{ col.name }}" maxlength="90" placeholder="{% if col.i == 0 %}예: 참가(명){% else %}칸 이름{% endif %}" aria-label="받을 칸 {{ forloop.counter }} 이름"></td>
+              <td><select class="select" name="col_kind_{{ col.i }}" aria-label="받을 칸 {{ forloop.counter }} 형식"><option value="">자동</option>{% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></td>
+              <td><input class="input" name="col_opts_{{ col.i }}" placeholder="예, 아니오" aria-label="받을 칸 {{ forloop.counter }} 고르기 보기"></td></tr>{% endfor %}
+          </tbody></table>
+          <p style="margin-top:12px"><button class="tlink acc" type="button" id="addCol">칸 하나 더</button> <span class="small muted" id="addColMsg"></span></p>
+          {% if errors.sheet %}<p class="msg-inline" role="alert">{{ errors.sheet }}</p>{% endif %}
+          <label class="opt"><span class="toggle"><input type="checkbox" name="multi"{% if multi %} checked{% endif %}><i></i></span>
+            <span><b>받는 사람이 줄을 여러 개 추가</b><span>예: 물품 신청 — 한 반이 물품 여러 줄</span></span></label>
+        </div>
+        <div data-pane="preset"{% if src != "preset" %} hidden{% endif %}>
+          <ul class="list presets" style="margin-top:12px">{% for k, p in presets %}
+            <li><div class="grow"><div class="t">{{ p.title }}</div><div class="m">{{ p.desc }}</div><div class="m">{{ p.cols }}</div></div>
+              <button class="btn sec sm" type="submit" name="preset" value="{{ k }}">이걸로 만들기</button></li>{% endfor %}</ul>
+          {% if errors.preset %}<p class="msg-inline" role="alert">{{ errors.preset }}</p>{% endif %}
+          <p class="small muted" style="margin-top:8px">학교에서 구글 시트로 가장 많이 돌리는 두 가지예요. 누르면 바로 만들어져요.</p>
+        </div>
       </div>
     </section>
-    <section class="card" aria-labelledby="audH"><div class="card-b pt">{% include "collect/_aud.html" %}</div></section>
+    <section class="card" aria-labelledby="audH"><div class="card-b pt">
+      <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>{% include "collect/_aud.html" %}</div>
+      <div data-pane="sheet preset"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2></div>
+        <p class="muted">직접 입력·자주 쓰는 양식은 칸만 먼저 만들어요. 받는 사람 줄은 동학년 명부로 채우는 기능이 붙으면 들어가요.</p></div>
+    </div></section>
   </div>
   <aside class="s4" aria-label="쪽지와 만들기">
     <div class="rail stack-y">
