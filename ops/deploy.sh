@@ -45,7 +45,7 @@ main() {
   docker compose build -q goteacher-app
   # 임시 컨테이너가 Traefik 백엔드로 잡히지 않게 라벨을 끈다
   docker compose run --rm -T -l traefik.enable=false goteacher-app python app/manage.py migrate --noinput
-  docker compose up -d --wait goteacher-app
+  docker compose up -d --wait goteacher-app goteacher-worker  # worker도 같은 이미지로 새로 띄운다
   echo "$new" > "$var/deployed"
   trap - ERR
   # 이전 이미지는 이 프로젝트 것만 지운다(prune 쓰지 않음)

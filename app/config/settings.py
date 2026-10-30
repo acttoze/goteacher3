@@ -40,6 +40,9 @@ GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
 # NEIS 오픈API 대표 인증키. 비우면 키 없이 부른다(한 번에 5건 제한).
 NEIS_KEY = os.environ.get("NEIS_KEY", "")
+# 작업 큐(config/queue.py). 비우면(로컬·CI) 큐 없이 그 자리에서 실행한다.
+REDIS_URL = os.environ.get("REDIS_URL", "")
+RQ_JOB_TIMEOUT = 300  # 작업당 상한(초). 한글 변환 표본 최대 205초(30번 리드 결정)
 
 CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith("https://") else []
 

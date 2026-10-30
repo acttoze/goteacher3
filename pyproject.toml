@@ -13,6 +13,7 @@ dependencies = [
     "lxml>=4.9,<7",
     "whitenoise>=6.8",
     "segno>=1.6.6",
+    "rq>=3.0,<4",  # 작업 큐(D3 리마인드·E2 한글 변환). redis 클라이언트는 rq가 함께 설치
 ]
 
 [tool.uv]

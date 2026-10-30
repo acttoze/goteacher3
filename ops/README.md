@@ -2,7 +2,7 @@
 
 스테이징 `https://t.goteacher.xyz` = 서버 `oci_tailscale`의 `/home/ubuntu/prod/goteacher` (이 저장소 clone).
 
-- `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis`. 작업 큐(RQ worker)는 D3/E2에서 추가.
+- `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis` · `goteacher-worker`(RQ, 같은 이미지, 작업당 300초·메모리 2.5GB).
 - `Dockerfile` — 빌드 컨텍스트는 저장소 루트(`.dockerignore`).
 - `.env.example` — 서버 `ops/.env`(chmod 600) 견본. 실제 값은 서버에서 생성하고 저장소·출력에 남기지 않는다.
 

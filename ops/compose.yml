@@ -46,7 +46,24 @@ services:
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.permanent: "true"
       traefik.http.services.gt-staging.loadbalancer.server.port: "8000"
 
-  # 작업 큐(RQ worker)는 rq 의존성이 생기는 D3/E2 때 이 자리에 추가한다.
+  # 작업 큐(RQ). 앱과 같은 이미지(deploy.sh가 goteacher-app으로 빌드). 밖에 열지 않는다.
+  # 작업당 상한 300초는 config/queue.py(settings.RQ_JOB_TIMEOUT).
+  goteacher-worker:
+    <<: *common
+    image: goteacher-app:latest
+    pull_policy: never
+    env_file: .env
+    working_dir: /srv/app
+    command: ["python", "-m", "config.worker"]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+    # 한글 변환 1건 약 2GB 추정(30번) + worker 본체. 동시 1건(프로세스 1개)
+    mem_limit: 2560m
+    # 배포 때 진행 중 작업을 30초까지 기다리고, 넘으면 끊는다(작업은 실패 목록으로)
+    stop_grace_period: 30s
+    labels:
+      traefik.enable: "false"
 
   db:
     <<: *common
