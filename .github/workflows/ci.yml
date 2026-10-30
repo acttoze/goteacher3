@@ -1,4 +1,4 @@
-# B2: main 푸시 → 린트·테스트. 배포는 서버(ops/deploy.sh, 1분마다)가 이 작업의
+# B2: main 푸시 → 린트·테스트·이미지 기동 확인. 배포는 서버(ops/deploy.sh, 1분마다)가 이 작업의
 # 체크 결과(이름 "test")가 success일 때만 가져간다. 작업 이름을 바꾸면 deploy.sh도 바꿀 것.
 name: ci
 
@@ -32,3 +32,17 @@ jobs:
           uv sync --frozen
           uv run python -m unittest discover -s hwp/tests -t .
           cd app && uv run python manage.py test
+      # 테스트가 통과해도 이미지가 못 뜨면(예: 정적 파일 권한) 서버가 가져가지 않게, 서버와 같은
+      # Dockerfile로 빌드해 띄워 본다. 레이어는 GitHub Actions 캐시(gha)에 둔다.
+      - uses: docker/setup-buildx-action@v3
+      - name: image build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/Dockerfile
+          tags: goteacher-app:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: image smoke
+        run: ops/smoke.sh goteacher-app:ci

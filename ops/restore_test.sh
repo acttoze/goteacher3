@@ -34,3 +34,12 @@ else
   echo "운영본: $live"
   echo "결과: 불일치"; exit 1
 fi
+
+# 미디어: 최신 묶음을 풀어 파일 수를 지금 볼륨과 비교한다(백업 뒤 올라온 파일이 있으면 다를 수 있다).
+m=$(ls -1t "$dir"/var/backups/goteacher-media-*.tar.gz | head -1)
+t=$(mktemp -d); trap 'docker rm -f "$name" >/dev/null 2>&1 || true; rm -rf "$t"' EXIT
+tar -xzf "$m" -C "$t"
+mr=$(find "$t" -type f | wc -l)
+ml=$(docker run --rm --network none --user 0 -v goteacher_media:/m:ro --entrypoint find goteacher-app:latest /m -type f | wc -l)
+echo "미디어 $(basename "$m"): 복구본 ${mr}개 / 운영 ${ml}개"
+[ "$mr" -eq "$ml" ] || { echo "결과: 미디어 불일치"; exit 1; }
