@@ -6,10 +6,12 @@ C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 5초 �
 공간 소속은 SpaceMiddleware가 확인하고, 조회는 모두 in_space()를 거친다.
 """
 import re
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -273,8 +275,56 @@ def detail(request, key):
     me = request.member
     msg = (f"[고티처] {c.title}\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.\n"
            f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
-    ctx = _space_ctx(request, page="collect", link=link, msg=msg, **_board(c))
+    ctx = _space_ctx(request, page="collect", link=link, msg=msg, **_board(c), **_due_ctx(request, c))
     return render(request, "collect/detail.html", ctx)
+
+
+WD = "월화수목금토일"
+
+
+def _due_ctx(request, c, saved=None, error=None):
+    """마감 카드(design 마감 카드 + prototype dueBox). 바꾸기는 만든 사람만(prototype c.mine).
+    saved: 방금 정함(first)·바꿈 — 안내 문구의 '안내/변경'과 알림 문구에 쓴다."""
+    now = timezone.localtime()
+    ctx = {"can_due": c.created_by_id is not None and c.created_by_id == request.member.pk,
+           "due_saved": saved, "due_error": error}
+    if not c.due:
+        d = (now + timedelta(days=4)).date()  # prototype 기본값: 오늘+4일 17:00
+        return {**ctx, "due_d": d.isoformat(), "due_t": "17:00"}
+    due = timezone.localtime(c.due)
+    left = due - now
+    h, m = int(left.total_seconds() // 3600), round(left.total_seconds() % 3600 / 60)
+    if m == 60:
+        h, m = h + 1, 0
+    # prototype due 문구: 오늘이면 '오늘 17:00', 아니면 '11/3 17:00'
+    short = ("오늘 " if due.date() == now.date() else f"{due.month}/{due.day} ") + due.strftime("%H:%M")
+    where = "내 줄" if _matrix(c) else "우리 반 칸" if c.unit_head[:1] == ["학년반"] else "내 칸"
+    notice = (f"[고티처] 「{c.title}」 마감 {'안내' if saved != 'changed' else '변경'}: {short}\n"
+              f"아직 안 채운 분은 링크에서 {where}만 채워 주세요.\n{settings.SITE_URL}/c/{c.link_token}")
+    return {**ctx, "due_d": due.date().isoformat(), "due_t": due.strftime("%H:%M"), "due_short": short,
+            "due_label": f"{due.month}/{due.day}({WD[due.weekday()]}) {due.strftime('%H:%M')}",
+            "due_left": "마감 시각이 지났어요" if left.total_seconds() <= 0
+            else f"{h // 24}일 {h % 24}시간 남았어요" if h >= 48 else f"{h}시간 {m}분 남았어요",
+            "notice": notice}
+
+
+@require_POST
+def due(request, key):
+    """마감 정하기·바꾸기(htmx). 날짜·시각은 Asia/Seoul. 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    if c.created_by_id is None or c.created_by_id != request.member.pk:
+        return HttpResponseForbidden("마감은 만든 선생님만 바꿀 수 있어요.")
+    try:
+        d = datetime.strptime(request.POST.get("date", ""), "%Y-%m-%d").date()
+        t = datetime.strptime(request.POST.get("time", "") or "17:00", "%H:%M").time()
+    except ValueError:
+        ctx = {"c": c, "space": request.space, **_due_ctx(request, c, error="마감 날짜를 골라 주세요.")}
+        return render(request, "collect/_due.html", ctx)
+    saved = "changed" if c.due else "first"
+    c.due = timezone.make_aware(datetime.combine(d, t))
+    c.save(update_fields=["due"])
+    return render(request, "collect/_due.html", {"c": c, "space": request.space, "oob": True,
+                                                  **_due_ctx(request, c, saved=saved)})
 
 
 @never_cache

@@ -14,7 +14,36 @@
     clearTimeout(timer); timer = setTimeout(function () { el.classList.remove('show'); }, 2800);
   }
 
+  // 대화상자(design .scrim): <button data-open="#id">로 열고, [data-close]·바깥·Esc로 닫는다.
+  var opener;
+  function closeDlg(d) { d.hidden = true; if (opener && document.contains(opener)) opener.focus(); }
+  document.addEventListener('keydown', function (e) {
+    var d = document.querySelector('.scrim:not([hidden])');
+    if (e.key === 'Escape' && d) closeDlg(d);
+  });
+  // 저장 뒤 바뀐 내용에 [data-autocopy="알림"]이 있으면 그 단추의 복사를 한 번 한다(prototype: 마감 저장 = 안내 문구 복사).
+  // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
+  document.addEventListener('htmx:afterSwap', function () {
+    var b = document.querySelector('[data-autocopy]');
+    if (!b) return;
+    var msg = b.dataset.autocopy, src = document.querySelector(b.dataset.copy);
+    b.removeAttribute('data-autocopy');
+    var fail = function () { toast(msg.replace(/안내 문구를 복사했어요\./, '「' + b.textContent + '」를 눌러 쿨메신저에 붙여넣으세요.')); };
+    if (src && navigator.clipboard) navigator.clipboard.writeText(src.textContent).then(function () { toast(msg); }, fail);
+    else fail();
+  });
+
   document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]');
+    if (o) {
+      var d = document.querySelector(o.dataset.open);
+      if (d) { opener = o; d.hidden = false; var f = d.querySelector('input:not([type=hidden]),button'); if (f) f.focus(); }
+      return;
+    }
+    if (e.target.closest('[data-close]') || e.target.classList.contains('scrim')) {
+      closeDlg(e.target.closest('.scrim'));
+      return;
+    }
     // 복사: <button data-copy="#id" data-done="알림">. 입력 칸이면 value, 아니면 글자. htmx로 바뀐 내용도 누를 때 읽는다.
     var c = e.target.closest('[data-copy]');
     if (c) {

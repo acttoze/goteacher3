@@ -25,6 +25,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/new/preview", collect.preview),
     path("s/<str:space_token>/c/<str:key>/", collect.detail),
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
+    path("s/<str:space_token>/c/<str:key>/due", collect.due),
     path("c/<str:link_token>", submit.pick),
     path("c/<str:link_token>/outside", submit.outside),
     path("c/<str:link_token>/u/<str:key>", submit.unit),

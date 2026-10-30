@@ -1,0 +1,36 @@
+{# D1 마감 카드(design/collect-detail.html 마감 카드 + prototype dueBox). 정하기·바꾸기는 만든 사람만. 값은 자동 이스케이프만. #}
+<section class="card" id="dueCard" aria-labelledby="dueH">
+  <div class="card-h"><h2 id="dueH">마감</h2></div>
+  <div class="card-b">
+    {% if c.due %}
+    <p class="due-big num">{{ due_label }}</p>
+    <p class="due-left">{{ due_left }}</p>
+    {% else %}
+    <p class="due-big">{% if can_due %}마감을 아직 정하지 않았어요{% else %}마감 미정{% endif %}</p>
+    <p class="due-left">{% if can_due %}만들 때는 마감을 받지 않아요. 정하면 받는 선생님 화면에 마감이 보여요.{% else %}만든 선생님이 정하면 여기에 보여요.{% endif %}</p>
+    {% endif %}
+    {% if can_due %}
+    <div class="rail-acts">
+      <button class="btn {% if c.due %}sec{% else %}pri{% endif %}" type="button" data-open="#dueDlg">{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</button>
+      {% if notice %}<button class="btn ink" type="button" data-copy="#notice" data-done="마감 안내 문구를 복사했어요. 쿨메신저에 붙여넣으세요."{% if due_saved %} data-autocopy="마감을 {{ due_short }}{% if due_saved == 'first' %}로 정했어요{% else %}로 바꿨어요{% endif %}. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요."{% endif %}>마감 안내 문구 복사</button>{% endif %}
+    </div>
+    {% if notice %}<p class="sr" id="notice">{{ notice }}</p>{% endif %}
+    <div class="scrim" id="dueDlg"{% if not due_error %} hidden{% endif %}>
+      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="dueDlgH" hx-post="/s/{{ space.token }}/c/{{ c.key }}/due" hx-target="#dueCard" hx-swap="outerHTML">
+        {% csrf_token %}
+        <div class="dh"><h2 id="dueDlgH">{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</h2></div>
+        <div class="db">
+          <div class="grid" style="gap:12px">
+            <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ due_d }}" required></label>
+            <label class="field s6"><span>시각</span><input class="input" type="time" name="time" value="{{ due_t }}" step="600"></label>
+          </div>
+          {% if due_error %}<p class="field-err" role="alert">{{ due_error }}</p>{% endif %}
+          <p class="muted small">{% if c.due %}바꾸면 받는 선생님 화면의 마감도 함께 바뀌어요.{% else %}정하면 받는 선생님 화면에 마감이 보여요.{% endif %} 저장하면 마감 안내 문구를 복사해요.</p>
+        </div>
+        <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn ink" type="submit">{% if c.due %}바꾸기{% else %}정하기{% endif %}</button></div>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% if oob %}<p class="sub" id="dueSub" hx-swap-oob="true">{% include "collect/_due_sub.html" %}</p>{% endif %}
