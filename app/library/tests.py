@@ -3,6 +3,7 @@
 - 가져오기는 같은 id면 고친다(중복 없음). 파일은 hwp.sniff를 통과해야 저장한다.
 - 보기·내려받기는 로그인 없이. 주소는 slug만(DB 순번·원본 id로는 안 열림).
 """
+from unittest import mock
 import json
 import shutil
 import tempfile
@@ -250,7 +251,8 @@ class PublicTests(Base):
         self.assertIn("no-store", r["Cache-Control"])
 
     @override_settings(CACHES=RL_CACHES)
-    def test_download_count_limited_per_ip(self):
+    @mock.patch("config.ratelimit.time.time", return_value=1_800_000_030.0)  # 고정 창이 테스트 중 바뀌지 않게
+    def test_download_count_limited_per_ip(self, _clock):
         """G3 ⑥: 같은 IP가 같은 양식을 시간당 3번 넘게 받아도 수는 3까지만. 받기는 막지 않는다."""
         caches["ratelimit"].clear()
         for _ in range(5):

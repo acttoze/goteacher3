@@ -19,8 +19,8 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from accounts.models import DEVICE_AGE, DeviceToken, is_guest, new_guest
 from accounts.views import home as login_home
-from accounts.views import set_device_cookie
-from collect.models import Notification
+from accounts.views import remember_pc, wants_remember
+from collect.models import Collection, Notification
 from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
@@ -304,6 +304,8 @@ def remove_member(request, key):
     label = f"{_cls_label(m.cls)} {m.name}"
     with transaction.atomic():
         user = m.user
+        # 내보낸 회원이 만든 모으기는 내보낸 사람(동학년을 만든 사람)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
+        Collection.objects.in_space(request.space).filter(created_by=m).update(created_by=request.member)
         m.delete()
         if user and is_guest(user) and not Member.objects.filter(user=user).exists():
             user.delete()  # 기기 토큰 CASCADE, 세션은 사용자가 없어 무효
@@ -320,9 +322,11 @@ def _seat_alert(space, member):
     creator = Member.objects.in_space(space).order_by("joined_at", "pk").first()
     if creator is None or creator.pk == member.pk:
         return
-    Notification.objects.create(
-        space=space, member=creator, kind=Notification.Kind.SEAT, day=timezone.localdate(),
-        text=f"{_cls_label(member.cls)} {member.name} 자리로 새 기기가 들어왔어요", link=f"/s/{space.token}/",
+    text = f"{_cls_label(member.cls)} {member.name} 자리로 새 기기가 들어왔어요"
+    # 같은 자리·같은 날은 1건만(줄이 없어 유일 제약이 안 걸린다). 부르는 쪽이 공간 행을 잠가 둬 동시 입장도 하나
+    Notification.objects.get_or_create(
+        space=space, member=creator, kind=Notification.Kind.SEAT, day=timezone.localdate(), text=text,
+        defaults={"link": f"/s/{space.token}/"},
     )
 
 
@@ -373,6 +377,7 @@ def join(request):
     data = request.POST if request.method == "POST" else {}
     cls = data.get("cls", "")
     name = _clean_name(data.get("name", user.first_name if user.is_authenticated else ""))
+    remember = wants_remember(request.POST, True)  # '이 PC 기억하기(1년)'(G3 S2), 화면 기본은 켬
     errors = {}
     limited = request.method == "POST" and not (  # 둘 다 센다(& 는 앞이 거짓이어도 뒤를 부른다)
         allow("join-ip", client_ip(request), JOIN_PER_MIN_IP, 60)
@@ -413,12 +418,12 @@ def join(request):
                 response = redirect(f"/s/{space.token}/welcome")
                 if not request.user.is_authenticated:
                     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-                    set_device_cookie(request, response, user)
+                    remember_pc(request, response, user, remember)
                 return response
 
     by_cls = {}
     for r in roster["rows"]:
         by_cls.setdefault(r["m"].cls, r)
-    ctx.update(errors=errors, cls=cls, name=name,
+    ctx.update(errors=errors, cls=cls, name=name, remember=remember,
                choices=[{"cls": c, "label": _cls_label(c), "who": by_cls.get(c)} for c in slots])
     return render(request, "spaces/join.html", ctx, status=(429 if limited else 400) if errors else 200)

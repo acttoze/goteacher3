@@ -250,13 +250,18 @@ class DueQATests(TestCase):
             self.assertIn(r.status_code, (403, 404), u)
         self.assertIsNone(self.due())
 
-    def test_no_creator_nobody_changes(self):
+    def test_no_creator_space_creator_takes_over(self):
+        """만든 사람이 없으면(내보낸 회원) 동학년을 만든 사람(가장 먼저 들어온 회원)만 바꾼다(G3 2차)."""
         self.c.created_by = None
         self.c.save()
+        self.client.force_login(self.u2)
         self.assertEqual(self.post().status_code, 403)
         self.assertIsNone(self.due())
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
         self.assertNotIn('id="dueDlg"', page)
+        self.client.force_login(self.ua)
+        self.assertEqual(self.post().status_code, 200)
+        self.assertIsNotNone(self.due())
 
     # 안내 문구·알림 문구 변형(prototype: 안내/변경, 정했어요/바꿨어요, 내 줄/우리 반 칸/내 칸)
     def test_toast_text_first_and_changed(self):

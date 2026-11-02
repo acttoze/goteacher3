@@ -29,6 +29,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 import hwp
 from config import queue
+from config.csp import FONT_SRC
 from config.ratelimit import TOO_MANY, allow
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
@@ -51,7 +52,6 @@ REJECT = {
 # 미리보기 화면에만 거는 CSP. WASM 컴파일에 'wasm-unsafe-eval'(크롬 97+)만 더한다. 스크립트 외부 출처는 없다.
 # 외부는 gt.css가 @import 하는 Wanted Sans 글꼴(CSS와 woff2가 이 경로 아래)만, style·font에만 연다.
 # 쪽 SVG는 blob: <img>로 넣는다(문서에서 나온 SVG를 DOM에 직접 넣지 않음). 인라인 style은 공통 틀(shell)이 쓴다.
-FONT_SRC = "https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/"
 PREVIEW_CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
                f"style-src 'self' 'unsafe-inline' {FONT_SRC}; img-src 'self' blob: data:; font-src 'self' {FONT_SRC}; "
                "connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")

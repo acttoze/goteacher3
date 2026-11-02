@@ -76,6 +76,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "config.csp.CspMiddleware",  # 모든 응답 공통 CSP(화면이 제 것을 붙였으면 그대로)
     "whitenoise.middleware.WhiteNoiseMiddleware",  # DEBUG=0에서 /static/ 서빙(Traefik 뒤 gunicorn)
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

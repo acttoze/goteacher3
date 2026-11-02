@@ -58,6 +58,9 @@ def google_login(request):
     state = secrets.token_urlsafe(24)
     request.session["google_state"] = state
     request.session["google_next"] = _safe_next(request.GET.get("next"))
+    # 이 PC 기억(G3 S2): 시작 화면 체크(숨은 0 + 체크 1). 값이 없으면(손님의 '구글로 이어 두기') 입장 때 고른 대로.
+    request.session["google_remember"] = wants_remember(
+        request.GET, bool(request.COOKIES.get(DEVICE_COOKIE)) if is_guest(request.user) else True)
     verifier = secrets.token_urlsafe(48)  # PKCE: 원문은 세션에만, 구글에는 S256 해시만
     request.session["google_verifier"] = verifier
     params = {
@@ -77,6 +80,7 @@ def google_login(request):
 def google_callback(request):
     expected = request.session.pop("google_state", None)
     next_url = request.session.pop("google_next", "/")
+    remember = request.session.pop("google_remember", True)
     verifier = request.session.pop("google_verifier", None)
     state = request.GET.get("state", "")
     code = request.GET.get("code", "")
@@ -121,7 +125,26 @@ def google_callback(request):
     user.email, user.first_name = email[:254], name[:150]
     user.save()
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
-    return set_device_cookie(request, redirect(next_url), user)
+    return remember_pc(request, redirect(next_url), user, remember)
+
+
+def wants_remember(data, default):
+    """'이 PC 기억하기' 체크: 숨은 remember=0 뒤에 체크하면 remember=1이 붙는다. 값이 아예 없으면 default."""
+    values = data.getlist("remember")
+    return "1" in values if values else default
+
+
+def remember_pc(request, response, user, remember):
+    """login 뒤에 부른다. 기억하면 1년 기기 토큰 + 기본 세션, 아니면 이 PC 기기 토큰을 지우고 브라우저를 닫으면 끝나는 세션."""
+    if remember:
+        request.session.set_expiry(None)
+        return set_device_cookie(request, response, user)
+    old = request.COOKIES.get(DEVICE_COOKIE)
+    if old:  # 이 PC에 남은 앞사람(또는 나)의 기기 토큰
+        DeviceToken.objects.filter(token_hash=hash_token(old)).delete()
+        response.delete_cookie(DEVICE_COOKIE)
+    request.session.set_expiry(0)
+    return response
 
 
 def set_device_cookie(request, response, user):

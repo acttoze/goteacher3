@@ -17,12 +17,15 @@ from django.core.cache import caches
 TOO_MANY = "너무 자주 보냈어요. 잠시 뒤 다시 해 주세요."
 
 
-def allow(scope, ident, limit, window):
-    """scope·ident 조합이 이번 창(window초)에서 limit번 안이면 True(이번 요청도 센다)."""
+def allow(scope, ident, limit, window, count=True):
+    """scope·ident 조합이 이번 창(window초)에서 limit번 안이면 True(이번 요청도 센다).
+    count=False면 세지 않고 보기만 한다(성공한 요청만 셀 때: 먼저 보고, 끝난 뒤 count=True로 한 번 센다)."""
     h = hashlib.sha256(f"{scope}:{ident}".encode()).hexdigest()[:32]
     key = f"rl:{scope}:{h}:{int(time.time() // window)}"
     cache = caches["ratelimit"]
     try:
+        if not count:
+            return (cache.get(key) or 0) < limit
         cache.add(key, 0, window + 1)
         return cache.incr(key) <= limit
     except Exception:  # 캐시 연결 끊김·방금 만료 등: 막지 않는다

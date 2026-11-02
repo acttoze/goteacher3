@@ -8,6 +8,7 @@
 - 제출 값은 로그·오류 보고에 남기지 않는다(sensitive_post_parameters, 예외 문구에 값 없음).
 """
 import re
+import time
 from datetime import date
 from functools import wraps
 
@@ -31,13 +32,15 @@ from .recipients import OutsideClosed, add_outside_row, pick_row
 
 SESSION_BY = "gt_by"  # 이 브라우저에서 마지막으로 쓴 내는 사람 이름
 SESSION_SENT = "gt_sent"  # {줄 키: 이 브라우저가 낸 뒤의 마지막 Cell.at}. 같을 때만 고칠 값을 미리 채움
+SESSION_AT = "gt_at"  # 위 둘을 마지막으로 쓴 시각(초). 로그인 안 한 받는 사람은 RECIPIENT_AGE가 지나면 잊는다
+RECIPIENT_AGE = 2 * 3600  # 공용 PC에서 브라우저를 안 닫아도 다음 사람에게 미리 채움이 남지 않게(G3 2차)
 SENT_MAX = 200
 LINES_MAX = 50  # multi: 한 번에 내는 줄 상한
 VALUE_MAX = 1000
 NA = "해당 없음"  # 연수 이수(prototype matrixForm) 체크
 ASK = {Field.Kind.NUMBER: "숫자로 써 주세요. 없으면 0이에요.", Field.Kind.SELECT: "골라 주세요.", Field.Kind.DATE: "골라 주세요."}
-SUBMIT_PER_MIN = 30  # 같은 IP·같은 링크로 내기(한 학교가 IP 하나를 같이 써도 넉넉히)
-OUTSIDE_PER_HOUR = 20  # 같은 IP·같은 링크로 명부 밖 줄 만들기(모으기당 60줄 상한과 함께)
+SUBMIT_PER_MIN = 120  # 같은 IP·같은 링크로 낸 횟수(한 학교가 IP 하나를 같이 쓴다). 오류 난 제출은 세지 않는다
+OUTSIDE_PER_HOUR = 60  # 같은 IP·같은 링크로 명부 밖 줄 만들기(모으기당 60줄 상한과 함께)
 UNIT_RE = re.compile(r"^(.*?)\s*\(([^()]{1,6})\)$")  # '참가(명)' → 참가 / 명
 
 
@@ -46,12 +49,30 @@ def link_view(view):
 
     @wraps(view)
     def inner(request, link_token, **kw):
+        _forget_stale(request)
         try:
             return view(request, get_by_link_or_404(link_token), **kw)
         except Http404:
             return render(request, "collect/recv.html", {"view": "notfound"}, status=404)
 
     return inner
+
+
+def _forget_stale(request):
+    """로그인 안 한 받는 사람: 마지막으로 쓴 지 RECIPIENT_AGE가 지난 이름·미리 채움은 잊는다."""
+    s = request.session
+    if request.user.is_authenticated or not (SESSION_BY in s or SESSION_SENT in s):
+        return
+    if time.time() - s.get(SESSION_AT, 0) > RECIPIENT_AGE:
+        for k in (SESSION_BY, SESSION_SENT, SESSION_AT):
+            s.pop(k, None)
+
+
+def _touch(request):
+    """받는 사람 기억을 쓸 때마다. 로그인 안 했으면 세션을 브라우저를 닫으면 끝나게(회원 세션 설정은 그대로)."""
+    request.session[SESSION_AT] = int(time.time())
+    if not request.user.is_authenticated:
+        request.session.set_expiry(0)
 
 
 def save_cell(row, field, value, by):
@@ -194,6 +215,7 @@ def outside(request, c):
         ctx = {**_head(c), "view": "pick", "outside_error": "이름을 써 주세요."}
         return _page(request, ctx, status=400)
     request.session[SESSION_BY] = row.who
+    _touch(request)
     r = redirect(f"/c/{c.link_token}/u/{row.key}")
     r.status_code = 303  # 새로 고침해도 다시 만들지 않게
     return r
@@ -273,7 +295,7 @@ def unit(request, c, key):
     else:
         posted = [{"key": row.key, "vals": {f.pk: NA if _matrix(c) and request.POST.get(f"na{f.pos}") == "on"
                                             else request.POST.get(f"f{f.pos}", "") for f in inputs}}]
-    if not allow("submit", f"{client_ip(request)}:{c.link_token}", SUBMIT_PER_MIN, 60):  # 쓴 값은 그대로 두고 안내만
+    if not allow("submit", f"{client_ip(request)}:{c.link_token}", SUBMIT_PER_MIN, 60, count=False):  # 쓴 값은 두고 안내만
         lines = posted or [{"key": group[0].key, "vals": {}}]
         return _page(request, _form_ctx(request, c, row, group, inputs, lines, {"form": TOO_MANY}, by), status=429)
 
@@ -327,6 +349,8 @@ def unit(request, c, key):
     sent = {k: v for k, v in (sent.items() if isinstance(sent, dict) else []) if k != group[0].key}
     sent[group[0].key] = stamp
     request.session[SESSION_SENT] = dict(list(sent.items())[-SENT_MAX:])
+    _touch(request)
+    allow("submit", f"{client_ip(request)}:{c.link_token}", SUBMIT_PER_MIN, 60)  # 낸 것만 센다
     names = {f.pk: f.name for f in inputs}
     summary = [[(names[fid], v) for fid, v in ln["vals"].items()] for ln in clean_lines]
     if c.multi:  # 한 줄에 채운 값만 이어 쓴다

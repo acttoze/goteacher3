@@ -33,6 +33,9 @@
       <input class="input lg" id="nm" name="name" value="{{ name }}" maxlength="40" autocomplete="name" style="max-width:320px"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
       {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}
     </label>
+    {% if not user.is_authenticated %}<div class="remember"><input type="hidden" name="remember" value="0">
+      <label class="chk"><input type="checkbox" name="remember" value="1"{% if remember %} checked{% endif %}> 이 PC 기억하기(1년)</label>
+      <span class="hint">공용 PC라면 끄세요</span></div>{% endif %}
     <div><button class="btn pri lg" type="submit">들어가기</button></div>
     <p class="note">이 PC 브라우저가 기억해서 다음부터는 바로 열려요. 비밀번호도 문자 인증도 없어요.</p>
   </form>

@@ -1,4 +1,6 @@
 """G3 S3 회원 관리: 만든 사람의 '내보내기', 손님 자리에 새 기기 알림, 초대 입장 빈도 제한."""
+from unittest import mock
+
 from django.core.cache import caches
 from django.test import Client, override_settings
 
@@ -89,6 +91,15 @@ class SeatAlertTests(InviteBase):
         self.assertContains(r, "2반 정하은 자리로 새 기기가 들어왔어요")
         self.assertContains(r, "새 기기")
 
+    def test_one_alert_per_seat_per_day(self):
+        self.join(Client(), "4-2", "정하은")
+        for _ in range(3):
+            self.join(Client(), "4-2", "정하은")
+        self.assertEqual(Notification.objects.count(), 1)
+        self.join(Client(), "4-3", "김도윤")
+        self.join(Client(), "4-3", "김도윤")
+        self.assertEqual(Notification.objects.count(), 2)  # 다른 자리는 따로
+
     def test_no_alert_when_seat_has_no_device(self):
         pc = Client()
         self.join(pc, "4-2", "정하은")
@@ -112,6 +123,10 @@ class JoinRateLimitTests(InviteBase):
     def setUp(self):
         super().setUp()
         caches["ratelimit"].clear()
+        # 고정 창(분 단위)이라 테스트 도중 분이 바뀌면 카운터가 새로 시작한다 → 시각을 고정
+        clock = mock.patch("config.ratelimit.time.time", return_value=1_800_000_030.0)
+        clock.start()
+        self.addCleanup(clock.stop)
 
     def test_session_limit_per_minute(self):
         c = Client()

@@ -21,7 +21,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from hwpfiles.models import SourceFile
 from hwpfiles.views import PREVIEW_CSP, pick_ctx, result_ctx
-from spaces.models import get_in_space_or_404, new_token
+from spaces.models import Member, get_in_space_or_404, new_token
 from spaces.views import _space_ctx
 
 from .models import Cell, Collection, Field, Notification, Row
@@ -407,8 +407,12 @@ def _link_ctx(request, c):
 
 
 def _owner(request, c):
-    """prototype c.mine: 만든 사람만 마감을 정하고 잠근다."""
-    return c.created_by_id is not None and c.created_by_id == request.member.pk
+    """prototype c.mine: 만든 사람만 마감을 정하고 잠근다.
+    만든 사람이 없으면(내보낸 회원) 동학년을 만든 사람(가장 먼저 들어온 회원)이 넘겨받는다."""
+    if c.created_by_id is not None:
+        return c.created_by_id == request.member.pk
+    first = Member.objects.in_space(request.space).order_by("joined_at", "pk").values_list("pk", flat=True).first()
+    return first == request.member.pk
 
 
 def _due_text(c):

@@ -100,10 +100,9 @@ services:
   redis:
     <<: *common
     image: redis:7-alpine
-    # 큐(RQ, db 0)와 캐시(빈도 제한 등, db 1)를 함께 둔다. volatile-lru: 꽉 차면 만료가 걸린 키(캐시)만 지운다.
-    # 대기 중 작업·큐 목록은 만료가 없어 지워지지 않는다 → 캐시가 차도 큐는 멈추지 않는다. 캐시 키는 반드시 만료를 둔다.
-    # (noeviction이면 캐시가 96mb를 채우는 순간 큐 넣기까지 OOM 오류로 멈춘다.)
-    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru"]
+    # 큐(RQ, db 0)와 캐시(빈도 제한, db 1)를 함께 둔다. noeviction: RQ의 worker 등록 키(만료 있음)가 지워지지 않게.
+    # 빈도 제한 키는 1분~1시간 만료라 IP 수만큼만 쌓여 96mb에 한참 못 미치고, 캐시 쓰기가 실패하면 막지 않는다(ratelimit.py).
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
     volumes: [redisdata:/data]
     mem_limit: 128m
     # ports 없음

@@ -76,7 +76,8 @@ class CreateFlowTests(NeisMocked):
         self.assertContains(r, "서울새솔초등학교")
         self.assertNotContains(r, "<html")
 
-    def test_search_limit_notice(self):
+    @mock.patch("config.ratelimit.time.time", return_value=1_800_000_030.0)  # 고정 창이 테스트 중 바뀌지 않게
+    def test_search_limit_notice(self, _clock):
         mock.patch.stopall()
         for p in neis_mock(total=37):
             p.start()

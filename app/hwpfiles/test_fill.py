@@ -692,7 +692,7 @@ class ShrinkViewTests(FillTaskTests):
     def test_plain_collection_detail_has_no_wasm_csp(self):
         c = Collection.objects.create(space=self.a, title="그냥", source=Collection.Source.SHEET)
         r = self.client.get(f"/s/{self.a.token}/c/{c.key}/")
-        self.assertNotIn("Content-Security-Policy", r)
+        self.assertNotIn("wasm-unsafe-eval", r["Content-Security-Policy"])  # 공통 CSP만
         self.assertNotContains(r, "hwp/result.js")
 
 

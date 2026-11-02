@@ -4,9 +4,12 @@
 - 받는 링크 새로 만들기는 만든 사람만. 다른 회원 403, 다른 공간 404, GET 405, CSRF 필요.
   새로 만들면 옛 링크(줄 화면 포함)는 404, 새 링크로 낸다. 카드·쪽지 문구·마감 안내·🔔 알림도 새 링크.
 - 받는 사람 화면(/c/… 전부)과 모으기 만들기 화면은 Cache-Control: no-store.
-- 같은 IP가 같은 링크로 분당 30번 넘게 내면 429와 안내 문구, 값은 저장하지 않는다. 다른 IP·다른 링크는 따로 센다.
-- 명부 밖 줄 만들기도 같은 IP·링크로 시간당 20번까지.
+- 같은 IP가 같은 링크로 분당 120번 넘게 내면 429와 안내 문구, 값은 저장하지 않는다. 다른 IP·다른 링크는 따로 센다.
+  오류 난 제출(400)은 세지 않는다(한 학교가 IP 하나를 같이 쓴다).
+- 명부 밖 줄 만들기도 같은 IP·링크로 시간당 60번까지.
+- 만든 사람이 없는 모으기(내보낸 회원의 것)는 동학년을 만든 사람(가장 먼저 들어온 회원)이 관리한다.
 """
+from unittest import mock
 from django.contrib.auth import get_user_model
 from django.core.cache import caches
 from django.test import Client, TestCase, override_settings
@@ -16,6 +19,7 @@ from config.test_ratelimit import RL_CACHES
 from spaces.models import Member, School, Space
 
 from .models import Cell, Collection, Field, Notification, Row
+from .submit import OUTSIDE_PER_HOUR, SUBMIT_PER_MIN
 
 
 @override_settings(SITE_URL="https://t.goteacher.xyz")
@@ -141,6 +145,9 @@ class NoStoreTests(G3Base):
 class SubmitRateTests(G3Base):
     def setUp(self):
         caches["ratelimit"].clear()
+        clock = mock.patch("config.ratelimit.time.time", return_value=1_800_000_030.0)  # 고정 창이 테스트 중 바뀌지 않게
+        clock.start()
+        self.addCleanup(clock.stop)
 
     def send(self, ip, row=None, c=None, value="3"):
         c = c or self.c
@@ -148,7 +155,8 @@ class SubmitRateTests(G3Base):
                                 REMOTE_ADDR="172.18.0.5", HTTP_X_FORWARDED_FOR=ip, HTTP_HX_REQUEST="true")
 
     def test_submit_limit_per_ip_and_link(self):
-        for _ in range(30):
+        self.assertEqual((SUBMIT_PER_MIN, OUTSIDE_PER_HOUR), (120, 60))
+        for _ in range(SUBMIT_PER_MIN):
             self.assertEqual(self.send("203.0.113.9").status_code, 200)
         r = self.send("203.0.113.9", value="99")
         self.assertEqual(r.status_code, 429)
@@ -158,18 +166,55 @@ class SubmitRateTests(G3Base):
         # 같은 IP여도 앞에 가짜 주소를 넣어 우회할 수 없다
         self.assertEqual(self.send("1.1.1.1, 203.0.113.9").status_code, 429)
 
+    def test_errors_not_counted(self):
+        for _ in range(SUBMIT_PER_MIN + 5):
+            self.assertEqual(self.send("203.0.113.9", value="많이").status_code, 400)  # 숫자 칸에 글자
+        self.assertEqual(self.send("203.0.113.9").status_code, 200)
+
     def test_get_not_limited(self):
-        for _ in range(31):
+        for _ in range(SUBMIT_PER_MIN + 1):
             self.send("203.0.113.9")
         r = self.client.get(f"/c/{self.c.link_token}/u/{self.r2.key}", HTTP_X_FORWARDED_FOR="203.0.113.9")
         self.assertEqual(r.status_code, 200)
 
     def test_outside_limit(self):
         url = f"/c/{self.c.link_token}/outside"
-        for i in range(20):
+        for i in range(OUTSIDE_PER_HOUR):
             r = self.client.post(url, {"name": f"강사{i}"}, HTTP_X_FORWARDED_FOR="203.0.113.9")
             self.assertEqual(r.status_code, 303)
         r = self.client.post(url, {"name": "강사99"}, HTTP_X_FORWARDED_FOR="203.0.113.9")
         self.assertEqual(r.status_code, 429)
         self.assertContains(r, "잠시 뒤 다시", status_code=429)
         self.assertFalse(self.c.rows.filter(who="강사99").exists())
+
+
+class OrphanCollectionTests(G3Base):
+    """내보낸 구글 회원이 만든 모으기: 동학년을 만든 사람이 넘겨받는다(점검표 내보내기 권한 낮음 1)."""
+
+    def detail(self, client, c):
+        return client.get(f"/s/{self.a.token}/c/{c.key}/")
+
+    def test_removed_creator_hands_over_to_space_creator(self):
+        c = Collection.objects.create(space=self.a, created_by=self.m2, title="박 선생님 모으기", source="sheet",
+                                      unit_head=["학년반", "담임"])
+        self.client.force_login(self.ua)
+        self.assertNotContains(self.detail(self.client, c), "링크 새로 만들기")
+        r = self.client.post(f"/s/{self.a.token}/members/{self.m2.key}/out", HTTP_HX_REQUEST="true")
+        self.assertEqual(r.status_code, 200)
+        c.refresh_from_db()
+        self.assertEqual(c.created_by, self.owner)
+        self.assertContains(self.detail(self.client, c), "링크 새로 만들기")
+        self.assertEqual(self.client.post(f"/s/{self.a.token}/c/{c.key}/link").status_code, 302)
+
+    def test_already_orphaned_goes_to_space_creator_only(self):
+        c = Collection.objects.create(space=self.a, created_by=None, title="주인 없음", source="sheet",
+                                      unit_head=["학년반", "담임"])
+        c2 = Client()
+        c2.force_login(self.u2)
+        self.assertEqual(c2.post(f"/s/{self.a.token}/c/{c.key}/link").status_code, 403)
+        self.client.force_login(self.ua)
+        self.assertEqual(self.client.post(f"/s/{self.a.token}/c/{c.key}/link").status_code, 302)
+        # 다른 공간의 주인 없는 모으기는 404(공간 격리)
+        orphan_b = Collection.objects.create(space=self.b, created_by=None, title="옆", source="sheet",
+                                             unit_head=["학년반", "담임"])
+        self.assertEqual(self.client.post(f"/s/{self.a.token}/c/{orphan_b.key}/link").status_code, 404)

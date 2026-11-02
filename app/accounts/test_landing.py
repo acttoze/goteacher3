@@ -30,11 +30,11 @@ class LandingTests(TestCase):
         r = self.client.get("/start")
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "구글 계정으로 시작하기")
-        self.assertContains(r, 'href="/auth/google/login"')
+        self.assertContains(r, 'action="/auth/google/login"')
 
     def test_start_keeps_safe_next(self):
         r = self.client.get("/start", {"next": "/s/abc/"})
-        self.assertContains(r, "/auth/google/login?next=/s/abc/")
+        self.assertContains(r, '<input type="hidden" name="next" value="/s/abc/">')
 
     def test_legal_links_and_contact(self):
         html = self.client.get("/").content.decode()
@@ -76,10 +76,12 @@ class LandingQAEdgeTests(TestCase):
     """QA 추가(G5): 링크를 실제로 따라가는 흐름과 경계 사례."""
 
     def _follow_to_google(self, start_location):
-        """/start?next=... 화면의 구글 버튼 href를 그대로 따라가 google_login까지 간다."""
+        """/start?next=... 화면의 구글 시작 폼(GET)을 그대로 보내 google_login까지 간다."""
         html = self.client.get(start_location).content.decode()
-        href = re.search(r'class="gbtn" href="([^"]+)"', html).group(1).replace("&amp;", "&")
-        return self.client.get(href)
+        form = re.search(r'<form class="g-row" method="get" action="([^"]+)">(.*?)</form>', html, re.S)
+        fields = re.findall(r'<input type="(?:hidden|checkbox)" name="([^"]+)" value="([^"]*)"', form.group(2))
+        return self.client.get(form.group(1), {k: [v.replace("&amp;", "&") for kk, v in fields if kk == k]
+                                               for k, _ in fields})
 
     def test_full_flow_returns_to_original_next_with_query(self):
         from unittest import mock
@@ -105,7 +107,8 @@ class LandingQAEdgeTests(TestCase):
         for bad in ("//evil.example/", "/\\evil.example/", "https:evil.example", "javascript:alert(1)",
                     "http://evil.example/s/x/"):
             html = self.client.get("/start", {"next": bad}).content.decode()
-            self.assertIn('href="/auth/google/login"', html, bad)  # next 없이
+            self.assertIn('action="/auth/google/login"', html, bad)
+            self.assertNotIn('name="next"', html, bad)  # next 없이
             self.assertNotIn("evil", html, bad)
             self.assertNotIn("javascript:", html, bad)
 
