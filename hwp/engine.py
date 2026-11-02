@@ -431,6 +431,100 @@ def add_rows(hwpx: bytes, section: str, table_index: int, ref_row: int, count: i
     return out
 
 
+# ---------------------------------------------------------------- 글자 줄이기(F2)
+MAX_SHRINK = 4     # 한 번에 줄일 수 있는 크기(pt). 채운 칸만 줄인다.
+MIN_FONT = 700     # 이보다 작게는 줄이지 않는다(1/100pt, 7pt)
+RUN_REF = re.compile(rb'(<(?:[A-Za-z_][\w.-]*:)?run\b[^>]*?\bcharPrIDRef=")(\d+)(")')
+CHARPR = re.compile(rb'<(?:[A-Za-z_][\w.-]*:)?charPr\b.*?(?:</(?:[A-Za-z_][\w.-]*:)?charPr>|/>)', re.S)
+
+
+def _run_refs(sec: bytes, skip: list[tuple[int, int]]) -> list[bytes]:
+    """구역의 run 글자 모양 번호를 문서 순서로(skip 바이트 구간 안의 것은 뺌)."""
+    return [m.group(2) for m in RUN_REF.finditer(sec) if not any(a <= m.start() < b for a, b in skip)]
+
+
+def shrink(hwpx: bytes, section: str, table_index: int, cells, step_pt: int) -> bytes:
+    """채운 칸(cells=[(행, 열)])의 직속 문단 run 글자 크기를 step_pt 만큼 줄인다(MIN_FONT 아래로는 안 감).
+
+    원래 글자 모양은 건드리지 않고, 줄인 글자 모양을 header 끝에 덧붙여 그 run 들만 가리키게 한다
+    (python-hwpx fill_cells 의 fit_max_lines 와 같은 방식). 줄인 문단은 줄 배치 캐시를 지워 한글이 다시 배치한다.
+    검증: zip_ok, 모든 표의 칸 글자·구조 그대로, 바뀐 파트는 그 구역과 header 뿐, header 의 기존 글자 모양 그대로,
+    그 칸 밖 run 의 글자 모양 번호 그대로. 실패하면 FillError(주소·사유만).
+    """
+    from hwpx.patch import _patch_zip_entries, _rewrite_zip_entries, _strip_paragraph_layout_cache
+    from hwpx.table_patch import (_all_paragraph_spans, _charpr_height, _header_part_name,
+                                  _iter_table_spans, _materialize_charpr, build_grid)
+    where = (section, table_index, None, None)
+    if not isinstance(step_pt, int) or not 0 <= step_pt <= MAX_SHRINK:
+        raise FillError('줄일 크기 오류', [(where, f'step must be 0..{MAX_SHRINK}')])
+    before = analyze(hwpx)
+    t = find_table(before, section, table_index)
+    anchors = {(c.row, c.col): c for c in t.cells}
+    cells = list(cells)
+    bad = [(section, table_index) + (k if isinstance(k, tuple) else (None, None)) for k in cells
+           if not (isinstance(k, tuple) and k in anchors and not anchors[k].has_nested and k not in t.inner_addrs)]
+    if bad:
+        raise FillError('줄일 칸 오류', [(a, 'not an input cell') for a in bad])
+    if step_pt == 0 or not cells:
+        return hwpx
+    parts = parts_of(hwpx)
+    hname = _header_part_name(parts)
+    sec = parts[section]
+    ts, te = _iter_table_spans(sec)[table_index]
+    table = sec[ts:te]
+    grid, _rep = build_grid(table)
+    header, cache, edits = parts[hname], {}, []
+    for k in sorted(set(cells)):
+        cell = grid[k]
+        cb = table[cell.start:cell.end]
+        for ps, pe in _all_paragraph_spans(cb):
+            para = cb[ps:pe]
+
+            def smaller(m):
+                nonlocal header
+                h = _charpr_height(header, m.group(2).decode())
+                new = max(h - step_pt * 100, MIN_FONT) if h else None
+                if new is None or new >= h:
+                    return m.group(0)
+                header, nid = _materialize_charpr(header, m.group(2).decode(), new, cache)
+                return m.group(1) + nid.encode() + m.group(3)
+            new_para = RUN_REF.sub(smaller, para)
+            if new_para != para:
+                edits.append((ts + cell.start + ps, ts + cell.start + pe, _strip_paragraph_layout_cache(new_para)))
+    if not edits:
+        return hwpx
+    from hwpx.patch import _apply_edits
+    new_sec = _apply_edits(sec, edits)
+    changed = {section: new_sec, hname: header}
+    try:
+        out = _patch_zip_entries(hwpx, changed)
+    except ValueError:
+        out = _rewrite_zip_entries(hwpx, changed)
+    # ---- 검증
+    bad = [f'zip: {x}' for x in zip_ok(out)]
+    after = analyze(out)
+    if [[(c.row, c.col, c.rs, c.cs, c.text, c.border) for c in x.cells] for x in before] != \
+       [[(c.row, c.col, c.rs, c.cs, c.text, c.border) for c in x.cells] for x in after]:
+        bad.append('text or structure changed')
+    pa = parts_of(out)
+    if set(parts) ^ set(pa) or {n for n in parts if parts[n] != pa[n]} - {section, hname}:
+        bad.append('other parts changed')
+    old = CHARPR.findall(parts[hname])
+    if CHARPR.findall(pa[hname])[:len(old)] != old:
+        bad.append('existing char shapes changed')
+    # 줄인 문단 밖의 run 은 같은 글자 모양을 가리킨다(편집 뒤 구간은 길이 차이만큼 밀어서 비교)
+    skip_b = [(a, b) for a, b, _ in edits]
+    skip_a, shift = [], 0
+    for a, b, rep in sorted(edits):
+        skip_a.append((a + shift, a + shift + len(rep)))
+        shift += len(rep) - (b - a)
+    if _run_refs(sec, skip_b) != _run_refs(pa[section], skip_a):
+        bad.append('other runs changed')
+    if bad:
+        raise FillError('글자 줄이기 검증 실패', [(where, x) for x in bad])
+    return out
+
+
 # ---------------------------------------------------------------- 검증
 def zip_ok(hwpx: bytes) -> list[str]:
     errs = []

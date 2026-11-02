@@ -387,7 +387,10 @@ def detail(request, key):
     ctx = _space_ctx(request, page="collect", can_delete=_owner(request, c),
                      **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
                      hwp_result=result_ctx(request.space, c) if c.source == Collection.Source.HWP else None)
-    return render(request, "collect/detail.html", ctx)
+    resp = render(request, "collect/detail.html", ctx)
+    if ctx["hwp_result"]:
+        resp["Content-Security-Policy"] = PREVIEW_CSP  # 채운 결과 쪽 미리보기(WASM, F2)
+    return resp
 
 
 def _link_ctx(request, c):

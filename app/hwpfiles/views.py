@@ -12,6 +12,9 @@
 - 한글 파일로 받기(F1): 합본 화면에서 POST → 채우기 작업을 큐 'hwp'에 넣고 부분 화면이 2초마다 상태를 본다.
   끝나면 내려받기 링크(올린 형식 + hwpx). 회원·같은 공간만, 캐시 금지, 파일 이름은 RFC 5987(Django FileResponse).
   회원당 진행 중 한글 작업(변환 + 채우기) HWP_IN_FLIGHT건. 같은 모으기 작업이 진행 중이면 새로 만들지 않는다.
+- 미리보기·글자 줄이기(F2): 합본 화면이 채운 hwpx와 원본 hwpx를 rhwp로 그려 쪽 수를 비교한다(브라우저, result.js).
+  합본 쪽이 늘면 '글자 줄이기'가 shrink=n(pt, 0..hwp.MAX_SHRINK)을 POST → 채운 칸만 n pt 작게 다시 채운다(큐).
+  쪽 수는 서버에 보내지 않는다(서버는 크기 값만 받고 범위를 다시 본다). 다시 만들기는 고른 크기를 이어 간다.
 """
 import logging
 import re
@@ -196,6 +199,7 @@ def hwpx(request, key):
 
 RESULT_TYPES = {"hwp": "application/x-hwp", "hwpx": HWPX_TYPE}
 RESULT_BUSY = "앞서 맡긴 한글 작업이 끝난 뒤 다시 눌러 주세요."
+BAD_SHRINK = "글자 크기를 그만큼 줄일 수 없어요. 화면을 새로 고친 뒤 다시 눌러 주세요."
 
 
 def result_ctx(space, c):
@@ -206,7 +210,8 @@ def result_ctx(space, c):
     rf = ResultFile.objects.in_space(space).filter(collection=c).order_by("-created_at", "-id").first()
     if rf is not None:
         rf.expire_if_stuck()
-    return {"src": sf, "r": rf, "c": c}
+    return {"src": sf, "r": rf, "c": c, "max_shrink": hwp.MAX_SHRINK,
+            "preview": sf.cellmap.get("mode") != "cells"}   # 신청서형(선생님마다 한 부 zip)은 미리보기 없음
 
 
 def _result_part(request, ctx, msg="", status=200):
@@ -223,6 +228,12 @@ def result(request, key):
         raise Http404
     if request.method == "GET" or (ctx["r"] is not None and ctx["r"].busy):
         return _result_part(request, ctx)
+    try:
+        shrink = int(request.POST.get("shrink") or 0)
+    except ValueError:
+        shrink = -1
+    if not 0 <= shrink <= hwp.MAX_SHRINK:
+        return _result_part(request, ctx, BAD_SHRINK, status=400)
     if SourceFile.used_bytes(request.space) >= settings.HWP_SPACE_QUOTA:
         return _result_part(request, ctx, REJECT["Quota"], status=400)
     if SourceFile.used_bytes() >= settings.HWP_TOTAL_QUOTA:
@@ -237,7 +248,8 @@ def result(request, key):
         if in_flight(request.space, request.member) >= settings.HWP_IN_FLIGHT:
             return _result_part(request, ctx, RESULT_BUSY, status=429)
         rf = ResultFile.objects.create(space=request.space, source=sf, collection=c, created_by=request.member,
-                                       fmt=hwp.output_format(sf.kind), bundle=sf.cellmap.get("mode") == "cells")
+                                       fmt=hwp.output_format(sf.kind), bundle=sf.cellmap.get("mode") == "cells",
+                                       shrink=shrink)
     queue.enqueue(fill_result, rf.pk, queue_name=queue.HWP_QUEUE)
     rf.refresh_from_db()  # 큐 없이(로컬·CI) 바로 끝났으면 결과를 보인다
     return _result_part(request, {**ctx, "r": rf})

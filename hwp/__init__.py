@@ -8,6 +8,7 @@
     s = schema(hwpx, section, index)                # 교사가 고른 표의 입력 칸·라벨
     hwpx = add_rows(hwpx, section, index, ref_row, n)  # 표 줄이 모자라면 ref_row 아래 빈 줄 n개(검증 포함)
     out = fill(hwpx, section, index, values)        # values={(r, c): '값'}. 재파싱 검증 통과해야 반환
+    out = shrink(out, section, index, values, pt)   # 쪽이 늘면(F2) 채운 칸 글자만 pt 작게(검증 포함)
     if output_format(kind) == 'hwp':                # 기본은 올린 형식. GT_HWP_OUTPUT=hwpx 면 hwpx
         out_hwp = to_hwp(out, section, index, values)   # HWP 5.0 다시 쓰고 되읽어 값 확인
 
@@ -25,9 +26,9 @@ from .safety import (MAX_CELL_TEXT, MAX_ENTRIES, MAX_UNZIPPED, MAX_UPLOAD, Conve
                      output_format, sniff)
 
 __all__ = [
-    'detect', 'sniff', 'to_hwpx', 'candidates', 'tables', 'schema', 'add_rows', 'fill', 'to_hwp', 'verify', 'zip_ok', 'output_format',
+    'detect', 'sniff', 'to_hwpx', 'candidates', 'tables', 'schema', 'add_rows', 'fill', 'shrink', 'to_hwp', 'verify', 'zip_ok', 'output_format',
     'HwpError', 'UnsupportedFormat', 'TooLarge', 'UnsafeFile', 'ConvertError', 'FillError',
-    'MAX_UPLOAD', 'MAX_UNZIPPED', 'MAX_ENTRIES', 'MAX_CELL_TEXT', 'MAX_ADD_ROWS',
+    'MAX_UPLOAD', 'MAX_UNZIPPED', 'MAX_ENTRIES', 'MAX_CELL_TEXT', 'MAX_ADD_ROWS', 'MAX_SHRINK', 'MIN_FONT',
 ]
 
 
@@ -52,6 +53,8 @@ to_hwpx = _guard(_e.to_hwpx)
 verify = _guard(_e.verify)
 add_rows = _guard(_e.add_rows)
 MAX_ADD_ROWS = _e.MAX_ADD_ROWS
+shrink = _guard(_e.shrink)
+MAX_SHRINK, MIN_FONT = _e.MAX_SHRINK, _e.MIN_FONT
 zip_ok = _guard(_e.zip_ok)
 
 

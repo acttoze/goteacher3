@@ -223,6 +223,7 @@ class ResultFile(models.Model):
     left_out = models.PositiveIntegerField("줄을 더하지 못해 못 넣은 줄 수", default=0)
     dropped = models.PositiveIntegerField("표에 칸이 없어 못 넣은 값 수", default=0)
     copies = models.PositiveIntegerField("만든 부수(신청서형)", default=0)
+    shrink = models.PositiveSmallIntegerField("채운 칸 글자 줄인 크기(pt, F2)", default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     done_at = models.DateTimeField(null=True, blank=True)
 

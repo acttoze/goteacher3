@@ -584,3 +584,194 @@ class QAFillEdgeTests(TestCase):
         for which in ("hwpx", "file"):
             self.assertEqual(other.get(f"/s/{self.b.token}/hwp/out/{ra.key}/{which}").status_code, 404)
         self.assertEqual(other.get(f"/s/{self.b.token}/c/{c.key}/hwp").status_code, 404)
+
+
+@override_settings(ROOT_URLCONF="config.urls", REDIS_URL="")
+class ShrinkViewTests(FillTaskTests):
+    """F2 미리보기·글자 줄이기. FillTaskTests 의 도우미만 쓰고 그 테스트는 다시 돌리지 않는다."""
+
+    def _sec(self, sf):
+        return sf.cellmap["section"]
+
+    def test_shrink_post_makes_filled_cells_smaller_only(self):
+        from hwp.tests.test_shrink import heights
+        sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "21", "비고": "긴 비고 글"})
+        rf0 = self.run_fill(c)
+        _, plain = self.download(rf0, "hwpx")
+        r = self.client.post(self.url(c), {"shrink": "2"})
+        self.assertEqual(r.status_code, 200)
+        rf = ResultFile.objects.filter(collection=c).latest("created_at")
+        self.assertEqual((rf.status, rf.shrink), ("done", 2))
+        _, data = self.download(rf, "hwpx")
+        self.assertEqual(texts(data, self._sec(sf), 1)[1], texts(plain, self._sec(sf), 1)[1])  # 글자 그대로
+        b, a = heights(plain, self._sec(sf), 1), heights(data, self._sec(sf), 1)
+        filled = {k for k, v in texts(plain, self._sec(sf), 1)[1].items() if v} - {
+            k for k, v in texts(table_doc(CLASS_TABLE), self._sec(sf), 1)[1].items() if v}
+        self.assertTrue(filled)
+        for k in b:
+            self.assertEqual(a[k], [x - 200 for x in b[k]] if k in filled else b[k], k)
+        self.assertEqual(heights(data, self._sec(sf), 0), heights(plain, self._sec(sf), 0))  # 다른 표 그대로
+        part = r.content.decode()
+        self.assertIn("채운 칸 글자를 2pt 줄였어요", part)
+        self.assertIn('name="shrink" value="3"', part)        # 다음 단계
+        self.assertIn('name="shrink" value="2"', part)        # 다시 만들기는 크기를 이어 간다
+        self.assertIn("글자 원래대로", part)
+        self.assertEqual(list(ResultFile.objects.filter(collection=c)), [rf])
+
+    def test_shrink_hwp_output_reads_back_smaller(self):
+        from hwp.tests.test_shrink import heights
+        hx = table_doc(CLASS_TABLE)
+        sf, c = self.make(hwp.to_hwp(hx, hwp.candidates(hx)[0]["section"], 1, {}), name="참가.hwp")
+        self.submit(c.rows.first(), **{"참가(명)": "7"})
+        plain = self.run_fill(c)
+        _, p = self.download(plain, "file")
+        self.client.post(self.url(c), {"shrink": "1"})
+        rf = ResultFile.objects.filter(collection=c).latest("created_at")
+        self.assertEqual((rf.status, rf.fmt, rf.shrink), ("done", "hwp", 1))
+        _, data = self.download(rf, "file")
+        pb, _, _ = hwp.to_hwpx(p)
+        back, _, _ = hwp.to_hwpx(data)
+        sec = hwp.candidates(back)[0]["section"]
+        self.assertEqual(texts(back, sec, 1)[1][(1, 2)], "7")
+        self.assertEqual(heights(back, sec, 1)[(1, 2)][0], heights(pb, sec, 1)[(1, 2)][0] - 100)
+
+    def test_shrink_out_of_range_rejected_without_job(self):
+        _sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "3"})
+        rf = self.run_fill(c)
+        for bad in ("-1", str(hwp.MAX_SHRINK + 1), "x", "1.5"):
+            r = self.client.post(self.url(c), {"shrink": bad})
+            self.assertEqual(r.status_code, 400, bad)
+            self.assertContains(r, "글자 크기를 그만큼 줄일 수 없어요", status_code=400)
+        self.assertEqual(list(ResultFile.objects.filter(collection=c)), [rf])
+
+    def test_shrink_isolation_and_members_only(self):
+        _sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "3"})
+        self.run_fill(c)
+        other = Client()
+        other.force_login(self.ub)
+        self.assertEqual(other.post(self.url(c), {"shrink": "1"}).status_code, 404)
+        self.assertEqual(other.post(self.url(c, self.b), {"shrink": "1"}).status_code, 404)
+        self.assertNotEqual(Client().post(self.url(c), {"shrink": "1"}).status_code, 200)
+        self.assertEqual(ResultFile.objects.filter(shrink=1).count(), 0)
+
+    def test_detail_page_preview_box_csp_and_urls(self):
+        sf, c = self.make(table_doc(CLASS_TABLE))
+        r = self.client.get(f"/s/{self.a.token}/c/{c.key}/")
+        self.assertContains(r, 'id="hwpPaper"')
+        self.assertContains(r, "hwp/result.js")
+        self.assertContains(r, f'data-orig="/s/{self.a.token}/hwp/{sf.key}/hwpx"')
+        self.assertNotContains(r, "data-out=")          # 결과 전에는 올린 양식만
+        self.assertIn("'wasm-unsafe-eval'", r["Content-Security-Policy"])
+        self.assertIn("blob:", r["Content-Security-Policy"])
+        self.assertIn("no-store", r["Cache-Control"])
+        self.submit(c.rows.first(), **{"참가(명)": "3", "비고": SECRET})
+        rf = self.run_fill(c)
+        r = self.client.get(f"/s/{self.a.token}/c/{c.key}/")
+        self.assertContains(r, f'data-out="/s/{self.a.token}/hwp/out/{rf.key}/hwpx"')
+        self.assertContains(r, 'id="hwpShrink" hidden')  # 쪽 수는 브라우저가 세고 늘었을 때만 보인다
+        self.assertContains(r, ".fl .acts form[hidden] { display: none; }")  # display: contents 가 hidden 을 덮지 않게
+        self.assertContains(r, f'data-max="{hwp.MAX_SHRINK}"')
+        self.assertContains(r, 'id="hwpPages"')
+        li = r.content.decode().split('id="hwpResult"', 1)[1].split("</li>", 1)[0]
+        self.assertNotIn('role="alert"', li)   # 받는 링크 카드의 msg(쪽지 문구)가 이 줄의 오류로 새지 않는다
+        # 원본·결과 hwpx 둘 다 회원은 받고(미리보기용), 캐시하지 않는다
+        for u in (f"/s/{self.a.token}/hwp/{sf.key}/hwpx", f"/s/{self.a.token}/hwp/out/{rf.key}/hwpx"):
+            g = self.client.get(u)
+            self.assertEqual(g.status_code, 200, u)
+            self.assertIn("no-store", g["Cache-Control"])
+
+    def test_form_type_has_no_preview(self):
+        _sf, c = self.make(table_doc([["연수명", ""], ["희망 일자", ""]], title="연수 신청서"))
+        r = self.client.get(f"/s/{self.a.token}/c/{c.key}/")
+        self.assertContains(r, "원본 한글 양식에 채워 받기")
+        self.assertNotContains(r, 'id="hwpPaper"')
+
+    def test_plain_collection_detail_has_no_wasm_csp(self):
+        c = Collection.objects.create(space=self.a, title="그냥", source=Collection.Source.SHEET)
+        r = self.client.get(f"/s/{self.a.token}/c/{c.key}/")
+        self.assertNotIn("Content-Security-Policy", r)
+        self.assertNotContains(r, "hwp/result.js")
+
+
+# ShrinkViewTests 는 FillTaskTests 를 물려받지만 F1 테스트를 두 번 돌리지 않는다.
+for _n in [n for n in vars(FillTaskTests) if n.startswith("test_")]:
+    setattr(ShrinkViewTests, _n, None)
+
+
+@override_settings(ROOT_URLCONF="config.urls", REDIS_URL="")
+class ShrinkQAEdgeTests(FillTaskTests):
+    """QA(F2) 경계: 이상한 크기 값, 다른 학교, 신청서형 줄이기, 줄이기 뒤 원래대로."""
+
+    def test_odd_shrink_values(self):
+        _sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "3"})
+        self.run_fill(c)
+        for bad in ("99999999999999999999", "1e1", "0x2", "４ 4", "NaN"):
+            self.assertEqual(self.client.post(self.url(c), {"shrink": bad}).status_code, 400, bad)
+        self.assertEqual(self.client.post(self.url(c), {"shrink": ""}).status_code, 200)   # 빈 값은 0
+        rf = ResultFile.objects.filter(collection=c).latest("created_at")
+        self.assertEqual(rf.shrink, 0)
+
+    def test_other_school_member_cannot_shrink_or_read(self):
+        _sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "3"})
+        rf = self.run_fill(c)
+        far = School.objects.create(neis_atpt="S10", neis_code="9999981", name="먼초")
+        x = Space.objects.create(school=far, grade=4, name="4학년")
+        ux = get_user_model().objects.create(username="google:fx")
+        Member.objects.create(space=x, name="정먼", cls="4-1", user=ux)
+        cl = Client()
+        cl.force_login(ux)
+        for sp in (self.a, x):
+            self.assertEqual(cl.post(self.url(c, sp), {"shrink": "1"}).status_code, 404)
+            self.assertEqual(cl.get(f"/s/{sp.token}/hwp/out/{rf.key}/hwpx").status_code, 404)
+        self.assertEqual(ResultFile.objects.filter(shrink=1).count(), 0)
+
+    def test_form_type_shrink_applies_to_every_copy(self):
+        from hwp.tests.test_shrink import heights
+        sf, c = self.make(table_doc([["연수명", ""], ["희망 일자", ""]], title="연수 신청서"))
+        rows = list(c.rows.all())
+        self.submit(rows[0], **{"연수명": "글쓰기", "희망 일자": "11월"})
+        self.submit(rows[2], **{"연수명": "코딩"})
+        plain = self.run_fill(c)
+        _, p = self.download(plain, "hwpx")
+        self.assertEqual(self.client.post(self.url(c), {"shrink": "2"}).status_code, 200)
+        rf = ResultFile.objects.filter(collection=c).latest("created_at")
+        self.assertEqual((rf.status, rf.bundle, rf.shrink), ("done", True, 2))
+        _, data = self.download(rf, "hwpx")
+        sec = sf.cellmap["section"]
+        with zipfile.ZipFile(io.BytesIO(p)) as zp, zipfile.ZipFile(io.BytesIO(data)) as zs:
+            self.assertEqual(zp.namelist(), zs.namelist())
+            for n in zs.namelist():
+                b, a = heights(zp.read(n), sec, 1), heights(zs.read(n), sec, 1)
+                t = texts(zs.read(n), sec, 1)[1]
+                self.assertEqual(t, texts(zp.read(n), sec, 1)[1])
+                for k in b:
+                    filled = k[1] == 1 and t.get(k)
+                    self.assertEqual(a[k], [x - 200 for x in b[k]] if filled else b[k], (n, k))
+        # 신청서형은 미리보기·글자 줄이기 단추를 보이지 않는다
+        part = self.client.get(self.url(c)).content.decode()
+        self.assertNotIn('id="hwpShrink"', part)
+        self.assertNotIn("data-out=", part)
+
+    def test_restore_after_shrink_gives_original_sizes(self):
+        from hwp.tests.test_shrink import heights
+        sf, c = self.make(table_doc(CLASS_TABLE))
+        self.submit(c.rows.first(), **{"참가(명)": "21", "비고": "긴 비고 글"})
+        _, plain = self.download(self.run_fill(c), "hwpx")
+        self.client.post(self.url(c), {"shrink": "3"})
+        r = self.client.post(self.url(c), {"shrink": "0"})
+        self.assertNotIn("글자 원래대로", r.content.decode())
+        rf = ResultFile.objects.filter(collection=c).latest("created_at")
+        self.assertEqual(rf.shrink, 0)
+        _, back = self.download(rf, "hwpx")
+        sec = sf.cellmap["section"]
+        self.assertEqual(heights(back, sec, 1), heights(plain, sec, 1))
+        self.assertEqual(ResultFile.objects.filter(collection=c).count(), 1)
+
+
+for _n in [n for n in vars(FillTaskTests) if n.startswith("test_")]:
+    setattr(ShrinkQAEdgeTests, _n, None)

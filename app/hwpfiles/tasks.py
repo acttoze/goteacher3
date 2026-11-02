@@ -96,10 +96,13 @@ def _check(before, out, section, index, values):
                             or [((section, index, None, None), "verify failed")])
 
 
-def _one(base, section, index, values, fmt):
-    """한 부: 채우기 → 재검증 → (hwp면) HWP 다시 쓰고 되읽기. (올린 형식 바이트 또는 None, hwpx 바이트)."""
+def _one(base, section, index, values, fmt, shrink=0):
+    """한 부: 채우기 → 재검증 → (F2 글자 줄이기: 채운 칸만, 자체 검증) → (hwp면) HWP 다시 쓰고 되읽기.
+    (올린 형식 바이트 또는 None, hwpx 바이트)."""
     out = hwp.fill(base, section, index, values)
     _check(base, out, section, index, values)
+    if shrink:
+        out = hwp.shrink(out, section, index, [k for k, v in values.items() if v.strip()], shrink)
     return (hwp.to_hwp(out, section, index, values) if fmt == "hwp" else None), out
 
 
@@ -152,7 +155,7 @@ def _merged(rf, base, cm, rows, vals, room=None):
                     v = merge.head_value(ref_head, k, row)
                     if v and at in ok and at not in values:
                         values[at] = v
-    main, out = _one(hx, section, index, values, rf.fmt)
+    main, out = _one(hx, section, index, values, rf.fmt, rf.shrink)
     rf.conflicts, rf.copies, rf.dropped = [list(x) for x in p.conflicts], 1, dropped
     return main, out
 
@@ -174,7 +177,7 @@ def _bundle(rf, base, cm, rows, vals, room):
     zm, zx = io.BytesIO(), io.BytesIO()
     with zipfile.ZipFile(zm, "w", zipfile.ZIP_DEFLATED) as a, zipfile.ZipFile(zx, "w", zipfile.ZIP_STORED) as b:
         for n, (row, values) in enumerate(p.copies, 1):
-            main, out = _one(base, cm["section"], cm["index"], values, rf.fmt)
+            main, out = _one(base, cm["section"], cm["index"], values, rf.fmt, rf.shrink)
             if main is not None:
                 a.writestr(_zip_name(n, row, rf.fmt), main)
             b.writestr(_zip_name(n, row, "hwpx"), out)
