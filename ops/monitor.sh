@@ -3,7 +3,7 @@
 #   보는 것: Traefik 경유 /healthz · worker 실행 중 · db healthy · 디스크 여유 · 백업(DB·미디어) 26시간 안
 #            · 최근 5분 500 오류(config/logsafe.py가 남긴 줄 수) · 배포 실패(var/deploy-skip)
 #   문제 목록이 바뀔 때(생김·풀림)만 알린다. 같은 문제가 이어지면 6시간마다 다시.
-#   알림: 지금은 var/alerts.log에만 남긴다. 수단(메일·텔레그램 등)이 정해지면 notify()에 한 줄 추가.
+#   알림: var/alerts.log + 텔레그램(ops/notify.sh, ops/.env의 TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID).
 #   확인: GT_DRY=1 ops/monitor.sh  (상태 파일·알림 없이 지금 문제 목록만 출력)
 set -uo pipefail
 export PATH=/usr/local/bin:/usr/bin:/bin
@@ -57,10 +57,8 @@ if [ "${GT_DRY:-0}" = 1 ]; then
   exit 0
 fi
 
-notify() {  # $1 제목, 표준입력 본문
-  local body; body=$(cat)
-  printf '%s [%s]\n%s\n\n' "$(date '+%F %T')" "$1" "$body" >> "$var/alerts.log"
-  # 알림 수단(사람 결정 대기): 정해지면 여기서 보낸다. 예) 메일 msmtp, 텔레그램 curl
+notify() {  # $1 제목, 표준입력 본문 → var/alerts.log + 텔레그램(ops/notify.sh)
+  GT_DIR="$dir" "$dir/ops/notify.sh" "$1"
 }
 
 state="$var/monitor.state"

@@ -95,8 +95,9 @@ main() {
 }
 
 log() { echo "$(date '+%F %T') $*"; }
-# monitor.sh notify()와 같은 형식으로 var/alerts.log에 남긴다($1 제목, $2 본문)
-alert() { printf '%s [%s]\n%s\n\n' "$(date '+%F %T')" "$1" "$2" >> "${GT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}/var/alerts.log"; }
+# var/alerts.log + 텔레그램(ops/notify.sh, monitor.sh와 같은 길)($1 제목, $2 본문)
+OPS_DIR="$(cd "$(dirname "$0")" && pwd)"  # main이 cd ops를 해도 바뀌지 않게 시작할 때 고정
+alert() { printf '%s' "$2" | GT_DIR="${GT_DIR:-$(dirname "$OPS_DIR")}" "$OPS_DIR/notify.sh" "$1"; }
 
 main "$@"
 exit
