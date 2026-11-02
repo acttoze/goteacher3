@@ -17,7 +17,7 @@ chat=$(sed -n 's/^TELEGRAM_CHAT_ID=//p' "$env" 2>/dev/null | tail -1)
 [ -n "$token" ] && [ -n "$chat" ] || exit 0
 
 printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$token" \
-  | curl -s -m 10 -o /dev/null -K - \
+  | curl -s -f -m 10 -o /dev/null -K - \
       --data-urlencode "chat_id=$chat" \
       --data-urlencode "text=[$title]
 $body" \
