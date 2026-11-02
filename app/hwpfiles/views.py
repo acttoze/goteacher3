@@ -29,6 +29,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 import hwp
 from config import queue
+from config.ratelimit import TOO_MANY, allow
 from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
@@ -57,6 +58,7 @@ PREVIEW_CSP = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
 HWPX_TYPE = "application/hwp+zip"
 TABLE_KEYS = ("sec", "index", "rows", "cols", "nested", "parent", "role", "rank")
 MAX_CHIPS = 6  # 고르기 화면 위 후보 단추 수(나머지 후보는 미리보기에서 점선으로)
+UPLOAD_PER_HOUR = 20  # 회원 한 명이 시간당 올리기(거부된 올리기도 센다)
 BUSY = "앞서 올린 한글 파일을 읽는 중이에요. 끝난 뒤 올려 주세요."
 
 
@@ -85,8 +87,11 @@ def _clean_name(raw):
     return name[-200:]
 
 
+@never_cache
 @require_POST
 def upload(request):
+    if not allow("hwp-up", request.member.key, UPLOAD_PER_HOUR, 3600):  # 빈도 제한(G3 ⑥): 본문을 읽기 전에
+        return _reject(request, TOO_MANY, status=429)
     # 본문을 읽기 전에 선언 크기로 먼저 거른다(멀티파트 머리 몫 1MB 여유).
     try:
         declared = int(request.META.get("CONTENT_LENGTH") or 0)

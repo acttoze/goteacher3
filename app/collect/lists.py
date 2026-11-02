@@ -114,6 +114,7 @@ def _roster_mode(c):
     return "class"
 
 
+@never_cache
 @require_POST
 def again(request, key):
     """다시 걷기: 칸·설정을 옮긴 새 모으기. 제출 값·마감·잠금은 비우고, 줄은 지금 동학년 명부로 만든다."""

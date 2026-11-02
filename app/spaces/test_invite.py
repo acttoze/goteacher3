@@ -3,6 +3,7 @@ from unittest import mock
 from urllib.parse import parse_qs, urlparse
 
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 from django.test import Client, TestCase, override_settings
 
 from accounts.models import DEVICE_COOKIE, DeviceToken, is_guest
@@ -16,6 +17,7 @@ SITE = "https://t.goteacher.xyz"
 @override_settings(SITE_URL=SITE, GOOGLE_CLIENT_ID="cid", GOOGLE_CLIENT_SECRET="sec")
 class InviteBase(TestCase):
     def setUp(self):
+        caches["ratelimit"].clear()  # 입장 빈도 제한 카운터(G3)는 테스트마다 새로
         p = mock.patch("spaces.neis.class_names", return_value=["1", "2", "3", "4", "5"])
         p.start()
         self.addCleanup(p.stop)
@@ -347,8 +349,8 @@ class SecurityB7Tests(InviteBase):
         self.assertFalse(Member.objects.filter(user=u).exists())
 
     def test_member_cap_is_twice_the_slots(self):
-        for i in range(11):  # 만든 사람 + 11 = 12 = 6칸 × 2
-            self.join(Client(), "4-전담", f"전담{i}")
+        for i in range(11):  # 만든 사람 + 11 = 12 = 6칸 × 2 (IP마다 분당 입장 제한이 있어 IP를 나눈다)
+            self.join(Client(REMOTE_ADDR=f"203.0.113.{i}"), "4-전담", f"전담{i}")
         r = self.join(Client(), "4-전담", "넘침")
         self.assertContains(r, "더 들어올 수 없어요", status_code=400)
         self.assertEqual(Member.objects.in_space(self.space).count(), 12)

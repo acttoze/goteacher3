@@ -2,6 +2,7 @@
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 from django.test import TestCase
 
 from .models import Member, School, Space
@@ -25,6 +26,7 @@ class NeisMocked(TestCase):
     patches = None
 
     def setUp(self):
+        caches["ratelimit"].clear()  # 학교 검색 빈도 제한(G3) 카운터는 테스트마다 새로
         self.mocks = [p.start() for p in (self.patches or neis_mock())]
         self.addCleanup(mock.patch.stopall)
         self.user = User.objects.create(username="google:1", first_name="송민재")

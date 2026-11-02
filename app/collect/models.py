@@ -137,15 +137,17 @@ class Notification(models.Model):
     """🔔 알림 한 건(D3 자동 리마인드). 받는 회원 한 명 것. 같은 줄·종류·날짜에는 하나만(cron이 여러 번 불러도).
 
     text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
+    SEAT(G3): 기기가 붙은 손님 자리로 다른 브라우저가 들어오면 만든 사람에게. 줄 없음, link는 동학년 화면.
     """
 
     class Kind(models.TextChoices):
         D1 = "d1", "마감 전날"
         D0 = "d0", "마감 당일"
+        SEAT = "seat", "새 기기"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")
-    row = models.ForeignKey(Row, on_delete=models.CASCADE, related_name="notifications")
+    row = models.ForeignKey(Row, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
     kind = models.CharField("종류", max_length=10, choices=Kind.choices)
     day = models.DateField("보낸 날")
     text = models.CharField("문구", max_length=300)

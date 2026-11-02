@@ -1,0 +1,47 @@
+{% extends "shell.html" %}
+{% block title %}이 PC 설정 · 고티처{% endblock %}
+{% block ptitle %}설정{% endblock %}
+{% block head %}
+<style>
+  /* design/settings.html #device — 한 줄 = 설명 칸 360 + 간격 24 + 패널. 지금은 '이 PC' 영역만. */
+  .srow { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 24px; padding: 32px 0; border-top: 1px solid var(--line); }
+  .srow:first-of-type { border-top: 0; padding-top: 4px; }
+  .srow .lab h2 { font-size: 18px; letter-spacing: -0.02em; margin-top: 6px; }
+  .srow .lab p { font-size: 15px; color: var(--muted); margin-top: 6px; max-width: 30em; }
+  .panel { background: var(--surface); border-radius: 14px; padding: 8px 20px; }
+  .panel.pad { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .sw { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 1px solid #e3e6ea; }
+  .sw:first-of-type { border-top: 0; }  /* 앞에 csrf 입력이 있어 first-child가 아님 */
+  .sw b { font-size: 16px; }
+  .sw .d { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .dev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; }
+  .dev .m { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  @media (max-width: 1100px) { .srow { grid-template-columns: 1fr; gap: 14px; } }
+</style>
+{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow"><h1>이 PC 설정</h1><p class="sub">{% if remember %}이 PC 브라우저가 1년 동안 로그인을 기억해요.{% else %}이 PC는 로그인을 기억하지 않아요. 브라우저를 닫으면 로그아웃돼요.{% endif %}</p></div>
+</div>
+
+<section class="srow"><div class="lab"><h2>로그인 기억</h2><p>같은 PC에서는 1년 동안 다시 로그인하지 않아요. 공용 PC라면 끄거나, 쓰고 나서 로그아웃하세요.</p></div>
+  <div>{% include "accounts/_remember.html" %}</div></section>
+
+<section class="srow"><div class="lab"><h2>구글 계정</h2><p>다른 PC에서 들어올 때 이 계정으로 로그인해요.</p></div>
+  <div class="panel pad">{% if guest %}<div class="row"><span class="st">이어 두지 않음</span><a class="btn sec sm" href="/auth/google/login?next=/s/{{ space.token }}/settings">구글 계정으로 이어 두기</a></div>
+    {% else %}<div class="row"><span class="st done">연결됨</span><b>{{ request.user.email|default:request.user.first_name }}</b></div>{% endif %}</div></section>
+
+<section class="srow"><div class="lab"><h2>로그인한 기기</h2><p>모르는 기기가 있거나 공용 PC에서 로그아웃을 잊었다면 모든 기기에서 로그아웃하세요. 다음에 다시 로그인해야 해요.</p></div>
+  <div class="panel"><div class="dev"><div><b>로그인을 기억하는 기기 <span class="num">{{ n_devices }}</span>대</b><div class="m">{% if remember %}이 PC 포함{% else %}이 PC는 빼고{% endif %} · 이 PC에서 지금 쓰는 로그인도 함께 끊겨요</div></div>
+    <button class="btn danger sm" type="button" data-open="#allDlg">모든 기기에서 로그아웃</button></div></div></section>
+
+<div class="scrim" id="allDlg" hidden>
+  <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="allDlgH" method="post" action="/s/{{ space.token }}/settings/logout-all">
+    {% csrf_token %}
+    <div class="dh"><h2 id="allDlgH">모든 기기에서 로그아웃할까요?</h2></div>
+    <div class="db"><p>이 PC를 포함해 로그인한 모든 브라우저가 로그아웃되고, 브라우저 알림 받기도 꺼져요.
+      {% if guest %}구글 계정을 이어 두지 않아서, 다시 들어오려면 초대 링크로 같은 반·이름을 골라야 해요.{% else %}다시 쓰려면 구글로 로그인하세요.{% endif %}</p></div>
+    <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">모두 로그아웃</button></div>
+  </form>
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from .safety import (MAX_CELL_TEXT, PARSER, ConvertError, FillError, HwpError,
-                     check_ole, check_zip, detect, safe_lxml)
+                     UnsafeFile, check_ole, check_zip, detect, safe_lxml)
 
 HP = '{http://www.hancom.co.kr/hwpml/2011/paragraph}'
 SEC_RE = re.compile(r'Contents/section(\d+)\.xml$')
@@ -30,6 +30,14 @@ TOTAL = re.compile(r'^\s*(합\s*계|소\s*계|총\s*계|계)\s*$')
 # XML 1.0 에 넣을 수 없는 제어 문자(탭·줄바꿈 제외)
 MAX_ADD_ROWS = 300   # 한 번에 더할 줄(동학년 명부·명부 밖 줄 상한보다 넉넉히)
 BAD_CHARS = re.compile('[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]')
+# 파일이 선언하는 표 크기(rowCnt·colCnt·cellAddr·cellSpan)는 믿지 않는다(G3: 병합 값 하나로 worker 멈춤).
+# 표본 1,379개 실측: 행 736·열 154·행×열 7,700·파일당 행×열 합 22,933·중첩 깊이 5,
+# 표 밖으로 넘치는 병합·겹친 칸·0 이하 값은 0건. 넘으면 UnsafeFile.
+MAX_TABLE_ROWS = 2000
+MAX_TABLE_COLS = 500
+MAX_TABLE_GRID = 30_000    # 표 하나의 행×열
+MAX_FILE_GRID = 60_000     # 파일 전체 표의 행×열 합(analyze·schema 시간 상한)
+MAX_TABLE_DEPTH = 10       # 표 안의 표 깊이
 
 
 # ---------------------------------------------------------------- 입출력
@@ -136,6 +144,7 @@ def _para_text(p) -> str:
 def analyze(hwpx: bytes) -> list[Table]:
     parts = parts_of(hwpx)
     tables: list[Table] = []
+    grid_used = 0
     for sec in section_names(parts):
         root = etree.fromstring(parts[sec], PARSER)
         last_text = ''
@@ -149,25 +158,40 @@ def analyze(hwpx: bytes) -> list[Table]:
                     if t:
                         last_text = t
                 continue
-            cells = []
+            # 선언 크기를 루프 범위로 쓰기 전에 검사한다(오류 문구는 표 주소만).
+            where = f'{sec} 표 {idx}'
+            R, C = int(el.get('rowCnt', 0)), int(el.get('colCnt', 0))
+            if not (1 <= R <= MAX_TABLE_ROWS and 1 <= C <= MAX_TABLE_COLS and R * C <= MAX_TABLE_GRID):
+                raise UnsafeFile(f'표 크기 비정상({where})')
+            grid_used += R * C
+            if grid_used > MAX_FILE_GRID:
+                raise UnsafeFile(f'표 칸이 {MAX_FILE_GRID}개를 넘음({where})')
+            if sum(1 for _ in el.iterancestors(HP + 'tbl')) >= MAX_TABLE_DEPTH:
+                raise UnsafeFile(f'표 중첩이 {MAX_TABLE_DEPTH}단을 넘음({where})')
+            cells, grid = [], {}
             for tr in el.findall(HP + 'tr'):
                 for tc in tr.findall(HP + 'tc'):
                     a = tc.find(HP + 'cellAddr')
                     s = tc.find(HP + 'cellSpan')
-                    cells.append(Cell(int(a.get('rowAddr')), int(a.get('colAddr')),
-                                      int(s.get('rowSpan', 1)) if s is not None else 1,
-                                      int(s.get('colSpan', 1)) if s is not None else 1,
-                                      _cell_text(tc), tc.find('.//' + HP + 'tbl') is not None,
-                                      tc.get('borderFillIDRef', ''), _has_obj(tc)))
-            t = Table(sec, idx, int(el.get('rowCnt', 0)), int(el.get('colCnt', 0)), cells,
+                    row, col = int(a.get('rowAddr')), int(a.get('colAddr'))
+                    rs = int(s.get('rowSpan', 1)) if s is not None else 1
+                    cs = int(s.get('colSpan', 1)) if s is not None else 1
+                    # 병합이 표 밖으로 넘치거나 칸이 겹치면 거부 → 격자 루프는 표마다 R×C 번을 넘지 않는다
+                    if not (0 <= row and 0 <= col and rs >= 1 and cs >= 1 and row + rs <= R and col + cs <= C):
+                        raise UnsafeFile(f'칸 주소·병합 비정상({where} 칸 {len(cells)})')
+                    c = Cell(row, col, rs, cs, _cell_text(tc), tc.find('.//' + HP + 'tbl') is not None,
+                             tc.get('borderFillIDRef', ''), _has_obj(tc))
+                    for dr in range(rs):
+                        for dc in range(cs):
+                            if (row + dr, col + dc) in grid:
+                                raise UnsafeFile(f'칸 겹침({where} 칸 {len(cells)})')
+                            grid[(row + dr, col + dc)] = c
+                    cells.append(c)
+            t = Table(sec, idx, R, C, cells,
                       nested=any(a.tag == HP + 'tc' for a in el.iterancestors()),
                       parent=next((seen[a] for a in el.iterancestors(HP + 'tbl') if a in seen), None),
                       has_child=el.find('.//' + HP + 'tbl') is not None,
-                      before_text=last_text[:60])
-            for c in cells:
-                for dr in range(c.rs):
-                    for dc in range(c.cs):
-                        t.grid[(c.row + dr, c.col + dc)] = c
+                      before_text=last_text[:60], grid=grid)
             _classify(t)
             tables.append(t)
             seen[el] = idx
@@ -227,9 +251,12 @@ def schema(t: Table) -> dict:
     """머리글 행 수, 행 머리 열 수, 입력 칸(라벨 포함)을 추정한다."""
     R, C = t.rows, t.cols
     anchors = {(c.row, c.col): c for c in t.cells}
+    by_row = {}   # 머리글 행마다 모든 칸을 다시 훑지 않게(행 수 × 칸 수 → 칸 수)
+    for (rr, _cc), c in anchors.items():
+        by_row.setdefault(rr, []).append(c)
 
     def row_full(r):
-        cs = [c for (rr, cc), c in anchors.items() if rr == r]
+        cs = by_row.get(r, [])
         return cs and all(c.text for c in cs)
 
     hdr = 0
@@ -245,7 +272,7 @@ def schema(t: Table) -> dict:
         else:
             break
     kind = 'list' if hdr >= 1 and (R - hdr) >= 2 else 'kv'
-    inputs = []
+    inputs, col_labs = [], {}
     total_rows = {r for (r, c), x in anchors.items() if c < max(lab, 1) and TOTAL.match(x.text or '')}
     for (r, c), cell in sorted(anchors.items()):
         unit = UNIT.match(cell.text or '')
@@ -253,11 +280,14 @@ def schema(t: Table) -> dict:
             continue
         if r in total_rows:      # 합계 행은 입력이 아니라 자동 계산 대상
             continue
-        col_lab = []
-        for hr in range(hdr):
-            h = t.grid.get((hr, c))
-            if h and h.text and (not col_lab or col_lab[-1] != h.text):
-                col_lab.append(' '.join(h.text.split()))
+        if c not in col_labs:   # 열 머리글은 열마다 한 번만(입력 칸 수 × 머리글 행 수 루프를 막음)
+            col_lab = []
+            for hr in range(hdr):
+                h = t.grid.get((hr, c))
+                if h and h.text and (not col_lab or col_lab[-1] != h.text):
+                    col_lab.append(' '.join(h.text.split()))
+            col_labs[c] = col_lab
+        col_lab = col_labs[c]
         row_lab = []
         for cc in range(c):
             x = t.grid.get((r, cc))

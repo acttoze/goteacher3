@@ -12,9 +12,11 @@ from pathlib import Path
 from urllib.parse import quote
 
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
 
+from config.test_ratelimit import RL_CACHES
 from spaces.models import Member, School, Space
 
 from .models import FormDoc
@@ -243,6 +245,20 @@ class PublicTests(Base):
         self.assertContains(r, 'href="/forms" aria-current="page"')
         r = self.client.get(f"/s/{sp.token}/today")
         self.assertContains(r, 'href="/forms"')
+        self.assertIn("no-store", r["Cache-Control"])
+        r = self.client.get("/forms")  # 로그인한 틀에는 내 동학년 주소·이름이 있어 캐시 금지(G3 S6)
+        self.assertIn("no-store", r["Cache-Control"])
+
+    @override_settings(CACHES=RL_CACHES)
+    def test_download_count_limited_per_ip(self):
+        """G3 ⑥: 같은 IP가 같은 양식을 시간당 3번 넘게 받아도 수는 3까지만. 받기는 막지 않는다."""
+        caches["ratelimit"].clear()
+        for _ in range(5):
+            r = self.client.get(f"/forms/{self.a.slug}/download", HTTP_X_FORWARDED_FOR="203.0.113.9")
+            self.assertEqual(r.status_code, 200)
+        self.client.get(f"/forms/{self.a.slug}/download", HTTP_X_FORWARDED_FOR="198.51.100.7")
+        self.a.refresh_from_db()
+        self.assertEqual(self.a.downloads, 4)
 
 
 class QAEdgeTests(Base):

@@ -11,6 +11,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Value
+from django.db.models.functions import Replace
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -19,10 +21,10 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from hwpfiles.models import SourceFile
 from hwpfiles.views import PREVIEW_CSP, pick_ctx, result_ctx
-from spaces.models import get_in_space_or_404
+from spaces.models import get_in_space_or_404, new_token
 from spaces.views import _space_ctx
 
-from .models import Cell, Collection, Field, Row
+from .models import Cell, Collection, Field, Notification, Row
 from . import hwpform
 from .paste import YES_NO, PasteError, clean_text, guess_kind, html_to_tsv, parse, student_info
 from .presets import PRESETS
@@ -87,6 +89,7 @@ def _sheet_cols(post):
     return out
 
 
+@never_cache  # 개인 데이터(명부·붙여넣은 값)가 나오는 화면은 모두 캐시 금지(G3 S6)
 @require_http_methods(["GET", "POST"])
 def new(request):
     space = request.space
@@ -269,6 +272,7 @@ def _create_hwp(request, title, sf, form):
     return c
 
 
+@never_cache
 @require_POST
 def preview(request):
     """붙여넣기 미리보기(htmx). html이 오면(한글·엑셀 클립보드) TSV로 바꿔 입력 칸에 넣도록 함께 돌려준다."""
@@ -399,7 +403,7 @@ def _link_ctx(request, c):
     me = request.member
     msg = (f"[고티처] {c.title}\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.\n"
            f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
-    return {"link": link, "msg": msg}
+    return {"link": link, "msg": msg, "can_relink": _owner(request, c)}
 
 
 def _owner(request, c):
@@ -447,6 +451,7 @@ def _due_ctx(request, c, saved=None, error=None):
             "notice": notice}
 
 
+@never_cache
 @require_POST
 def due(request, key):
     """마감 정하기·바꾸기(htmx). 날짜·시각은 Asia/Seoul. 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
@@ -468,6 +473,7 @@ def due(request, key):
                                                   **_due_ctx(request, c, saved=saved)})
 
 
+@never_cache
 @require_POST
 def lock(request, key):
     """D5 마감하고 잠그기·다시 열기(htmx, 만든 사람만). 잠그면 받는 링크가 더 받지 않는다(submit은 잠금 안에서 다시 확인).
@@ -485,6 +491,28 @@ def lock(request, key):
         c.save(update_fields=["closed_at"])
     toast = "다시 열었어요. 링크로 다시 낼 수 있어요." if reopen else "마감하고 잠갔어요. 링크로는 더 낼 수 없어요."
     ctx = {"space": request.space, "oob": True, "lock_toast": toast,
+           **_link_ctx(request, c), **_board(c), **_due_ctx(request, c)}
+    return render(request, "collect/_lock_out.html", ctx)
+
+
+@never_cache
+@require_POST
+def relink(request, key):
+    """받는 링크 새로 만들기(G3 S5, 만든 사람만). 옛 링크(줄 화면 포함)는 바로 404, 낸 값은 그대로.
+    🔔 알림의 링크도 새 링크로 바꾼다. 응답은 잠그기와 같은 묶음(마감 카드 + 합본·받는 링크 카드 oob):
+    마감 안내 문구에도 링크가 들어 있어서."""
+    c = get_in_space_or_404(Collection, request, key=key)
+    if not _owner(request, c):
+        return HttpResponseForbidden("받는 링크는 만든 선생님만 새로 만들 수 있어요.")
+    old, new = c.link_token, new_token()
+    with transaction.atomic():
+        c.link_token = new
+        c.save(update_fields=["link_token"])
+        Notification.objects.in_space(request.space).filter(row__collection=c).update(
+            link=Replace("link", Value(f"/c/{old}/"), Value(f"/c/{new}/")))
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{request.space.token}/c/{c.key}/")
+    ctx = {"space": request.space, "oob": True, "relinked": True,
            **_link_ctx(request, c), **_board(c), **_due_ctx(request, c)}
     return render(request, "collect/_lock_out.html", ctx)
 

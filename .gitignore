@@ -22,3 +22,6 @@ staticfiles/
 
 # 로컬 올린 파일(E2, 서버는 /srv/media 볼륨)
 /media/
+
+# G3 보안 점검표(재현 방법 포함) — 공개 저장소·Pages에 올리지 않는다
+/meeting/31_security_check.md

@@ -14,9 +14,11 @@ from django.db.models import F, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils.encoding import iri_to_uri
+from django.utils.cache import add_never_cache_headers
 from django.utils.http import urlencode
 from django.views.decorators.http import require_GET, require_safe
 
+from config.ratelimit import allow, client_ip
 from spaces.models import Member
 from spaces.views import _josa, _my_space, _space_ctx
 
@@ -24,6 +26,7 @@ from .models import CATEGORIES, FormDoc
 
 BOT = re.compile(r"bot|crawl|spider|slurp|preview|facebookexternalhit|curl|wget|python", re.I)
 Q_MAX = 40
+DL_PER_HOUR = 3  # 같은 IP가 같은 양식을 받을 때 시간당 세는 수(받기는 막지 않는다, G3 ⑥)
 TYPES = {"hwpx": "application/hwp+zip", "hwp": "application/x-hwp"}
 
 
@@ -82,7 +85,10 @@ def index(request, slug=None):
         "ca_name": ca or "전체", "keep": keep, "josa": _josa(q, "과", "와") if q else "",
         "canonical": iri_to_uri(settings.SITE_URL + (f"/forms/{doc.slug}" if doc else "/forms")),
     }
-    return render(request, "library/index.html", ctx)
+    r = render(request, "library/index.html", ctx)
+    if ctx["frame"] == "shell.html":  # 로그인한 틀에는 내 동학년 주소·이름이 있다(G3 S6). 공개 화면은 그대로
+        add_never_cache_headers(r)
+    return r
 
 
 @require_safe
@@ -92,7 +98,7 @@ def download(request, slug):
         fh = doc.file.open("rb")
     except FileNotFoundError:
         raise Http404 from None
-    if _human(request):
+    if _human(request) and allow("dl", f"{client_ip(request)}:{doc.slug}", DL_PER_HOUR, 3600):
         FormDoc.objects.filter(pk=doc.pk).update(downloads=F("downloads") + 1)
     r = FileResponse(fh, as_attachment=True, filename=doc.filename, content_type=TYPES.get(doc.ext))
     r["Cache-Control"] = "private, no-cache"

@@ -47,10 +47,10 @@
       else del.closest('[data-line]').querySelectorAll('input:not([type=hidden]), select').forEach(function (i) { i.value = ''; });
     }
   });
-  // 칸 오류(400)·마감(403)도 서버가 그린 화면으로 바꾼다(htmx는 4xx를 기본으로 버린다)
+  // 칸 오류(400)·마감(403)·너무 잦음(429)도 서버가 그린 화면으로 바꾼다(htmx는 4xx를 기본으로 버린다)
   document.addEventListener('htmx:beforeSwap', function (e) {
     var s = e.detail.xhr.status;
-    if (s === 400 || s === 403) { e.detail.shouldSwap = true; e.detail.isError = false; }
+    if (s === 400 || s === 403 || s === 429) { e.detail.shouldSwap = true; e.detail.isError = false; }
   });
   // 칸을 고르고 들어오면 첫 입력 칸에 바로 쓴다(design: a.focus()). 이미 낸 값이 있으면 그대로 둔다.
   document.addEventListener('DOMContentLoaded', function () {

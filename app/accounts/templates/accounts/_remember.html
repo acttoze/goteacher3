@@ -1,0 +1,8 @@
+{# 이 PC 1년 기억 스위치(design/settings.html #device). 바꾸면 바로 저장하고 이 패널만 다시 받는다. #}
+<form class="panel" id="remPanel" method="post" action="/s/{{ space.token }}/settings/remember" hx-post="/s/{{ space.token }}/settings/remember" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  <div class="sw"><div><b>이 PC 1년 기억</b><div class="d">{% if remember %}{{ until|date:"Y년 n월 j일" }}까지 · 끄면 브라우저를 닫을 때 로그아웃{% else %}꺼짐 · 브라우저를 닫으면 로그아웃돼요{% endif %}</div></div>
+    <label class="toggle"><input type="checkbox" name="remember" value="1"{% if remember %} checked{% endif %} aria-label="이 PC 1년 기억"><i></i></label></div>
+  <noscript><div class="sw"><span></span><button class="btn sec sm" type="submit">저장</button></div></noscript>
+  {% if saved %}<span class="sr" data-toast-now="{% if remember %}이 PC를 1년 동안 기억해요{% else %}브라우저를 닫으면 로그아웃돼요{% endif %}"></span>{% endif %}
+</form>

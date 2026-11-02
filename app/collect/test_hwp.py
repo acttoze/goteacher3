@@ -13,6 +13,7 @@ import shutil
 import tempfile
 
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 
@@ -62,6 +63,7 @@ class HwpFieldsTests(TestCase):
         Member.objects.create(space=cls.b, name="박다온", cls="5-1", user=cls.ub)
 
     def setUp(self):
+        caches["ratelimit"].clear()  # 한글 올리기 빈도 제한(G3)은 테스트마다 새로
         media = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, media, True)
         o = override_settings(MEDIA_ROOT=media)

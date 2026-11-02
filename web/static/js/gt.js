@@ -31,6 +31,15 @@
   }
   // 저장 뒤 바뀐 내용에 [data-autocopy="알림"]이 있으면 그 단추의 복사를 한 번 한다(prototype: 마감 저장 = 안내 문구 복사).
   // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
+  // 폴링하는 카드 안 대화상자(예: 명단의 내보내기 확인)가 열려 있으면 그 폴링은 건너뛴다(열린 창이 바뀌지 않게).
+  // 빈도 제한(429) 안내는 화면에 그대로 넣는다(htmx 기본은 4xx를 버림).
+  document.addEventListener('htmx:beforeSwap', function (e) {
+    if (e.detail.xhr.status === 429) { e.detail.shouldSwap = true; e.detail.isError = false; }
+  });
+  document.addEventListener('htmx:beforeRequest', function (e) {
+    var el = e.detail.elt;
+    if (/^every /.test(el.getAttribute('hx-trigger') || '') && el.querySelector('.scrim:not([hidden])')) e.preventDefault();
+  });
   document.addEventListener('htmx:afterSwap', function () {
     var t = document.querySelector('[data-toast-now]');  // 저장 결과 한 줄(마감하고 잠그기·다시 열기)
     if (t) { toast(t.dataset.toastNow); t.removeAttribute('data-toast-now'); }

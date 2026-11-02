@@ -1,5 +1,6 @@
 {# 들어온 선생님 카드. 동학년 화면과 5초 폴링(/s/<token>/members)이 같이 쓴다. #}
 <section class="card s7" id="roster" aria-labelledby="inH" hx-get="/s/{{ space.token }}/members" hx-trigger="every 5s" hx-swap="outerHTML">
+  {% if toast %}<span class="sr" data-toast-now="{{ toast }}"></span>{% endif %}
   <div class="card-h"><h2 id="inH">들어온 선생님</h2><span class="r">들어오면 여기에 바로 떠요</span></div>
   <div class="card-b">
     <div class="prog-wrap"><div class="head-num"><b class="num">{{ filled }}</b><span class="num">/ {{ total }}칸 들어왔어요</span></div><div class="track"><i style="width:{{ pct }}%"></i></div></div>
@@ -7,7 +8,16 @@
       {% for r in rows %}
       <li class="who-row"><span class="av lg{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span><span class="c">{{ r.label }}</span>
         <div class="n"><b>{{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
-        <span class="at">{{ r.at|date:"n월 j일" }} 들어옴</span></li>
+        <span class="at">{{ r.at|date:"n월 j일" }} 들어옴{% if is_creator and not r.me %}<br><button style="display:inline-flex;align-items:center;min-height:var(--control-h-sm)" class="tlink" type="button" data-open="#out-{{ r.m.key }}">내보내기</button>{% endif %}</span>
+        {% if is_creator and not r.me %}<div class="scrim" id="out-{{ r.m.key }}" hidden>
+          <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="out-{{ r.m.key }}-h" method="post" action="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-post="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-target="#roster" hx-swap="outerHTML">
+            {% csrf_token %}
+            <div class="dh"><h2 id="out-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님을 내보낼까요?</h2></div>
+            <div class="db"><p>이 동학년에서 빠지고, 다음 모으기부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}</p>
+              <p class="muted small">모르는 사람이 들어왔다면 내보낸 뒤 초대 링크도 새로 만드세요.</p></div>
+            <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">내보내기</button></div>
+          </form>
+        </div>{% endif %}</li>
       {% endfor %}
       {% for label in waiting %}
       <li class="who-row wait"><span class="av lg ghost">{{ label|slice:":1" }}</span><span class="c">{{ label }}</span>

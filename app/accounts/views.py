@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from spaces.models import Member, absorb_guest
@@ -41,6 +42,7 @@ def _fail(request, status, message):
     return render(request, "accounts/home.html", {"error": message}, status=status)
 
 
+@never_cache
 @require_GET
 def home(request):
     next_url = _safe_next(request.GET.get("next"))

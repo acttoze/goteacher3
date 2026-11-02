@@ -4,6 +4,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from accounts import device
 from accounts import views as accounts
 from collect import bell, export, lists, push, submit
 from collect import views as collect
@@ -27,6 +28,10 @@ urlpatterns = [
     path("new/class", spaces.new_class),
     path("s/<str:space_token>/", spaces.grade),
     path("s/<str:space_token>/members", spaces.members),
+    path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
+    path("s/<str:space_token>/settings", device.settings_page),
+    path("s/<str:space_token>/settings/remember", device.remember),
+    path("s/<str:space_token>/settings/logout-all", device.logout_all),
     path("s/<str:space_token>/invite", spaces.new_invite),
     path("s/<str:space_token>/made", spaces.made),
     path("s/<str:space_token>/welcome", spaces.welcome),
@@ -43,6 +48,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
     path("s/<str:space_token>/c/<str:key>/due", collect.due),
     path("s/<str:space_token>/c/<str:key>/lock", collect.lock),
+    path("s/<str:space_token>/c/<str:key>/link", collect.relink),
     path("s/<str:space_token>/c/<str:key>/delete", collect.delete),
     path("s/<str:space_token>/c/<str:key>/export.csv", export.export_csv),
     path("s/<str:space_token>/c/<str:key>/copy", export.copy),

@@ -100,6 +100,7 @@ def copy(request, key):
     return JsonResponse({"html": to_html(lines), "tsv": to_tsv(lines)})
 
 
+@never_cache
 @require_POST
 def footer(request, key):
     """꼬리말 켜고 끄기(htmx, 동학년 회원 누구나). 체크 상자 name=on."""

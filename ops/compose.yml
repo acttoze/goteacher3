@@ -43,6 +43,10 @@ services:
       traefik.http.routers.gt-staging-http.entrypoints: web
       traefik.http.routers.gt-staging-http.middlewares: gt-staging-redirect
       traefik.http.routers.gt-staging-http.service: gt-staging
+      # 공용 Traefik(--accesslog=true, stdout·회전 없음)에 링크·초대·공간 토큰이 경로째 남지 않게 고티처 라우터만 접근 로그를 끈다(G3).
+      # Traefik v3.1+ 라우터 observability. 3.7.5 로컬 재현: 이 라우터 요청은 안 남고 다른 라우터는 남음. 공용 설정은 그대로.
+      traefik.http.routers.gt-staging.observability.accesslogs: "false"
+      traefik.http.routers.gt-staging-http.observability.accesslogs: "false"
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.scheme: https
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.permanent: "true"
       traefik.http.services.gt-staging.loadbalancer.server.port: "8000"
@@ -96,7 +100,10 @@ services:
   redis:
     <<: *common
     image: redis:7-alpine
-    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]
+    # 큐(RQ, db 0)와 캐시(빈도 제한 등, db 1)를 함께 둔다. volatile-lru: 꽉 차면 만료가 걸린 키(캐시)만 지운다.
+    # 대기 중 작업·큐 목록은 만료가 없어 지워지지 않는다 → 캐시가 차도 큐는 멈추지 않는다. 캐시 키는 반드시 만료를 둔다.
+    # (noeviction이면 캐시가 96mb를 채우는 순간 큐 넣기까지 OOM 오류로 멈춘다.)
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "volatile-lru"]
     volumes: [redisdata:/data]
     mem_limit: 128m
     # ports 없음

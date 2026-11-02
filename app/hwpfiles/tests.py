@@ -16,11 +16,13 @@ from functools import lru_cache
 from unittest import mock
 
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import include, path
 
 import hwp
+from config.test_ratelimit import RL_CACHES
 from hwp import engine as E
 from spaces.models import Member, School, Space
 
@@ -66,6 +68,7 @@ class UploadTests(TestCase):
         Member.objects.create(space=cls.b, name="박다온", cls="5-1", user=cls.ub)
 
     def setUp(self):
+        caches["ratelimit"].clear()  # 한글 올리기 빈도 제한(G3)은 테스트마다 새로
         self.media = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.media, True)
         o = override_settings(MEDIA_ROOT=self.media)
@@ -530,3 +533,38 @@ class PreviewQaTests(PreviewTests):
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, '<script id="hwpTables" type="application/json">[]</script>', html=False)
         self.assertEqual(self.client.get(self.dl(sf)).status_code, 200)
+
+
+@override_settings(ROOT_URLCONF=__name__, REDIS_URL="", CACHES=RL_CACHES)
+class UploadRateTests(TestCase):
+    """G3 ⑥: 회원 한 명이 시간당 20번 넘게 올리면 429와 안내 문구(파일은 저장 안 함). 다른 회원은 따로 센다."""
+
+    @classmethod
+    def setUpTestData(cls):
+        school = School.objects.create(neis_atpt="S10", neis_code="9999999", name="고티처초")
+        cls.a = Space.objects.create(school=school, grade=4, name="4학년")
+        User = get_user_model()
+        cls.ua, cls.u2 = User.objects.create(username="google:a"), User.objects.create(username="google:2")
+        Member.objects.create(space=cls.a, name="김가람", cls="4-1", user=cls.ua)
+        Member.objects.create(space=cls.a, name="박서준", cls="4-2", user=cls.u2)
+
+    def setUp(self):
+        caches["ratelimit"].clear()
+        self.media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.media, True)
+        o = override_settings(MEDIA_ROOT=self.media)
+        o.enable()
+        self.addCleanup(o.disable)
+
+    def test_hourly_limit_per_member(self):
+        url = f"/s/{self.a.token}/hwp/upload"
+        self.client.force_login(self.ua)
+        for _ in range(20):
+            self.assertEqual(self.client.post(url, {"file": upload("a.txt", b"not hwp")}).status_code, 400)
+        r = self.client.post(url, {"file": upload("a.hwpx", sample_hwpx())})
+        self.assertEqual(r.status_code, 429)
+        self.assertContains(r, "잠시 뒤 다시", status_code=429)
+        self.assertFalse(SourceFile.objects.exists())
+        other = Client()
+        other.force_login(self.u2)
+        self.assertEqual(other.post(url, {"file": upload("a.hwpx", sample_hwpx())}).status_code, 200)

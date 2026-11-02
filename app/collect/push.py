@@ -80,7 +80,7 @@ def digest(now=None):
                      .select_related("row__collection").order_by("created_at", "id"))
         if not notes:
             continue
-        titles = list(dict.fromkeys(n.row.collection.title[:60] for n in notes))
+        titles = list(dict.fromkeys(n.row.collection.title[:60] if n.row else "새 기기 알림" for n in notes))
         body = f"안 읽은 알림 {len(notes)}건 · {titles[0]}" + (f" 외 {len(titles) - 1}개" if len(titles) > 1 else "")
         data = json.dumps({"title": f"고티처 · {slot[3]}", "body": body,
                            "url": f"{settings.SITE_URL}/s/{space.token}/today"}, ensure_ascii=False)

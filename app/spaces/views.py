@@ -14,21 +14,28 @@ from django.db import transaction
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from accounts.models import is_guest, new_guest
+from accounts.models import DEVICE_AGE, DeviceToken, is_guest, new_guest
 from accounts.views import home as login_home
 from accounts.views import set_device_cookie
+from collect.models import Notification
+from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
-from .models import Member, School, Space, new_token
+from .models import Member, School, Space, get_in_space_or_404, new_token
 
 INVITE = "invite"  # 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
 HITS = "new_school_hits"  # 마지막 검색 결과(서버가 NEIS에서 받은 것)
 PICKED = "new_school"  # 고른 학교
 GRADES = range(1, 7)
 FALLBACK_CLASSES = ["1", "2", "3", "4"]  # NEIS 학급 정보가 없을 때(prototype: classes || 4)
+# 초대 입장 POST: 가짜 이름으로 상한(반 수×2)을 채우지 않게. 학교는 공인 IP 하나를 같이 쓰므로 IP 쪽을 넉넉히.
+JOIN_PER_MIN_IP = 10
+JOIN_PER_MIN_SESSION = 5
+NEIS_PER_MIN = 20  # 학교 검색(사용자당 분당)
 # design/assets/people.js의 사람 색. 들어온 순서대로 돌려 쓴다. (색, 글자를 검게)
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
 
@@ -86,6 +93,7 @@ def _clean_name(raw):
     return s.strip()[:40]
 
 
+@never_cache
 @require_GET
 def home(request):
     """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
@@ -102,14 +110,18 @@ def home(request):
     if q:
         if len(q) < 2:
             ctx["error"] = "두 글자 이상 써 주세요."
+        elif too_many("neis", str(request.user.pk), NEIS_PER_MIN):  # NEIS 키 하루 한도를 한 사람이 다 쓰지 않게
+            ctx["error"] = "검색을 너무 자주 했어요. 1분 뒤에 다시 찾아 주세요."
+            ctx["limited"] = True
         else:
             schools, total = neis.search_schools(q)
             request.session[HITS] = schools
             ctx.update(schools=schools, total=total, more=total > len(schools), josa=_josa(q, "으로", "로"))
     tpl = "spaces/_schools.html" if request.headers.get("HX-Request") else "spaces/start_school.html"
-    return render(request, tpl, ctx)
+    return render(request, tpl, ctx, status=429 if ctx.get("limited") else 200)
 
 
+@never_cache
 @login_required
 @require_POST
 def pick_school(request):
@@ -138,6 +150,7 @@ def _int_grade(raw):
     return g if g in GRADES else 4
 
 
+@never_cache
 @login_required
 @require_http_methods(["GET", "POST"])
 def new_class(request):
@@ -211,7 +224,7 @@ def _roster(space, me=None):
         via = "구글 가입" if google else "초대 링크 · 이름만"
         if i == 0:
             via += " · 만든 사람"
-        rows.append({"m": m, "label": _cls_label(m.cls), "color": color, "ink": ink, "via": via,
+        rows.append({"m": m, "label": _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google,
                      "at": timezone.localtime(m.joined_at), "me": me is not None and m.pk == me.pk})
     waiting = [_cls_label(c) for c in slots if c not in taken]
     # prototype: 칸(NEIS 반 + 전담) 중 채워진 칸. 칸 밖 반은 칸을 하나씩 더한다. NEIS가 없으면 들어온 사람 수.
@@ -244,6 +257,7 @@ def _space_ctx(request, **extra):
     return ctx
 
 
+@never_cache
 @require_GET
 def grade(request):
     """동학년 화면. 소속 확인은 SpaceMiddleware가 한다. 들어온 선생님은 5초마다 members로 다시 받는다."""
@@ -252,12 +266,14 @@ def grade(request):
     return render(request, "spaces/grade.html", ctx)
 
 
+@never_cache
 @require_GET
 def members(request):
     """들어온 선생님 카드만(htmx 5초 폴링)."""
     return render(request, "spaces/_roster.html", _space_ctx(request))
 
 
+@never_cache
 @require_POST
 def new_invite(request):
     """초대 링크 새로 만들기(만든 사람만). 예전 링크와 그 링크로 열어 둔 입장 화면은 바로 닫힌다."""
@@ -273,6 +289,44 @@ def new_invite(request):
     return render(request, "spaces/_invite.html", ctx)
 
 
+@never_cache
+@require_POST
+def remove_member(request, key):
+    """회원 내보내기(만든 사람만, 나는 못 내보냄). 손님이면 그 User를 지워 기기 토큰·세션도 끊는다.
+
+    낸 값은 남는다(줄은 member가 비고 합본에 그대로). 다음 모으기 명부에서 빠진다.
+    구글 회원은 이 동학년 자리만 빠지고 계정·로그인은 그대로(다른 동학년을 만들 수 있게).
+    """
+    m = get_in_space_or_404(Member, request, key=key)
+    ctx = _space_ctx(request)
+    if not ctx["is_creator"] or m.pk == request.member.pk:
+        return HttpResponseForbidden()
+    label = f"{_cls_label(m.cls)} {m.name}"
+    with transaction.atomic():
+        user = m.user
+        m.delete()
+        if user and is_guest(user) and not Member.objects.filter(user=user).exists():
+            user.delete()  # 기기 토큰 CASCADE, 세션은 사용자가 없어 무효
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{request.space.token}/")
+    ctx = _space_ctx(request, toast=f"{label} 선생님을 내보냈어요. 다시 못 들어오게 하려면 초대 링크를 새로 만드세요.")
+    return render(request, "spaces/_roster.html", ctx)
+
+
+def _seat_alert(space, member):
+    """기기가 붙어 있는 손님 자리로 다른 브라우저가 들어왔다: 만든 사람 🔔에(허용형 입장은 그대로)."""
+    if not DeviceToken.objects.filter(user=member.user, created_at__gt=timezone.now() - DEVICE_AGE).exists():
+        return
+    creator = Member.objects.in_space(space).order_by("joined_at", "pk").first()
+    if creator is None or creator.pk == member.pk:
+        return
+    Notification.objects.create(
+        space=space, member=creator, kind=Notification.Kind.SEAT, day=timezone.localdate(),
+        text=f"{_cls_label(member.cls)} {member.name} 자리로 새 기기가 들어왔어요", link=f"/s/{space.token}/",
+    )
+
+
+@never_cache
 @require_GET
 def made(request):
     """동학년 만들기 4단계: 만들었어요 + 초대 링크(design/start.html step4)."""
@@ -281,12 +335,14 @@ def made(request):
     return render(request, "spaces/made.html", ctx)
 
 
+@never_cache
 @require_GET
 def welcome(request):
     """초대로 들어온 직후(design/join.html done): 함께 쓰는 선생님 + 구글 잇기(선택)."""
     return render(request, "spaces/welcome.html", _space_ctx(request, guest=is_guest(request.user)))
 
 
+@never_cache
 @require_GET
 def invite(request, invite_token):
     """초대 링크는 자격 증명: 세션으로 옮기고 토큰 없는 주소로 보낸다(접근 기록·Referer에 덜 남게)."""
@@ -296,6 +352,7 @@ def invite(request, invite_token):
     return redirect("/join")
 
 
+@never_cache
 @require_http_methods(["GET", "POST"])
 def join(request):
     """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 같은 반·같은 이름이면 같은 사람으로 본다."""
@@ -317,7 +374,13 @@ def join(request):
     cls = data.get("cls", "")
     name = _clean_name(data.get("name", user.first_name if user.is_authenticated else ""))
     errors = {}
-    if request.method == "POST":
+    limited = request.method == "POST" and not (  # 둘 다 센다(& 는 앞이 거짓이어도 뒤를 부른다)
+        allow("join-ip", client_ip(request), JOIN_PER_MIN_IP, 60)
+        & allow("join-s", request.session.session_key or "", JOIN_PER_MIN_SESSION, 60)
+    )
+    if limited:
+        errors["name"] = "잠깐 너무 자주 눌렀어요. 1분 뒤에 다시 해 주세요."
+    elif request.method == "POST":
         if cls not in slots:
             errors["cls"] = "몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
         if not name:
@@ -334,6 +397,7 @@ def join(request):
                                       "「구글 계정으로 이어 두기」를 눌러 주세요.")
                 elif same and same.user_id:
                     user = same.user  # 같은 선생님이 다른 PC에서: 같은 손님으로 이어 준다
+                    _seat_alert(space, same)
                 elif Member.objects.in_space(space).count() >= len(slots) * 2:
                     errors["name"] = "이 동학년에는 더 들어올 수 없어요. 만든 선생님께 알려 주세요."
                 else:
@@ -357,4 +421,4 @@ def join(request):
         by_cls.setdefault(r["m"].cls, r)
     ctx.update(errors=errors, cls=cls, name=name,
                choices=[{"cls": c, "label": _cls_label(c), "who": by_cls.get(c)} for c in slots])
-    return render(request, "spaces/join.html", ctx, status=400 if errors else 200)
+    return render(request, "spaces/join.html", ctx, status=(429 if limited else 400) if errors else 200)

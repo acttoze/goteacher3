@@ -16,9 +16,11 @@ from django.db.models import Count, Max
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.decorators.http import require_http_methods, require_POST
 
+from config.ratelimit import TOO_MANY, allow, client_ip
 from spaces.models import Member
 from spaces.views import PEOPLE_COLORS, _clean_name
 
@@ -34,6 +36,8 @@ LINES_MAX = 50  # multi: 한 번에 내는 줄 상한
 VALUE_MAX = 1000
 NA = "해당 없음"  # 연수 이수(prototype matrixForm) 체크
 ASK = {Field.Kind.NUMBER: "숫자로 써 주세요. 없으면 0이에요.", Field.Kind.SELECT: "골라 주세요.", Field.Kind.DATE: "골라 주세요."}
+SUBMIT_PER_MIN = 30  # 같은 IP·같은 링크로 내기(한 학교가 IP 하나를 같이 써도 넉넉히)
+OUTSIDE_PER_HOUR = 20  # 같은 IP·같은 링크로 명부 밖 줄 만들기(모으기당 60줄 상한과 함께)
 UNIT_RE = re.compile(r"^(.*?)\s*\(([^()]{1,6})\)$")  # '참가(명)' → 참가 / 명
 
 
@@ -157,6 +161,7 @@ def _page(request, ctx, status=200):
     return render(request, tpl, ctx, status=status)
 
 
+@never_cache  # 받는 사람 화면은 모두 캐시 금지(공용 PC: 이 세션이 낸 값이 미리 채워진다)
 @require_http_methods(["GET"])
 @link_view
 def pick(request, c):
@@ -172,11 +177,14 @@ def pick(request, c):
     return _page(request, ctx)
 
 
+@never_cache
 @sensitive_post_parameters()
 @require_POST
 @link_view
 def outside(request, c):
     """명부 밖 사람이 이름을 써서 줄을 만든다(C4 add_outside_row). 쓴 이름을 내는 사람으로 기억한다."""
+    if not allow("outside", f"{client_ip(request)}:{c.link_token}", OUTSIDE_PER_HOUR, 3600):
+        return _page(request, {**_head(c), "view": "pick", "outside_error": TOO_MANY}, status=429)
     try:
         row = add_outside_row(c, request.POST.get("name", ""))
     except OutsideClosed:
@@ -238,6 +246,7 @@ def _form_ctx(request, c, row, group, inputs, lines, errors=None, by=None):
             "matrix": _matrix(c), "na": NA, "errors": errors or {}, "form_error": (errors or {}).get("form"), "n_inputs": len(inputs)}
 
 
+@never_cache
 @sensitive_post_parameters()
 @require_http_methods(["GET", "POST"])
 @link_view
@@ -264,6 +273,9 @@ def unit(request, c, key):
     else:
         posted = [{"key": row.key, "vals": {f.pk: NA if _matrix(c) and request.POST.get(f"na{f.pos}") == "on"
                                             else request.POST.get(f"f{f.pos}", "") for f in inputs}}]
+    if not allow("submit", f"{client_ip(request)}:{c.link_token}", SUBMIT_PER_MIN, 60):  # 쓴 값은 그대로 두고 안내만
+        lines = posted or [{"key": group[0].key, "vals": {}}]
+        return _page(request, _form_ctx(request, c, row, group, inputs, lines, {"form": TOO_MANY}, by), status=429)
 
     errors, clean_lines = {}, []
     for ln in posted:

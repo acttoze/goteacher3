@@ -245,6 +245,127 @@ class OleBombs(Rejects):
             hwp.to_hwpx(bytes(data))
 
 
+SEC0 = 'Contents/section0.xml'
+NS = ('xmlns:hp="http://www.hancom.co.kr/hwpml/2011/paragraph" '
+      'xmlns:hs="http://www.hancom.co.kr/hwpml/2011/section"')
+
+
+def with_section(data: bytes, sec: bytes) -> bytes:
+    """data(hwpx)의 section0 만 sec 로 바꾼 hwpx."""
+    parts = E.parts_of(data)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w') as z:
+        for n, b in parts.items():
+            z.writestr(n, sec if n == SEC0 else b, zipfile.ZIP_STORED if n == 'mimetype' else zipfile.ZIP_DEFLATED)
+    return out.getvalue()
+
+
+def roster_sub(old: bytes, new: bytes, count=1) -> bytes:
+    """명부 표본 section0 의 속성 값을 바꾼다(앞에서 count 개)."""
+    sec = E.parts_of(roster())[SEC0]
+    assert old in sec
+    return with_section(roster(), sec.replace(old, new, count))
+
+
+def tbl(R, C, inner='', spans=None, hdr=0) -> str:
+    """R×C 표(위 hdr 줄만 글자, 나머지 빈 칸). spans={(행, 열): (rowSpan, colSpan)}, inner 는 (0,0) 칸 안에 넣을 표."""
+    spans = spans or {}
+
+    def tc(r, c):
+        rs, cs = spans.get((r, c), (1, 1))
+        body = inner if inner and (r, c) == (0, 0) else ('<hp:t>h</hp:t>' if r < hdr else '')
+        return (f'<hp:tc><hp:subList><hp:p><hp:run>{body}</hp:run></hp:p></hp:subList>'
+                f'<hp:cellAddr rowAddr="{r}" colAddr="{c}"/><hp:cellSpan rowSpan="{rs}" colSpan="{cs}"/></hp:tc>')
+    rows = ''.join('<hp:tr>' + ''.join(tc(r, c) for c in range(C)) + '</hp:tr>' for r in range(R))
+    return f'<hp:tbl rowCnt="{R}" colCnt="{C}">{rows}</hp:tbl>'
+
+
+def sec_of(*tables: str) -> str:
+    return f'<hs:sec {NS}>' + ''.join(f'<hp:p><hp:run>{t}</hp:run></hp:p>' for t in tables) + '</hs:sec>'
+
+
+class DeclaredSizes(unittest.TestCase):
+    """G3: 파일이 선언하는 표 크기(rowCnt·colCnt·cellAddr·cellSpan)를 그대로 루프 범위로 쓰면
+    병합 값 하나만 키운 수십 KB 파일이 업로드 검사를 통과한 뒤 worker 를 멈춘다. analyze 에서 UnsafeFile."""
+
+    def assertUnsafe(self, data):
+        """표를 읽는 공개 함수가 모두 빨리 UnsafeFile. 문구에 문서 글자(명부 머리글) 없음."""
+        calls = [('tables', lambda: hwp.tables(data)), ('candidates', lambda: hwp.candidates(data)),
+                 ('schema', lambda: hwp.schema(data, SEC0, 1)),
+                 ('fill', lambda: hwp.fill(data, SEC0, 1, {(1, 1): '가'})),
+                 ('add_rows', lambda: hwp.add_rows(data, SEC0, 1, 1, 1)),
+                 ('shrink', lambda: hwp.shrink(data, SEC0, 1, [(1, 1)], 1))]
+        for name, fn in calls:
+            t0 = time.monotonic()
+            with self.assertRaises(hwp.UnsafeFile, msg=name) as cm:
+                fn()
+            self.assertLess(time.monotonic() - t0, 2, name)
+            for word in ('성명', '번호', '담당', '교장'):
+                self.assertNotIn(word, str(cm.exception), name)
+
+    def test_span_bomb(self):
+        """신고 재현: 칸 하나의 rowSpan·colSpan 만 키운 hwpx(이전엔 analyze 격자 루프에서 멈춤)."""
+        for attr in (b'rowSpan', b'colSpan'):
+            bomb = roster_sub(attr + b'="1"', attr + b'="2000000000"')
+            self.assertLess(len(bomb), 64 * 1024)
+            self.assertEqual(hwp.to_hwpx(bomb)[1], 'hwpx')   # 업로드 검사는 통과하는 파일이다
+            self.assertUnsafe(bomb)
+
+    def test_span_bomb_via_hwp(self):
+        """hwp 로 올린 경우(퍼징 case_3_210: hwp 비트 뒤집기 → 변환 뒤 같은 루프)."""
+        hx_, kind, _ = hwp.to_hwpx(E.to_hwp(roster_sub(b'rowSpan="1"', b'rowSpan="60000"')))
+        self.assertEqual(kind, 'hwp')
+        self.assertUnsafe(hx_)
+
+    def test_span_past_table_edge(self):
+        # 명부 표 5행×3열: 1행 1열에서 열 3칸·행 5칸 병합은 표 밖으로 넘친다
+        self.assertUnsafe(with_section(roster(), sec_of(tbl(2, 3), tbl(5, 3, spans={(1, 1): (1, 3)})).encode()))
+        self.assertUnsafe(with_section(roster(), sec_of(tbl(2, 3), tbl(5, 3, spans={(1, 1): (5, 1)})).encode()))
+
+    def test_zero_negative_span_and_address(self):
+        for old, new in [(b'rowSpan="1"', b'rowSpan="0"'), (b'colSpan="1"', b'colSpan="-5"'),
+                         (b'rowAddr="0"', b'rowAddr="-1"'), (b'colAddr="0"', b'colAddr="99999999"')]:
+            with self.subTest(new=new):
+                self.assertUnsafe(roster_sub(old, new))
+
+    def test_overlapping_cells(self):
+        # 두 칸이 같은 자리를 덮는다(겹친 병합으로 격자 루프를 칸 수 × 표 크기로 키우는 것)
+        self.assertUnsafe(roster_sub(b'colAddr="1"', b'colAddr="0"'))
+        self.assertUnsafe(with_section(roster(), sec_of(tbl(2, 3), tbl(5, 3, spans={(0, 0): (5, 3)})).encode()))
+
+    def test_declared_table_size(self):
+        for old, new in [(b'rowCnt="2"', b'rowCnt="2000000000"'), (b'colCnt="3"', b'colCnt="1000000"'),
+                         (b'rowCnt="2"', b'rowCnt="0"'), (b'colCnt="3"', b'colCnt="-3"')]:
+            with self.subTest(new=new):
+                self.assertUnsafe(roster_sub(old, new))
+        self.assertEqual(len(hwp.tables(roster_sub(b'rowCnt="2"', b'rowCnt="1999"'))), 2)   # 상한 안이면 읽는다
+        with mock.patch.object(E, 'MAX_TABLE_GRID', 14):    # 명부 표 5×3=15
+            self.assertUnsafe(roster())
+
+    def test_file_grid_budget(self):
+        with mock.patch.object(E, 'MAX_FILE_GRID', 20):     # 결재란 6 + 명부 15 = 21
+            self.assertUnsafe(roster())
+        with mock.patch.object(E, 'MAX_FILE_GRID', 21):
+            self.assertEqual(len(hwp.tables(roster())), 2)
+
+    def test_nesting_depth(self):
+        t = tbl(1, 1)
+        for _ in range(E.MAX_TABLE_DEPTH - 1):
+            t = tbl(2, 2, inner=t)
+        hwp.tables(hx(sec_of(t)))                            # 상한 깊이까지는 읽는다
+        with self.assertRaises(hwp.UnsafeFile):
+            hwp.tables(hx(sec_of(tbl(2, 2, inner=t))))
+
+    def test_largest_allowed_table_is_fast(self):
+        """상한에 꽉 찬 표(행 2000 × 열 15, 머리글 1000행)도 분석·칸 매핑이 빨리 끝난다."""
+        R, C = E.MAX_TABLE_ROWS, E.MAX_TABLE_GRID // E.MAX_TABLE_ROWS
+        data = hx(sec_of(tbl(R, C, hdr=R // 2)))
+        t0 = time.monotonic()
+        s = hwp.schema(data, SEC0, 0)
+        self.assertLess(time.monotonic() - t0, 5)
+        self.assertEqual((s['header_rows'], len(s['inputs'])), (R // 2, R * C // 2))
+
+
 class RealDocumentsStillPass(unittest.TestCase):
     def test_roster_both_formats(self):
         self.assertEqual(hwp.to_hwpx(roster())[1], 'hwpx')
