@@ -8,6 +8,11 @@
   {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
   {% if alone %}<div class="well first"><p>아직 혼자예요. 초대 링크를 보내면 선생님들이 구글로 로그인하고 소속·직책을 골라 들어와요.</p>
     <button class="btn pri sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></div>{% endif %}
+  <section class="card sum" aria-labelledby="sumH">
+    <h2 id="sumH">이번 학기 학교 업무 요약</h2>
+    {% include "spaces/_summary_nums.html" %}
+    <a class="btn sec sm" href="/s/{{ space.token }}/school/summary">한 장 인쇄</a>
+  </section>
   <section class="card att" aria-labelledby="attH">
     <div class="card-h"><h2 id="attH">오늘 복무 현황</h2><span class="n num">{{ n_attendance }}명</span><span class="r"><span>유형·시간만 보여요, 사유 없음</span>{% if can_attend %}<a class="btn sec sm" href="/s/{{ space.token }}/school/attendance">나이스 복무현황 붙여넣기</a>{% endif %}</span></div>
     <div class="card-b">{% if attendance %}<ul class="att-row">{% for a in attendance %}<li><span class="pill">{{ a.kind }}</span><b>{{ a.name }}</b>{% if a.group_label %}<span class="muted">{{ a.group_label }}</span>{% endif %}{% if a.time_text %}<span class="muted num">{{ a.time_text }}</span>{% endif %}</li>{% endfor %}</ul>

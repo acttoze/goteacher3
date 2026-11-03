@@ -12,6 +12,7 @@ from library import views as library
 from notices import views as notices
 from spaces import attendance as attendance_page
 from spaces import school as school_page
+from spaces import summary as school_summary
 from spaces import views as spaces
 
 
@@ -31,6 +32,7 @@ urlpatterns = [
     path("new/class", spaces.new_class),
     path("s/<str:space_token>/", spaces.grade),
     path("s/<str:space_token>/school", school_page.school),
+    path("s/<str:space_token>/school/summary", school_summary.sheet),
     path("s/<str:space_token>/school/me", school_page.edit_me),
     path("s/<str:space_token>/school/members/<str:key>/manager", school_page.set_manager),
     path("s/<str:space_token>/school/members/<str:key>/attendance", attendance_page.set_writer),

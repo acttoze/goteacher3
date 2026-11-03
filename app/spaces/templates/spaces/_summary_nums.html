@@ -1,0 +1,7 @@
+{# L1 숫자 카드 네 개. 학교 화면과 인쇄가 같은 조각을 쓴다(배치는 각 화면 CSS). 합계 숫자만, 이름·제목 없음. #}
+<div class="sum-row">
+  <div class="sum-k"><b class="num">{{ sum.n_collections }}건</b><span>고티처로 모은 취합</span><small class="num">진행 중 {{ sum.n_open }}건</small></div>
+  <div class="sum-k"><b class="num">{{ sum.done_pct }}%</b><span>제출 완료율</span><small class="num">{{ sum.n_done }}/{{ sum.n_rows }}칸</small></div>
+  <div class="sum-k">{% if sum.ack_hidden %}<b class="num">—</b><span>확인 필수 공지 확인율</span><small>대상이 적어 표시하지 않아요</small>{% else %}<b class="num">{{ sum.ack_pct }}%</b><span>확인 필수 공지 확인율</span><small class="num">{{ sum.n_must }}건 평균</small>{% endif %}</div>
+  <div class="sum-k"><b class="num">{{ sum.n_members }}명</b><span>함께 쓰는 교직원</span><small class="num">{{ sum.n_groups }}개 그룹</small></div>
+</div>

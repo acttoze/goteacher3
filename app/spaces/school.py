@@ -1,4 +1,4 @@
-"""H3 학교 화면(prototype school·editMe): 학년분장·그룹 카드, 내 그룹·직책 고치기, 관리자 지정, 업무분장 붙여넣기.
+"""H3 학교 화면(prototype school·editMe): 학년분장·그룹 카드, 내 그룹·직책 고치기, 관리자 지정, 업무분장 붙여넣기. L1 요약 카드는 summary.py.
 
 모든 교직원이 같은 화면을 본다. 권한은 Member.is_manager로만 판단하고, 그룹·직책 글자는 표시에만 쓴다.
 """
@@ -100,6 +100,8 @@ def _school_ctx(request, **extra):
     ctx["attendance"] = list(Attendance.objects.in_space(space).filter(date=timezone.localdate()).select_related("member").order_by("pk"))
     ctx["n_attendance"] = len({a.name for a in ctx["attendance"]})
     ctx["can_attend"] = (me.is_manager or me.can_duty) and space.school.writable
+    from .summary import figures  # 여기서 부른다: collect.recipients가 이 모듈을 import한다(순환)
+    ctx["sum"] = figures(space)
     if tab == "duty":
         ctx["dept_cards"] = _dept_cards(space, me)
         ctx["n_tasks"] = sum(len(c["rows"]) for c in ctx["dept_cards"])

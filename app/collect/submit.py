@@ -147,11 +147,12 @@ def unit_rows(cs):
     return by_pk
 
 
-def _units(c, rows=None):
-    """고르기 목록: 받는 곳마다 하나(multi는 첫 줄). 냈는지·마지막 낸 시각만(값 없음)."""
+def _units(c, rows=None, need=None):
+    """고르기 목록: 받는 곳마다 하나(multi는 첫 줄). 냈는지·마지막 낸 시각만(값 없음). need: 미리 센 _need(L1 합계가 쿼리를 늘리지 않게)."""
     if rows is None:
         rows = c.rows.annotate(n=Count("cells"), last=Max("cells__at")).order_by("pos", "id")
-    out, seen, need = [], {}, _need(c)
+    out, seen = [], {}
+    need = _need(c) if need is None else need
     for r in rows:
         k = (r.unit, r.who, r.member_id) if c.multi else r.pk
         if k in seen:

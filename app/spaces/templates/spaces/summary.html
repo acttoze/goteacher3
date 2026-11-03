@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}이번 학기 학교 업무 요약 · 고티처{% endblock %}
+{% block head %}
+<script src="{% static 'js/print.js' %}" defer></script>
+<style>
+  /* L1 한 장 인쇄. 틀은 일정 인쇄(today/print.html)와 같다. 종이 위 글자는 pt, 화면에서는 같은 크기로 미리 본다. */
+  @page { size: A4 portrait; margin: 15mm; }
+  body { background: var(--surface); }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 16px var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .bar .grow { flex: 1; min-width: 0; color: var(--muted); }
+  .sheet { width: 180mm; margin: 0 auto 24px; padding: 15mm; box-sizing: content-box; background: var(--bg); color: var(--ink); font-size: 12pt; line-height: 1.4; }
+  .phead { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; border-bottom: 2px solid var(--ink); padding-bottom: 3mm; margin-bottom: 8mm; }
+  .phead .small { font-size: 11pt; }
+  .phead h1 { font-size: 20pt; line-height: 1.25; font-weight: 700; }
+  .sign { border-collapse: collapse; font-size: 9pt; flex: none; }
+  .sign th, .sign td { border: 1px solid var(--ink); width: 17mm; text-align: center; font-weight: 400; padding: 0; }
+  .sign th { height: 6mm; }
+  .sign td { height: 14mm; }
+  .sum-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6mm; break-inside: avoid; }
+  .sum-k { border: 1px solid var(--ink); padding: 6mm; display: grid; gap: 1.5mm; }
+  .sum-k b { font-size: 32pt; line-height: 1.15; font-weight: 700; }
+  .sum-k span { font-size: 13pt; font-weight: 600; }
+  .sum-k small { font-size: 11pt; }
+  .sum-note { margin-top: 8mm; font-size: 12pt; }
+
+  @media print {
+    body { background: #fff; }
+    .bar { display: none !important; }
+    .sheet { width: auto; margin: 0; padding: 0; }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="bar">
+  <a class="btn ghost" href="/s/{{ space.token }}/school">학교로</a>
+  <span class="grow">A4 세로 한 장으로 나가요.</span>
+  <button class="btn pri" type="button" id="printBtn">인쇄</button>
+</div>
+<main class="sheet">
+  <div class="phead">
+    <div><div class="small">{{ space.school.name }}</div><h1>이번 학기 학교 업무 요약</h1><div class="small">교감 · 교장 결재용 · <span class="num">{{ period }}</span></div></div>
+    <table class="sign"><tr><th>담당</th><th>교감</th><th>교장</th></tr><tr><td></td><td></td><td></td></tr></table>
+  </div>
+  {% include "spaces/_summary_nums.html" %}
+  <p class="sum-note">학생 개인정보는 받지 않고 교직원 업무 정보만 다룹니다.</p>
+</main>
+{% endblock %}
