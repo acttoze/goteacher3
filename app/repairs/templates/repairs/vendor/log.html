@@ -1,0 +1,15 @@
+{% extends "shell.html" %}
+{% block title %}업체 접속 기록 · 고티처{% endblock %}
+{% block ptitle %}게시판{% endblock %}
+{% block main %}
+<p class="muted" style="margin-bottom:8px;font-size:15px"><a class="tlink" href="/s/{{ space.token }}/repairs" style="font-weight:600;color:var(--muted)">게시판 · 수리 요청</a> /</p>
+<div class="title"><div class="grow"><h1>업체 접속 기록</h1><p class="sub">최근 30일만 남아요. IP 주소는 저장하지 않아요. 모르는 시각에 접속이 있으면 새 링크를 발급하세요.</p></div></div>
+{% if entries %}<section class="card" style="max-width:800px"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
+  <ul class="list">{% for a in entries %}<li style="min-height:48px"><span class="num" style="flex:none;width:110px">{{ a.at|date:"n/j H:i" }}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">{{ a.account.name }} · {{ a.account.contact_name }}</span><span class="muted" style="flex:none;max-width:340px;overflow-wrap:anywhere">{{ a.get_action_display }}{% if a.title %} · {{ a.title }}{% endif %}</span></li>{% endfor %}</ul>
+</div></section>
+{% if entries.has_other_pages %}<nav style="display:flex;align-items:center;gap:12px;margin-top:16px" aria-label="쪽 넘기기">
+  {% if entries.has_previous %}<a class="btn sec sm" href="?page={{ entries.previous_page_number }}">이전</a>{% endif %}
+  <span class="num">{{ entries.number }} / {{ entries.paginator.num_pages }}쪽</span>
+  {% if entries.has_next %}<a class="btn sec sm" href="?page={{ entries.next_page_number }}">다음</a>{% endif %}
+</nav>{% endif %}{% else %}<p class="empty" style="max-width:800px">아직 접속 기록이 없어요.</p>{% endif %}
+{% endblock %}

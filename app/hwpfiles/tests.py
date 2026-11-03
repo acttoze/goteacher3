@@ -369,7 +369,7 @@ class QaEdgeTests(UploadTests):
         c.force_login(u)
         self.assertEqual(c.get(self.status_url(sf, sp)).status_code, 404)
         self.assertEqual(c.get(self.status_url(sf)).status_code, 404)
-        self.assertEqual(c.get(f"/s/{sp.token}/hwp/{sf.key[:-1]}x/status").status_code, 404)
+        self.assertEqual(c.get(f"/s/{sp.token}/hwp/not-a-real-file-key/status").status_code, 404)
 
 
 @override_settings(ROOT_URLCONF=__name__, REDIS_URL="")

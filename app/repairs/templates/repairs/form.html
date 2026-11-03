@@ -47,7 +47,7 @@
       {% if errors.photo %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.photo }}</p>{% endif %}
       {% if errors %}<p class="small muted" style="margin:8px 0 0">고른 사진은 다시 골라 주세요.</p>{% endif %}
     </div></section>
-    <div class="for-info notice" role="note">{% if has_vendor %}<b>이 요청은 외부 업체가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요.</b>{% else %}<b>정보 담당 선생님이 받습니다.</b> {{ desks.info }} 선생님께 알림이 가요. 학생 이름·개인정보는 적지 마세요.{% endif %}</div>
+    <div class="for-info notice" role="note">{% if vendor %}<b>이 요청은 외부 업체({{ vendor.name }})가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요.</b>{% else %}<b>정보 담당 선생님이 받습니다.</b> {{ desks.info }} 선생님께 알림이 가요. 학생 이름·개인정보는 적지 마세요.{% endif %}</div>
     <p class="for-facility small muted" style="margin:0">{{ desks.facility }} 선생님께 알림이 가요. 학교 밖 사람은 볼 수 없어요. 학생 이름·개인정보는 적지 마세요.</p>
   </div>
 </form>

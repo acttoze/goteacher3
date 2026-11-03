@@ -38,7 +38,7 @@ class PassingBoundaryTests(Base):
     def test_bad_token_is_404(self):
         c = self.as_(self.t41)
         for path in self.PATHS:
-            self.assertEqual(c.get(f"/s/{self.hub.token[:-1]}x/{path}").status_code, 404)
+            self.assertEqual(c.get(f"/s/not-a-real-space-token/{path}").status_code, 404)
 
     def test_extra_sheet_keeps_to_the_viewers_range(self):
         """칸이 넘쳐 별지로 간 일정도 범위 밖은 나가지 않는다."""

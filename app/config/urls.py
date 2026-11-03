@@ -10,6 +10,7 @@ from collect import bell, export, lists, push, submit
 from collect import views as collect
 from library import views as library
 from notices import views as notices
+from repairs import vendor
 from spaces import attendance as attendance_page
 from spaces import school as school_page
 from spaces import summary as school_summary
@@ -77,6 +78,11 @@ urlpatterns = [
     path("c/<str:link_token>/find", submit.find),  # H4 학교 공간 이름 찾기
     path("c/<str:link_token>/u/<str:key>", submit.unit),
     path("n/<str:token>", notices.link),  # I2 쪽지 링크
+    path("v/", vendor.home),  # K2 업체 화면(기기 쿠키)
+    path("v/out", vendor.out),
+    path("v/r/<str:key>/state", vendor.state),
+    path("v/r/<str:key>/photo", vendor.photo),
+    path("v/<str:token>", vendor.enter),
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
     path("start", accounts.home),  # 시작 화면(구글로 시작하기). 로그인 전 / 는 소개 페이지

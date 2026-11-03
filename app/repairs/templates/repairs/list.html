@@ -19,7 +19,7 @@
 {% block main %}
 {% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
 <div class="title">
-  <div class="grow"><h1>게시판</h1><p class="sub">고장은 여기 한 곳에 올리세요. 시설(교실·화장실·전기·냉난방)은 행정실이, 정보(PC·전자칠판·네트워크)는 {% if has_vendor %}계약 업체가{% else %}정보 담당 선생님이{% endif %} 받아요.</p></div>
+  <div class="grow"><h1>게시판</h1><p class="sub">고장은 여기 한 곳에 올리세요. 시설(교실·화장실·전기·냉난방)은 행정실이, 정보(PC·전자칠판·네트워크)는 {% if vendor %}계약 업체가{% else %}정보 담당 선생님이{% endif %} 받아요.</p></div>
   {% if writable %}<a class="btn pri" href="/s/{{ space.token }}/repairs/new">수리 요청</a>{% endif %}
 </div>
 {% include "notices/_tabs.html" with on="repair" %}
@@ -52,9 +52,10 @@
   <aside class="s4" style="min-width:0">
     <section class="card"><div class="card-h"><h2>누가 받나요</h2></div><div class="card-b rwho">
       <div><div class="row"><span class="pill">시설</span><b>{{ desk_facility }}</b></div><p>학교 교직원만 봐요.</p></div>
-      <div><div class="row"><span class="pill acc">정보</span><b>{{ desk_info }}</b></div><p>{% if has_vendor %}업체는 정보 요청만, 선생님 이름 대신 위치만 봐요.{% else %}정보 담당 선생님이 받습니다.{% endif %}</p></div>
+      <div><div class="row"><span class="pill acc">정보</span><b>{{ desk_info }}</b></div><p>{% if vendor %}업체는 정보 요청만, 선생님 이름 대신 위치만 봐요.{% else %}정보 담당 선생님이 받습니다.{% endif %}</p></div>
       {% if no_handler and me.is_manager and writable %}<p style="margin:0">수리 담당자를 지정해 주세요. <a class="tlink acc" href="/s/{{ space.token }}/school">학교 화면</a> 명부에서 선생님을 누르면 돼요.</p>{% endif %}
     </div></section>
+    {% if can_vendor %}<div style="margin-top:18px">{% include "repairs/vendor/_card.html" %}</div>{% endif %}
   </aside>
 </div>
 {% endblock %}

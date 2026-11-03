@@ -2,9 +2,10 @@
 
 권한은 Member.can_repair·is_manager·by로만. Member.group은 본인이 고치는 값이라 '누가 받나요'를 나눌 때만 쓴다
 (이미 지정된 담당자 안에서 행정실 그룹이면 시설, 나머지는 정보). 행정실로 옮긴다고 담당이 되거나 이름이 뜨지 않는다.
-K2 업체 화면은 change_state를 그대로 부르고(actor=None), _has_vendor만 업체 계정 유무로 바꾸면 된다.
+K2 업체 화면·발급은 repairs.vendor. 업체가 있어도 🔔은 교내 담당자가 받는다(업체에는 문자·알림이 없다).
 """
 import logging
+from datetime import timedelta
 
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
@@ -27,7 +28,7 @@ from spaces.school import school_body
 from spaces.views import _space_ctx
 
 from . import photo
-from .models import Repair
+from .models import Repair, VendorAccount
 
 log = logging.getLogger(__name__)
 PER_PAGE = 20
@@ -35,11 +36,22 @@ MAX_TITLE, MAX_PLACE, MAX_NOTE, MAX_REPLY = 200, 100, 1000, 500
 UPLOAD_PER_HOUR = 30
 DESK_NAMES = 3  # 담당 칸에 보이는 이름 수
 TOAST = "repair_toast"  # 세션: 목록으로 옮긴 뒤 한 번 띄울 저장 결과
+VENDOR_MAX_DAYS = timedelta(days=366)  # 업체 사용 기간은 한 번에 1년까지(계약이 이어지면 다시 발급)
 
 
-def _has_vendor(space):
-    """정보 요청을 받는 외부 업체 계정이 있나. K1에는 업체 계정이 없다."""
-    return False
+def _vendor(space):
+    """정보 요청을 받는 외부 업체 계정(업체가 지금 들어올 수 있을 때만) 또는 None."""
+    account = VendorAccount.current(space)
+    return account if account and account.is_open else None
+
+
+def _vendor_sees(vendor, r):
+    """이 요청이 업체 화면에 있나(VendorAccount.repairs와 같은 답)."""
+    return bool(vendor) and r.cat == Repair.Cat.INFO and r.created_at >= vendor.visible_from
+
+
+def _vendor_desk(vendor):
+    return f"{vendor.name} (계약 업체)"
 
 
 def _can_handle(member):
@@ -87,28 +99,35 @@ def _ring_desk(space, r, actor):
         for m in people if m.pk != actor.pk))
 
 
-def _ring_requester(space, r):
-    """상태가 바뀌면 요청자 🔔. 안 읽은 게 있으면 쌓지 않고 그 한 건을 새 상태로 고쳐 묶음에 다시 넣는다. 부르는 쪽이 r 행을 잠갔다."""
-    text = f"{r.title} — {r.get_status_display()}"[:300]
-    mine = Notification.objects.in_space(space).filter(repair=r, member_id=r.by_id, kind=Notification.Kind.REPAIR_UP, read=False)
-    if not mine.update(text=text, pushed=False, created_at=timezone.now()):
-        Notification.objects.create(space=space, member_id=r.by_id, repair=r, kind=Notification.Kind.REPAIR_UP,
-                                    day=timezone.localdate(), text=text, link=f"/s/{space.token}/repairs/{r.key}")
+def _ring_up(space, r, member_id, text):
+    """상태 🔔. 안 읽은 게 있으면 쌓지 않고 그 한 건을 고쳐 묶음에 다시 넣는다. 부르는 쪽이 r 행을 잠갔다."""
+    mine = Notification.objects.in_space(space).filter(repair=r, member_id=member_id, kind=Notification.Kind.REPAIR_UP, read=False)
+    if not mine.update(text=text[:300], pushed=False, created_at=timezone.now()):
+        Notification.objects.create(space=space, member_id=member_id, repair=r, kind=Notification.Kind.REPAIR_UP,
+                                    day=timezone.localdate(), text=text[:300], link=f"/s/{space.token}/repairs/{r.key}")
 
 
-def change_state(space, key, status, reply, actor=None):
-    """상태·답변 저장. 트랜잭션 안에서 행을 잠근다. actor: 바꾼 회원(업체는 None). 요청자 본인이 바꾸면 🔔 없음."""
+def change_state(space, key, status, reply, actor=None, rows=None):
+    """상태·답변 저장. 트랜잭션 안에서 행을 잠근다. actor: 바꾼 회원(업체는 None). 요청자 본인이 바꾸면 🔔 없음.
+    rows: 업체가 건드릴 수 있는 범위(VendorAccount.repairs). 잠그며 보므로 요청자가 그사이 분류를 시설로 고쳐도 건드리지 않는다.
+    업체가 바꾸면 담당자의 '요청 옴'을 읽음 처리하지 않고(업체 쪽 움직임을 교내가 모르게 되지 않도록), 완료면 담당자에게도 🔔."""
     with transaction.atomic():
-        r = get_object_or_404(Repair.objects.in_space(space).select_for_update(), key=key)
+        r = get_object_or_404((Repair.objects.in_space(space) if rows is None else rows).select_for_update(), key=key)
         changed = r.status != status
+        if r.reply != reply:
+            r.reply_vendor = actor is None
         r.status, r.reply = status, reply
-        r.save(update_fields=["status", "reply", "updated_at"])
+        r.save(update_fields=["status", "reply", "reply_vendor", "updated_at"])
         if changed:
-            if status != Repair.Status.RECEIVED:  # 누가 맡았으니 다른 담당자의 '요청 옴'은 묶음 알림에 나가지 않게
+            if actor is not None and status != Repair.Status.RECEIVED:  # 누가 맡았으니 다른 담당자의 '요청 옴'은 묶음 알림에 나가지 않게
                 (Notification.objects.in_space(space).filter(repair=r, kind=Notification.Kind.REPAIR, read=False)
                  .update(read=True))
             if r.by_id and (actor is None or r.by_id != actor.pk):
-                _ring_requester(space, r)
+                _ring_up(space, r, r.by_id, f"{r.title} — {r.get_status_display()}")
+            if actor is None and status == Repair.Status.DONE:
+                for m in _desks(space)[r.cat][1]:
+                    if m.pk != r.by_id:  # 요청자는 위에서 받았다
+                        _ring_up(space, r, m.pk, f"{r.title} — 업체가 완료로 바꿨어요")
     return r
 
 
@@ -169,18 +188,15 @@ def _drop_after_commit(storage, name):
 
 
 def _form_page(request, form, status=200, **extra):
-    ctx = _space_ctx(request, page="board", form=form, writable=request.space.school.writable, has_vendor=_has_vendor(request.space),
+    ctx = _space_ctx(request, page="board", form=form, writable=request.space.school.writable, vendor=_vendor(request.space),
                      desks={c: "·".join(m.name for m in d[1][:DESK_NAMES]) for c, d in _desks(request.space).items()},
                      max_mb=photo.MAX_BYTES // photo.MB, **extra)
     return render(request, "repairs/form.html", ctx, status=status)
 
 
 # ---------------------------------------------------------------- 화면
-@never_cache
-@require_GET
-@school_required
-def index(request):
-    """목록: 완료는 뒤로. 담당 칸은 분류별로 한 번만 구해 줄마다 붙인다(건수와 무관)."""
+def list_page(request, status=200, **extra):
+    """목록: 완료는 뒤로. 담당 칸은 분류별로 한 번만 구해 줄마다 붙인다(건수와 무관). 업체 발급·해제도 이 화면을 그대로 돌려준다."""
     all_rows = Repair.objects.in_space(request.space)
     counts = all_rows.aggregate(total=Count("pk"), open=Count("pk", filter=~Q(status=Repair.Status.DONE)))
     rows = all_rows.annotate(done=Case(When(status=Repair.Status.DONE, then=1), default=0, output_field=IntegerField())
@@ -188,16 +204,30 @@ def index(request):
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
     desks = _desks(request.space)
     texts = {c: _desk_text(d) for c, d in desks.items()}
+    account = VendorAccount.current(request.space)
+    vendor = account if account and account.is_open else None
+    if vendor:
+        texts[Repair.Cat.INFO] = _vendor_desk(vendor)
     shown = list(page.object_list)
     page.object_list = shown
-    for r in shown:
-        r.desk = texts[r.cat]
-    ctx = _space_ctx(request, page="board", repairs=page, counts=counts, toast=request.session.pop(TOAST, ""), writable=request.space.school.writable,
+    for r in shown:  # 업체가 못 보는 옛 정보 요청은 교내 담당 그대로
+        r.desk = _desk_text(desks[r.cat]) if r.cat == Repair.Cat.INFO and not _vendor_sees(vendor, r) else texts[r.cat]
+    ctx = _space_ctx(request, page="board", repairs=page, counts=counts, writable=request.space.school.writable,
                      desk_facility=texts[Repair.Cat.FACILITY], desk_info=texts[Repair.Cat.INFO],
-                     no_handler=desks[Repair.Cat.FACILITY][0] == "관리자", has_vendor=_has_vendor(request.space),
+                     no_handler=desks[Repair.Cat.FACILITY][0] == "관리자", vendor=vendor,
+                     can_vendor=_can_handle(request.member), account=account,
+                     account_until_text=account.until.isoformat() if account else "",
+                     until_max=timezone.localdate() + VENDOR_MAX_DAYS,
                      repair_n=counts["open"],
-                     notice_n=Notice.objects.in_space(request.space).visible_to(request.member).count())
-    return render(request, "repairs/list.html", ctx)
+                     notice_n=Notice.objects.in_space(request.space).visible_to(request.member).count(), **extra)
+    return render(request, "repairs/list.html", ctx, status=status)
+
+
+@never_cache
+@require_GET
+@school_required
+def index(request):
+    return list_page(request, toast=request.session.pop(TOAST, ""))
 
 
 @never_cache
@@ -226,8 +256,10 @@ def new(request):
 
 def _detail_ctx(request, r, **extra):
     me, writable = request.member, request.space.school.writable
-    return {"space": request.space, "r": r, "writable": writable, "statuses": Repair.Status.choices,
-            "desk": _desk_text(_desks(request.space)[r.cat]),
+    vendor = _vendor(request.space)
+    sees = _vendor_sees(vendor, r)
+    return {"space": request.space, "r": r, "writable": writable, "statuses": Repair.Status.choices, "vendor_sees": sees,
+            "desk": _vendor_desk(vendor) if sees else _desk_text(_desks(request.space)[r.cat]),
             "can_handle": writable and _can_handle(me), "can_edit": writable and _can_edit(me, r),
             "can_delete": _can_delete(me, r), **extra}
 
@@ -331,11 +363,8 @@ def delete_photo(request, key):
     return resp
 
 
-@require_GET
-@school_required
-def photo_file(request, key):
-    """사진: 회원만(SpaceMiddleware), 재인코딩한 JPEG 그대로. 화면의 ?v=가 바꿀 때마다 달라 브라우저 캐시를 써도 옛 사진이 안 나온다."""
-    r = get_in_space_or_404(Repair, request, key=key)
+def photo_response(r):
+    """재인코딩한 JPEG 그대로. 캐시 헤더는 부르는 쪽이 정한다."""
     if not r.photo:
         raise Http404
     try:
@@ -346,6 +375,14 @@ def photo_file(request, key):
     resp = FileResponse(fh, content_type="image/jpeg")
     resp["X-Content-Type-Options"] = "nosniff"
     resp["Content-Security-Policy"] = "default-src 'none'; sandbox"
+    return resp
+
+
+@require_GET
+@school_required
+def photo_file(request, key):
+    """사진: 회원만(SpaceMiddleware). 화면의 ?v=가 바꿀 때마다 달라 브라우저 캐시를 써도 옛 사진이 안 나온다."""
+    resp = photo_response(get_in_space_or_404(Repair, request, key=key))
     resp["Cache-Control"] = "private, max-age=3600"
     return resp
 

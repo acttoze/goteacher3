@@ -8,7 +8,7 @@ from unittest import mock
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
-from django.test import Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from PIL import Image
@@ -23,7 +23,7 @@ from spaces.models import Member, MemberLog, School
 from spaces.test_merge import UNTIL, MergeBase
 
 from . import photo, views
-from .models import Repair
+from .models import Repair, VendorAccount
 
 KIND = Notification.Kind
 
@@ -193,9 +193,29 @@ class FlowTests(Base):
         self.assertContains(page, "정보 담당 선생님이 받습니다")
         self.assertContains(page, "학생 이름·개인정보는 적지 마세요")
         self.assertNotContains(page, "외부 업체가 볼 수 있어요")
-        with mock.patch.object(views, "_has_vendor", return_value=True):
-            page = self.teacher.get(f"{self.base}/new")
-        self.assertContains(page, "이 요청은 외부 업체가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요")
+        VendorAccount.issue(self.hub, "한빛정보", "강업체", UNTIL, self.m4)
+        page = self.teacher.get(f"{self.base}/new")
+        self.assertContains(page, "이 요청은 외부 업체(한빛정보)가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요")
+
+
+class ScanBombTests(TestCase):
+    """점진 JPEG 폭탄: 픽셀을 풀기 전에 스캔 수로 거부. 보통 점진 JPEG는 통과."""
+
+    def test_normal_progressive_passes(self):
+        raw = jpeg_bytes((800, 600), progressive=True)
+        self.assertLess(raw.count(b"\xff\xda"), photo.MAX_SCANS)
+        self.assertTrue(photo.reencode(io.BytesIO(raw)))
+
+    def test_too_many_scans_refused_before_decoding(self):
+        raw = jpeg_bytes()[:-2] + b"\xff\xda\x00\x02" * (photo.MAX_SCANS + 1) + b"\xff\xd9"
+        with mock.patch.object(photo.Image, "open") as opened, self.assertRaises(photo.BadPhoto) as e:
+            photo.reencode(io.BytesIO(raw))
+        opened.assert_not_called()
+        self.assertEqual(str(e.exception), photo.TOO_MANY_SCANS)
+
+    def test_png_with_same_bytes_not_counted(self):
+        raw = png_bytes()
+        self.assertTrue(photo.reencode(io.BytesIO(raw + b"\xff\xda" * (photo.MAX_SCANS + 1))))
 
 
 class ListTests(Base):

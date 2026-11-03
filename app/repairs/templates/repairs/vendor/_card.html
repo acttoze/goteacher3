@@ -1,0 +1,54 @@
+{# K2 '정보 업체 계정' 카드: 관리자·수리 담당자에게만. link는 발급 응답에서만 넘어온다. #}
+<section class="card" id="vendorCard" data-err-swap>
+  <div class="card-h"><h2>정보 업체 계정</h2></div>
+  <div class="card-b" style="display:grid;gap:14px">
+    {% if link %}<div class="notice" role="status" style="display:grid;gap:8px;overflow-wrap:anywhere">
+      <b>업체 담당자에게 이 링크를 보내 주세요. 지금 한 번만 보여요.</b>
+      <input class="input" id="vendorLink" readonly autofocus value="{{ link }}" aria-label="업체 입장 링크">
+      <div><button class="btn ink sm" type="button" data-copy="#vendorLink" data-done="업체 링크를 복사했어요">링크 복사</button></div>
+      <span>링크를 아는 사람은 누구나 업체 화면에 들어올 수 있어요. 잃어버리면 새로 발급해 주세요.</span>
+    </div>{% endif %}
+    {% if account %}
+    <dl class="kv" style="grid-template-columns:96px minmax(0,1fr);font-size:15px;overflow-wrap:anywhere;margin:0">
+      <dt>업체</dt><dd>{{ account.name }}</dd>
+      <dt>담당자</dt><dd>{{ account.contact_name }}</dd>
+      <dt>볼 수 있는 것</dt><dd>정보 수리 요청만. {{ account.visible_from|date:"Y.n.j H:i" }} 이 시각 뒤에 올라온 요청만 보여요. 일정·공지·명부·모으기는 잠겨 있어요.</dd>
+      <dt>요청자 표시</dt><dd>이름 대신 위치만. 메모·답변의 명부 이름은 ○○○로 가려요.</dd>
+      <dt>로그인</dt><dd>비밀 링크 · 비밀번호 없음</dd>
+      <dt>사용 기간</dt><dd>~{{ account.until|date:"Y.n.j" }}{% if not account.in_period %} <span class="pill neg">끝남</span>{% endif %}</dd>
+      <dt>최근 접속</dt><dd>{% if account.last_seen_at %}{{ account.last_seen_at|date:"n/j H:i" }}{% else %}아직 없음{% endif %}</dd>
+      {% if account.invited_by %}<dt>초대한 사람</dt><dd>{{ account.invited_by.name }}</dd>{% endif %}
+    </dl>
+    {% if account.issuer_gone and me.is_manager and writable %}<p class="notice" style="margin:0">발급한 선생님이 담당에서 빠졌어요. 그 선생님이 링크를 알고 있으니 새 링크를 발급하길 권해요.</p>{% endif %}
+    {% if not writable %}<p class="notice" style="margin:0">학교 플랜 기간이 끝나 업체도 들어올 수 없어요.</p>{% endif %}
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <a class="btn sec sm" href="/s/{{ space.token }}/repairs/vendor/preview">업체 화면 미리보기</a>
+      <a class="btn sec sm" href="/s/{{ space.token }}/repairs/vendor/log">접속 기록</a>
+      {% if writable %}<button class="btn sec sm" type="button" data-open="#vendorSwap">새 링크 발급</button>{% endif %}
+      <button class="btn danger sm" type="button" data-open="#vendorOff">접근 끊기</button>
+    </div>
+    <p class="muted" style="margin:0;font-size:15px">담당자가 바뀌면 새 링크를 발급하세요. 이전 링크와 그 링크로 들어온 PC는 바로 끊겨요.</p>
+    {% if writable %}<div class="scrim" id="vendorSwap"{% if not errors %} hidden{% endif %}><form class="dialog" role="dialog" aria-modal="true" aria-labelledby="vendorSwapH" method="post" action="/s/{{ space.token }}/repairs/vendor" hx-post="/s/{{ space.token }}/repairs/vendor" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{% csrf_token %}
+      <div class="dh"><h2 id="vendorSwapH">새 링크를 발급할까요?</h2></div>
+      <div class="db" style="display:grid;gap:12px">
+        <p style="margin:0">지금 링크와 그 링크로 들어온 PC는 바로 끊겨요.</p>
+        {% include "repairs/vendor/_fields.html" with v_name=vendor_form.name|default:account.name v_contact=vendor_form.contact_name|default:account.contact_name v_until=vendor_form.until|default:account_until_text %}
+      </div>
+      <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn pri" type="submit">새 링크 발급</button></div>
+    </form></div>{% endif %}
+    <div class="scrim" id="vendorOff" hidden><form class="dialog" role="dialog" aria-modal="true" aria-labelledby="vendorOffH" method="post" action="/s/{{ space.token }}/repairs/vendor/revoke" hx-post="/s/{{ space.token }}/repairs/vendor/revoke" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{% csrf_token %}
+      <div class="dh"><h2 id="vendorOffH">업체 접근을 끊을까요?</h2></div>
+      <div class="db"><p>링크와 그 링크로 들어온 PC가 바로 끊겨요. 다시 쓰려면 새로 발급해야 해요.</p></div>
+      <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">접근 끊기</button></div>
+    </form></div>
+    {% elif writable %}
+    <p style="margin:0;font-size:15px">계약 업체가 있으면 비밀 링크를 만들어 보내세요. 링크를 만든 시각 뒤에 올라온 정보 수리 요청만, 선생님 이름 대신 위치만 봐요.</p>
+    <form style="display:grid;gap:12px" method="post" action="/s/{{ space.token }}/repairs/vendor" hx-post="/s/{{ space.token }}/repairs/vendor" hx-target="#main" hx-select="#main" hx-swap="outerHTML">{% csrf_token %}
+      {% include "repairs/vendor/_fields.html" with v_name=vendor_form.name v_contact=vendor_form.contact_name v_until=vendor_form.until %}
+      <div><button class="btn pri" type="submit">링크 만들기</button></div>
+    </form>
+    {% else %}
+    <p class="muted" style="margin:0;font-size:15px">학교 플랜 기간이 끝나 업체 링크를 만들 수 없어요.</p>
+    {% endif %}
+  </div>
+</section>

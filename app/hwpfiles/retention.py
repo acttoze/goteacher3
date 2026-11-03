@@ -25,8 +25,8 @@ from django.db.models.signals import post_delete
 from django.utils import timezone
 
 from collect.models import Collection
-from repairs.models import Repair
-from spaces.models import Attendance
+from repairs.models import Repair, VendorAccess, VendorAccount
+from spaces.models import Attendance, MemberLog
 
 from .models import ResultFile, SourceFile
 
@@ -38,6 +38,8 @@ UNUSED_SOURCE = timedelta(hours=24)
 ATTENDANCE_DAYS = timedelta(days=7)
 REPAIR_DONE = timedelta(days=90)
 REPAIR_MAX = timedelta(days=365)
+VENDOR_DAYS = timedelta(days=30)
+MEMBER_LOG_AGE = timedelta(days=365)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",), "repairs.Repair": ("photo",)}
@@ -193,6 +195,18 @@ def purge(now, dry_run=False):
     if not dry_run:
         with transaction.atomic():
             old_repairs.delete()
+    # 업체 접속 기록·해제되거나 기간이 지난 업체 계정(담당자 이름): 30일
+    cut = now - VENDOR_DAYS
+    old_access = VendorAccess.objects.filter(at__lt=cut)
+    gone = VendorAccount.objects.filter(models.Q(revoked_at__lt=cut) | models.Q(until__lt=timezone.localdate(cut)))
+    n["vendor_access"], n["vendor_accounts"] = old_access.count(), gone.count()
+    if not dry_run:
+        old_access.delete()
+        gone.delete()
+    old_logs = MemberLog.objects.filter(at__lt=now - MEMBER_LOG_AGE)
+    n["member_logs"] = old_logs.count()
+    if not dry_run:
+        old_logs.delete()
     # 1) 멈춘 작업 → 실패 + 파일 정리(뒤의 삭제 대상이어도 먼저 상태를 맞춘다)
     stuck = list(stuck_sources(now)) + list(stuck_results(now))
     n["stuck"] = len(stuck)

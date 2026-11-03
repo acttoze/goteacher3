@@ -2,6 +2,7 @@
 
 - 받는 형식은 내용으로 JPEG·PNG만(이름은 안 본다). Pillow의 다른 디코더(GIF·TIFF·WEBP 등)는 열지 않는다. HEIC는 Pillow가 못 읽어 안내한다.
 - 픽셀 폭탄: 머리의 가로×세로로 먼저 거부하고 그다음에 픽셀을 푼다. JPEG는 draft로 줄여 풀어 메모리를 아낀다.
+- 점진 JPEG 폭탄: 파일이 작아도 스캔마다 전체 계수를 다시 훑어 CPU를 오래 잡는다. 픽셀을 풀기 전에 스캔 표시(FF DA) 수로 거부한다.
 - 오류에는 파일 내용·이름을 담지 않는다.
 """
 import io
@@ -11,6 +12,7 @@ from PIL import Image, ImageOps
 MB = 1024 * 1024
 MAX_BYTES = 8 * MB
 MAX_PIXELS = 20_500_000  # 공용 서버 메모리 보호. 2000만 화소 폰 사진의 흔한 크기(5184×3888 = 2015만)까지 받는다
+MAX_SCANS = 64  # 보통 점진 JPEG는 10개 안팎. 바이트를 그대로 세므로 헤더 조작으로 피할 수 없다(압축 데이터 안의 FF는 FF 00으로 적힌다)
 LONG_SIDE = 1600
 QUALITY = 85
 
@@ -21,10 +23,15 @@ class BadPhoto(Exception):
 
 NOT_IMAGE = "JPG·PNG 사진만 올릴 수 있어요. 아이폰 HEIC 사진은 JPG로 바꿔서 올려 주세요."
 TOO_MANY_PIXELS = "사진 화소가 너무 많아요(2000만 화소까지). 폰 카메라의 고화소 모드 사진은 크기를 줄여 다시 올려 주세요."
+TOO_MANY_SCANS = "이 사진은 읽을 수 없어요. 폰이나 PC에서 다시 저장해 올려 주세요."
 
 
 def reencode(f):
     """파일 객체 → 긴 변 1600px 이하 JPEG 바이트. 못 받는 파일이면 BadPhoto."""
+    raw = f.read()
+    f.seek(0)
+    if raw[:2] == b"\xff\xd8" and raw.count(b"\xff\xda") > MAX_SCANS:
+        raise BadPhoto(TOO_MANY_SCANS)
     try:
         with Image.open(f, formats=("JPEG", "PNG")) as im:
             if im.width * im.height > MAX_PIXELS:

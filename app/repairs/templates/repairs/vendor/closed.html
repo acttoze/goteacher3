@@ -1,0 +1,7 @@
+{% extends "repairs/vendor/_vendor_base.html" %}
+{% block title %}{% if left %}나왔어요{% else %}들어올 수 없어요{% endif %} · 고티처{% endblock %}
+{% block main %}
+<h1 style="margin:0 0 12px;font-size:var(--fs-title)">{{ message }}</h1>
+{% if left %}<p>이 PC에서 업체 화면을 닫았어요. 다시 들어오려면 받은 링크를 열어 주세요.</p>
+{% else %}<p>사용 기간이 끝났거나, 새 링크가 나왔거나, 학교에서 접근을 끊었을 수 있어요. 학교 담당 선생님께 새 링크를 받아 주세요.</p>{% endif %}
+{% endblock %}

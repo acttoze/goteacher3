@@ -19,7 +19,7 @@
         <dt>요청</dt><dd>{{ r.by_name }} · {{ r.created_at|date:"n/j H:i" }}</dd>
         <dt>담당</dt><dd>{{ desk }}</dd>
         {% if r.note %}<dt>메모</dt><dd>{{ r.note }}</dd>{% endif %}
-        {% if r.reply %}<dt>답변</dt><dd>{{ r.reply }}</dd>{% endif %}
+        {% if r.reply %}<dt>답변</dt><dd>{% if r.reply_vendor %}<span class="pill acc">업체 답변</span> {% endif %}{{ r.reply }}</dd>{% endif %}
       </dl>
       {% if r.photo %}<a href="/s/{{ space.token }}/repairs/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" target="_blank" rel="noopener" style="display:inline-block;margin-top:16px"><img src="/s/{{ space.token }}/repairs/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" alt="요청 사진" style="display:block;max-width:100%;max-height:320px;border-radius:var(--radius-in)"></a>
       {% if can_delete %}<div style="margin-top:10px"><button class="btn ghost sm" type="button" data-open="#delPhotoDlg">사진만 지우기</button></div>
@@ -32,7 +32,7 @@
     {% if can_handle %}<section class="card s4" style="min-width:0"><div class="card-h"><h2>처리</h2></div><div class="card-b">
       <form class="stack-y" style="gap:14px" method="post" action="/s/{{ space.token }}/repairs/{{ r.key }}/state" hx-post="/s/{{ space.token }}/repairs/{{ r.key }}/state" hx-target="#repairMain" hx-swap="outerHTML">{% csrf_token %}
         <label class="field"><span>상태</span><select class="select" name="status">{% for v, label in statuses %}<option value="{{ v }}"{% if v == r.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-        <label class="field"><span>답변 <span class="hint">요청한 선생님이 봐요</span></span><input class="input" name="reply" value="{{ r.reply }}" maxlength="500" placeholder="예: 내일 오전에 갈게요"></label>
+        <label class="field"><span>답변 <span class="hint">{% if vendor_sees %}요청한 선생님과 업체가 봐요{% else %}요청한 선생님이 봐요{% endif %}</span></span><input class="input" name="reply" value="{{ r.reply }}" maxlength="500" placeholder="예: 내일 오전에 갈게요"></label>
         <div><button class="btn pri" type="submit">저장</button></div>
         <p class="small muted" style="margin:0">상태가 바뀌면 요청한 선생님께 알림이 가요.</p>
       </form>

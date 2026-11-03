@@ -1,0 +1,5 @@
+{% extends "repairs/vendor/_vendor_base.html" %}
+{% block title %}정보 수리 요청 · 고티처{% endblock %}
+{% block ctx %}<span class="ctx">{{ account.name }}</span>{% endblock %}
+{% block end %}<span class="end"><form method="post" action="/v/out">{% csrf_token %}<button class="btn sec sm" type="submit">나가기</button></form></span>{% endblock %}
+{% block main %}{% include "repairs/vendor/_body.html" %}{% endblock %}

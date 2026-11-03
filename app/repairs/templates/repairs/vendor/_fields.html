@@ -1,0 +1,6 @@
+<label class="field"><span>업체 이름</span><input class="input" name="name" value="{{ v_name|default:'' }}" maxlength="100" required placeholder="예: 한빛정보"></label>
+{% if errors.name %}<p role="alert" style="margin:0;color:var(--negative);font-size:15px;font-weight:600">{{ errors.name }}</p>{% endif %}
+<label class="field"><span>담당자 이름</span><input class="input" name="contact_name" value="{{ v_contact|default:'' }}" maxlength="40" required></label>
+{% if errors.contact_name %}<p role="alert" style="margin:0;color:var(--negative);font-size:15px;font-weight:600">{{ errors.contact_name }}</p>{% endif %}
+<label class="field"><span>사용 기간 끝 <span class="hint">계약이 끝나는 날(1년 안)</span></span><input class="input" type="date" name="until" value="{{ v_until|default:'' }}" max="{{ until_max|date:'Y-m-d' }}" required></label>
+{% if errors.until %}<p role="alert" style="margin:0;color:var(--negative);font-size:15px;font-weight:600">{{ errors.until }}</p>{% endif %}

@@ -1,0 +1,16 @@
+{# 요청 한 줄. r: 사전(by_name 없음). 맨 앞 제출 단추가 '답변 저장'이라 답변 칸에서 Enter를 눌러도 상태가 바뀌지 않는다. #}
+<li class="vrow" id="v-{{ r.key }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+  <div>
+    <div class="head"><b class="t">{{ r.title }}</b>{% if r.urgent and r.status != "done" %}<span class="pill neg">급함</span>{% endif %}</div>
+    <div class="m">{% if r.place %}{{ r.place }} · {% endif %}{{ r.created_at|date:"n/j H:i" }}{% if r.note %} · {{ r.note }}{% endif %}</div>
+    {% if r.photo %}<a class="vphoto" href="{{ photo_base }}/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" target="_blank" rel="noopener noreferrer"><img src="{{ photo_base }}/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" alt="요청 사진"></a>{% endif %}
+  </div>
+  {% if readonly %}<div class="vact">
+    <div class="vreply"><input class="input" disabled value="{{ r.reply }}" aria-label="답변" placeholder="답변"></div>
+    <div class="seg vseg">{% for v, label in statuses %}<button type="button" disabled aria-pressed="{% if v == r.status %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}</div>
+  </div>
+  {% else %}<form class="vact" method="post" action="/v/r/{{ r.key }}/state" hx-post="/v/r/{{ r.key }}/state" hx-target="closest li" hx-swap="outerHTML">{% csrf_token %}
+    <div class="vreply"><input class="input" name="reply" value="{{ r.reply }}" maxlength="{{ max_reply }}" aria-label="답변" placeholder="답변 (예: 내일 오전에 갈게요)"><button class="btn sec" type="submit" name="status" value="{{ r.status }}">답변 저장</button></div>
+    <div class="seg vseg" role="group" aria-label="상태">{% for v, label in statuses %}<button type="submit" name="status" value="{{ v }}" aria-pressed="{% if v == r.status %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}</div>
+  </form>{% endif %}
+</li>

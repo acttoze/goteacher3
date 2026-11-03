@@ -1,0 +1,29 @@
+{# 업체 화면 본문. 업체 화면과 미리보기가 함께 쓴다. reqs는 보여 줄 칸만 든 사전이라 요청자 이름이 없다. #}
+<style>
+  .vend-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 14px; }
+  .vend-h h1 { margin: 0; font-size: var(--fs-title); letter-spacing: -0.02em; overflow-wrap: anywhere; }
+  .vend-h span { color: var(--muted); }
+  .vrow { display: grid !important; grid-template-columns: minmax(0, 1fr) 440px; gap: 12px 24px; align-items: start !important; padding: 16px 0 !important; }
+  .vrow .head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; overflow-wrap: anywhere; }
+  .vrow .m { overflow-wrap: anywhere; margin-top: 4px; font-size: 15px; color: var(--muted); }
+  .vrow .vphoto img { display: block; max-width: 180px; max-height: 96px; margin-top: 10px; border-radius: var(--radius-in); }
+  .vact { display: grid; gap: 8px; }
+  .vreply { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .vseg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
+  .vseg button { height: 40px; padding: 0 6px; }
+  .vpager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
+</style>
+<div class="vend-h"><h1>{{ school_name }}</h1><span>정보 수리 요청 · 진행 중 <b class="num" id="vOpen">{{ n_open }}</b>건</span></div>
+{% if reqs.paginator.count %}
+<section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
+  <ul class="list">{% for r in reqs %}{% include "repairs/vendor/_row.html" %}{% endfor %}</ul>
+</div></section>
+{% if reqs.has_other_pages %}<nav class="vpager" aria-label="쪽 넘기기">
+  {% if reqs.has_previous %}<a class="btn sec sm" href="?page={{ reqs.previous_page_number }}">이전</a>{% endif %}
+  <span class="num">{{ reqs.number }} / {{ reqs.paginator.num_pages }}쪽</span>
+  {% if reqs.has_next %}<a class="btn sec sm" href="?page={{ reqs.next_page_number }}">다음</a>{% endif %}
+</nav>{% endif %}
+{% else %}
+<p class="empty">아직 올라온 정보 수리 요청이 없어요.</p>
+{% endif %}
+<p class="muted" style="margin:16px 0 0;font-size:15px">이 화면에는 정보 수리 요청만 보여요. 요청한 선생님 이름은 보이지 않고(메모의 이름은 ○○○로 가려요), 위치로 찾아가면 돼요.</p>
