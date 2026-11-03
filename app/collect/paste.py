@@ -19,7 +19,8 @@ class PasteError(ValueError):
 
 MAX_HTML = 1_000_000  # 붙여넣은 HTML 글자 수(한글 표 649칸 ≈ 300KB)
 MAX_TEXT = 300_000  # TSV 글자 수(HTML에서 바꾼 결과도 이 안에서 끊는다)
-MAX_CELL_RAW = 1000  # 칸 하나에 쌓는 글자(정리 뒤 200자로 자른다)
+MAX_CELL_RAW = 1000  # 칸 하나에 쌓는 글자(정리 뒤 MAX_CELL + 1자로 자른다)
+MAX_CELL = 200
 MAX_DEPTH = 4  # 칸 안 표 중첩
 MAX_GRID_ROWS = 1000
 MAX_GRID_COLS = 60
@@ -152,7 +153,7 @@ def _grid(rows):
             if c >= MAX_GRID_COLS:
                 break
             a = {"r": r, "c": c, "rs": min(cell["rs"], n - r), "cs": min(cell["cs"], MAX_GRID_COLS - c),
-                 "text": clean_text("".join(cell["text"]))[:200]}
+                 "text": clean_text("".join(cell["text"]))[:MAX_CELL + 1]}
             for dr in range(a["rs"]):
                 for dc in range(a["cs"]):
                     grid[(r + dr, c + dc)] = a
@@ -183,10 +184,11 @@ def _split_below(row, a):
     return len(below) >= 2 and all(x["text"] and x["rs"] == 1 and len(x["text"]) <= 20 for x in below.values())
 
 
-def html_to_tsv(html):
-    """클립보드 HTML에서 가장 큰 표를 머리글 한 줄 + 자료 줄의 TSV로. 표가 없으면 ''. 너무 크면 PasteError."""
+def html_to_tsv(html, too_big=TOO_BIG):
+    """클립보드 HTML에서 가장 큰 표를 머리글 한 줄 + 자료 줄의 TSV로. 표가 없으면 ''. 너무 크면 PasteError(too_big).
+    칸 글자는 MAX_CELL + 1자까지 둔다. 읽는 쪽이 200자를 넘었는지 알아 자르거나(모으기·업무분장) 못 읽은 줄로 센다(일정)."""
     if len(html) > MAX_HTML:
-        raise PasteError(TOO_BIG)
+        raise PasteError(too_big)
     p = _Tables()
     p.feed(html)
     p.close()
@@ -215,7 +217,7 @@ def html_to_tsv(html):
         out.append("\t".join(line))
         size += len(out[-1]) + 1
         if size > MAX_TEXT:  # 세로 병합 복사로 결과가 커질 수 있다
-            raise PasteError(TOO_BIG)
+            raise PasteError(too_big)
     return "\n".join(out)
 
 

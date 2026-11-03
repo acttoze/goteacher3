@@ -1,0 +1,28 @@
+{% extends "shell.html" %}{% load static %}
+{% block title %}주간계획 표 붙여넣기 · 고티처{% endblock %}
+{% block ptitle %}일정{% endblock %}
+{% block head %}<script src="{% static 'js/duty_paste.js' %}" defer></script>
+<style>
+  #dutyPaste { min-height: 132px; tab-size: 16; white-space: pre; overflow-x: auto; }
+  #dutyOut { overflow-wrap: anywhere; }
+  #dutyOut .sum { margin: 16px 0 12px; }
+  #dutyOut .acts { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+  #dutyOut .tbl { table-layout: fixed; }
+  #dutyOut .tbl td { height: auto; min-height: 56px; padding-top: 12px; padding-bottom: 12px; }
+  #dutyOut tr.dup td { color: var(--faint); }
+  .scope { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+  .scope span { white-space: nowrap; }
+  .scope .select { width: 240px; }
+</style>{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>주간계획 표 붙여넣기</h1><p class="sub">매주 만드는 주간교육계획(한글·엑셀) 표를 복사해 붙여넣으세요. <b>날짜 · 시간 · 내용 · 장소 · 담당</b> 칸을 읽어요.</p></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/schedule?w={{ w }}">일정으로</a></div>
+<form class="card" method="post" action="/s/{{ space.token }}/schedule/paste"><div class="card-b" style="padding-top:var(--pad)">
+  {% csrf_token %}<input type="hidden" name="w" value="{{ w }}"><input type="hidden" name="html" id="dutyHtml" value="">
+  <p class="muted" style="margin-bottom:12px">시간 칸이 비면 전일로 들어가요. 날짜가 빈 줄은 위 날짜를 따라가고, 10/28~30처럼 쓰면 기간 일정이 돼요. 한 번에 500줄까지 넣을 수 있어요.</p>
+  <label class="field"><span class="sr">주간계획 표</span><textarea class="textarea" id="dutyPaste" name="paste" spellcheck="false" placeholder="날짜&#9;시간&#9;내용&#9;장소&#9;담당"
+    hx-post="/s/{{ space.token }}/schedule/paste/preview" hx-trigger="input changed delay:400ms, gt-pasted" hx-target="#dutyOut" hx-sync="this:replace"{% if error %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
+  <label class="scope"><span>볼 사람</span><select class="select" name="scope" hx-post="/s/{{ space.token }}/schedule/paste/preview" hx-trigger="change" hx-target="#dutyOut">{% for v, t in choices %}<option value="{{ v }}"{% if v == chosen %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+  <div id="dutyOut" aria-live="polite">{% if error %}<p class="field-err" role="alert" style="margin-top:12px">{{ error }}</p>{% endif %}</div>
+</div></form>
+{% endblock %}

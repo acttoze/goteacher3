@@ -4,7 +4,7 @@
 - 한 줄 입력·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 주간판(_week.html)을 돌려준다.
 - 이번 주 바뀐 것: 보고 있는 주의 일정 중 changed_from이 있는 것. 이번 주 마감: 보고 있는 주(월~금)에 마감인 모으기.
 - 학교 공간(H5): 일정은 reachable_q(관리자는 남의 '나'를 뺀 전부), 마감은 관리자도 내가 만든 것·내 줄·내 그룹 칸만.
-- R1에서 뺀 것: 인쇄(R2), 블록 끌기(R3), 월간·주간계획 표 붙여넣기(design에 없음).
+- 인쇄는 print_view, 주간계획 표 붙여넣기는 week_paste(둘 다 학교 공간만, H6). 블록 끌기는 R3.
 조회는 모두 in_space()를 거친다.
 """
 from datetime import datetime, time, timedelta
@@ -171,7 +171,17 @@ def week_ctx(request, mon):
 def index(request):
     today = timezone.localdate()
     mon = shown_monday(request.GET.get("w"), today)
-    return render(request, "today/schedule.html", _space_ctx(request, page="schedule", **week_ctx(request, mon)))
+    return render(request, "today/schedule.html", _space_ctx(request, page="schedule", toast=_paste_toast(request), **week_ctx(request, mon)))
+
+
+def _paste_toast(request):
+    """표 붙여넣기(week_paste) 뒤 돌아온 주소의 added·same·weekend → 한 줄 알림. 주소를 고쳐도 500이 나지 않게 짧은 숫자만 받는다."""
+    n = [request.GET.get(k, "") for k in ("added", "same", "weekend")]
+    if not all(x.isdecimal() and len(x) <= 4 for x in n):
+        return ""
+    added, same, weekend = map(int, n)
+    return (f"주간계획 {added}건을 넣었어요." + (f" 이미 있던 {same}건은 건너뛰었어요." if same else "")
+            + (f" 주말 {weekend}건은 월중행사표에만 나와요." if weekend else ""))
 
 
 def reply(request, toast):

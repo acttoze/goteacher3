@@ -171,7 +171,7 @@ class HtmlToTsvTests(SimpleTestCase):
         html += "<tr><td>" + "가" * 50_000 + "</td><td></td></tr></table>"
         lines = html_to_tsv(html).split("\n")
         self.assertEqual(lines[0], "반\t깊")
-        self.assertLessEqual(len(lines[1]), 201)
+        self.assertLessEqual(len(lines[1]), 202)  # 201자(읽는 쪽이 넘쳤는지 알 한 글자, H6) + 탭
 
     def test_huge_spans_are_capped(self):
         tsv = html_to_tsv('<table><tr><td rowspan="999999" colspan="999999">반</td><td>값</td></tr></table>')

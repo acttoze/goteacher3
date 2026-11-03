@@ -2,7 +2,7 @@
 
 "내일 2블록 4학년 과학실 안전교육 @김민준" → 날짜·기간·블록·장소·대상·참석자·제목.
 제목은 쓴 문장 그대로 두고 날짜 표현과 @참석자만 뺀다(교시는 블록 이름으로 바꿔 넣는다).
-블록·장소·대상은 검색·장소 충돌 경고용. 유형(행사·회의·복무)은 R1 모델에 없어 옮기지 않았다.
+블록·장소·대상은 검색·장소 충돌 경고용. 유형(행사·회의·복무)은 저장하지 않고 인쇄할 때 제목에서 읽는다(event_type).
 """
 import re
 from datetime import date, timedelta
@@ -59,15 +59,23 @@ def _md(today, mo, dd):
     """'10/30' → 날짜. prototype은 2026년 고정 — 오늘보다 반년 넘게 앞이면 다음 해로 본다(12월에 '1/5')."""
     try:
         d = date(today.year, int(mo), int(dd))
-    except ValueError:
+        return d.replace(year=today.year + 1) if (today - d).days > 183 else d
+    except ValueError:  # 없는 날짜, 다음 해에 없는 2/29
         return None
-    if (today - d).days > 183:
-        d = d.replace(year=today.year + 1)
-    return d
 
 
-def parse(raw, today):
-    """TR.parse. 반환: {raw, date, end, s, e, time, target, place, who, title}. 날짜가 없으면 None(부르는 쪽이 오늘로)."""
+def event_type(title):
+    """TR.parse의 유형 판별. 인쇄의 흑백 기호(◆■▲○)에 쓴다."""
+    if re.search("출장|조퇴|외출|연가|병가|공가", title):
+        return "duty"
+    if re.search("회의|협의|간담|위원회", title):
+        return "meet"
+    return "work" if re.search("마감|제출|조사|취합|교육|연수|수업|점검", title) else "event"
+
+
+def parse(raw, today, md=_md):
+    """TR.parse. 반환: {raw, date, end, s, e, time, target, place, who, title}. 날짜가 없으면 None(부르는 쪽이 오늘로).
+    md: '10/30'을 어느 해로 읽을지(표 붙여넣기는 보고 있는 주에서 가까운 해로 바꿔 부른다)."""
     raw = str(raw)
     st = {"text": f" {raw} ", "keep": f" {raw} "}
     out = {"raw": raw, "date": None, "end": None, "s": None, "e": None, "time": None,
@@ -96,8 +104,8 @@ def parse(raw, today):
     w = r"(?:\([월화수목금토일]\))?"
     if not out["date"]:
         take(r"\s(\d{1,2})\s?[/.월]\s?(\d{1,2})일?" + w + r"\s?[~–]\s?(?:(\d{1,2})\s?[/.월]\s?)?(\d{1,2})일?" + w + r"\s",
-             lambda m: set_(date=_md(today, m.group(1), m.group(2)),
-                            end=_md(today, m.group(3) or m.group(1), m.group(4))), True)
+             lambda m: set_(date=md(today, m.group(1), m.group(2)),
+                            end=md(today, m.group(3) or m.group(1), m.group(4))), True)
     if not out["date"]:
         def wk_range(m):
             a, b = JS_DOW.index(m.group(2)), JS_DOW.index(m.group(3))
@@ -105,7 +113,7 @@ def parse(raw, today):
             set_(date=d, end=d + timedelta(b - a))
         take(r"\s(이번\s?주\s?)?([월화수목금])\s?[~–]\s?([월화수목금])(요일)?\s", wk_range, True)
     if not out["date"]:
-        take(r"\s(\d{1,2})\s?[/.월]\s?(\d{1,2})일?\.?\s", lambda m: set_(date=_md(today, m.group(1), m.group(2))), True)
+        take(r"\s(\d{1,2})\s?[/.월]\s?(\d{1,2})일?\.?\s", lambda m: set_(date=md(today, m.group(1), m.group(2))), True)
     if out["end"] and (not out["date"] or out["end"] <= out["date"]):
         out["end"] = None
 

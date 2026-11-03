@@ -80,6 +80,8 @@
   <form class="seg" role="group" aria-label="주 바꾸기" method="get" action="/s/{{ space.token }}/schedule">
     <button name="w" value="{{ prev_w }}" aria-label="앞 주">지난주</button><button name="w" value="{{ this_w }}" aria-pressed="{% if is_this %}true{% else %}false{% endif %}">이번 주</button><button name="w" value="{{ next_w }}" aria-label="뒤 주">다음 주</button>
   </form>
+  {% if space.is_school %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ w }}">표 붙여넣기</a>
+  <a class="btn sec" href="/s/{{ space.token }}/schedule/print?view=week&amp;d={{ w }}">인쇄</a>{% endif %}
 </div>
 
 <form class="add" id="addForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">
