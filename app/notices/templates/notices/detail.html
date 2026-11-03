@@ -1,7 +1,7 @@
-{% extends "shell.html" %}
+{% extends "shell.html" %}{% load static %}
 {% block title %}{{ title }} · 고티처{% endblock %}
 {% block ptitle %}게시판{% endblock %}
-{% block head %}<style>
+{% block head %}{% if send_seen %}<script src="{% static 'js/notice_seen.js' %}" defer></script>{% endif %}<style>
   /* prototype .diff. 바뀐 항목은 옛 값을 지우고 새 값을 굵게 */
   .diff { padding: 16px 20px; border-radius: var(--radius-card); background: var(--accent-soft); overflow-wrap: anywhere; }
   .diff h2 { font-size: var(--fs-body); font-weight: 700; margin: 0 0 10px; }
@@ -23,14 +23,21 @@
   .hist a:hover { background: var(--surface); }
   .hist a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
   .hist .num { font-weight: 700; }
+  .ackn { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+  .ackn b { font-size: 24px; font-weight: 700; }
+  .rechk { margin: 14px 0 6px; font-size: 15px; }
+  .miss { display: flex; flex-wrap: wrap; gap: 4px 12px; max-height: 148px; overflow-y: auto; margin: 0 0 12px; padding: 0; list-style: none; font-size: 15px; }
+  .miss span { color: var(--muted); }
 </style>{% endblock %}
 {% block main %}
 <p class="small muted" style="margin-bottom:8px"><a class="tlink" href="/s/{{ space.token }}/board" style="font-weight:600;color:var(--muted)">게시판 · 공지</a> /</p>
 <div class="title">
   <div class="grow">
-    <h1 class="ntitle">{{ title }} <span class="pill acc" style="vertical-align:middle">v{{ ver.v }}</span></h1>
+    <h1 class="ntitle">{{ title }} <span class="pill acc" style="vertical-align:middle">v{{ ver.v }}</span>{% if n.must %} <span class="pill" style="vertical-align:middle">확인 필수</span>{% endif %}</h1>
     <p class="sub">{% if n.group %}{{ n.get_group_display }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }} · 받는 곳 {{ audience }}</p>
   </div>
+  <button class="btn sec" type="button" data-text="{{ note_text }}" data-done="쪽지용 링크를 복사했어요.">쪽지용 링크 복사</button>
+  {% if needs_ack %}{% if acked %}<span class="pill pos">확인함</span>{% else %}<form method="post" action="/s/{{ space.token }}/board/{{ n.key }}/ack">{% csrf_token %}<button class="btn pri" type="submit">확인했어요</button></form>{% endif %}{% endif %}
   {% if can_edit %}<a class="btn sec" href="/s/{{ space.token }}/board/{{ n.key }}/edit">고치기</a>
   <button class="btn ghost" type="button" data-open="#delDlg">지우기</button>
   {# .main.narrow > * 의 max-width에 걸리지 않게 .title 안에 둔다 #}
@@ -43,11 +50,13 @@
   </form>
 </div>{% endif %}
 </div>
+{% if send_seen %}<form id="seenForm" method="post" action="/s/{{ space.token }}/board/{{ n.key }}/seen" hidden>{% csrf_token %}<input type="hidden" name="v" value="{{ ver.v }}"></form>{% endif %}
+{% if ver.erased %}<p class="notice" role="status" style="margin-bottom:20px">이 판의 내용은 관리자가 지웠어요.</p>{% endif %}
 {% if not is_latest %}<p class="notice" role="status" style="margin-bottom:20px">예전 판(v{{ ver.v }})을 보고 있어요. <a class="tlink acc" href="/s/{{ space.token }}/board/{{ n.key }}/">최신 판 v{{ latest_v }} 보기</a></p>{% endif %}
 <div class="grid">
   <div class="s8 stack-y" style="min-width:0">
     {% if prev %}<section class="diff">
-      <h2>v{{ prev.v }} → v{{ ver.v }}에서 바뀐 부분<span>{{ ver.by }} · {{ ver.at|date:"n/j H:i" }}</span></h2>
+      <h2>v{{ prev.v }} → v{{ ver.v }}에서 바뀐 부분<span>{{ ver.by }} · {{ ver.at|date:"n/j H:i" }}</span>{% if ver.real %} <span class="pill warn">실질 변경</span>{% endif %}</h2>
       {% if changes %}<dl class="kv">{% for c in changes %}<dt>{{ c.name }}</dt><dd>{% if c.old %}<del>{{ c.old }}</del>{% endif %}{% if c.old and c.new %} → {% endif %}{% if c.new %}<ins>{{ c.new }}</ins>{% endif %}</dd>{% endfor %}</dl>{% endif %}
       {% if body_changed %}<p style="margin:{% if changes %}10px{% else %}0{% endif %} 0 0"><span class="pill acc">본문 바뀜</span></p>
       {% if body_diff %}<ul class="lines">{% for l in body_diff %}<li>{% if l.op == "del" %}<del>{{ l.text }}</del>{% else %}<ins>{{ l.text }}</ins>{% endif %}</li>{% endfor %}</ul>{% endif %}{% endif %}
@@ -58,12 +67,34 @@
     </div></section>
   </div>
   <aside class="s4 stack-y" style="min-width:0">
+    {% if status %}<section class="card"><div class="card-h"><h2>확인 현황</h2><span class="r">쓴 사람·관리자만 봐요</span></div><div class="card-b">
+      <div class="ackn"><b class="num">{{ status.pct }}%</b><span class="num">{{ status.seen }}/{{ status.total }}명</span></div>
+      <div class="track{% if status.pct == 100 %} done{% endif %}"><i style="width:{{ status.pct }}%"></i></div>
+      {% if n.must %}<p class="small muted" style="margin:8px 0 0">'확인했어요'를 누른 분만 세요. 열어 본 분 {{ status.opened }}명.</p>{% endif %}
+      {% if status.recheck %}<p class="rechk">v{{ status.recheck.v }} 바뀐 부분 확인 <b class="num">{{ status.recheck.n }}/{{ status.recheck.m }}</b></p>
+      <div class="track thin"><i style="width:{{ status.recheck.pct }}%"></i></div>{% endif %}
+      {% if status.missing %}<p class="small muted" style="margin:14px 0 6px">아직 안 본 선생님 {{ status.missing|length }}명</p>
+      <ul class="miss">{% for m in status.missing %}<li>{{ m.name }} <span>{{ m.cls }}</span></li>{% endfor %}</ul>
+      <button class="btn sec sm" type="button" data-text="{{ remind_text }}" data-done="안 본 {{ status.missing|length }}명께 보낼 문구를 복사했어요.">안 본 분께 보낼 문구 복사</button>
+      {% elif status.total %}<p class="small muted" style="margin:14px 0 0">모두 봤어요.</p>{% endif %}
+    </div></section>
+    {% else %}<section class="card"><div class="card-b" style="padding-top:var(--pad)">
+      {% if needs_ack %}<b>{% if acked %}확인했어요{% else %}다 읽고 위의 '확인했어요'를 눌러 주세요{% endif %}</b>
+      {% else %}<b>따로 확인할 것은 없어요</b>{% endif %}
+      <p class="small muted" style="margin:6px 0 0">누가 봤는지는 쓴 선생님과 관리자만 알 수 있어요.</p>
+    </div></section>{% endif %}
     <section class="card"><div class="card-h"><h2>{% if is_latest %}첨부{% else %}그때 첨부{% endif %}</h2></div><div class="card-b">
       {% if attach %}<ul class="files">{% for a in attach %}<li>{% if a.file %}<div class="nm">{{ a.name }}<span>{{ a.file.stored|filesizeformat }}</span></div><a class="btn sec sm" href="/s/{{ space.token }}/board/{{ n.key }}/f/{{ a.file.key }}" download>받기</a>{% else %}<div class="nm">{{ a.name }}<span>지금은 없음</span></div>{% endif %}</li>{% endfor %}</ul>
       {% else %}<p class="muted">첨부가 없어요.</p>{% endif %}
     </div></section>
     <section class="card"><div class="card-h"><h2>판 기록</h2></div><div class="card-b">
-      <ul class="hist">{% for h in history %}<li><a href="/s/{{ space.token }}/board/{{ n.key }}/?v={{ h.v }}"{% if h.v == ver.v %} aria-current="true"{% endif %}><span class="num">v{{ h.v }}</span><span>{{ h.by }} · {{ h.at|date:"n/j H:i" }}</span></a></li>{% endfor %}</ul>
+      <ul class="hist">{% for h in history %}<li><a href="/s/{{ space.token }}/board/{{ n.key }}/?v={{ h.v }}"{% if h.v == ver.v %} aria-current="true"{% endif %}><span class="num">v{{ h.v }}</span><span>{{ h.by }} · {{ h.at|date:"n/j H:i" }}{% if h.erased %} · 관리자가 지움{% endif %}</span></a></li>{% endfor %}</ul>
+      {% if me.is_manager and not is_latest and not ver.erased %}<button class="btn ghost sm" type="button" data-open="#eraseDlg" style="margin-top:8px">이 판 내용 지우기</button>
+      <div class="scrim" id="eraseDlg" hidden><form class="dialog" role="dialog" aria-modal="true" aria-labelledby="eraseDlgH" method="post" action="/s/{{ space.token }}/board/{{ n.key }}/v/{{ ver.v }}/erase">{% csrf_token %}
+        <div class="dh"><h2 id="eraseDlgH">v{{ ver.v }} 내용을 지울까요?</h2></div>
+        <div class="db"><p>실수로 쓴 개인정보를 없앨 때 써요. 이 판의 제목·항목·본문과 이 공지 알림의 바뀐 값 문구가 지워지고 되돌릴 수 없어요. 백업에는 7일 동안 남아요.</p></div>
+        <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">지우기</button></div>
+      </form></div>{% endif %}
     </div></section>
   </aside>
 </div>

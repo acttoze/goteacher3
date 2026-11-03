@@ -6,6 +6,8 @@
   .nrow:hover .t { color: var(--accent); }
   .nrow .head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
   .nto { flex: none; max-width: 220px; font-size: 15px; color: var(--muted); text-align: right; }
+  .nstat { flex: none; width: 170px; font-size: 15px; color: var(--muted); }
+  .nstat .track { margin-bottom: 4px; }
   .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
 </style>{% endblock %}
 {% block main %}
@@ -19,9 +21,10 @@
   <ul class="list">{% for n in notices %}
     <li>
       <a class="nrow" href="/s/{{ space.token }}/board/{{ n.key }}/">
-        <span class="head"><b class="t">{{ n.title }}</b>{% if n.v > 1 %}<span class="pill acc">v{{ n.v }} 바뀜</span>{% endif %}</span>
+        <span class="head"><b class="t">{{ n.title }}</b>{% if n.v > 1 %}<span class="pill acc">v{{ n.v }} 바뀜</span>{% endif %}{% if n.must %}<span class="pill">확인 필수</span>{% endif %}{% if n.todo %}<span class="pill warn">아직 안 봄</span>{% endif %}</span>
         <span class="m" style="display:block">{% if n.group %}{{ n.get_group_display }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }}</span>
       </a>
+      {% if n.stat %}<span class="nstat"><span class="track thin" style="display:block"><i style="width:{{ n.stat.pct }}%"></i></span>확인 {{ n.stat.pct }}%{% if n.stat.recheck %} · 재확인 {{ n.stat.recheck.pct }}%{% endif %}</span>{% endif %}
       <span class="nto">{{ n.audience_text }}</span>
     </li>{% endfor %}
   </ul>

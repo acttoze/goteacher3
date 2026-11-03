@@ -1,11 +1,11 @@
 {# 🔔 목록(design/assets/shell.js 알림 묶음). 누르면 읽음 + 그 화면으로(POST). #}
 <div class="ph"><b>알림</b><span>안 읽은 {{ unread_n }}건</span></div>
 {% for n in items %}
-<form method="post" action="/s/{{ space.token }}/bell/{{ n.key }}">{% csrf_token %}<button class="pi tlink" type="submit" style="width:100%;text-align:left;font-weight:400"><span class="pill{% if not n.read %} acc{% endif %}">{% if n.row_id %}마감{% elif n.kind == "join" %}입장{% else %}기기{% endif %}</span><span{% if n.read %} class="muted"{% endif %}>{{ n.text }}<br><span class="small muted">{{ n.get_kind_display }}{% if n.row_id %} 리마인드{% endif %} · {{ n.created_at|date:"n/j H:i" }}{% if n.read %} · 읽음{% endif %}</span></span></button></form>
+<form method="post" action="/s/{{ space.token }}/bell/{{ n.key }}">{% csrf_token %}<button class="pi tlink" type="submit" style="width:100%;text-align:left;font-weight:400"><span class="pill{% if not n.read %} acc{% endif %}">{% if n.row_id %}마감{% elif n.notice_id %}공지{% elif n.kind == "join" %}입장{% else %}기기{% endif %}</span><span{% if n.read %} class="muted"{% endif %}>{{ n.text }}<br><span class="small muted">{{ n.get_kind_display }}{% if n.row_id %} 리마인드{% endif %} · {{ n.created_at|date:"n/j H:i" }}{% if n.read %} · 읽음{% endif %}</span></span></button></form>
 {% empty %}
 <p class="pi muted">아직 알림이 없어요.</p>
 {% endfor %}
-<div class="pf">마감 전날과 당일 08:20에 아직 안 낸 모으기를 여기로 알려 드려요. 브라우저 알림은 08:20·12:20·방과후(14:40)에 묶어서만 띄우고, 수업 중에는 띄우지 않아요.</div>
+<div class="pf">마감 전날과 당일 08:20에 아직 안 낸 모으기를 여기로 알려 드려요. 확인 필수 공지와 내가 본 공지의 중요한 변경도 여기로 와요. 브라우저 알림은 08:20·12:20·방과후(14:40)에 묶어서만 띄우고, 수업 중에는 띄우지 않아요.</div>
 {% if vapid %}<div class="pf pushbox" id="pushBox" data-vapid="{{ vapid }}" data-on="/s/{{ space.token }}/push" data-off="/s/{{ space.token }}/push/off" data-mine="/s/{{ space.token }}/push/mine">
 <button class="btn sec" type="button" id="pushBtn" data-push-btn disabled>이 PC에서 알림 받기</button> <span id="pushMsg" data-push-msg role="status"></span>
 </div>{% endif %}

@@ -12,9 +12,9 @@ from django.db.models import Q
 from spaces.models import Member, Space, SpaceQuerySet, new_token
 
 ALL = "all"
-TITLE, AUDIENCE, FILES = "제목", "받는 곳", "첨부"
+TITLE, AUDIENCE, FILES, MUST = "제목", "받는 곳", "첨부", "확인 필수"
 ITEMS = ("일시", "장소", "대상", "준비물")
-ORDER = (TITLE, *ITEMS, AUDIENCE, FILES)
+ORDER = (TITLE, *ITEMS, AUDIENCE, FILES, MUST)  # MUST는 켜졌을 때만 fields에 들어간다(켬·끔도 판 기록)
 FILE_LIST = "첨부 목록"  # fields 안 [{key, name}]: 같은 이름으로 바꾼 것도 알아보고, 옛 판의 첨부를 그린다. key는 화면에 안 쓴다
 
 
@@ -75,6 +75,8 @@ class NoticeVersion(models.Model):
     fields = models.JSONField("그 판의 제목·항목·받는 곳·첨부 이름", default=dict)
     body = models.TextField("본문", blank=True)
     by = models.CharField("고친 사람", max_length=40)
+    real = models.BooleanField("실질 변경", default=False)
+    erased = models.BooleanField("관리자가 내용을 지움", default=False)
     at = models.DateTimeField(auto_now_add=True)
 
     objects = NoticeVersionQuerySet.as_manager()
@@ -84,6 +86,29 @@ class NoticeVersion(models.Model):
 
     def __str__(self):
         return f"v{self.v}"
+
+
+class NoticeSeenQuerySet(SpaceQuerySet):
+    space_lookup = "notice__space"
+
+
+class NoticeSeen(models.Model):
+    """봄 기록(I2): 회원이 그 판을 2초 보거나 끝까지 내렸다. GET으로는 생기지 않는다(notices.views.seen).
+    acked: 확인 필수 공지에서 '확인했어요'를 눌렀다. 어느 판에서든 한 번 누르면 확인한 것으로 친다."""
+
+    notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name="seen")
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="+")
+    v = models.PositiveIntegerField("본 판")
+    acked = models.BooleanField("확인했어요 누름", default=False)
+    at = models.DateTimeField(auto_now_add=True)
+
+    objects = NoticeSeenQuerySet.as_manager()
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["notice", "member", "v"], name="uniq_notice_seen")]
+
+    def __str__(self):
+        return f"{self.notice_id}:{self.member_id} v{self.v}"
 
 
 def _file_path(instance, filename):

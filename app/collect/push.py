@@ -3,7 +3,7 @@
 - 서버 cron이 5분마다 `manage.py push_digest`(remind 다음)를 부른다. 묶음 시각 이후 첫 실행에 한 번만 보낸다.
 - 묶음 창(시작~끝) 밖은 수업 중·퇴근 뒤라 보내지 않는다. 창 끝을 TTL로 줘서 꺼진 PC에 늦게 뜨지도 않게 한다.
   시각은 design 블록(1블록 08:40~, 2블록 끝 12:20, 방과후 14:40~). 주말·NEIS 휴업일·방학은 건너뛴다.
-- 회원별 한 건: 안 읽은 🔔 가운데 아직 푸시 안 한 것. 본문은 모으기 제목·건수만(제출 값·이름 없음).
+- 회원별 한 건: 안 읽은 🔔 가운데 아직 푸시 안 한 것. 본문은 모으기·공지 제목과 건수만(제출 값·이름 없음).
 - 설정 > 알림에서 회원이 끈 묶음(Member.push_off)은 그 회원에게 보내지 않는다. 🔔은 그대로 쌓이고 pushed도 그대로라
   그 시각까지 쌓인 것은 다음 켜진 묶음(다음 날 포함)에 함께 들어간다.
 - 구독 저장·끄기는 이 PC 브라우저가 누를 때만(gt.js). endpoint는 알려진 푸시 서비스 주소만 받는다(서버가 그 주소로 요청하므로).
@@ -26,6 +26,7 @@ from django.views.decorators.http import require_POST
 from pywebpush import WebPushException, webpush
 
 from accounts.models import DEVICE_COOKIE, DeviceToken, hash_token
+from notices.models import Notice
 from spaces import neis
 
 from .models import Notification, PushRound, PushSubscription
@@ -87,10 +88,14 @@ def digest(now=None):
         if off[school.pk]:
             continue  # 쌓인 것은 다음 등교일 묶음으로
         notes = list(Notification.objects.in_space(space).filter(member_id=member_id, read=False, pushed=False)
-                     .select_related("row__collection").order_by("created_at", "id"))
+                     .select_related("row__collection", "notice").order_by("created_at", "id"))
+        # 공지 🔔은 보내는 지금 볼 수 있을 때만(그새 대상이 줄거나 그룹을 옮겼으면 바뀐 제목이 나가지 않게)
+        ids = {n.notice_id for n in notes if n.notice_id}
+        shown = set(Notice.objects.in_space(space).visible_to(group[0].member).filter(pk__in=ids).values_list("pk", flat=True)) if ids else ()
+        notes = [n for n in notes if n.notice_id is None or n.notice_id in shown]
         if not notes:
             continue
-        titles = list(dict.fromkeys(n.row.collection.title[:60] if n.row else "새 기기 알림" for n in notes))
+        titles = list(dict.fromkeys(_title(n) for n in notes))
         body = f"안 읽은 알림 {len(notes)}건 · {titles[0]}" + (f" 외 {len(titles) - 1}개" if len(titles) > 1 else "")
         data = json.dumps({"title": f"고티처 · {slot[3]}", "body": body,
                            "url": f"{settings.SITE_URL}/s/{space.token}/today"}, ensure_ascii=False)
@@ -99,6 +104,12 @@ def digest(now=None):
         Notification.objects.filter(pk__in=[n.pk for n in notes]).update(pushed=True)
         sent += 1
     return sent
+
+
+def _title(note):
+    if note.notice:
+        return note.notice.title[:60]
+    return note.row.collection.title[:60] if note.row else "새 기기 알림"
 
 
 def _send(sub, data, ttl):

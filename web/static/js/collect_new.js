@@ -89,7 +89,7 @@
     fetch(drop.dataset.upload, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } })
       .then(function (r) { return r.text().then(function (h) { return { status: r.status, h: h }; }); })
       .then(function (r) {
-        if (r.status === 400 || r.status === 429) { say(new DOMParser().parseFromString(r.h, 'text/html').body.textContent.trim()); return; }  // 거부 문구(hwpfiles/_reject.html)는 글자로만
+        if (r.status === 400 || r.status === 413 || r.status === 429) { say(new DOMParser().parseFromString(r.h, 'text/html').body.textContent.trim()); return; }  // 거부 문구(hwpfiles/_reject.html)는 글자로만
         if (r.status !== 200) { say('올리지 못했어요. 화면을 새로 고친 뒤 다시 올려 주세요.'); return; }
         msg.textContent = '';
         box.innerHTML = r.h;

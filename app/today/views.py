@@ -2,7 +2,7 @@
 
 - 오늘 일과: 블록(prototype 기본 시간표) × 동학년 일정, NEIS 학사일정·점심(메뉴·알레르기·칼로리), 시간 미정.
 - 동학년 바뀐 것: 어제부터 올리거나 바꾼 일정(오늘 이후 것만), 누가 무엇을 바꿨는지.
-- 내가 낼 것·내가 걷는 것: collect.lists의 판정을 그대로 쓴다.
+- 내가 낼 것·내가 걷는 것: collect.lists의 판정을 그대로 쓴다. 학교 공간은 확인 필수 안 본 공지도 함께(notices.seen, I2).
 - 학교 공간(H5): 일정 대상(models.scope), 고치기·지우기는 쓴 사람과 관리자만, 나에게 온 것 / 학교 전체 토글.
 - 한 줄 입력은 서버가 파싱한다(today.parse). 미리보기(칩·장소 충돌)도 서버가 그려 htmx로 바꾼다.
 조회는 모두 in_space()를 거친다. 일정 주소는 key만 쓴다.
@@ -23,6 +23,8 @@ from collect.lists import _colors, _past, _sent_item, _todo_items, _urgent
 from collect.models import Collection
 from collect.submit import _head, unit_rows
 from collect.views import _due_text
+from notices import seen as notice_seen
+from notices.models import Notice
 from spaces import neis
 from spaces.models import Member
 from spaces.views import _josa, _space_ctx
@@ -126,7 +128,15 @@ def _feed(space, me, now, colors):
                     "ro": _josa(changes[-1][2], "으로", "로") if changes else "",
                     "eul": _josa(e.title, "을", "를"),
                     "when_ev": _dates(e.date, e.end) + " " + (slot_text(e.slot, e.slot_end) if e.slot else "시간 미정"),
-                    "at": f"{day} {at:%H:%M}", "new": (now - e.updated_at) < timedelta(minutes=1)})
+                    "at": f"{day} {at:%H:%M}", "new": (now - e.updated_at) < timedelta(minutes=1), "ts": e.updated_at})
+    if space.is_school:  # 실질 변경된 공지(대상이고 앞 판을 본 사람에게만)
+        for x in notice_seen.change_feed(space, me, since):
+            at = timezone.localtime(x["ver"].at)
+            day = "오늘" if at.date() == today else "어제" if at.date() == today - timedelta(days=1) else _d(at.date())
+            n = x["ver"].notice
+            out.append({"notice": n, "who": x["ver"].by, "color": "var(--ink)", "ink": False, "summary": x["summary"],
+                        "eul": _josa(n.title, "을", "를"), "at": f"{day} {at:%H:%M}", "new": False, "ts": x["ver"].at})
+        out = sorted(out, key=lambda f: f["ts"], reverse=True)[:6]
     return out
 
 
@@ -177,6 +187,15 @@ def _school_wide(request, now):
     return out
 
 
+def _notices_wide(request):
+    """학교 전체 토글의 확인 필수 공지: 내게 보이는 것만 제목·쓴 사람·수정 시각. 비율은 쓴 사람·관리자에게만."""
+    me = request.member
+    rows = list(Notice.objects.in_space(request.space).visible_to(me).filter(must=True).order_by("-updated_at", "-pk")[:10])
+    stats = notice_seen.statuses(request.space, [n for n in rows if notice_seen.can_see_status(n, me)])
+    acked = notice_seen.acked_ids(me, rows)
+    return [{"n": n, "stat": stats.get(n.pk), "acked": n.pk in acked} for n in rows]
+
+
 def _page_ctx(request):
     now = timezone.now()
     local = timezone.localtime(now)
@@ -186,8 +205,11 @@ def _page_ctx(request):
             .select_related("space__school", "created_by").order_by("-created_at"))
     sent = [_sent_item(c, now, colors) for c in [c for c in mine if not _past(c, now)][:3]]
     wide = request.space.is_school and request.GET.get("show") == "school"
+    must = list(notice_seen.must_todo(request.space, request.member)) if request.space.is_school else []
     return _space_ctx(request, page="today", quick=True, todo=todo[:4], n_todo=len(todo),
+                      must_list=must[:4], n_must=len(must), n_mine=len(todo) + len(must),
                       show_school=wide, school_wide=_school_wide(request, now) if wide else [],
+                      notices_wide=_notices_wide(request) if wide else [],
                       urgent=next((x for x in todo if x["urgent"]), None), sent=sent,
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",
                       weekend=local.weekday() >= 5, first=SLOTS[0], **_live_ctx(request, now))

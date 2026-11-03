@@ -153,6 +153,7 @@ class Notification(models.Model):
     text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
     SEAT(G3): 기기가 붙은 손님 자리로 다른 브라우저가 들어오면 만든 사람에게. 줄 없음, link는 동학년 화면.
     JOIN(H2): 학교 공간에 새 회원이 들어오면 관리자들에게. 🔔만(pushed=True로 웹 푸시 묶음에서 뺀다).
+    NOTICE·CHANGE(I2): 확인 필수 공지 / 실질 변경. notice가 있고 공지가 지워지면 함께 지운다. 확인 필수 알림은 공지·회원당 하나.
     """
 
     class Kind(models.TextChoices):
@@ -160,10 +161,13 @@ class Notification(models.Model):
         D0 = "d0", "마감 당일"
         SEAT = "seat", "새 기기"
         JOIN = "join", "새 선생님"
+        NOTICE = "notice", "확인 필수 공지"
+        CHANGE = "change", "공지 바뀜"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")
     row = models.ForeignKey(Row, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
+    notice = models.ForeignKey("notices.Notice", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     kind = models.CharField("종류", max_length=10, choices=Kind.choices)
     day = models.DateField("보낸 날")
     text = models.CharField("문구", max_length=300)
@@ -179,6 +183,7 @@ class Notification(models.Model):
         ordering = ["-created_at", "-id"]
         constraints = [
             models.UniqueConstraint(fields=["row", "kind", "day"], name="uniq_notice_row_kind_day"),
+            models.UniqueConstraint(fields=["notice", "member"], condition=models.Q(kind="notice"), name="uniq_must_bell"),
         ]
 
 

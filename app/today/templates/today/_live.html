@@ -36,7 +36,7 @@
   <section class="card s4" aria-labelledby="feedH">
     <div class="card-h"><h2 id="feedH">{% if space.is_school %}나와 관련된{% else %}{{ space_word }}{% endif %} 바뀐 것</h2><span class="r">어제부터</span></div>
     <ul class="list feed" id="feed">
-      {% for f in feed %}<li class="{% if f.new %}new arrive{% endif %}"><span class="av{% if f.ink %} ink-t{% endif %}" style="background:{{ f.color }}" aria-hidden="true">{{ f.who|slice:":1" }}</span><div class="x"><b>{{ f.who }}</b> 선생님이 {{ f.e.title }}{% if f.changes %} {% for w, a, b in f.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}{{ f.ro }} 바꿨어요{% else %}{{ f.eul }} 올렸어요 <span class="muted">· {{ f.when_ev }}</span>{% endif %}<span class="when">{{ f.at }}</span></div></li>
+      {% for f in feed %}<li class="{% if f.new %}new arrive{% endif %}"><span class="av{% if f.ink %} ink-t{% endif %}" style="background:{{ f.color }}" aria-hidden="true">{{ f.who|slice:":1" }}</span><div class="x"><b>{{ f.who }}</b> 선생님이 {% if f.notice %}공지 <a class="tlink" href="/s/{{ space.token }}/board/{{ f.notice.key }}/">{{ f.notice.title }}</a>{{ f.eul }} 바꿨어요 <span class="muted">· {{ f.summary }}</span>{% else %}{{ f.e.title }}{% if f.changes %} {% for w, a, b in f.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}{{ f.ro }} 바꿨어요{% else %}{{ f.eul }} 올렸어요 <span class="muted">· {{ f.when_ev }}</span>{% endif %}{% endif %}<span class="when">{{ f.at }}</span></div></li>
       {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 {% if space.is_school %}고른 분들에게{% else %}{{ space_word }} 모두에게{% endif %} 보여요.</p></li>{% endfor %}
     </ul>
   </section>

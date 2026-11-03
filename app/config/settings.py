@@ -76,6 +76,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "config.bodylimit.BodyLimitMiddleware",  # 본문을 읽는 미들웨어(CSRF)보다 앞에서 선언 크기를 본다
     "django.middleware.security.SecurityMiddleware",
     "config.csp.CspMiddleware",  # 모든 응답 공통 CSP(화면이 제 것을 붙였으면 그대로)
     "whitenoise.middleware.WhiteNoiseMiddleware",  # DEBUG=0에서 /static/ 서빙(Traefik 뒤 gunicorn)
@@ -139,6 +140,7 @@ FILE_UPLOAD_PERMISSIONS = 0o600
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 # 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일이 아닌 본문은 Django 기본(2.5MB) 그대로,
 # 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다. 선언 크기 초과는 뷰가 본문 읽기 전에 거부.
+MAX_REQUEST_BYTES = 101 * 1024 * 1024  # 요청 본문 전역 상한(공지 첨부 100MB + 머리 몫). config.bodylimit
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
 HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
