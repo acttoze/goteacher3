@@ -9,6 +9,7 @@ from django.db.models.functions import Replace
 
 from accounts.models import is_guest
 from collect.models import Notification
+from today.models import ALL, Event
 
 from .models import Member, School, Space, is_last_manager
 
@@ -41,6 +42,7 @@ def _one_seat_per_user(school, hub):
 def _merge_one(old, hub):
     """옛 공간의 모든 것을 학교 공간으로. 이미 비었으면 아무것도 바뀌지 않는다."""
     Member.objects.filter(space=old, group="").update(group=f"g{old.grade}")
+    Event.objects.filter(space=old, scope=ALL).update(scope=f"g{old.grade}")  # 옮기기 전에: 옛 일정은 그 학년에게만(H5)
     for fk in _fks_to(Space):
         if fk.model is not Space:
             fk.model._base_manager.filter(**{fk.name: old}).update(**{fk.name: hub})

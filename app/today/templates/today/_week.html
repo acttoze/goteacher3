@@ -15,21 +15,22 @@
     </div>
     {% for x in dialogs %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>
-      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#week" hx-swap="outerHTML">
+      {% if x.can_write %}<form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#week" hx-swap="outerHTML">
         {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="w" value="{{ w }}">
         <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
         <div class="db">
-          <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.by.name|default:"알 수 없음" }}</p>
+          <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.last_by.name|default:"알 수 없음" }}</p>
           {% if x.changes %}<p class="muted">바뀐 부분: {% for w, a, b in x.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
           {% if x.conf %}<p class="notice" role="alert">{{ x.conf }}</p>{% endif %}
           <div class="grid" style="gap:12px">
             <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
             <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">시간 미정</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
             <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
+            {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
           </div>
         </div>
         <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-target="#week" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit">저장</button></div>
-      </form>
+      </form>{% else %}{% include "today/_ev_read.html" %}{% endif %}
     </div>
     {% endfor %}
   </section>

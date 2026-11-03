@@ -351,7 +351,7 @@ class ListTests(SchoolBase):
 
     def test_member_of_other_grade_does_not_see_title_or_link_anywhere(self):
         c = self.login(self.t51)
-        for path in ("/c/", "/c/?tab=todo", "/c/?tab=past", "/c/?tab=all", "/today"):
+        for path in ("/c/", "/c/?tab=todo", "/c/?tab=past", "/c/?tab=all", "/today", "/schedule"):
             r = c.get(self.base + path)
             self.assertEqual(r.status_code, 200)
             self.assertNotContains(r, "사학년비밀조사")

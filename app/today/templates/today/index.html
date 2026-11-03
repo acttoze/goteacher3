@@ -63,6 +63,25 @@
   .feed .when { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
   .feed li.new .when { color: var(--accent); font-weight: 600; }
 
+  /* 공백 없는 긴 제목이 카드를 넘지 않게 */
+  h1, .ev, .todo .t, .sent .t, .feed .x, .wide .t, .dh h2, .qpop .ph { overflow-wrap: anywhere; min-width: 0; }
+  .todo .grow, .sent > div, .feed .x { min-width: 0; }
+  .sent .t, .todo .t a, .wide a { max-width: 100%; }
+
+  /* 볼 범위 토글·대상 고르기(학교 공간에서만 쓴다) */
+  .title .seg button { height: 40px; }
+  .quick.scoped { display: flex; gap: 8px; flex-basis: 620px; }
+  .quick.scoped label:first-of-type { flex: 1; min-width: 0; }
+  .quick.scoped select { width: 170px; height: 42px; flex: none; }
+  .wide { padding: 0 var(--pad) var(--pad); }
+  .wide li { display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 80px; gap: 16px; align-items: center; min-height: 48px; padding: 8px 0; }
+  .wide li.none { display: block; border: 0; }
+  .wide a { text-decoration: none; display: inline-block; padding: 6px 0; }
+  .wide a:hover { color: var(--accent); }
+  .wide .due, .wide .cnt { font-size: 15px; white-space: nowrap; }
+  .wide .due.urgent { color: var(--accent-ink); font-weight: 600; }
+  .wide .cnt { font-weight: 700; text-align: right; }
+
   /* 한 줄 입력 미리보기(prototype qpop) */
   .qpop { top: 48px; left: 0; right: 0; padding: 10px 12px; }
   .qpop .ph { padding: 4px 0 8px; }
@@ -75,11 +94,12 @@
 </style>
 {% endblock %}
 {% block quick %}
-<form class="quick" id="quickForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#live" hx-swap="outerHTML" autocomplete="off">
+<form class="quick{% if space.is_school %} scoped{% endif %}" id="quickForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#live" hx-swap="outerHTML" autocomplete="off">
   {% csrf_token %}
   <label><span class="sr">한 줄로 일정 추가</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
   <input id="quick" name="line" maxlength="200" placeholder="한 줄로 일정 추가 (예: 내일 2블록 과학실 안전교육)" aria-describedby="qpop"
     hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms, focus" hx-target="#qpop" hx-swap="outerHTML"></label>
+  {% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}
   <div class="pop qpop" id="qpop" hidden></div>
 </form>
 {% endblock %}
@@ -89,12 +109,22 @@
     <h1 id="finding">{% if urgent %}{{ urgent.c.title }}, <span class="due num">{{ urgent.due }}</span> 마감이에요{% elif n_todo %}오늘 마감은 다 냈어요. 남은 건 {{ n_todo }}건이에요{% else %}오늘 낼 것은 모두 끝났어요{% endif %}</h1>
     <p class="sub">{{ date_label }} · {% if now_slot %}지금 <b>{{ now_slot.label }} {{ now_slot.from }}~{% if now_slot.k != "pm" %}{{ now_slot.to }}{% endif %}</b>{% elif weekend %}주말이에요{% else %}{{ first.label }} {{ first.from }} 시작 전{% endif %} · 남은 내 일 <b class="num">{{ n_todo }}건</b></p>
   </div>
+  {% if space.is_school %}<form class="seg" role="group" aria-label="볼 범위" method="get" action="/s/{{ space.token }}/today"><button name="show" value="me" aria-pressed="{% if show_school %}false{% else %}true{% endif %}">나에게 온 것</button><button name="show" value="school" aria-pressed="{% if show_school %}true{% else %}false{% endif %}">학교 전체</button></form>{% endif %}
   {% if urgent %}<a class="btn pri" href="/c/{{ urgent.c.link_token }}/u/{{ urgent.row.key }}">{{ urgent.c.title|truncatechars:16 }} 내기</a>{% else %}<a class="btn pri" aria-disabled="true">오늘 마감 없음</a>{% endif %}
 </div>
 
+{% if show_school %}
+<section class="card" aria-labelledby="wideH" style="margin-bottom:var(--gap)">
+  <div class="card-h"><h2 id="wideH">학교 전체 · 진행 중인 모으기</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
+  <ul class="list wide">
+    {% for x in school_wide %}<li><div class="t">{% if x.href %}<a href="{{ x.href }}">{{ x.title }}</a>{% else %}{{ x.title }}{% endif %}</div><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div><span class="cnt num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</span></li>
+    {% empty %}<li class="none"><p class="empty">진행 중인 모으기가 없어요.</p></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% include "today/_live.html" %}
 
-<div class="grid stretch" style="margin-top:var(--gap)">
+{% if not show_school %}<div class="grid stretch" style="margin-top:var(--gap)">
   <section class="card s7" aria-labelledby="todoH">
     <div class="card-h"><h2 id="todoH">내가 낼 것</h2><span class="n num">{{ n_todo }}</span><span class="r">마감순 · <a class="tlink" href="/s/{{ space.token }}/c/?tab=todo">모두 보기</a></span></div>
     <ul class="list todo">
@@ -110,5 +140,5 @@
       {% empty %}<p class="empty">걷는 중인 모으기가 없어요. <a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p>{% endfor %}
     </div>
   </section>
-</div>
+</div>{% endif %}
 {% endblock %}

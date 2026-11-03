@@ -6,7 +6,7 @@
 <style>
   /* design/schedule.html — 이번 주 일정 중 내가 챙길 것과 바뀐 것은? 주간판 12열, 아래 줄 7/5. */
   .title .seg button { height: 40px; }
-  .add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-bottom: 12px; }
+  .add { display: grid; grid-auto-flow: column; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 12px; }
   .add .input { height: 52px; font-size: 18px; padding-left: 46px; border-radius: 999px; }
   .add .search svg { left: 16px; }
   .parsed { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; min-height: 40px; margin: 0 0 20px 18px; font-size: 15px; color: var(--muted); }
@@ -53,6 +53,11 @@
   .sw-neis { box-shadow: inset 0 0 0 1px var(--control); } /* taste-skill-ignore: 범례 견본 */
   .sw-due { box-shadow: inset 0 0 0 2px var(--accent); } /* taste-skill-ignore: 범례 견본 */
 
+  /* 공백 없는 긴 제목이 카드를 넘지 않게 */
+  .ev, .chg-list .t, .chg-list .m, .due-list .t, .dh h2, .parsed b { overflow-wrap: anywhere; min-width: 0; }
+  .chg-list .grow, .due-list .grow { min-width: 0; }
+  .due-list a { max-width: 100%; }
+
   .chg-list, .due-list { padding-bottom: var(--pad); }
   .chg-list li, .due-list li { align-items: flex-start; }
   .chg-list li.none, .due-list li.none { display: block; border: 0; }
@@ -84,7 +89,8 @@
     <input class="input" id="line" name="line" maxlength="200" spellcheck="false" placeholder="한 줄로 쓰기 (예: 목요일 방과후 4-1 교실 학년협의)" aria-describedby="parsed"
       hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms" hx-target="#parsed" hx-swap="outerHTML">
   </label>
-  <button class="btn pri lg" type="submit">{{ space_word }} 일정에 올리기</button>
+  {% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}
+  <button class="btn pri lg" type="submit">{% if space.is_school %}일정 올리기{% else %}{{ space_word }} 일정에 올리기{% endif %}</button>
 </form>
 {% include "today/_parsed.html" with oob=False %}
 

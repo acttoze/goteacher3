@@ -1,0 +1,9 @@
+{# 고칠 수 없는 일정(학교 공간): 보기만. 쓴 사람과 관리자만 폼을 받는다. #}
+<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}">
+  <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
+  <div class="db">
+    <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.place %} · {{ x.e.place }}{% endif %}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {{ x.e.scope_label }} · 쓴 사람 {{ x.e.by.name|default:"알 수 없음" }}</p>
+    <p class="muted">고치기·지우기는 쓴 선생님과 관리자만 할 수 있어요.</p>
+  </div>
+  <div class="df"><button class="btn sec" type="button" data-close>닫기</button></div>
+</div>

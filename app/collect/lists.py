@@ -26,7 +26,7 @@ from .access import owner_view
 from .models import Collection, Field, Row
 from .presets import PRESETS
 from .recipients import audience_rows, make_rows, roster_rows, stored_audience
-from .submit import _head, _units
+from .submit import _head, _units, unit_rows
 from .views import _board, _due_text, _owner
 
 TABS = [("sent", "내가 걷는 것"), ("todo", "내가 낼 것"), ("past", "지난 것")]
@@ -72,12 +72,13 @@ def _sent_item(c, now, colors):
 
 def _todo_items(request, now):
     me = request.member
-    cs = (Collection.objects.in_space(request.space).select_related("created_by", "space__school")
-          .exclude(created_by=me).filter(closed_at__isnull=True)
-          .filter(pk__in=Row.objects.in_space(request.space).filter(_mine_q(me)).values("collection")))
+    cs = list(Collection.objects.in_space(request.space).select_related("created_by", "space__school")
+              .exclude(created_by=me).filter(closed_at__isnull=True)
+              .filter(pk__in=Row.objects.in_space(request.space).filter(_mine_q(me)).values("collection")))
+    rows = unit_rows(cs)
     out = []
     for c in cs:
-        mine = [u for u in _units(c) if _row_mine(u["row"], me)]
+        mine = [u for u in _units(c, rows[c.pk]) if _row_mine(u["row"], me)]
         left = [u for u in mine if not u["done"]]
         if not left:
             continue

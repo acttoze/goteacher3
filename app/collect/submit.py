@@ -139,9 +139,18 @@ def _group(c, row):
     return list(c.rows.filter(unit=row.unit, who=row.who, member=row.member_id))
 
 
-def _units(c):
+def unit_rows(cs):
+    """여러 모으기의 _units 재료를 쿼리 한 번으로: {모으기 pk: 줄들}."""
+    by_pk = {c.pk: [] for c in cs}
+    for r in Row.objects.filter(collection__in=list(by_pk)).annotate(n=Count("cells"), last=Max("cells__at")).order_by("pos", "id"):
+        by_pk[r.collection_id].append(r)
+    return by_pk
+
+
+def _units(c, rows=None):
     """고르기 목록: 받는 곳마다 하나(multi는 첫 줄). 냈는지·마지막 낸 시각만(값 없음)."""
-    rows = c.rows.annotate(n=Count("cells"), last=Max("cells__at")).order_by("pos", "id")
+    if rows is None:
+        rows = c.rows.annotate(n=Count("cells"), last=Max("cells__at")).order_by("pos", "id")
     out, seen, need = [], {}, _need(c)
     for r in rows:
         k = (r.unit, r.who, r.member_id) if c.multi else r.pk
@@ -171,8 +180,8 @@ def _mine(row, member, name):
     return bool(name) and row.who == name
 
 
-def _head(c):
-    units = _units(c)
+def _head(c, rows=None):
+    units = _units(c, rows)
     done = sum(u["done"] for u in units)
     return {"c": c, "units": units, "n_done": done, "n_total": len(units),
             "pct": round(done / len(units) * 100) if units else 0,

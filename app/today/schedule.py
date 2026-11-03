@@ -3,6 +3,7 @@
 - 주간판: 월~금 × 블록 4칸 + 시간 미정. 동학년 일정(Event), NEIS 학사일정(시간 미정 줄), 모으기 마감(마감 시각의 블록).
 - 한 줄 입력·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 주간판(_week.html)을 돌려준다.
 - 이번 주 바뀐 것: 보고 있는 주의 일정 중 changed_from이 있는 것. 이번 주 마감: 보고 있는 주(월~금)에 마감인 모으기.
+- 학교 공간(H5): 일정은 reachable_q(관리자는 남의 '나'를 뺀 전부), 마감은 관리자도 내가 만든 것·내 줄·내 그룹 칸만.
 - R1에서 뺀 것: 인쇄(R2), 블록 끌기(R3), 월간·주간계획 표 붙여넣기(design에 없음).
 조회는 모두 in_space()를 거친다.
 """
@@ -20,7 +21,7 @@ from collect.models import Collection, Row
 from spaces import neis
 from spaces.views import _space_ctx
 
-from .models import Event
+from .models import Event, reachable_q, scope_choices
 from .parse import SLOTS, block_of_time, slot_idx
 
 WD = "월화수목금토일"
@@ -75,7 +76,7 @@ def _at(dt, today):
 
 
 def week_ctx(request, mon):
-    from .views import _conf_text, _conflicts, _ev_item  # views가 이 모듈을 부르므로 안에서 가져온다
+    from .views import _conf_text, _ev_item, week_conflicts  # views가 이 모듈을 부르므로 안에서 가져온다
 
     space, me = request.space, request.member
     now = timezone.now()
@@ -86,18 +87,19 @@ def week_ctx(request, mon):
     colors = _colors(space)
 
     # 일정: 보고 있는 주에 걸치는 것
-    evs = list(Event.objects.in_space(space).filter(date__lte=fri)
+    evs = list(Event.objects.in_space(space).filter(reachable_q(me), date__lte=fri)
                .filter(Q(end__gte=mon) | Q(end__isnull=True, date__gte=mon))
-               .select_related("by").order_by("date", "slot", "created_at"))
+               .select_related("by", "changed_by").order_by("date", "slot", "created_at"))
     cells = {(i, s["k"]): [] for i in range(5) for s in [*SLOTS, {"k": ""}]}
     dialogs = []
+    clashes = week_conflicts(space, evs)
     for e in evs:
         x = _ev_item(e, me, today)
         x["kind"] = "ev"
         x["fresh"] = x["mine"] and not e.changed_from and now - e.created_at < timedelta(minutes=1)
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
-        conf = _conflicts(space, e.date, e.end, e.slot, e.slot_end, e.place, exclude=e)
-        x["conf"] = _conf_text({"place": e.place}, conf) if conf else ""
+        conf = clashes.get(e.pk)
+        x["conf"] = _conf_text({"place": e.place}, conf, me) if conf else ""
         dialogs.append(x)
         for i, d in enumerate(days):
             if e.date <= d <= e.last_day:
@@ -117,14 +119,19 @@ def week_ctx(request, mon):
     start = datetime.combine(mon, time(0), tzinfo=tz)
     cs = (Collection.objects.in_space(space).filter(due__gte=start, due__lt=start + timedelta(days=5))
           .select_related("created_by").order_by("due"))
+    if space.is_school:
+        cs = cs.filter(Q(created_by=me) | Q(pk__in=Row.objects.in_space(space).filter(_mine_q(me)).values("collection")))
     dues = []
+    my_rows = {}
+    for r in Row.objects.in_space(space).filter(collection__in=[c.pk for c in cs if c.created_by_id != me.pk]).filter(_mine_q(me)).order_by("-pos"):
+        my_rows[r.collection_id] = r  # 내림차순이라 맨 앞 줄이 남는다
     for c in cs:
         at = timezone.localtime(c.due)
         mine = c.created_by_id == me.pk
         if mine:
             href = f"/s/{space.token}/c/{c.key}/"
         else:
-            row = Row.objects.in_space(space).filter(collection=c).filter(_mine_q(me)).order_by("pos").first()
+            row = my_rows.get(c.pk)
             href = f"/c/{c.link_token}/u/{row.key}" if row else f"/c/{c.link_token}"
         by = c.created_by.name if c.created_by else "알 수 없음"
         x = {"kind": "due", "c": c, "href": href, "hm": f"{at:%H:%M}", "who": by,
@@ -143,9 +150,10 @@ def week_ctx(request, mon):
     changed = sorted((e for e in evs if e.changed_from), key=lambda e: e.updated_at, reverse=True)
     chg = []
     for e in changed:
-        color, ink = colors.get(e.by_id, ("var(--ink)", False))
+        who = e.last_by
+        color, ink = colors.get(who.pk if who else None, ("var(--ink)", False))
         parts = e.changed_from
-        chg.append({"e": e, "who": e.by.name if e.by else "누군가", "color": color, "ink": ink,
+        chg.append({"e": e, "who": who.name if who else "누군가", "color": color, "ink": ink,
                     "what": " · ".join(p[0] for p in parts), "a": " · ".join(p[1] for p in parts),
                     "b": " · ".join(p[2] for p in parts), "at": _at(e.updated_at, today)})
 
@@ -155,7 +163,7 @@ def week_ctx(request, mon):
             "this_w": this_mon.isoformat(), "next_w": (mon + timedelta(days=7)).isoformat(),
             "days": [{"d": d, "md": f"{d.month}/{d.day}", "wd": WD[d.weekday()], "today": d == today} for d in days],
             "wrows": wrows, "n_items": n_items, "dialogs": dialogs, "neis_empty": not seen, "neis_fail": neis.failed(sched),
-            "chg": chg, "dues": dues, "slot_choices": SLOTS}
+            "chg": chg, "dues": dues, "slot_choices": SLOTS, "scope_choices": scope_choices(me)}
 
 
 @never_cache
