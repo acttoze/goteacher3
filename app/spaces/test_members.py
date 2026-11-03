@@ -198,3 +198,30 @@ class NeisSearchLimitTests(InviteBase):
         self.assertEqual(m.call_count, 20)
         r = self.client.get("/", {"q": "새솔"}, headers={"HX-Request": "true"})
         self.assertContains(r, "1분 뒤", status_code=429)
+
+
+class RemoveDialogHandoverTests(InviteBase):
+    """내보내기 확인창: 그 선생님이 만든 모으기 수(서버가 셈)를 N>0일 때만 알린다. 다른 공간 것은 세지 않는다."""
+
+    def setUp(self):
+        super().setUp()
+        self.guest_pc = Client()
+        self.join(self.guest_pc, "4-2", "정하은")
+        self.guest = Member.objects.get(space=self.space, name="정하은")
+
+    def test_count_shown_only_when_positive(self):
+        r = self.client.get(f"/s/{self.space.token}/")
+        self.assertNotContains(r, "내가 넘겨받아요")
+        for t in ("가", "나"):
+            Collection.objects.create(space=self.space, title=t, source="paste", created_by=self.guest)
+        Collection.objects.create(space=self.space, title="내 것", source="paste",
+                                  created_by=Member.objects.get(user=self.owner))
+        outsider = Member.objects.create(space=self.other, name="남", cls="5-1")
+        Collection.objects.create(space=self.other, title="남의 것", source="paste", created_by=outsider)
+        r = self.client.get(f"/s/{self.space.token}/members")
+        self.assertContains(r, "이 선생님이 만든 모으기 2개는 내가 넘겨받아요", count=1)
+
+    def test_not_shown_to_non_creator(self):
+        Collection.objects.create(space=self.space, title="가", source="paste", created_by=self.guest)
+        r = self.guest_pc.get(f"/s/{self.space.token}/members")
+        self.assertNotContains(r, "넘겨받아요")

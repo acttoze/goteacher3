@@ -61,8 +61,8 @@ main() {
   elif [ "$rc" -ne 0 ]; then
     alert "한글 회귀 생략 ${new:0:7}" "$rg"
   fi
-  # 임시 컨테이너가 Traefik 백엔드로 잡히지 않게 라벨을 끈다
-  docker compose run --rm -T -l traefik.enable=false goteacher-app python app/manage.py migrate --noinput
+  # 임시 컨테이너가 Traefik 백엔드로 잡히지 않게 라벨을 끈다. --no-deps: db·redis 설정(이미지 다이제스트 등)이 바뀌어도 여기서 다시 만들지 않는다
+  docker compose run --rm -T --no-deps -l traefik.enable=false goteacher-app python app/manage.py migrate --noinput
   # 앱은 새 컨테이너가 healthy가 된 뒤 옛 것을 내린다(무중단, rollout.sh). worker도 같은 이미지로 새로 띄운다.
   # 못 뜨면 직전 이미지를 latest로 다시 붙여 그것으로 되돌린다(앱이 못 떴으면 옛 앱 컨테이너가 계속 응답 중).
   # (migrate는 이미 적용됐다 — 되돌릴 수 없는 마이그레이션이면 직전 코드가 새 스키마로 뜬다. 스테이징 한정 허용)

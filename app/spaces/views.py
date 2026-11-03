@@ -11,6 +11,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -254,6 +255,11 @@ def _space_ctx(request, **extra):
     mine = next(r for r in ctx["rows"] if r["me"])
     ctx.update(my_color=mine["color"], my_ink=mine["ink"], my_label=mine["label"])
     ctx["is_creator"] = ctx["creator"].pk == me.pk
+    if ctx["is_creator"]:  # 내보내기 확인창: 그 선생님이 만든 모으기는 만든 사람이 넘겨받는다(remove_member)
+        made = dict(Collection.objects.in_space(space).filter(created_by__isnull=False)
+                    .values_list("created_by").annotate(n=Count("pk")))
+        for r in ctx["rows"]:
+            r["made"] = made.get(r["m"].pk, 0)
     return ctx
 
 

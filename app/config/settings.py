@@ -152,7 +152,8 @@ SESSION_COOKIE_SAMESITE = "Lax"
 
 # Traefik 뒤에서 HTTPS 판별
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 3600  # 짧게 시작, 안정되면 늘린다
+    # 스테이징은 짧게(기본 3600). 운영 도메인(G7)에서 31536000. 서브도메인 포함·preload는 쓰지 않는다(goteacher.xyz 구버전 보호)
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", 3600))
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

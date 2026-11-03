@@ -54,4 +54,4 @@ else
     docker rm $old >/dev/null
   fi
 fi
-docker compose up -d --wait goteacher-worker
+docker compose up -d --wait --no-deps goteacher-worker  # --no-deps: 배포가 db·redis를 다시 만들지 않게

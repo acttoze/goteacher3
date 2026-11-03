@@ -14,6 +14,7 @@
             {% csrf_token %}
             <div class="dh"><h2 id="out-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님을 내보낼까요?</h2></div>
             <div class="db"><p>이 동학년에서 빠지고, 다음 모으기부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}</p>
+              {% if r.made %}<p>이 선생님이 만든 모으기 {{ r.made }}개는 내가 넘겨받아요.</p>{% endif %}
               <p class="muted small">모르는 사람이 들어왔다면 내보낸 뒤 초대 링크도 새로 만드세요.</p></div>
             <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">내보내기</button></div>
           </form>
