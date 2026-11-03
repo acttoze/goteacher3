@@ -125,6 +125,7 @@ class Member(models.Model):
     is_manager: 학교 관리자. 구글 회원만 된다(손님 자리는 반·이름으로 찾기 쉬워서). 직위 글자로 권한을 주지 않는다.
     can_duty: 복무 입력자(J1, 교무실무사). 관리자가 지정하고 구글 회원만 된다.
     can_repair: 수리 담당자(K1). 관리자가 지정하고 구글 회원만 된다. 행정실 그룹이어도 이 값이 없으면 처리 권한이 없다.
+    can_meal: 급식 담당자(M1). 관리자가 지정하고 구글 회원만 된다. 급식소 그룹이어도 이 값이 없으면 권한이 없다.
     """
 
     class Group(models.TextChoices):
@@ -151,6 +152,7 @@ class Member(models.Model):
     is_manager = models.BooleanField("학교 관리자", default=False)
     can_duty = models.BooleanField("복무 입력자", default=False)
     can_repair = models.BooleanField("수리 담당자", default=False)
+    can_meal = models.BooleanField("급식 담당자", default=False)
     # G2 설정 > 알림: 끈 웹 푸시 묶음 키(collect.push.SLOTS의 am·noon·pm, 쉼표로). 비면 다 켜짐. 🔔은 그대로 쌓인다.
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     joined_at = models.DateTimeField(auto_now_add=True)

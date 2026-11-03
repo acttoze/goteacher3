@@ -40,9 +40,13 @@ def failed(rows):
     return isinstance(rows, Failed)
 
 
+def _cache_key(path, params):
+    return "neis:" + path + ":" + urlencode(sorted(params.items()))
+
+
 def _get(path, params, ttl):
     """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
-    ck = "neis:" + path + ":" + urlencode(sorted(params.items()))
+    ck = _cache_key(path, params)
     hit = cache.get(ck)
     if hit is not None:
         return hit
@@ -137,13 +141,35 @@ def _js_round(value):
     return math.floor(float(m.group()) + 0.5) if m else None
 
 
+def _nutr(s):
+    """'탄수화물(g) : 90.1' 줄들 → [{name, unit, value}]. 형식이 다른 줄은 뺀다(meal.js와 같음)."""
+    found = (re.match(r"(.+?)\((.+?)\)\s*:\s*(\d+(?:\.\d+)?)", x) for x in _lines(s))
+    return [{"name": m[1].strip(), "unit": m[2], "value": float(m[3])} for m in found if m]
+
+
+def _origin(s):
+    """'쌀 : 국내산' 줄들 → [[품목, 원산지]]. 비고·원산지 없는 줄은 뺀다(meal.js와 같음)."""
+    parts = (re.split(r"\s*:\s*", x) for x in _lines(s))
+    pairs = ((p[0].replace("(종류)", "").strip(), p[1].strip() if len(p) > 1 else "") for p in parts)
+    return [[item, place] for item, place in pairs if place and item != "비고"]
+
+
+def _meal_params(atpt, code, start, end):
+    return {"ATPT_OFCDC_SC_CODE": atpt, "SD_SCHUL_CODE": code, "MMEAL_SC_CODE": "2",
+            "MLSV_FROM_YMD": start, "MLSV_TO_YMD": end}
+
+
+def forget_failed_meals(atpt, code, start, end):
+    """'다시 시도' 단추(M1): 기억해 둔 실패만 지운다. 성공 캐시는 그대로 둔다."""
+    ck = _cache_key("mealServiceDietInfo", _meal_params(atpt, code, start, end))
+    hit = cache.get(ck)
+    if hit is not None and failed(hit[0]):
+        cache.delete(ck)
+
+
 def meals(atpt, code, start, end):
-    """점심 [{ymd, dishes, kcal, count}] — start·end는 'YYYYMMDD'."""
-    params = {
-        "ATPT_OFCDC_SC_CODE": atpt, "SD_SCHUL_CODE": code, "MMEAL_SC_CODE": "2",
-        "MLSV_FROM_YMD": start, "MLSV_TO_YMD": end,
-    }
-    rows, _ = _get("mealServiceDietInfo", params, HOUR)
+    """점심 [{ymd, dishes, kcal, count, nutr, origin}] — start·end는 'YYYYMMDD'."""
+    rows, _ = _get("mealServiceDietInfo", _meal_params(atpt, code, start, end), HOUR)
     if failed(rows):
         return rows
     out = []
@@ -154,5 +180,7 @@ def meals(atpt, code, start, end):
             "dishes": [_dish(x) for x in _lines(r.get("DDISH_NM"))],
             "kcal": kcal,
             "count": _js_round(r.get("MLSV_FGR")),
+            "nutr": _nutr(r.get("NTR_INFO")),
+            "origin": _origin(r.get("ORPLC_INFO")),
         })
     return out

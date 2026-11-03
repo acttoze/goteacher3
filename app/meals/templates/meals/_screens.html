@@ -1,0 +1,24 @@
+{# TV 화면 켜고 끄기·순서. 단추를 누르면 이 조각을 통째로 다시 받는다. #}
+<div id="screensMain">
+{% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
+<div class="title" style="margin-bottom:12px">
+  <div class="grow"><h1>급식</h1>
+    <p class="sub">켜진 화면 <b class="num">{{ n_on }}</b>개 · 한 바퀴 <b class="num">{{ loop }}</b>초. 나머지는 자동이라 고를 것이 없어요.</p></div>
+</div>
+{% include "meals/_tabs.html" with on="screens" %}
+<form method="post" action="/s/{{ space.token }}/meals/screens" hx-post="/s/{{ space.token }}/meals/screens" hx-target="#screensMain" hx-swap="outerHTML">{% csrf_token %}
+<table class="mscr">
+  <thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>표시</th>{% if writable %}<th>순서</th>{% endif %}</tr></thead>
+  <tbody>{% for s in screens %}
+    <tr{% if not s.on %} class="off"{% endif %}>
+      <td><b>{{ s.name }}</b></td>
+      <td class="what">{{ s.what }}</td>
+      <td><span class="pill{% if s.lock %} acc{% endif %}">{{ s.src }}</span></td>
+      <td class="keep">{% if s.lock %}<span class="pill pos" title="당일 식판 사진은 규정상 매일 게시해야 해서 끌 수 없어요">항상 켜짐</span>{% elif writable %}<button class="btn sec sm" type="submit" name="toggle" value="{{ s.key }}" aria-pressed="{{ s.on|yesno:'true,false' }}" aria-label="{{ s.name }} {{ s.on|yesno:'끄기,켜기' }}">{{ s.on|yesno:"켜짐,꺼짐" }}</button>{% else %}<span class="pill">{{ s.on|yesno:"켜짐,꺼짐" }}</span>{% endif %}</td>
+      {% if writable %}<td class="keep ord"><button class="btn ghost sm" type="submit" name="up" value="{{ s.key }}" aria-label="{{ s.name }} 위로"{% if forloop.first %} disabled{% endif %}>↑</button> <button class="btn ghost sm" type="submit" name="down" value="{{ s.key }}" aria-label="{{ s.name }} 아래로"{% if forloop.counter0 == last %} disabled{% endif %}>↓</button></td>{% endif %}
+    </tr>{% endfor %}
+  </tbody>
+</table>
+</form>
+<p class="mauto">오늘의 위생 교육 <b>{{ hygiene.title }}</b> · 오늘의 표어 <b>{{ slogan }}</b> (날마다 자동으로 바뀌어요)</p>
+</div>

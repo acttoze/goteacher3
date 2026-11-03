@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "library",
     "notices",
     "repairs",
+    "meals",
 ]
 
 MIDDLEWARE = [

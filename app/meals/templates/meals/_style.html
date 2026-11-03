@@ -1,0 +1,34 @@
+<style>
+  .mtabs { margin-bottom: 16px; }
+  .mweek { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+  .mday { display: flex; flex-direction: column; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-in); overflow: hidden; }
+  .mday h2 { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 42px; margin: 0; padding: 6px 12px; font-size: 16px; background: var(--surface); }
+  .mday.today { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .mday.today h2 { background: var(--accent-soft); color: var(--accent-ink); }
+  .mday.over { border-color: var(--accent); background: var(--accent-soft); }
+  .mpic { display: grid; place-items: center; aspect-ratio: 16 / 10; padding: 8px; text-align: center; color: var(--muted); font-size: 15px; background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); overflow: hidden; }
+  .mpic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .mday.need .mpic { color: var(--negative); font-weight: 600; background: var(--pill-neg-bg); }
+  .mday.has-photo .mpic { padding: 0; }
+  .mact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; }
+  .mact form { display: contents; }
+  .mact .btn { padding: 0 12px; }
+  .mact input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .mact label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mat { font-size: 15px; color: var(--muted); padding: 0 10px 8px; margin: 0; }
+  .mmenu { padding: 8px 12px 12px; border-top: 1px solid var(--rule); flex: 1; min-width: 0; }
+  .mmenu ul { list-style: none; margin: 0; padding: 0; line-height: 1.4; }
+  .mmenu li { overflow-wrap: anywhere; }
+  .mfacts { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+  .mnone { margin: 0; color: var(--muted); }
+  .mfail { margin: 0 0 8px; color: var(--negative); font-weight: 600; }
+  .mmsg { margin: 0 0 12px; }
+  .mscr td, .mscr th { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  .mscr th { font-size: 15px; font-weight: 600; color: var(--muted); }
+  .mscr { width: 100%; border-collapse: collapse; }
+  .mscr tr.off td:not(.keep) { color: var(--faint); }
+  .mscr .what { font-size: 15px; }
+  .mscr .ord { white-space: nowrap; }
+  .mauto { margin: 12px 0 0; font-size: 15px; color: var(--muted); }
+  .mauto b { color: var(--ink); }
+</style>

@@ -90,12 +90,13 @@ class SourceFile(models.Model):
 
     @classmethod
     def used_bytes(cls, space=None):
-        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진). space=None 이면 서비스 전체(서버 디스크 보호)."""
+        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진 + M1 식판 사진). space=None 이면 서비스 전체(서버 디스크 보호)."""
+        from meals.models import MealPhoto
         from notices.models import NoticeFile
         from repairs.models import Repair
 
         total = 0
-        for model in (SourceFile, ResultFile, NoticeFile, Repair):
+        for model in (SourceFile, ResultFile, NoticeFile, Repair, MealPhoto):
             qs = model.objects.in_space(space) if space is not None else model.objects.all()
             total += qs.aggregate(n=models.Sum("stored"))["n"] or 0
         return total
