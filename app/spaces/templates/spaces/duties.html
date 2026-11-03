@@ -1,0 +1,23 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}업무분장 붙여넣기 · 고티처{% endblock %}
+{% block ptitle %}학교{% endblock %}
+{% block head %}<script src="{% static 'js/duty_paste.js' %}" defer></script>
+<style>
+  #dutyPaste { min-height: 132px; tab-size: 16; white-space: pre; overflow-x: auto; }
+  #dutyOut .sum { margin: 16px 0 12px; }
+  #dutyOut { overflow-wrap: anywhere; }
+  #dutyOut .acts { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+  #dutyOut .tbl { table-layout: fixed; }
+</style>{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>업무분장 붙여넣기</h1><p class="sub">한글·엑셀 표를 그대로 복사해 붙여넣으세요. 부서·업무·담당 칸만 읽어요.</p></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/school?tab=duty">학교 화면으로</a></div>
+{% if writable %}<form class="card" method="post" action="/s/{{ space.token }}/school/duties"><div class="card-b" style="padding-top:var(--pad)">
+  {% csrf_token %}
+  <label class="field"><span class="sr">업무분장 표</span><textarea class="textarea" id="dutyPaste" name="paste" spellcheck="false" placeholder="부서&#9;업무&#9;담당"
+    hx-post="/s/{{ space.token }}/school/duties/preview" hx-trigger="input changed delay:400ms, gt-pasted" hx-target="#dutyOut" hx-sync="this:replace"{% if error %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
+  <input type="hidden" name="html" id="dutyHtml" value="">
+  <div id="dutyOut" aria-live="polite">{% if error %}<p class="field-err" role="alert" style="margin-top:12px">{{ error }}</p>{% endif %}</div>
+</div></form>{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+{# 학교 화면 본문. 관리자 지정·내보내기 응답(htmx)도 이 조각을 통째로 돌려준다. 모든 값은 자동 이스케이프. #}
+<div id="schoolMain" data-err-swap>
+  {% if toast %}<span class="sr" data-toast-now="{{ toast }}"></span>{% endif %}
+  <div class="title"><div class="grow"><h1>{{ space.name }}</h1><p class="sub">교직원 <b class="num">{{ rows|length }}</b>명 · 모든 선생님이 같은 화면을 봐요</p></div>
+    {% if writable %}<a class="btn sec" href="/s/{{ space.token }}/school/me">내 그룹·직책 고치기</a>{% endif %}
+    {% if tab == "duty" and is_creator and writable and dept_cards %}<a class="btn sec" href="/s/{{ space.token }}/school/duties">업무분장 다시 붙여넣기</a>{% endif %}
+    {% if link %}<button class="btn pri" type="button" data-open="#inviteDlg">선생님 초대하기</button>{% endif %}</div>
+  {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
+  {% if alone %}<div class="well first"><p>아직 혼자예요. 초대 링크를 보내면 선생님들이 구글로 로그인하고 소속·직책을 골라 들어와요.</p>
+    <button class="btn pri sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></div>{% endif %}
+  <nav class="tabs" aria-label="학교 화면">
+    <a href="/s/{{ space.token }}/school"{% if tab == "grade" %} aria-current="page"{% endif %}>학년분장 · 그룹 현황</a>
+    <a href="/s/{{ space.token }}/school?tab=duty"{% if tab == "duty" %} aria-current="page"{% endif %}>업무분장 · 부서</a>
+    <span class="aux tabs-n num">{% if tab == "grade" %}그룹 {{ n_groups }}개 · 구성원 {{ rows|length }}명{% else %}부서 {{ dept_cards|length }}개 · 업무 {{ n_tasks }}개{% endif %}</span>
+  </nav>
+  {% if tab == "grade" %}
+  <div class="grid">
+    {% for g in group_cards %}<section class="card s3 gcard" aria-labelledby="gc{{ forloop.counter }}">
+      <div class="card-h"><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span></div>
+      <div class="card-b">{% if g.rows %}<ul class="rows">
+        {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"><span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}
+          {% if is_creator and writable or is_creator and not r.me %}<button class="tlink" type="button" data-open="#p-{{ r.m.key }}" aria-label="{{ r.m.name }} 선생님 관리">관리</button>
+          {% include "spaces/_school_person.html" %}{% endif %}</li>{% endfor %}
+      </ul>{% else %}<p class="muted">아직 아무도 없어요</p>{% endif %}</div>
+    </section>{% endfor %}
+  </div>
+  <p class="aux tab-note">그룹·직책은 선생님이 직접 고르고 고쳐요(승인 없음). 전담 선생님은 주로 들어가는 학년 그룹에 속해요.</p>
+  {% if logs %}<section class="card logs" aria-labelledby="lgH">
+    <div class="card-h"><h2 id="lgH">최근 고친 기록</h2><span class="r">관리자에게만 보여요</span></div>
+    <div class="card-b"><table class="tbl"><thead><tr><th>언제</th><th>누가</th><th>누구</th><th>전</th><th>후</th></tr></thead><tbody>
+      {% for l in logs %}<tr><td class="num">{{ l.at|date:"n월 j일 H:i" }}</td><td>{{ l.by }}</td><td>{{ l.name }}</td><td>{{ l.before }}</td><td>{{ l.after }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>{% endif %}
+  {% else %}
+  {% if dept_cards %}
+  <div class="grid">
+    {% for c in dept_cards %}<section class="card s4 gcard" aria-labelledby="dc{{ forloop.counter }}">
+      <div class="card-h"><h2 id="dc{{ forloop.counter }}">{{ c.dept }}</h2><span class="r num">{{ c.people }}명 · 업무 {{ c.rows|length }}</span></div>
+      <div class="card-b"><ul class="rows">
+        {% for r in c.rows %}<li class="task{% if r.me %} mine{% endif %}"><span>{{ r.d.task }}</span><span class="w"><b>{{ r.d.who }}</b>{% if r.groups %} <span class="aux">{{ r.groups }}</span>{% endif %}{% if r.unknown %} <span class="pill warn">{% if r.people|length > 1 %}{{ r.unknown|join:", " }} {% endif %}명부에 없음</span>{% endif %}</span></li>{% endfor %}
+      </ul></div>
+    </section>{% endfor %}
+  </div>
+  <p class="aux tab-note">부서는 그룹과 별개예요. 같은 선생님이 4학년 그룹이면서 방과후돌봄부일 수 있어요.</p>
+  {% elif is_creator and writable %}<div class="well first"><p>업무분장표를 붙여넣으면 부서마다 카드가 생겨요. 2월에 만드는 그 표 그대로면 돼요.</p>
+    <a class="btn pri sm" href="/s/{{ space.token }}/school/duties">업무분장 붙여넣기</a></div>
+  {% else %}<p class="empty">아직 업무분장이 없어요. 관리자가 업무분장표를 넣으면 여기에 보여요.</p>{% endif %}
+  {% endif %}
+  {% if link %}<div class="scrim" id="inviteDlg" hidden><div class="dialog" role="dialog" aria-modal="true" aria-label="선생님 초대하기" style="width:min(720px,100%)">
+    {% include "spaces/_invite.html" %}
+    <div class="df"><button class="btn ghost" type="button" data-close>닫기</button></div>
+  </div></div>{% endif %}
+</div>

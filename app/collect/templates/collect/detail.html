@@ -78,7 +78,7 @@
     <p class="sub" id="dueSub">{% include "collect/_due_sub.html" %}</p>
   </div>
   <button class="btn sec" type="button" data-copy="#nudgeAll">한 번에 독촉 문구 복사</button>
-  <a class="btn ghost" href="/s/{{ space.token }}/">{{ space_word }} 화면으로</a>
+  <a class="btn ghost" href="/s/{{ space.token }}/{% if space.is_school %}school{% endif %}">{{ space_word }} 화면으로</a>
 </div>
 <div class="grid stretch">
   {% include "collect/_board.html" %}

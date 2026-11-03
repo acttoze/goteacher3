@@ -52,7 +52,7 @@ class CrawlQa(JoinBase):
         c = Client()
         c.force_login(user)
         seen, bad = {}, []
-        queue = [f"/s/{self.hub.token}/"]
+        queue = [f"/s/{self.hub.token}/school"]
         while queue:
             url = queue.pop()
             if url in seen or SKIP.search(url) or url == "/join":

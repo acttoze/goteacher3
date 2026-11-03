@@ -1,0 +1,11 @@
+{% extends "shell.html" %}
+{% block title %}내 그룹·직책 · 고티처{% endblock %}
+{% block ptitle %}학교{% endblock %}
+{% block head %}<style>
+  .join-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; align-items: start; }
+</style>{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>내 그룹·직책</h1><p class="sub">지금: <b>{{ me.cls_text }}</b> · 승인 없이 바로 바뀌고, 고칠 때마다 기록이 남아요.</p></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/school">학교 화면으로</a></div>
+{% if writable %}{% include "spaces/_join_school_form.html" %}{% endif %}
+{% endblock %}

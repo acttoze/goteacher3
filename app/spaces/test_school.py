@@ -231,7 +231,7 @@ class EntryTests(JoinBase):
     def test_invite_message_says_google(self):
         c = Client()
         c.force_login(self.u4)
-        page = c.get(f"/s/{self.hub.token}/")
+        page = c.get(f"/s/{self.hub.token}/school")
         self.assertContains(page, "구글")
         self.assertContains(page, self.hub.invite_token)
         self.assertNotContains(page, "가입 없음")
@@ -400,7 +400,7 @@ class WordingTests(JoinBase):
     def test_every_school_screen(self):
         hx = {"HX-Request": "true"}
         c = self.c5.key
-        for path in ("/", "/members", "/welcome", "/today", "/schedule", "/school", "/board", "/bell",
+        for path in ("/members", "/welcome", "/today", "/schedule", "/school", "/school?tab=duty", "/school/me", "/board", "/bell",
                      "/c/", "/c/new", "/c/new?src=paste", "/c/new?src=hwp", "/c/new?src=preset", f"/c/{c}/", f"/c/{c}/live",
                      "/settings", "/settings?a=alerts", "/settings?a=space", "/settings?a=device"):
             self.clean(self.client.get(self.base + path), path)
@@ -655,7 +655,7 @@ class InviteVisibilityTests(JoinBase):
         self.assertEqual(self.teacher.post(f"{self.base}/invite").status_code, 403)
 
     def test_manager_gets_link_qr_and_note(self):
-        for path in ("/", "/settings?a=space"):
+        for path in ("/school", "/settings?a=space"):
             r = self.manager.get(self.base + path)
             self.assertContains(r, self.hub.invite_token)
             self.assertContains(r, 'id="msg"')

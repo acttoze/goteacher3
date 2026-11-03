@@ -1,0 +1,17 @@
+{# 명부 줄의 관리 창(관리자에게만): 관리자 지정·해제, 내보내기. #}
+<div class="scrim" id="p-{{ r.m.key }}" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="p-{{ r.m.key }}-h">
+  <div class="dh"><h2 id="p-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님</h2></div>
+  <div class="db">
+    {% if writable %}{% if r.m.is_manager %}
+      {% if last_manager %}<p>마지막 관리자라 해제할 수 없어요. 다른 선생님을 먼저 관리자로 세워 주세요.</p>
+      {% else %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="0">
+        <p>학교 관리자예요. 해제하면 초대 링크·업무분장·관리자 지정을 더 맡지 않아요.</p><div><button class="btn sec sm" type="submit">관리자 해제</button></div></form>{% endif %}
+    {% elif r.guest %}<p>이름만 들어온 선생님은 관리자가 될 수 없어요. 구글 계정을 이으면 돼요.</p>
+    {% else %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="1">
+      <p>관리자는 초대 링크·업무분장·내보내기·관리자 지정을 맡아요.</p><div><button class="btn sec sm" type="submit">관리자로 세우기</button></div></form>{% endif %}{% endif %}
+    {% if not r.me %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-post="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}
+      <p>내보내면 이 학교에서 빠지고, 다음 모으기부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}{% if r.made %} 이 선생님이 만든 모으기 {{ r.made }}개는 내가 넘겨받아요.{% endif %}</p>
+      <div><button class="btn danger sm" type="submit">내보내기</button></div></form>{% endif %}
+  </div>
+  <div class="df"><button class="btn ghost" type="button" data-close>닫기</button></div>
+</div></div>

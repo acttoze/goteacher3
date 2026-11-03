@@ -197,6 +197,37 @@ def leads(space, member):
     return lead is not None and lead.pk == member.pk
 
 
+class Duty(models.Model):
+    """업무분장 한 줄(H3). 담당은 이름 글자로 저장하고 화면에서 명부와 짝짓는다(전출입·미입장 선생님도 표 그대로 남게)."""
+
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="duties")
+    dept = models.CharField("부서", max_length=100)
+    task = models.CharField("업무", max_length=200)
+    who = models.CharField("담당", max_length=100, blank=True)
+    order = models.PositiveIntegerField("순서")
+
+    objects = SpaceQuerySet.as_manager()
+
+    def __str__(self):
+        return f"{self.dept} {self.task}"
+
+
+class MemberLog(models.Model):
+    """학교 명부 이력(H3): 그룹·직책 고침과 관리자 지정·해제. 나간 뒤에도 읽히게 이름 글자로 저장한다."""
+
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="member_logs")
+    by = models.CharField("한 사람", max_length=40)
+    name = models.CharField("대상", max_length=40)
+    before = models.CharField("전", max_length=100)
+    after = models.CharField("후", max_length=100)
+    at = models.DateTimeField(auto_now_add=True)
+
+    objects = SpaceQuerySet.as_manager()
+
+    def __str__(self):
+        return f"{self.name}: {self.before} → {self.after}"
+
+
 def is_last_manager(member):
     """이 자리가 빠지면 공간에 관리자가 없어지나. 동시 요청은 부르는 쪽이 공간 행을 잠가 직렬화한다."""
     return member.is_manager and not (

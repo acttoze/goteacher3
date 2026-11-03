@@ -52,7 +52,7 @@
       <div><b>{{ r.label }} {{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
       {% if space.is_school and r.m.is_manager %}<span class="pill acc">관리자</span>{% elif not space.is_school and forloop.first %}<span class="pill acc">학년 대표</span>{% else %}<span class="small muted">{{ r.role }}</span>{% endif %}</div>{% endfor %}
     {% for label in waiting %}<div class="mem"><span class="av ghost">{{ label|slice:":1" }}</span><div><b class="muted">{{ label }} · 아직이에요</b><div class="m">초대 링크를 보내 보세요</div></div><span></span></div>{% endfor %}
-    <div class="mem"><span></span><div class="m">{% if is_creator %}선생님 내보내기는 {{ space_word }} 화면에서 할 수 있어요.{% elif space.is_school %}명단은 학교 화면에서도 볼 수 있어요.{% else %}초대·명단은 {{ space_word }} 화면에서도 볼 수 있어요.{% endif %}</div><a class="btn sec sm" href="/s/{{ space.token }}/">{{ space_word }} 화면으로</a></div>
+    <div class="mem"><span></span><div class="m">{% if is_creator %}선생님 내보내기는 {{ space_word }} 화면에서 할 수 있어요.{% elif space.is_school %}명단은 학교 화면에서도 볼 수 있어요.{% else %}초대·명단은 {{ space_word }} 화면에서도 볼 수 있어요.{% endif %}</div><a class="btn sec sm" href="/s/{{ space.token }}/{% if space.is_school %}school{% endif %}">{{ space_word }} 화면으로</a></div>
   </div></section>
 {% if link %}<section class="srow"><div class="lab"><h2>초대 링크</h2><p>링크가 밖으로 퍼졌다면 새로 만드세요. 예전 링크와 QR은 바로 닫히고, 이미 들어온 선생님은 그대로예요.{% if not is_creator %} 새로 만들기는 학년 대표가 할 수 있어요.{% endif %}</p></div>
   <div>{% include "spaces/_invite.html" %}</div></section>{% endif %}

@@ -420,7 +420,7 @@ class InviteAfterMergeTests(MergeBase):
     def test_old_invite_for_merged_member_goes_home(self):
         self.client.force_login(self.u5)
         r = self.client.get(f"/j/{self.g5.invite_token}", follow=True)
-        self.assertRedirects(r, f"/s/{self.hub.token}/")
+        self.assertRedirects(r, f"/s/{self.hub.token}/school")
 
     def test_removed_member_gets_only_notice(self):
         Member.objects.filter(pk=self.m4b.pk).delete()
@@ -507,7 +507,7 @@ class InviteAfterMergeTests(MergeBase):
     def test_no_manager_nobody_has_lead_rights_and_pages_live(self):
         Member.objects.filter(pk=self.m4.pk).update(is_manager=False)
         self.client.force_login(self.u4)
-        self.assertEqual(self.client.get(f"/s/{self.hub.token}/").status_code, 200)
+        self.assertEqual(self.client.get(f"/s/{self.hub.token}/school").status_code, 200)
         self.assertEqual(self.client.post(f"/s/{self.hub.token}/invite").status_code, 403)
         self.assertEqual(Client().get(f"/j/{self.hub.invite_token}", follow=True).status_code, 200)
 
@@ -619,7 +619,7 @@ class ScreensAfterMergeTests(MergeBase):
         self.assertNotContains(self.client.get("/forms"), "0학년")
 
     def test_sidebar_shows_my_class_and_school(self):
-        r = self.client.get(f"{self.base}/")
+        r = self.client.get(f"{self.base}/school")
         self.assertContains(r, "5학년 1반")
         self.assertContains(r, "학교 공간")
 

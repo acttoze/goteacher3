@@ -30,6 +30,7 @@ from .gates import school_required
 from .models import (
     INVITE,
     Member,
+    MemberLog,
     School,
     Space,
     cls_group,
@@ -362,20 +363,13 @@ def _space_ctx(request, **extra):
 @never_cache
 @require_GET
 def grade(request):
-    """동학년 화면. 소속 확인은 SpaceMiddleware가 한다. 들어온 선생님은 5초마다 members로 다시 받는다."""
+    """동학년 화면. 소속 확인은 SpaceMiddleware가 한다. 들어온 선생님은 5초마다 members로 다시 받는다.
+    학교 공간은 명부가 길어 이 화면 대신 카드 격자인 학교 화면으로 보낸다(H3)."""
+    if request.space.is_school:
+        return redirect(f"/s/{request.space.token}/school")
     ctx = _space_ctx(request)
     ctx.update(_invite(request.space, request.member))
     return render(request, "spaces/grade.html", ctx)
-
-
-@never_cache
-@require_GET
-@school_required
-def school(request):
-    """학교 화면 자리(H2): 소속별 인원. 학년분장·업무분장은 H3."""
-    counts = dict(Member.objects.in_space(request.space).values_list("group").annotate(n=Count("pk")))
-    groups = [(label, counts.get(g, 0)) for g, label in Member.Group.choices]
-    return render(request, "spaces/school.html", _space_ctx(request, page="school", groups=groups))
 
 
 @never_cache
@@ -434,8 +428,11 @@ def remove_member(request, key):
             user.delete()  # 기기 토큰 CASCADE, 세션은 사용자가 없어 무효
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/")
-    ctx = _space_ctx(request, toast=f"{label} 선생님을 내보냈어요. 다시 못 들어오게 하려면 초대 링크를 새로 만드세요.")
-    return render(request, "spaces/_roster.html", ctx)
+    toast = f"{label} 선생님을 내보냈어요. 다시 못 들어오게 하려면 초대 링크를 새로 만드세요."
+    if request.space.is_school:
+        from .school import school_body  # school.py가 이 모듈을 읽는다
+        return school_body(request, toast=toast)
+    return render(request, "spaces/_roster.html", _space_ctx(request, toast=toast))
 
 
 def _seat_alert(space, member):
@@ -589,9 +586,43 @@ def _welcome_alert(space, seat):
     text = f"{seat.name} 선생님({seat.cls_text})이 들어왔어요"
     Notification.objects.bulk_create(
         Notification(space=space, member=m, kind=Notification.Kind.JOIN, day=timezone.localdate(), text=text,
-                     link=f"/s/{space.token}/", pushed=True)
+                     link=f"/s/{space.token}/school", pushed=True)
         for m in Member.objects.in_space(space).filter(is_manager=True)
     )
+
+
+def read_place(space, data, post):
+    """학교 소속 칸 읽기(입장·내 그룹·직책 고치기가 같이 쓴다). post면 검증도 한다. (칸 값, 오류)."""
+    group = data.get("group", "") if data.get("group") in Member.Group.values else ""
+    cls, role, custom = data.get("cls", ""), data.get("role", ""), _clean_name(data.get("role_custom"))
+    classes = roles = None
+    if group[1:].isdigit():
+        classes = [(c, _cls_label(c)) for c in _grade_choices(space.school, int(group[1:]))]
+    elif group:
+        roles = GROUP_ROLES[group]
+    errors = {}
+    if post:
+        if not group:
+            errors["group"] = "어디에서 일하시는지 골라 주세요."
+        elif classes is not None and cls not in {c for c, _ in classes}:
+            errors["cls"] = "몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
+        elif roles is not None and not custom and role not in roles:
+            errors["role"] = "직책을 고르거나 직접 써 주세요."
+    return {"group": group, "classes": classes, "roles": roles, "cls": cls, "role": role, "custom": custom}, errors
+
+
+def place_values(place):
+    """검증한 칸 → (group, cls, position). 학년은 반이 곧 직책이고, 학년 밖은 소속 이름이 cls다."""
+    if place["classes"] is not None:
+        return place["group"], place["cls"], _cls_label(place["cls"])
+    return place["group"], Member.Group(place["group"]).label, place["custom"] or place["role"]
+
+
+def log_place(member, before):
+    """소속·직책이 실제로 바뀌었으면 이력을 남긴다(본인이 고침). before: 고치기 전 cls_text."""
+    if before != member.cls_text:
+        MemberLog.objects.create(space_id=member.space_id, by=member.name, name=member.name, before=before,
+                                 after=member.cls_text)
 
 
 def _join_school(request, space):
@@ -608,29 +639,12 @@ def _join_school(request, space):
         return render(request, "spaces/join_school.html", ctx, status=403 if post else 200)
 
     data = request.POST if post else request.GET
-    group = data.get("group", "") if data.get("group") in Member.Group.values else ""
-    cls, role, custom = data.get("cls", ""), data.get("role", ""), _clean_name(data.get("role_custom"))
+    place, errors = read_place(space, data, post)
     name = _clean_name(data.get("name", user.first_name))
-    classes = roles = None
-    if group[1:].isdigit():
-        classes = [(c, _cls_label(c)) for c in _grade_choices(space.school, int(group[1:]))]
-    elif group:
-        roles = GROUP_ROLES[group]
-    errors = {}
-    if post:
-        if not group:
-            errors["group"] = "어디에서 일하시는지 골라 주세요."
-        elif classes is not None and cls not in {c for c, _ in classes}:
-            errors["cls"] = "몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
-        elif roles is not None and not custom and role not in roles:
-            errors["role"] = "직책을 고르거나 직접 써 주세요."
-        if not name:
-            errors["name"] = "선생님들에게 보일 이름을 써 주세요."
+    if post and not name:
+        errors["name"] = "선생님들에게 보일 이름을 써 주세요."
     if post and not errors:
-        if classes is not None:
-            position = _cls_label(cls)
-        else:
-            cls, position = Member.Group(group).label, custom or role
+        group, cls, position = place_values(place)
         with transaction.atomic():
             get_user_model().objects.select_for_update().filter(pk=user.pk).first()  # 두 번 클릭·다른 공간 동시 입장
             mine = _my_space(user)
@@ -652,8 +666,7 @@ def _join_school(request, space):
             request.session.pop(INVITE, None)
             return redirect(f"/s/{space.token}/welcome")
 
-    ctx.update(group=group, groups=Member.Group.choices, classes=classes, roles=roles, cls=cls, role=role,
-               custom=custom, name=name, errors=errors)
+    ctx.update(place, groups=Member.Group.choices, form_url="/join", name=name, errors=errors)
     tpl = "spaces/_join_school_form.html" if request.headers.get("HX-Request") else "spaces/join_school.html"
     return render(request, tpl, ctx, status=400 if errors else 200)
 
@@ -688,6 +701,7 @@ def update_me(request):
         if not request.headers.get("HX-Request"):
             return redirect(f"/s/{request.space.token}/settings")
         return _me_area(request, status=400, error=error, typed=name)
+    before = me.cls_text
     me.name, me.cls = name, cls
     # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
     fields = [f for f in ("name", "cls") if f in request.POST]
@@ -695,6 +709,8 @@ def update_me(request):
         me.group, me.position = cls_group(cls), _cls_label(cls)
         fields += ["group", "position"]
     me.save(update_fields=fields)
+    if school and "cls" in fields:
+        log_place(me, before)
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/settings")
     return _me_area(request, saved=True)

@@ -48,9 +48,13 @@
     var el = e.detail.elt;
     if (/^every /.test(el.getAttribute('hx-trigger') || '') && el.querySelector('.scrim:not([hidden])')) e.preventDefault();
   });
-  document.addEventListener('htmx:afterSwap', function () {
-    var t = document.querySelector('[data-toast-now]');  // 저장 결과 한 줄(마감하고 잠그기·다시 열기)
+  function toastNow() {  // 저장 결과 한 줄(마감하고 잠그기·다시 열기). 화면을 옮긴 뒤 처음 그릴 때도 띄운다.
+    var t = document.querySelector('[data-toast-now]');
     if (t) { toast(t.dataset.toastNow); t.removeAttribute('data-toast-now'); }
+  }
+  toastNow();
+  document.addEventListener('htmx:afterSwap', function () {
+    toastNow();
     var b = document.querySelector('[data-autocopy]');
     if (!b) return;
     var msg = b.dataset.autocopy, src = document.querySelector(b.dataset.copy);
@@ -210,6 +214,8 @@
     group.querySelectorAll('[data-v]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
     var input = form && form.querySelector('input[type=hidden][name="' + group.dataset.pick + '"]');
     if (input) input.value = b.dataset.v;
+    var clear = group.dataset.clear && document.querySelector(group.dataset.clear);  // 목록에서 고르면 직접 쓴 칸을 비운다
+    if (clear) clear.value = '';
     if (group.getAttribute('aria-invalid') === 'true') {  // 고르면 칸 옆 오류를 지운다
       var err = document.getElementById(group.getAttribute('aria-describedby'));
       if (err) err.remove();
