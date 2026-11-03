@@ -82,7 +82,8 @@ services:
 
   db:
     <<: *common
-    image: postgres:17-alpine
+    # 다이제스트 고정(2026-11-03 서버에서 돌던 것과 같은 값). deploy.sh는 db·redis를 다시 만들지 않는다(--no-deps) — 갱신은 ops/README.md
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     environment:
       POSTGRES_DB: goteacher
       POSTGRES_USER: goteacher
@@ -99,7 +100,7 @@ services:
 
   redis:
     <<: *common
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
     # 큐(RQ, db 0)와 캐시(빈도 제한, db 1)를 함께 둔다. noeviction: RQ의 worker 등록 키(만료 있음)가 지워지지 않게.
     # 빈도 제한 키는 1분~1시간 만료라 IP 수만큼만 쌓여 96mb에 한참 못 미치고, 캐시 쓰기가 실패하면 막지 않는다(ratelimit.py).
     command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction"]

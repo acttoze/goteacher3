@@ -4,6 +4,7 @@
 
 - `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis` · `goteacher-worker`(RQ, 같은 이미지, 작업당 300초·메모리 2.5GB).
 - `Dockerfile` — 빌드 컨텍스트는 저장소 루트(`.dockerignore`).
+- 기반 이미지 4개(python·uv·postgres·redis)는 `@sha256:` 다이제스트로 고정. 갱신: `docker buildx imagetools inspect <이름:태그>`의 Digest로 바꿔 푸시(앱 이미지는 다음 배포에 반영, db·redis는 deploy가 다시 만들지 않으므로 승인 뒤 서버에서 `docker compose up -d db redis`).
 - `.env.example` — 서버 `ops/.env`(chmod 600) 견본. 실제 값은 서버에서 생성하고 저장소·출력에 남기지 않는다.
 
 배포(B2, 자동): main 푸시 → GitHub Actions `ci`(ruff·테스트, 작업 이름 `test`) → 서버 crontab이 1분마다
