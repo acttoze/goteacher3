@@ -33,6 +33,7 @@ from config.ratelimit import TOO_MANY, allow
 from hwpfiles.models import SourceFile, space_quota
 from hwpfiles.views import _clean_name
 from collect.models import Notification
+from repairs.models import Repair
 from spaces.gates import manager_required, school_required, school_write_required
 from spaces.models import Member
 from spaces.views import _space_ctx
@@ -247,7 +248,8 @@ def index(request):
     for n in shown:
         n.stat = stats.get(n.pk)
         n.todo = n.must and n.pk not in acked and n.by_id != me.pk and seenlib.in_audience(n, me)
-    return render(request, "notices/list.html", _space_ctx(request, page="board", notices=page,
+    repair_n = Repair.objects.in_space(request.space).exclude(status=Repair.Status.DONE).count()
+    return render(request, "notices/list.html", _space_ctx(request, page="board", notices=page, repair_n=repair_n,
                                                            writable=request.space.school.writable))
 
 

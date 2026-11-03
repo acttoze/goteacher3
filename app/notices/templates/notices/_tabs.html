@@ -1,0 +1,5 @@
+{# 게시판 탭. on: notice·repair, notice_n: 공지 수, repair_n: 진행 중 수리 수. #}
+<nav class="tabs" aria-label="게시판">
+  <a href="/s/{{ space.token }}/board"{% if on == "notice" %} aria-current="page"{% endif %}>공지 <span class="c num">{{ notice_n }}</span></a>
+  <a href="/s/{{ space.token }}/repairs"{% if on == "repair" %} aria-current="page"{% endif %}>수리 요청{% if repair_n %} <span class="c num">{{ repair_n }}</span>{% endif %}</a>
+</nav>

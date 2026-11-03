@@ -1,0 +1,41 @@
+{# 수리 요청 상세. 처리 저장 뒤 htmx가 이 조각만 바꾼다. #}
+<div id="repairMain"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+  <div class="title">
+    <div class="grow"><h1 style="overflow-wrap:anywhere">{{ r.title }}</h1></div>
+    <span class="pill {{ r.status_pill }}">{{ r.get_status_display }}</span>
+    {% if can_edit %}<a class="btn sec" href="/s/{{ space.token }}/repairs/{{ r.key }}/edit">고치기</a>{% endif %}
+    {% if can_delete %}<button class="btn ghost" type="button" data-open="#delDlg">지우기</button>
+    <div class="scrim" id="delDlg" hidden><form class="dialog" role="dialog" aria-modal="true" aria-labelledby="delDlgH" method="post" action="/s/{{ space.token }}/repairs/{{ r.key }}/delete">{% csrf_token %}
+      <div class="dh"><h2 id="delDlgH">이 요청을 지울까요?</h2></div>
+      <div class="db"><p>요청과 사진이 함께 지워지고 되돌릴 수 없어요.</p></div>
+      <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">지우기</button></div>
+    </form></div>{% endif %}
+  </div>
+  <div class="grid">
+    <section class="card {% if can_handle %}s8{% else %}s12{% endif %}" style="min-width:0"><div class="card-b" style="padding-top:var(--pad)">
+      <dl class="kv" style="overflow-wrap:anywhere">
+        <dt>분류</dt><dd>{{ r.get_cat_display }}{% if r.urgent and not r.is_done %} <span class="pill neg">급함</span>{% endif %}</dd>
+        {% if r.place %}<dt>위치</dt><dd>{{ r.place }}</dd>{% endif %}
+        <dt>요청</dt><dd>{{ r.by_name }} · {{ r.created_at|date:"n/j H:i" }}</dd>
+        <dt>담당</dt><dd>{{ desk }}</dd>
+        {% if r.note %}<dt>메모</dt><dd>{{ r.note }}</dd>{% endif %}
+        {% if r.reply %}<dt>답변</dt><dd>{{ r.reply }}</dd>{% endif %}
+      </dl>
+      {% if r.photo %}<a href="/s/{{ space.token }}/repairs/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" target="_blank" rel="noopener" style="display:inline-block;margin-top:16px"><img src="/s/{{ space.token }}/repairs/{{ r.key }}/photo?v={{ r.updated_at|date:'U' }}" alt="요청 사진" style="display:block;max-width:100%;max-height:320px;border-radius:var(--radius-in)"></a>
+      {% if can_delete %}<div style="margin-top:10px"><button class="btn ghost sm" type="button" data-open="#delPhotoDlg">사진만 지우기</button></div>
+      <div class="scrim" id="delPhotoDlg" hidden><form class="dialog" role="dialog" aria-modal="true" aria-labelledby="delPhotoDlgH" method="post" action="/s/{{ space.token }}/repairs/{{ r.key }}/photo/delete">{% csrf_token %}
+        <div class="dh"><h2 id="delPhotoDlgH">사진만 지울까요?</h2></div>
+        <div class="db"><p>요청 내용은 남고 사진은 되돌릴 수 없어요.</p></div>
+        <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">사진 지우기</button></div>
+      </form></div>{% endif %}{% endif %}
+    </div></section>
+    {% if can_handle %}<section class="card s4" style="min-width:0"><div class="card-h"><h2>처리</h2></div><div class="card-b">
+      <form class="stack-y" style="gap:14px" method="post" action="/s/{{ space.token }}/repairs/{{ r.key }}/state" hx-post="/s/{{ space.token }}/repairs/{{ r.key }}/state" hx-target="#repairMain" hx-swap="outerHTML">{% csrf_token %}
+        <label class="field"><span>상태</span><select class="select" name="status">{% for v, label in statuses %}<option value="{{ v }}"{% if v == r.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field"><span>답변 <span class="hint">요청한 선생님이 봐요</span></span><input class="input" name="reply" value="{{ r.reply }}" maxlength="500" placeholder="예: 내일 오전에 갈게요"></label>
+        <div><button class="btn pri" type="submit">저장</button></div>
+        <p class="small muted" style="margin:0">상태가 바뀌면 요청한 선생님께 알림이 가요.</p>
+      </form>
+    </div></section>{% endif %}
+  </div>
+</div>

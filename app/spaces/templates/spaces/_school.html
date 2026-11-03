@@ -28,7 +28,7 @@
     {% for g in group_cards %}<section class="card s3 gcard" aria-labelledby="gc{{ forloop.counter }}">
       <div class="card-h"><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span></div>
       <div class="card-b">{% if g.rows %}<ul class="rows">
-        {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"><span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}{% if r.m.can_duty %}<span class="pill">복무 입력</span>{% endif %}
+        {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"><span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}{% if r.m.can_duty %}<span class="pill">복무 입력</span>{% endif %}{% if r.m.can_repair %}<span class="pill">수리 담당</span>{% endif %}
           {% if is_creator and writable or is_creator and not r.me %}<button class="tlink" type="button" data-open="#p-{{ r.m.key }}" aria-label="{{ r.m.name }} 선생님 관리">관리</button>
           {% include "spaces/_school_person.html" %}{% endif %}</li>{% endfor %}
       </ul>{% else %}<p class="muted">아직 아무도 없어요</p>{% endif %}</div>

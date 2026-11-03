@@ -88,7 +88,7 @@ def digest(now=None):
         if off[school.pk]:
             continue  # 쌓인 것은 다음 등교일 묶음으로
         notes = list(Notification.objects.in_space(space).filter(member_id=member_id, read=False, pushed=False)
-                     .select_related("row__collection", "notice").order_by("created_at", "id"))
+                     .select_related("row__collection", "notice", "repair").order_by("created_at", "id"))
         # 공지 🔔은 보내는 지금 볼 수 있을 때만(그새 대상이 줄거나 그룹을 옮겼으면 바뀐 제목이 나가지 않게)
         ids = {n.notice_id for n in notes if n.notice_id}
         shown = set(Notice.objects.in_space(space).visible_to(group[0].member).filter(pk__in=ids).values_list("pk", flat=True)) if ids else ()
@@ -109,6 +109,8 @@ def digest(now=None):
 def _title(note):
     if note.notice:
         return note.notice.title[:60]
+    if note.repair:
+        return note.repair.title[:60]
     return note.row.collection.title[:60] if note.row else "새 기기 알림"
 
 

@@ -88,6 +88,7 @@ urlpatterns = [
     path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("s/<str:space_token>/", include("today.urls")),  # G1 간이 오늘
     path("s/<str:space_token>/", include("notices.urls")),  # I1 공지
+    path("s/<str:space_token>/", include("repairs.urls")),  # K1 수리 요청
     path("forms", library.index),  # G4 양식 자료실(로그인 없이)
     path("forms/<str:slug>", library.index),
     path("forms/<str:slug>/download", library.download),

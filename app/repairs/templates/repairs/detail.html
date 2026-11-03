@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% block title %}수리 요청 · 고티처{% endblock %}
+{% block ptitle %}게시판{% endblock %}
+{% block head %}<style>
+  .small, .field .hint { font-size: 15px; }
+</style>{% endblock %}
+{% block main %}
+<p class="small muted" style="margin-bottom:8px"><a class="tlink" href="/s/{{ space.token }}/repairs" style="font-weight:600;color:var(--muted)">게시판 · 수리 요청</a> /</p>
+{% include "repairs/_detail.html" %}
+{% endblock %}

@@ -15,7 +15,7 @@
   <div class="grow"><h1>게시판</h1><p class="sub">고칠 때마다 판(v1, v2…)이 올라가고, 바뀐 부분만 다시 보여 줘요.</p></div>
   {% if writable %}<a class="btn pri" href="/s/{{ space.token }}/board/new">공지 쓰기</a>{% endif %}
 </div>
-<nav class="tabs" aria-label="게시판"><a href="/s/{{ space.token }}/board" aria-current="page">공지 <span class="c num">{{ notices.paginator.count }}</span></a></nav>
+{% include "notices/_tabs.html" with on="notice" notice_n=notices.paginator.count %}
 {% if notices.paginator.count %}
 <section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
   <ul class="list">{% for n in notices %}
