@@ -88,6 +88,6 @@
 </style>
 <script src="{% static 'js/recv.js' %}" defer></script>
 {% endblock %}
-{% block ctx %}{% if c %}<span class="ctx">{{ school }} {{ grade }}학년</span>{% endif %}{% endblock %}
+{% block ctx %}{% if c %}<span class="ctx">{{ school }}{% if grade %} {{ grade }}학년{% endif %}</span>{% endif %}{% endblock %}
 {% block end %}<span class="end"><span class="lbl">로그인 없이 내요</span></span>{% endblock %}
 {% block main %}{% include "collect/_recv_main.html" %}{% endblock %}

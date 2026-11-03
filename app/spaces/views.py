@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
 from django.db.models import Count
-from django.http import HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -26,7 +26,18 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
-from .models import Member, School, Space, get_in_space_or_404, new_token
+from .models import (
+    Member,
+    School,
+    Space,
+    cls_group,
+    cls_text,
+    get_in_space_or_404,
+    is_last_manager,
+    lead_member,
+    leads,
+    new_token,
+)
 
 INVITE = "invite"  # 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
 HITS = "new_school_hits"  # 마지막 검색 결과(서버가 NEIS에서 받은 것)
@@ -36,6 +47,8 @@ FALLBACK_CLASSES = ["1", "2", "3", "4"]  # NEIS 학급 정보가 없을 때(prot
 # 초대 입장 POST: 가짜 이름으로 상한(반 수×2)을 채우지 않게. 학교는 공인 IP 하나를 같이 쓰므로 IP 쪽을 넉넉히.
 JOIN_PER_MIN_IP = 10
 JOIN_PER_MIN_SESSION = 5
+SCHOOL_SEATS = 300  # 학교 공간 입장 상한(H2 입장 화면 전까지 초대 링크 입장에 쓴다)
+LAST_MANAGER = "마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요."
 NEIS_PER_MIN = 20  # 학교 검색(사용자당 분당)
 # design/assets/people.js의 사람 색. 들어온 순서대로 돌려 쓴다. (색, 글자를 검게)
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
@@ -83,7 +96,7 @@ def _cls_label(cls):
 
 
 def _my_space(user):
-    """내 동학년(가장 최근). 사용자 기준 조회라 공간 필터 대상이 아니다. R1: 교사 한 명은 동학년 하나."""
+    """내 공간(가장 최근). 사용자 기준 조회라 공간 필터 대상이 아니다. 교사 한 명은 공간 하나."""
     mine = Member.objects.filter(user=user).select_related("space").order_by("-joined_at").first()
     return mine.space if mine else None
 
@@ -147,8 +160,10 @@ GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님
 
 
 def _grade_taken(school, grade):
-    """같은 학교·학년 동학년이 이미 있나(사용자 결정 11/3: 하나만). 만든 사람 이름은 알려 주지 않는다."""
-    return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"], grade=grade).exists()
+    """같은 학교·학년 동학년이 이미 있나(사용자 결정 11/3: 하나만). 만든 사람 이름은 알려 주지 않는다.
+    학교 공간(grade=0)이 있는 학교도 새 동학년을 만들지 않는다(H1: 입장 안내는 H2)."""
+    return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"],
+                                grade__in=[grade, 0]).exists()
 
 
 def _int_grade(raw):
@@ -223,16 +238,31 @@ def new_class(request):
     return render(request, "spaces/start_class.html", ctx, status=status)
 
 
-def _class_slots(space):
+def _grade_slots(school, grade):
     """NEIS 반 + 전담. NEIS가 없으면 빈 목록."""
-    names = neis.class_names(space.school.neis_atpt, space.school.neis_code, space.grade)
-    return [f"{space.grade}-{n}" for n in names] + ([f"{space.grade}-전담"] if names else [])
+    names = neis.class_names(school.neis_atpt, school.neis_code, grade)
+    return [f"{grade}-{n}" for n in names] + ([f"{grade}-전담"] if names else [])
+
+
+def _grade_choices(school, grade):
+    """NEIS 반 + 전담. NEIS가 없으면 1~4반 + 전담(초대 입장과 같은 칸)."""
+    return _grade_slots(school, grade) or [f"{grade}-{n}" for n in FALLBACK_CLASSES] + [f"{grade}-전담"]
+
+
+def _class_slots(space):
+    """명부에 보일 칸. 학교 공간은 칸 없이 들어온 사람만 센다(학교 명부는 H3)."""
+    return [] if space.is_school else _grade_slots(space.school, space.grade)
 
 
 def class_choices(space):
-    """[(반, 표시)]: NEIS 반 + 전담. NEIS가 없으면 1~4반 + 전담(초대 입장과 같은 칸)."""
-    slots = _class_slots(space) or [f"{space.grade}-{n}" for n in FALLBACK_CLASSES] + [f"{space.grade}-전담"]
-    return [(c, _cls_label(c)) for c in slots]
+    """[(반, 표시)]. 학교 공간은 합쳐진 학년 + 회원이 이미 쓰는 반(입장 화면은 H2)."""
+    if not space.is_school:
+        return [(c, _cls_label(c)) for c in _grade_choices(space.school, space.grade)]
+    grades = sorted(space.merged_spaces.values_list("grade", flat=True)) or list(GRADES)
+    slots = [c for g in grades for c in _grade_choices(space.school, g)]
+    used = Member.objects.in_space(space).values_list("cls", flat=True).distinct()
+    slots += sorted(set(used) - set(slots))
+    return [(c, cls_text(c)) for c in slots]
 
 
 def _roster(space, me=None):
@@ -240,14 +270,17 @@ def _roster(space, me=None):
     members = list(Member.objects.in_space(space).select_related("user").order_by("joined_at", "pk"))
     slots = _class_slots(space)
     taken = {m.cls for m in members}
+    creator = lead_member(space)
     rows = []
     for i, m in enumerate(members):
         color, ink = PEOPLE_COLORS[i % len(PEOPLE_COLORS)]
         google = m.user_id and not is_guest(m.user)
         via = "구글 가입" if google else "초대 링크 · 이름만"
-        if i == 0:
+        if space.is_school and m.is_manager:
+            via += " · 관리자"
+        elif not space.is_school and i == 0:
             via += " · 만든 사람"
-        rows.append({"m": m, "label": _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google,
+        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google,
                      "at": timezone.localtime(m.joined_at), "me": me is not None and m.pk == me.pk})
     waiting = [_cls_label(c) for c in slots if c not in taken]
     # prototype: 칸(NEIS 반 + 전담) 중 채워진 칸. 칸 밖 반은 칸을 하나씩 더한다. NEIS가 없으면 들어온 사람 수.
@@ -256,15 +289,16 @@ def _roster(space, me=None):
         filled, total = len(taken & set(slots)) + len(extras), len(slots) + len(extras)
     else:
         filled = total = len(members)
-    return {"rows": rows, "waiting": waiting, "slots": slots, "creator": members[0] if members else None,
+    return {"rows": rows, "waiting": waiting, "slots": slots, "creator": creator,
             "filled": filled, "total": total, "pct": round(filled / total * 100) if total else 0}
 
 
 def _invite(space, me):
     link = f"{settings.SITE_URL}/j/{space.invite_token}"
-    msg = (f"[고티처] {space.school.name} {space.grade}학년 동학년방이에요.\n"
+    room = f"{space.school.name} 학교 공간" if space.is_school else f"{space.school.name} {space.grade}학년 동학년방"
+    msg = (f"[고티처] {room}이에요.\n"
            f"아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)\n{link}\n\n"
-           f"— {me.name} ({space.grade}학년 {_cls_label(me.cls)})")
+           f"— {me.name} ({me.cls_text})")
     # QR은 서버에서 SVG로 만들어 data URI <img>로 넣는다(HTML을 그대로 끼워 넣지 않는다).
     qr = segno.make(link, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)
     return {"link": link, "msg": msg, "qr": qr}
@@ -276,7 +310,8 @@ def _space_ctx(request, **extra):
     ctx = {"space": space, "me": me, **_roster(space, me), **extra}
     mine = next(r for r in ctx["rows"] if r["me"])
     ctx.update(my_color=mine["color"], my_ink=mine["ink"], my_label=mine["label"])
-    ctx["is_creator"] = ctx["creator"].pk == me.pk
+    ctx["is_creator"] = leads(space, me)
+    ctx["last_manager"] = is_last_manager(me)
     if ctx["is_creator"]:  # 내보내기 확인창: 그 선생님이 만든 모으기는 만든 사람이 넘겨받는다(remove_member)
         made = dict(Collection.objects.in_space(space).filter(created_by__isnull=False)
                     .values_list("created_by").annotate(n=Count("pk")))
@@ -320,7 +355,7 @@ def new_invite(request):
 @never_cache
 @require_POST
 def remove_member(request, key):
-    """회원 내보내기(만든 사람만, 나는 못 내보냄). 손님이면 그 User를 지워 기기 토큰·세션도 끊는다.
+    """회원 내보내기(대표만, 나는 못 내보냄, 마지막 관리자도 못 내보냄). 손님이면 그 User를 지워 기기 토큰·세션도 끊는다.
 
     낸 값은 남는다(줄은 member가 비고 합본에 그대로). 다음 모으기 명부에서 빠진다.
     구글 회원은 이 동학년 자리만 빠지고 계정·로그인은 그대로(다른 동학년을 만들 수 있게).
@@ -331,8 +366,11 @@ def remove_member(request, key):
         return HttpResponseForbidden()
     label = f"{_cls_label(m.cls)} {m.name}"
     with transaction.atomic():
+        Space.objects.select_for_update().filter(pk=request.space.pk).first()  # 관리자 둘이 서로 내보낼 때 직렬화
+        if is_last_manager(m):
+            return HttpResponse(LAST_MANAGER, status=409)
         user = m.user
-        # 내보낸 회원이 만든 모으기는 내보낸 사람(동학년을 만든 사람)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
+        # 내보낸 회원이 만든 모으기는 내보낸 사람(대표)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
         Collection.objects.in_space(request.space).filter(created_by=m).update(created_by=request.member)
         m.delete()
         if user and is_guest(user) and not Member.objects.filter(user=user).exists():
@@ -347,7 +385,7 @@ def _seat_alert(space, member):
     """기기가 붙어 있는 손님 자리로 다른 브라우저가 들어왔다: 만든 사람 🔔에(허용형 입장은 그대로)."""
     if not DeviceToken.objects.filter(user=member.user, created_at__gt=timezone.now() - DEVICE_AGE).exists():
         return
-    creator = Member.objects.in_space(space).order_by("joined_at", "pk").first()
+    creator = lead_member(space)
     if creator is None or creator.pk == member.pk:
         return
     text = f"{_cls_label(member.cls)} {member.name} 자리로 새 기기가 들어왔어요"
@@ -362,6 +400,8 @@ def _seat_alert(space, member):
 @require_GET
 def made(request):
     """동학년 만들기 4단계: 만들었어요 + 초대 링크(design/start.html step4)."""
+    if request.space.is_school:  # 합쳐지기 전에 받아 둔 주소
+        return redirect(f"/s/{request.space.token}/")
     ctx = _space_ctx(request)
     ctx.update(_invite(request.space, request.member))
     return render(request, "spaces/made.html", ctx)
@@ -374,12 +414,24 @@ def welcome(request):
     return render(request, "spaces/welcome.html", _space_ctx(request, guest=is_guest(request.user)))
 
 
+def _retired_invite(request, old):
+    """합쳐진 옛 동학년 초대는 폐기(리드 결정). 회원이면 학교 공간으로, 아니면 안내만(입장·세션 저장 없음)."""
+    request.session.pop(INVITE, None)
+    hub = old.merged_into
+    if request.user.is_authenticated and Member.objects.in_space(hub).filter(user=request.user).exists():
+        return redirect(f"/s/{hub.token}/")
+    return render(request, "spaces/join.html", {"retired": True})
+
+
 @never_cache
 @require_GET
 def invite(request, invite_token):
     """초대 링크는 자격 증명: 세션으로 옮기고 토큰 없는 주소로 보낸다(접근 기록·Referer에 덜 남게)."""
-    if not Space.objects.filter(invite_token=invite_token).exists():
+    space = Space.objects.filter(invite_token=invite_token).first()
+    if space is None:
         return render(request, "spaces/join.html", {"missing": True}, status=404)
+    if space.merged_into_id:
+        return _retired_invite(request, space)
     request.session[INVITE] = invite_token
     return redirect("/join")
 
@@ -387,17 +439,22 @@ def invite(request, invite_token):
 @never_cache
 @require_http_methods(["GET", "POST"])
 def join(request):
-    """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 같은 반·같은 이름이면 같은 사람으로 본다."""
+    """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 동학년은 같은 반·같은 이름이면 같은 사람으로 본다.
+    학교 공간은 그렇게 잇지 않는다(리드 결정: 이름만으로 자리를 차지하면 안 됨). 구글 필수 입장은 H2."""
     space = Space.objects.filter(invite_token=request.session.get(INVITE) or "-").select_related("school").first()
     if space is None:
         return render(request, "spaces/join.html", {"missing": True}, status=404)
+    if space.merged_into_id:  # 합쳐지기 전에 링크를 열어 세션에 남아 있던 경우
+        return _retired_invite(request, space)
     user = request.user
     mine = _my_space(user) if user.is_authenticated else None
     if mine == space:
         request.session.pop(INVITE, None)
         return redirect(f"/s/{space.token}/")
     roster = _roster(space)
-    slots = [c for c, _ in class_choices(space)]
+    picks = class_choices(space)
+    slots = [c for c, _ in picks]
+    seats = SCHOOL_SEATS if space.is_school else len(slots) * 2
     ctx = {"space": space, "creator": roster["creator"], "n": len(roster["rows"]), "mine": mine}
     if mine:  # R1: 교사 한 명은 동학년 하나
         return render(request, "spaces/join.html", ctx, status=409 if request.method == "POST" else 200)
@@ -422,7 +479,10 @@ def join(request):
             with transaction.atomic():
                 Space.objects.select_for_update().filter(pk=space.pk).first()  # 같은 반·이름 동시 입장 직렬화
                 same = Member.objects.in_space(space).filter(cls=cls, name=name).select_related("user").first()
-                if same and same.user_id and not is_guest(same.user):
+                if same and space.is_school:  # 손님·빈 자리 포함 어떤 자리도 이 경로로 잇지 않는다
+                    errors["name"] = ("이 반·이름은 이미 있어요. 본인이면 처음 들어온 PC에서 「구글 계정으로 이어 두기」를 "
+                                      "누르거나 구글로 들어와 주세요.")
+                elif same and same.user_id and not is_guest(same.user):
                     errors["name"] = "이 반·이름은 구글 계정으로 이어 둔 선생님이에요. 본인이면 구글로 들어와 주세요."
                 elif same and user.is_authenticated:
                     # 손님 자리를 구글에 잇는 길은 그 손님 PC에서 「구글 계정으로 이어 두기」 하나뿐이다.
@@ -431,7 +491,7 @@ def join(request):
                 elif same and same.user_id:
                     user = same.user  # 같은 선생님이 다른 PC에서: 같은 손님으로 이어 준다
                     _seat_alert(space, same)
-                elif Member.objects.in_space(space).count() >= len(slots) * 2:
+                elif Member.objects.in_space(space).count() >= seats:
                     errors["name"] = "이 동학년에는 더 들어올 수 없어요. 만든 선생님께 알려 주세요."
                 else:
                     if not user.is_authenticated:
@@ -440,7 +500,8 @@ def join(request):
                         same.user = user
                         same.save(update_fields=["user"])
                     else:
-                        Member.objects.create(space=space, user=user, name=name, cls=cls)
+                        Member.objects.create(space=space, user=user, name=name, cls=cls,
+                                              group=cls_group(cls) if space.is_school else "")
             if not errors:
                 request.session.pop(INVITE, None)
                 response = redirect(f"/s/{space.token}/welcome")
@@ -453,7 +514,7 @@ def join(request):
     for r in roster["rows"]:
         by_cls.setdefault(r["m"].cls, r)
     ctx.update(errors=errors, cls=cls, name=name, remember=remember,
-               choices=[{"cls": c, "label": _cls_label(c), "who": by_cls.get(c)} for c in slots])
+               choices=[{"cls": c, "label": label, "who": by_cls.get(c)} for c, label in picks])
     return render(request, "spaces/join.html", ctx, status=(429 if limited else 400) if errors else 200)
 
 
@@ -488,7 +549,11 @@ def update_me(request):
         return _me_area(request, status=400, error=error, typed=name)
     me.name, me.cls = name, cls
     # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
-    me.save(update_fields=[f for f in ("name", "cls") if f in request.POST])
+    fields = [f for f in ("name", "cls") if f in request.POST]
+    if request.space.is_school and "cls" in fields:
+        me.group = cls_group(cls) or me.group
+        fields.append("group")
+    me.save(update_fields=fields)
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/settings")
     return _me_area(request, saved=True)
@@ -500,6 +565,7 @@ def leave(request):
     """동학년 나가기(design #space). 동학년 이름을 써야 나간다.
 
     내가 만든 모으기는 남은 선생님 중 가장 먼저 들어온 분이 넘겨받는다(그분이 새 학년 대표, _roster의 creator).
+    학교 공간은 관리자가 넘겨받고(입장 순서로 넘기지 않음), 마지막 관리자는 나갈 수 없다.
     내가 낸 칸은 합본에 남는다(줄의 member만 빈다). 마지막 한 명이면 동학년을 지운다(같은 학년을 새로 만들 수 있게).
     손님은 다른 소속이 없으므로 계정도 지우고(기기 토큰 CASCADE) 로그아웃한다. 구글 회원은 첫 화면으로.
     """
@@ -509,11 +575,14 @@ def leave(request):
     user = request.user
     with transaction.atomic():
         Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 동시에 나갈 때 마지막 판단을 직렬화
+        if is_last_manager(me):
+            return HttpResponse(LAST_MANAGER, status=409)
         heir = Member.objects.in_space(space).exclude(pk=me.pk).order_by("joined_at", "pk").first()
         if heir is None:
             space.delete()  # 모으기·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)
         else:
-            Collection.objects.in_space(space).filter(created_by=me).update(created_by=heir)
+            if not space.is_school:  # 학교 공간은 비워 둬 관리자가 넘겨받는다(collect.views._owner)
+                Collection.objects.in_space(space).filter(created_by=me).update(created_by=heir)
             me.delete()
         gone = is_guest(user) and not Member.objects.filter(user=user).exists()
         if gone:

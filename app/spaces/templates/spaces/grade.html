@@ -32,7 +32,7 @@
 <div class="title">
   <div class="grow">
     <h1>{{ space.name }}</h1>
-    <p class="sub">{{ space.school.name }} · 동학년 공간 · 만든 사람 <b>{{ creator.name }}</b> · {{ space.created_at|date:"n월 j일" }}부터</p>
+    <p class="sub">{{ space.school.name }} · {% if space.is_school %}학교 공간{% else %}동학년 공간 · 만든 사람 <b>{{ creator.name }}</b>{% endif %} · {{ space.created_at|date:"n월 j일" }}부터</p>
   </div>
   <button class="btn pri" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>
 </div>

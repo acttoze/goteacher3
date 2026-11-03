@@ -1,8 +1,9 @@
-"""School · Space(동학년) · Member. 공간 소속 모델은 SpaceQuerySet.in_space()로만 조회한다."""
+"""School · Space(동학년·학교) · Member. 공간 소속 모델은 SpaceQuerySet.in_space()로만 조회한다."""
 import secrets
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 
@@ -26,10 +27,24 @@ def get_in_space_or_404(model, request, **lookup):
     return get_object_or_404(model.objects.in_space(request.space), **lookup)
 
 
+def cls_text(cls):
+    """'4-1' → '4학년 1반', '4-전담' → '4학년 전담'. 학년이 앞에 없으면 그대로."""
+    head, sep, tail = cls.partition("-")
+    if not sep or not head.isdigit():
+        return cls
+    return f"{head}학년 {tail}반" if tail.isdigit() else f"{head}학년 {tail}"
+
+
 class School(models.Model):
+    class Plan(models.TextChoices):
+        FREE = "free", "무료"
+        SCHOOL = "school", "학교 플랜"
+
     neis_atpt = models.CharField("시도교육청 코드", max_length=10)
     neis_code = models.CharField("학교 코드", max_length=10)
     name = models.CharField("학교 이름", max_length=100)
+    plan = models.CharField("플랜", max_length=10, choices=Plan.choices, default=Plan.FREE)
+    paid_until = models.DateField("결제 기한", null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -41,27 +56,48 @@ class School(models.Model):
 
 
 class Space(models.Model):
-    """동학년 공간.
+    """동학년 공간 또는 학교 공간(kind=school, grade=0, 학교당 하나).
 
     token: 공간 주소(/s/<token>/). 들어오려면 소속 회원이어야 한다.
     invite_token: 초대 링크(B7). 주소와 따로 두어, 링크가 새면 초대만 새로 발급한다.
+    merged_into: 학교 공간으로 합쳐진 옛 동학년(H1). 데이터는 없고 옛 주소만 넘긴다(옛 초대 링크는 폐기, 안내 화면만).
+    학교 공간이 지워지면(관리자 없이 마지막 회원이 나감) 옛 공간도 함께 지운다. 학년 유일 제약은 옛 공간도 그대로
+    받아, 합쳐진 학교에 같은 학년 동학년을 새로 만들 수 없다.
     """
 
+    class Kind(models.TextChoices):
+        GRADE = "grade", "동학년"
+        SCHOOL = "school", "학교"
+
     school = models.ForeignKey(School, on_delete=models.PROTECT, related_name="spaces")
+    kind = models.CharField("종류", max_length=10, choices=Kind.choices, default=Kind.GRADE)
     grade = models.PositiveSmallIntegerField("학년")
     name = models.CharField("이름", max_length=100)
     token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     invite_token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
+    merged_into = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="merged_spaces")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         # 같은 학교·학년 동학년은 하나(사용자 결정 11/3). 동시에 만들어도 DB가 하나만 받는다.
+        # 학교 공간은 grade=0이라 같은 제약으로 학교당 하나가 된다(아래 검사가 kind와 grade를 묶는다).
         constraints = [
             models.UniqueConstraint(fields=["school", "grade"], name="uniq_space_school_grade"),
+            models.CheckConstraint(
+                condition=Q(kind="school", grade=0) | Q(kind="grade", grade__gte=1), name="space_kind_matches_grade"
+            ),
         ]
 
     def __str__(self):
         return f"{self.school} {self.name}"
+
+    @property
+    def is_school(self):
+        return self.kind == self.Kind.SCHOOL
+
+    @property
+    def label(self):
+        return "학교" if self.is_school else f"{self.grade}학년"
 
 
 class Member(models.Model):
@@ -69,7 +105,21 @@ class Member(models.Model):
 
     user: 구글 회원(google:<sub>) 또는 초대 링크로 이름만 들어온 손님(guest:<토큰>, accounts.is_guest).
     손님도 User라서 기기 토큰·소속 확인 미들웨어를 그대로 쓴다. 구글을 이으면 absorb_guest로 합친다.
+    group: 학교 공간의 소속(prototype TR.groups). 동학년 공간에서는 비어 있고, 합칠 때 학년으로 채운다.
+    is_manager: 학교 관리자. 구글 회원만 된다(손님 자리는 반·이름으로 찾기 쉬워서). 직위 글자로 권한을 주지 않는다.
     """
+
+    class Group(models.TextChoices):
+        G1 = "g1", "1학년"
+        G2 = "g2", "2학년"
+        G3 = "g3", "3학년"
+        G4 = "g4", "4학년"
+        G5 = "g5", "5학년"
+        G6 = "g6", "6학년"
+        OFFICE = "office", "교무실"
+        ADMIN = "admin", "행정실"
+        MEAL = "meal", "급식소"
+        SUPPORT = "support", "기타/지원"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="members")
     user = models.ForeignKey(
@@ -79,6 +129,8 @@ class Member(models.Model):
     name = models.CharField("이름", max_length=40)
     cls = models.CharField("반", max_length=20, help_text="예: 4-1, 4-전담")
     position = models.CharField("직위", max_length=40, blank=True)
+    group = models.CharField("소속", max_length=10, choices=Group.choices, blank=True, default="")
+    is_manager = models.BooleanField("학교 관리자", default=False)
     # G2 설정 > 알림: 끈 웹 푸시 묶음 키(collect.push.SLOTS의 am·noon·pm, 쉼표로). 비면 다 켜짐. 🔔은 그대로 쌓인다.
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -92,6 +144,40 @@ class Member(models.Model):
 
     def __str__(self):
         return f"{self.name}({self.cls})"
+
+    @property
+    def cls_text(self):
+        return cls_text(self.cls)
+
+
+def cls_group(cls):
+    """'4-1' → 'g4'. 학년 반이 아니면 빈 값."""
+    group = "g" + cls.partition("-")[0]
+    return group if group in Member.Group.values else ""
+
+
+def lead_member(space):
+    """공간 대표 한 명: 동학년은 가장 먼저 들어온 선생님, 학교 공간은 관리자 중 가장 먼저 들어온 분(없으면 None).
+    새 기기 알림을 받고 화면에 대표로 보인다. 권한 판단은 leads()로 한다."""
+    members = Member.objects.in_space(space)
+    if space.is_school:
+        members = members.filter(is_manager=True)
+    return members.order_by("joined_at", "pk").first()
+
+
+def leads(space, member):
+    """대표 권한(초대 재발급·내보내기·주인 없는 모으기): 동학년은 대표 한 명, 학교 공간은 관리자 전원."""
+    if space.is_school:
+        return member.is_manager
+    lead = lead_member(space)
+    return lead is not None and lead.pk == member.pk
+
+
+def is_last_manager(member):
+    """이 자리가 빠지면 공간에 관리자가 없어지나. 동시 요청은 부르는 쪽이 공간 행을 잠가 직렬화한다."""
+    return member.is_manager and not (
+        Member.objects.filter(space_id=member.space_id, is_manager=True).exclude(pk=member.pk).exists()
+    )
 
 
 def absorb_guest(guest, user):

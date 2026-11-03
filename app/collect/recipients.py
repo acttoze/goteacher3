@@ -27,9 +27,9 @@ def _class_no(cls):
 
 
 def roster_rows(space, mode):
-    """[{"unit", "who", "member"}] — 반 순서(전담은 뒤), 같은 반이면 들어온 순서."""
+    """[{"unit", "who", "member"}] — 학년(학교 공간), 반 순서(전담은 뒤), 같은 반이면 들어온 순서."""
     members = list(Member.objects.in_space(space).order_by("joined_at", "pk"))
-    members.sort(key=lambda m: (_class_no(m.cls) is None, _class_no(m.cls) or 0))
+    members.sort(key=lambda m: (m.cls.partition("-")[0], _class_no(m.cls) is None, _class_no(m.cls) or 0))
     out = []
     for m in members:
         no = _class_no(m.cls)
@@ -37,8 +37,7 @@ def roster_rows(space, mode):
             if no is not None:
                 out.append({"unit": m.cls, "who": m.name, "member": m})
         else:
-            pos = f"{no}반" if no is not None else m.cls.split("-", 1)[-1]
-            out.append({"unit": f"{space.grade}학년 {pos}", "who": m.name, "member": m})
+            out.append({"unit": m.cls_text, "who": m.name, "member": m})
     return out
 
 

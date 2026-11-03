@@ -18,4 +18,4 @@
   <section class="srow"><div class="lab"><h2>얼굴 색</h2><p>동학년 화면에서 내 이름표에 쓰는 색이에요. 들어온 순서로 정해져 겹치지 않아요.</p></div>
     <div class="panel pad"><div class="row"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ my_label }} {{ me.name }}</b><div class="small muted">바꿀 수 없어요</div></div></div></div></section>
 </div>
-{% if saved %}<div class="me" id="meCard" hx-swap-oob="true"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ space.grade }}학년 {{ my_label }}</span></div></div>{% endif %}
+{% if saved %}<div class="me" id="meCard" hx-swap-oob="true"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ me.cls_text }}</span></div></div>{% endif %}

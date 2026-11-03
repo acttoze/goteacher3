@@ -1,7 +1,7 @@
 {# 주간판 + 이번 주 바뀐 것·마감. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). #}
 <div id="week"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
-    <div class="card-h"><h2 id="wkH">{{ space.grade }}학년 · 학교</h2><span class="n num">{{ n_items }}</span>
+    <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
       <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>동학년</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>모으기 마감</span></span></div>
     <div class="wk"><div class="wgrid">
       <div class="lbl hd"></div>
