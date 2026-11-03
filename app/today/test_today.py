@@ -147,6 +147,17 @@ class TodayTests(TestCase):
         r = self.client.get(self.url())
         self.assertContains(r, "오늘 급식 정보가 없어요")
         self.assertContains(r, "오늘 학사일정이 없어요")
+        self.assertNotContains(r, "불러오지 못했어요")
+
+    def test_neis_failure_differs_from_empty(self):
+        """NEIS 실패(neis.Failed)는 '없음'과 다른 문구. 둘 다 실패면 두 칸 모두."""
+        from spaces import neis
+        self.meals.return_value = neis.Failed()
+        self.sched.return_value = neis.Failed()
+        r = self.client.get(self.url())
+        self.assertContains(r, "나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요", count=2)
+        self.assertNotContains(r, "오늘 급식 정보가 없어요")
+        self.assertNotContains(r, "오늘 학사일정이 없어요")
 
     # ---------- 첫 화면 핵심 ----------
     def test_now_block(self):

@@ -377,3 +377,64 @@ class HardeningTests(SubscribeViewTests):
     def test_logout_form_has_push_off(self):
         html = self.client_for(self.u2).get(f"/s/{self.a.token}/c/").content.decode()
         self.assertIn(f'data-push-off="/s/{self.a.token}/push/off"', html)
+
+
+@override_settings(**VAPID)
+class SlotOffTests(Base):
+    """설정 > 알림 묶음 끄기(Member.push_off). 끈 묶음은 그 회원에게만 안 보내고, 쌓인 🔔은 다음 켜진 묶음에 들어간다."""
+
+    def setUp(self):
+        super().setUp()
+        self.sub(self.owner)
+        self.sub(self.m2)
+        self.n1 = self.note(self.m2, self.r2)
+        self.note(self.owner, self.r1)
+        Member.objects.filter(pk=self.m2.pk).update(push_off="am")
+
+    def test_off_slot_skips_only_that_member(self):
+        wp = self.run_at(at(4, 8, 20))
+        self.assertEqual([c.kwargs["subscription_info"]["endpoint"] for c in wp.call_args_list],
+                         ["https://fcm.googleapis.com/fcm/send/김가람1"])
+        self.n1.refresh_from_db()
+        self.assertFalse(self.n1.pushed)  # 🔔은 그대로, 푸시 안 한 것으로 남는다
+        self.assertFalse(self.n1.read)
+
+    def test_skipped_notes_go_to_next_on_slot(self):
+        self.run_at(at(4, 8, 20))
+        self.note(self.m2, self.r2, kind="d0")  # 오전에 하나 더
+        wp = self.run_at(at(4, 12, 20))
+        body = json.loads(wp.call_args.kwargs["data"])
+        self.assertEqual(body["title"], "고티처 · 점심 묶음")
+        self.assertIn("2건", body["body"])  # 끈 아침 묶음 몫 + 그 뒤 것
+        self.assertFalse(Notification.objects.filter(member=self.m2, pushed=False).exists())
+
+    def test_last_slot_off_carries_to_next_day(self):
+        Member.objects.filter(pk=self.m2.pk).update(push_off="noon,pm")
+        self.run_at(at(4, 8, 20))  # 아침은 켜짐 → 보냄
+        self.note(self.m2, self.r2, kind="d0")
+        self.assertEqual(self.run_at(at(4, 12, 20)).call_count, 0)  # owner는 보낼 것 없음, m2는 끔
+        self.assertEqual(self.run_at(at(4, 14, 40)).call_count, 0)
+        wp = self.run_at(at(5, 8, 20))
+        self.assertEqual(wp.call_count, 1)
+        self.assertIn("1건", json.loads(wp.call_args.kwargs["data"])["body"])
+
+    def test_all_off_never_pushes_but_bell_keeps(self):
+        Member.objects.filter(pk=self.m2.pk).update(push_off="am,noon,pm")
+        for t in (at(4, 8, 20), at(4, 12, 20), at(4, 14, 40)):
+            self.run_at(t)
+        self.assertEqual(Notification.objects.filter(member=self.m2, read=False, pushed=False).count(), 1)
+
+
+@override_settings(**VAPID)
+class BellNextOffTests(Base):
+    page = BellNextTests.page
+
+    def test_next_bundle_skips_off(self):
+        Member.objects.filter(pk=self.m2.pk).update(push_off="noon")
+        self.assertIn("다음 알림 <b class=\"num\">14:40</b>", self.page(at(4, 8, 20)))
+        Member.objects.filter(pk=self.m2.pk).update(push_off="am")
+        self.assertIn("다음 알림 <b class=\"num\">12:20</b>", self.page(at(4, 15, 0)))  # 내일 첫 켜진 묶음
+        Member.objects.filter(pk=self.m2.pk).update(push_off="am,noon,pm")
+        html = self.page(at(4, 7, 0))
+        self.assertIn("묶음 알림 꺼짐", html)
+        self.assertNotIn("다음 알림", html)

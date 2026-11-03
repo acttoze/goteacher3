@@ -4,6 +4,8 @@
 - 묶음 창(시작~끝) 밖은 수업 중·퇴근 뒤라 보내지 않는다. 창 끝을 TTL로 줘서 꺼진 PC에 늦게 뜨지도 않게 한다.
   시각은 design 블록(1블록 08:40~, 2블록 끝 12:20, 방과후 14:40~). 주말·NEIS 휴업일·방학은 건너뛴다.
 - 회원별 한 건: 안 읽은 🔔 가운데 아직 푸시 안 한 것. 본문은 모으기 제목·건수만(제출 값·이름 없음).
+- 설정 > 알림에서 회원이 끈 묶음(Member.push_off)은 그 회원에게 보내지 않는다. 🔔은 그대로 쌓이고 pushed도 그대로라
+  그 시각까지 쌓인 것은 다음 켜진 묶음(다음 날 포함)에 함께 들어간다.
 - 구독 저장·끄기는 이 PC 브라우저가 누를 때만(gt.js). endpoint는 알려진 푸시 서비스 주소만 받는다(서버가 그 주소로 요청하므로).
 """
 import base64
@@ -45,10 +47,16 @@ def current_slot(now):
     return next((s for s in SLOTS if s[1] <= t < s[2]), None)
 
 
-def next_at(now):
-    """다음 묶음 시각(🔔 옆 '다음 알림 08:20')."""
+def off_keys(member):
+    """회원이 끈 묶음 키 집합."""
+    return {k for k in member.push_off.split(",") if k}
+
+
+def next_at(now, off=()):
+    """다음 켜진 묶음 시각(🔔 옆 '다음 알림 08:20'). 다 껐으면 None."""
     t = timezone.localtime(now).time()
-    return next((s[1] for s in SLOTS if t < s[1]), SLOTS[0][1])
+    on = [s[1] for s in SLOTS if s[0] not in off]
+    return next((x for x in on if t < x), on[0] if on else None)
 
 
 def digest(now=None):
@@ -67,9 +75,11 @@ def digest(now=None):
     sent = 0
     # 사용자와 끊긴 회원(손님 합치기·탈퇴)·막힌 사용자에게는 보내지 않는다
     subs = (PushSubscription.objects.filter(member__user__isnull=False, member__user__is_active=True)
-            .select_related("space__school").order_by("member_id", "pk"))
+            .select_related("space__school", "member").order_by("member_id", "pk"))
     for member_id, group in groupby(subs, key=lambda s: s.member_id):
         group = list(group)
+        if slot[0] in off_keys(group[0].member):
+            continue  # 이 회원이 끈 묶음: 쌓인 것은 다음 켜진 묶음으로
         space = group[0].space
         school = space.school
         if school.pk not in off:

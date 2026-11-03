@@ -11,7 +11,7 @@
       {% for c in r.cells %}<div class="{% if c.items %}cell{% else %}empty-c{% endif %}{% if c.today %} tcol{% endif %}" data-when="{{ c.when }}">{% for x in c.items %}{% if x.kind == "ev" %}<button type="button" class="ev{% if x.mine %} mine{% endif %}{% if x.fresh %} fresh arrive{% endif %}" data-open="#ev-{{ x.e.key }}" aria-haspopup="dialog">{{ x.e.title }}{% for w, a, b in x.changes %}<span class="chg">{{ w }} {{ a }} → {{ b }}</span>{% endfor %}{% if x.meta or x.conf %}<span class="p">{{ x.meta }}{% if x.conf %}{% if x.meta %} · {% endif %}<b class="cf">장소 겹침</b>{% endif %}</span>{% endif %}{% if x.fresh %}<span class="by"><span class="ptag{% if my_ink %} ink-t{% endif %}" style="--who:{{ my_color }}">{{ me.name }} · 방금</span></span>{% endif %}</button>{% elif x.kind == "due" %}<a class="ev due" href="{{ x.href }}"><span class="k">마감</span> {{ x.c.title }} · {{ x.hm }}<span class="p">{{ x.who }}</span></a>{% else %}<div class="ev neis">{{ x.name }}<span class="p">나이스</span></div>{% endif %}{% endfor %}</div>{% endfor %}
       {% endfor %}
     </div>
-    {% if neis_empty %}<p class="note">이 주 나이스 학사일정이 없거나 불러오지 못했어요.</p>{% endif %}
+    {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">이 주 학사일정이 없어요.</p>{% endif %}
     </div>
     {% for x in dialogs %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>

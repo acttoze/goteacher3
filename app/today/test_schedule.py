@@ -163,7 +163,15 @@ class ScheduleTests(TestCase):
     def test_neis_empty_is_honest(self):
         self.sched.return_value = []
         r = self.client.get(self.url())
-        self.assertContains(r, "나이스 학사일정이 없거나 불러오지 못했어요")
+        self.assertContains(r, "이 주 학사일정이 없어요.")
+        self.assertNotContains(r, "불러오지 못했어요")
+
+    def test_neis_failure_differs_from_empty(self):
+        from spaces import neis
+        self.sched.return_value = neis.Failed()
+        r = self.client.get(self.url())
+        self.assertContains(r, "나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.")
+        self.assertNotContains(r, "이 주 학사일정이 없어요")
 
     def test_due_on_board_and_list(self):
         c, rows = self.collection(self.m2, "학예회 의상 대여 수량", NOW.replace(hour=12, minute=0) - timedelta(days=2))

@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from collect.models import PushSubscription
-from collect.push import SLOTS
+from collect.push import SLOTS, off_keys
 from spaces.views import _invite, _space_ctx, class_choices
 
 from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token, is_guest
@@ -38,6 +38,11 @@ def _ctx(request, token, **extra):
     )
 
 
+def _slots(member):
+    off = off_keys(member)
+    return [(k, t.strftime("%H:%M"), name, k not in off) for k, t, _, name in SLOTS]
+
+
 AREAS = {"me": "내 정보", "alerts": "알림", "space": "동학년", "device": "이 PC"}
 
 
@@ -50,7 +55,7 @@ def settings_page(request):
     if area == "me":
         ctx["classes"] = class_choices(request.space)
     elif area == "alerts":
-        ctx.update(slots=[(t.strftime("%H:%M"), name) for _, t, _, name in SLOTS], vapid=settings.VAPID_PUBLIC_KEY)
+        ctx.update(slots=_slots(request.member), vapid=settings.VAPID_PUBLIC_KEY)
     elif area == "space":
         ctx.update(_invite(request.space, request.member))
     return render(request, "accounts/settings.html", ctx)
@@ -78,6 +83,21 @@ def remember(request):
     for k, v in response.cookies.items():
         panel.cookies[k] = v
     return panel
+
+
+@never_cache
+@require_POST
+def slots(request):
+    """알림 묶음 스위치: 체크된 묶음(on=am·noon·pm)만 켜고 나머지는 끈다. 모르는 키는 버린다. htmx면 패널만."""
+    me = request.member
+    on = set(request.POST.getlist("on"))
+    me.push_off = ",".join(k for k, *_ in SLOTS if k not in on)
+    me.save(update_fields=["push_off"])
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{request.space.token}/settings?a=alerts")
+    n = len(SLOTS) - len(off_keys(me))
+    saved = f"브라우저 알림을 하루 {n}번 묶어 보내요" if n else "묶음 알림을 모두 껐어요. 종 단추에는 그대로 쌓여요"
+    return render(request, "accounts/_slots.html", _space_ctx(request, slots=_slots(me), saved=saved))
 
 
 @never_cache

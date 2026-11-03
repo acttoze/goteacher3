@@ -1,0 +1,10 @@
+{# 알림 묶음 스위치(design/settings.html #alerts). 바꾸면 바로 저장하고 이 패널만 다시 받는다. 수업 중 조용은 끌 수 없다. #}
+<form class="panel" id="slotPanel" method="post" action="/s/{{ space.token }}/settings/slots" hx-post="/s/{{ space.token }}/settings/slots" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  {% for k, t, name, on in slots %}<div class="sw"><div><b>{{ name }} <span class="num">{{ t }}</span></b><div class="d">{% if on %}그때까지 쌓인 안 읽은 알림을 한 번에 보내요{% else %}꺼짐 · 이 시간 소식은 다음 묶음으로 넘어가요{% endif %}</div></div>
+    <label class="toggle"><input type="checkbox" name="on" value="{{ k }}"{% if on %} checked{% endif %} aria-label="{{ name }} {{ t }}"><i></i></label></div>{% endfor %}
+  <div class="sw"><div><b>수업 중 조용</b><div class="d">수업 시간에는 창을 띄우지 않아요. 수업을 지키려고 끌 수 없게 했어요.</div></div>
+    <label class="toggle lock"><input type="checkbox" checked disabled aria-label="수업 중 조용(항상 켜짐)"><i></i></label></div>
+  <noscript><div class="sw"><span></span><button class="btn sec sm" type="submit">저장</button></div></noscript>
+  {% if saved %}<span class="sr" data-toast-now="{{ saved }}"></span>{% endif %}
+</form>

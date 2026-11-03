@@ -66,6 +66,18 @@ class AreaTests(SettingsBase):
         with override_settings(VAPID_PUBLIC_KEY=""):
             self.assertNotContains(self.client.get(self.url + "?a=alerts"), 'class="pushbox"')
 
+    def test_alerts_slot_switches_follow_member(self):
+        r = self.client.get(self.url + "?a=alerts")
+        self.assertContains(r, f'hx-post="/s/{self.space.token}/settings/slots"')
+        for k in ("am", "noon", "pm"):
+            self.assertContains(r, f'name="on" value="{k}" checked')
+        self.assertNotContains(r, '<span class="pill">켜짐</span>')  # 동작하지 않는 표시는 없다
+        Member.objects.filter(pk=self.me.pk).update(push_off="noon")
+        r = self.client.get(self.url + "?a=alerts")
+        self.assertContains(r, 'name="on" value="am" checked')
+        self.assertContains(r, 'name="on" value="noon" aria-label')
+        self.assertContains(r, "꺼짐 · 이 시간 소식은 다음 묶음으로 넘어가요")
+
     def test_space_area_members_invite_qr(self):
         r = self.client.get(self.url + "?a=space")
         self.assertContains(r, "정하은")
@@ -102,6 +114,54 @@ class AreaTests(SettingsBase):
                 else self.client.get(u)
             self.assertEqual(r.status_code, 404, path)
         self.assertTrue(Space.objects.filter(pk=self.other.pk).exists())
+
+
+class SlotTests(SettingsBase):
+    """설정 > 알림 묶음 스위치: POST(CSRF)·즉시 저장·내 회원만·다른 공간 404."""
+
+    def post(self, on, client=None, space=None, hx=True):
+        headers = {"HX-Request": "true"} if hx else {}
+        return (client or self.client).post(f"/s/{(space or self.space).token}/settings/slots", {"on": on},
+                                            headers=headers)
+
+    def test_turn_off_and_on(self):
+        r = self.post(["am", "pm"])
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, 'id="slotPanel"')
+        self.assertContains(r, 'name="on" value="noon" aria-label')
+        self.assertContains(r, "하루 2번")
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.push_off, "noon")
+        self.g.refresh_from_db()
+        self.assertEqual(self.g.push_off, "")  # 다른 선생님은 그대로
+        self.post(["am", "noon", "pm"])
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.push_off, "")
+
+    def test_all_off_and_unknown_keys_ignored(self):
+        r = self.post(["zz", "<b>"])
+        self.assertContains(r, "모두 껐어요")
+        self.assertNotContains(r, "&lt;b&gt;")
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.push_off, "am,noon,pm")
+
+    def test_without_htmx_redirects(self):
+        r = self.post(["am"], hx=False)
+        self.assertRedirects(r, self.url + "?a=alerts", fetch_redirect_response=False)
+
+    def test_get_not_allowed_and_csrf_required(self):
+        self.assertEqual(self.client.get(f"/s/{self.space.token}/settings/slots").status_code, 405)
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(self.owner)
+        self.assertEqual(self.post([], client=c).status_code, 403)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.push_off, "")
+
+    def test_other_space_404(self):
+        self.assertEqual(self.post([], space=self.other).status_code, 404)
+        self.assertEqual(self.client.post("/s/nope/settings/slots", {}).status_code, 404)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.push_off, "")
 
 
 class MeTests(SettingsBase):

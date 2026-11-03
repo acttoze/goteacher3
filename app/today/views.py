@@ -112,7 +112,7 @@ def _meal(space, today):
     ymd = f"{today:%Y%m%d}"
     rows = neis.meals(space.school.neis_atpt, space.school.neis_code, ymd, ymd)
     if not rows:
-        return None
+        return {"fail": True} if neis.failed(rows) else None
     m = rows[0]
     nums = sorted({n for d in m["dishes"] for n in d["allergy"]})
     return {"dishes": [d["name"] for d in m["dishes"]], "kcal": m["kcal"],
@@ -132,7 +132,8 @@ def _live_ctx(request, now):
     sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{today:%Y%m%d}", f"{today:%Y%m%d}")
     return {"cols": cols, "now_slot": now_slot, "pct": pct, "now_hm": f"{timezone.localtime(now):%H:%M}",
             "events": events, "untimed": [x for x in events if not x["e"].slot],
-            "n_events": len(events), "meal": _meal(space, today), "neis_names": [x["name"] for x in sched],
+            "n_events": len(events), "meal": _meal(space, today),
+            "neis_names": [x["name"] for x in sched], "neis_fail": neis.failed(sched),
             "feed": _feed(space, now, _colors(space)), "slot_choices": SLOTS, "today_iso": today.isoformat()}
 
 

@@ -79,6 +79,8 @@ class Member(models.Model):
     name = models.CharField("이름", max_length=40)
     cls = models.CharField("반", max_length=20, help_text="예: 4-1, 4-전담")
     position = models.CharField("직위", max_length=40, blank=True)
+    # G2 설정 > 알림: 끈 웹 푸시 묶음 키(collect.push.SLOTS의 am·noon·pm, 쉼표로). 비면 다 켜짐. 🔔은 그대로 쌓인다.
+    push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     joined_at = models.DateTimeField(auto_now_add=True)
 
     objects = SpaceQuerySet.as_manager()

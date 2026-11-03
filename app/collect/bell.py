@@ -17,7 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 from spaces.models import Member
 
 from .models import Collection, Notification
-from .push import next_at
+from .push import next_at, off_keys
 from .submit import _units
 
 SEND_AT = time(8, 20)
@@ -53,7 +53,7 @@ def unread(request):
     if getattr(request, "member", None) is None:
         return {}
     return {"bell_n": SimpleLazyObject(lambda: _mine(request).filter(read=False).count()),
-            "bell_next": next_at(timezone.now())}
+            "bell_next": next_at(timezone.now(), off_keys(request.member))}
 
 
 @never_cache

@@ -15,6 +15,7 @@
   .sw:first-of-type { border-top: 0; }  /* 앞에 csrf 입력이 있어 first-child가 아님 */
   .sw b { font-size: 16px; }
   .sw .d { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .toggle.lock input { cursor: not-allowed; }
   .mem { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 60px; border-top: 1px solid #e3e6ea; }
   .mem:first-child { border-top: 0; }
   .mem .m { font-size: 14px; color: var(--muted); }
@@ -37,11 +38,8 @@
 {% include "accounts/_me.html" %}
 
 {% elif area == "alerts" %}
-<section class="srow"><div class="lab"><h2>묶음 시간</h2><p>마감 리마인드·새 기기 알림을 모아 하루 세 번만 보내요. 주말·휴업일에는 쉬고, 다음 등교일 묶음으로 넘어가요.</p></div>
-  <div class="panel">
-    {% for t, name in slots %}<div class="sw"><div><b>{{ name }} <span class="num">{{ t }}</span></b><div class="d">그때까지 쌓인 안 읽은 알림을 한 번에 보내요</div></div><span class="pill">켜짐</span></div>{% endfor %}
-    <div class="sw"><div><b>수업 중 조용</b><div class="d">수업 시간에는 창을 띄우지 않아요. 수업을 지키려고 끌 수 없게 했어요.</div></div><span class="pill acc">항상 켜짐</span></div>
-  </div></section>
+<section class="srow"><div class="lab"><h2>묶음 시간</h2><p>마감 리마인드·새 기기 알림을 모아 하루 세 번만 보내요. 끄면 그 시간 소식은 다음 묶음으로 넘어가요. 주말·휴업일에는 쉬어요.</p></div>
+  {% include "accounts/_slots.html" %}</section>
 <section class="srow"><div class="lab"><h2>브라우저 알림</h2><p>이 PC 크롬에서 알림을 허용해야 받아요. 학교 PC를 바꾸면 그 PC에서 다시 켜 주세요.</p></div>
   <div class="panel pad">{% if vapid %}<div class="pushbox" data-vapid="{{ vapid }}" data-on="/s/{{ space.token }}/push" data-off="/s/{{ space.token }}/push/off" data-mine="/s/{{ space.token }}/push/mine">
     <div class="row"><button class="btn sec" type="button" data-push-btn disabled>이 PC에서 알림 받기</button><span class="muted small" data-push-msg role="status"></span></div></div>

@@ -2,6 +2,7 @@
 
 - 인증키는 settings.NEIS_KEY(환경변수). 없으면 키 없이 부른다 — NEIS는 이때 한 번에 5건까지만 준다.
 - 실패(네트워크·HTTP·NEIS 오류 코드)는 빈 결과 + 경고 로그. 로그에 주소·키를 남기지 않는다.
+  빈 결과는 Failed(빈 list)라 기존 호출부는 그대로 돌고, '없음(INFO-200)'과 가르려면 failed(x)로 본다.
 - 캐시는 Django 기본 캐시. 학교·학급은 하루, 학사·급식은 한 시간. 실패도 FAIL_TTL(1분) 캐시 —
   NEIS가 멈췄을 때 같은 요청이 매번 TIMEOUT만큼 워커를 붙잡지 않게.
 """
@@ -30,8 +31,17 @@ class NeisError(Exception):
     pass
 
 
+class Failed(list):
+    """불러오기 실패 표시가 붙은 빈 목록. []와 같고 거짓이라 기존 호출부는 '없음'처럼 돈다."""
+
+
+def failed(rows):
+    """schedule()·meals() 결과가 NEIS 실패(네트워크·HTTP·오류 코드)였나. 데이터 없음(INFO-200)이면 False."""
+    return isinstance(rows, Failed)
+
+
 def _get(path, params, ttl):
-    """행 목록과 전체 건수(list_total_count). 실패하면 ([], 0)."""
+    """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
     ck = "neis:" + path + ":" + urlencode(sorted(params.items()))
     hit = cache.get(ck)
     if hit is not None:
@@ -52,7 +62,7 @@ def _get(path, params, ttl):
     except (URLError, OSError, ValueError, KeyError, IndexError, NeisError) as e:
         # 주소에 키가 들어 있으므로 예외 메시지·주소는 남기지 않는다.
         log.warning("NEIS %s 실패: %s %s", path, type(e).__name__, e if isinstance(e, NeisError) else "")
-        result, ttl = ([], 0), FAIL_TTL
+        result, ttl = (Failed(), 0), FAIL_TTL
     cache.set(ck, result, ttl)
     return result
 
@@ -92,6 +102,8 @@ def schedule(atpt, code, start, end):
     """학사일정 [{ymd, name}] — start·end는 'YYYYMMDD'. 토요휴업일은 뺀다."""
     params = {"ATPT_OFCDC_SC_CODE": atpt, "SD_SCHUL_CODE": code, "AA_FROM_YMD": start, "AA_TO_YMD": end}
     rows, _ = _get("SchoolSchedule", params, HOUR)
+    if failed(rows):
+        return rows
     return [{"ymd": r["AA_YMD"], "name": r["EVENT_NM"]} for r in rows if r.get("EVENT_NM") != "토요휴업일"]
 
 
@@ -132,6 +144,8 @@ def meals(atpt, code, start, end):
         "MLSV_FROM_YMD": start, "MLSV_TO_YMD": end,
     }
     rows, _ = _get("mealServiceDietInfo", params, HOUR)
+    if failed(rows):
+        return rows
     out = []
     for r in rows:
         kcal = _js_round(r.get("CAL_INFO")) or 0

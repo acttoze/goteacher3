@@ -103,7 +103,7 @@ def week_ctx(request, mon):
             if e.date <= d <= e.last_day:
                 cells[(i, e.slot)].append(x)
 
-    # NEIS 학사일정(시간 없음 → 시간 미정 줄). 실패와 '없음'을 neis가 가르지 않아 둘 다 정직하게 알린다.
+    # NEIS 학사일정(시간 없음 → 시간 미정 줄). 불러오기 실패와 '없음'을 나눠 알린다.
     sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{mon:%Y%m%d}", f"{fri:%Y%m%d}")
     seen = set()
     for r in sched:
@@ -154,7 +154,7 @@ def week_ctx(request, mon):
             "is_this": mon == this_mon, "prev_w": (mon - timedelta(days=7)).isoformat(),
             "this_w": this_mon.isoformat(), "next_w": (mon + timedelta(days=7)).isoformat(),
             "days": [{"d": d, "md": f"{d.month}/{d.day}", "wd": WD[d.weekday()], "today": d == today} for d in days],
-            "wrows": wrows, "n_items": n_items, "dialogs": dialogs, "neis_empty": not seen,
+            "wrows": wrows, "n_items": n_items, "dialogs": dialogs, "neis_empty": not seen, "neis_fail": neis.failed(sched),
             "chg": chg, "dues": dues, "slot_choices": SLOTS}
 
 

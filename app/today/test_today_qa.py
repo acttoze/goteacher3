@@ -149,8 +149,8 @@ class NeisFailureTests(Base):
         with mock.patch("spaces.neis.urlopen", side_effect=URLError("down")):
             r = self.client.get(self.url())
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "오늘 급식 정보가 없어요")
-        self.assertContains(r, "오늘 학사일정이 없어요")
+        self.assertContains(r, "나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요", count=2)  # 학사일정·급식
+        self.assertNotContains(r, "오늘 학사일정이 없어요")
 
 
 class ListMatchTests(Base):

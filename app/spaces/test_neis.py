@@ -2,6 +2,7 @@
 import io
 import json
 import time
+from datetime import date
 from unittest import mock
 from urllib.error import URLError
 
@@ -136,6 +137,40 @@ class NeisTests(SimpleTestCase):
             neis.search_schools("봉황초")
             neis.search_schools("봉황초")
         m.assert_called_once()
+
+
+class NeisFailedTests(SimpleTestCase):
+    """불러오기 실패와 데이터 없음(INFO-200)을 호출부가 가른다. 결과는 둘 다 []와 같아 기존 호출부는 그대로."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_no_data_is_not_failed(self):
+        for fn, args in [(neis.schedule, ("S10", "9010000", "20261102", "20261106")),
+                         (neis.meals, ("S10", "9010000", "20261102", "20261106"))]:
+            with mock.patch.object(neis, "urlopen", return_value=resp(NO_DATA)):
+                rows = fn(*args)
+            self.assertEqual(rows, [])
+            self.assertFalse(neis.failed(rows), fn.__name__)
+
+    def test_ok_is_not_failed(self):
+        with mock.patch.object(neis, "urlopen", return_value=resp(SCHEDULE)):
+            self.assertFalse(neis.failed(neis.schedule("S10", "9010000", "20261101", "20261130")))
+
+    def test_network_http_error_code_are_failed_even_from_cache(self):
+        from urllib.error import HTTPError
+        for i, err in enumerate([URLError("x"), HTTPError("u", 503, "busy", {}, None), None]):
+            kw = {"return_value": resp(BAD_KEY)} if err is None else {"side_effect": err}
+            ymd = f"2026110{i + 2}"
+            with self.assertLogs("spaces.neis", "WARNING"), mock.patch.object(neis, "urlopen", **kw) as m:
+                first = neis.schedule("S10", "9010000", ymd, ymd)
+                again = neis.schedule("S10", "9010000", ymd, ymd)  # 1분 실패 캐시에서 와도 실패 표시가 남는다
+                meal = neis.meals("S10", "9010000", ymd, ymd)
+            self.assertEqual(m.call_count, 2)
+            for rows in (first, again, meal):
+                self.assertEqual(rows, [])
+                self.assertTrue(neis.failed(rows), err)
+            self.assertFalse(neis.day_off("S10", "9010000", date(2026, 11, i + 2)))  # 실패면 쉬는 날 아님(그대로)
 
 
 class NeisPrototypeParityTests(SimpleTestCase):
