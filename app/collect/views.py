@@ -11,9 +11,9 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Value
+from django.db.models import Count, Max, Value
 from django.db.models.functions import Replace
-from django.http import HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -21,20 +21,22 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from hwpfiles.models import SourceFile
 from hwpfiles.views import PREVIEW_CSP, pick_ctx, result_ctx
-from spaces.models import get_in_space_or_404, leads, new_token
+from spaces.gates import school_required
+from spaces.models import Member, leads, new_token
 from spaces.views import _space_ctx
 
-from .models import Cell, Collection, Field, Notification, Row
+from .access import can_open, owner_view
+from .models import Cell, Collection, Field, Notification
 from . import hwpform
 from .paste import YES_NO, PasteError, clean_text, guess_kind, html_to_tsv, parse, student_info
 from .presets import PRESETS
-from .recipients import roster_rows
+from .recipients import (GROUPS, audience_form, audience_head, audience_rows, audience_text, audience_where, make_rows,
+                         read_audience, roster_rows, stored_audience, unmatched_count)
 from .submit import NA, _head, _matrix, _need
 
 # design TYPES(받는 방식 고르기). 자동 계산(calc)·링크(url)는 여기서 고르지 않는다.
 KINDS = [("number", "숫자"), ("text", "글자"), ("select", "고르기"), ("date", "날짜")]
 SHEET_COLS = 6  # 직접 입력 칸 수(design: 더 많으면 표 붙여넣기)
-SHEET_HEAD = ["학년반", "담임"]  # prototype lockCols(담임만·반별 1칸)
 
 
 def _read(text, how=""):
@@ -95,17 +97,20 @@ def new(request):
     space = request.space
     title, text, errors, src = "", "", {}, "paste"
     p = error = sf = hwpf = None
+    aud = read_audience(space, request.POST)
     if request.method == "POST":
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
-        no_one = f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요."  # prototype #create
+        rows = audience_rows(space, aud)
+        no_one = ("받을 사람이나 그룹을 골라 주세요." if space.is_school else
+                  f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요.")  # prototype #create
         if src == "preset":
             spec = PRESETS.get(request.POST.get("preset", ""))
             if spec and not roster_rows(space, spec["roster"]):
                 errors["aud"] = no_one
             elif spec:
                 c = _create_cols(request, spec["title"], Collection.Source.PRESET, spec["fields"],
-                                 spec["unit_head"], spec["multi"], roster=spec["roster"])
+                                 spec["unit_head"], spec["multi"], roster_rows(space, spec["roster"]))
                 return redirect(f"/s/{space.token}/c/{c.key}/")
             errors["preset"] = "양식을 하나 골라 주세요."
         elif src == "sheet":
@@ -117,18 +122,21 @@ def new(request):
             elif pii:  # C7: 브라우저 경고만 믿지 않는다
                 errors["sheet"] = (f"학생 개인정보로 보이는 칸이 있어요: {', '.join(pii)}. "
                                    "고티처는 교직원 정보만 받아요. 이 칸은 빼거나 반별 인원 수(예: 참가 인원(명))로 바꿔 주세요.")
-            elif not roster_rows(space, "class"):
+            elif not rows:
                 errors["aud"] = no_one
             else:
                 # prototype: 여러 줄이고 숫자 칸이 2개 이상이면 '금액'(자동 계산) 칸을 덧붙인다
                 if multi and sum(k == "number" for _, k, _ in cols) >= 2:
                     cols.append(("금액", "calc", []))
                 c = _create_cols(request, title or f"{cols[0][0]} 조사", Collection.Source.SHEET,
-                                 [(n, k) for n, k, _ in cols], SHEET_HEAD, multi, options=[o for _, _, o in cols])
+                                 [(n, k) for n, k, _ in cols], audience_head(aud), multi, rows, options=[o for _, _, o in cols],
+                                 audience=stored_audience(aud, rows))
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         elif src == "hwp":
             # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 모으기를 만든다(hwpform).
-            sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64]).first()
+            sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64].replace("\x00", "")).first()
+            if sf is not None and not can_open(request, sf.created_by_id):
+                sf = None
             if not title:
                 errors["title"] = "제목을 적어 주세요."
             if sf is None or sf.status != SourceFile.Status.DONE:
@@ -145,10 +153,10 @@ def new(request):
                 elif sf.collection_id:
                     errors["hwp"] = ("이 한글 파일로는 이미 모으기를 만들었어요. 같은 양식으로 또 걷으려면 그 모으기에서 "
                                      "「다시 걷기」를 쓰거나 파일을 다시 올려 주세요.")
-                elif not roster_rows(space, "class"):
+                elif not rows:
                     errors["aud"] = no_one
                 elif not errors:
-                    c = _create_hwp(request, title, sf, hwpf)
+                    c = _create_hwp(request, title, sf, hwpf, aud, rows)
                     if c is not None:
                         return redirect(f"/s/{space.token}/c/{c.key}/")
                     errors["hwp"] = "다른 창에서 이 파일로 모으기를 먼저 만들었어요. 모으기 목록을 확인해 주세요."
@@ -161,10 +169,10 @@ def new(request):
                 errors["paste"] = error or "표를 붙여넣어 주세요. 한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 붙여넣으면 돼요."
             elif p["pii"]:  # C7: 학생 정보 칸이 남아 있으면 만들지 않는다
                 errors["pii"] = PII_MSG
-            if not errors and not roster_rows(space, "class"):
+            if not errors and not rows:
                 errors["aud"] = no_one
             if not errors:
-                c = _create(request, title, p)
+                c = _create(request, title, p, aud, rows)
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         else:
             src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
@@ -176,20 +184,40 @@ def new(request):
                      presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")))
     ctx.update(_paste_ctx(p, error))
+    if space.is_school:
+        ctx.update(audience_form(space, aud), **_aud_sum(space, aud))
     resp = render(request, "collect/new.html", ctx, status=400 if errors else 200)
     resp["Content-Security-Policy"] = PREVIEW_CSP  # 한글 쪽 미리보기(WASM)를 이 화면에서 그린다
     return resp
 
 
-def _create_cols(request, title, source, fields, unit_head, multi, options=None, roster="class"):
-    """직접 입력·양식: 칸 + 동학년 명부 줄(C4). 칸 값(Cell)은 내는 사람이 만든다."""
+def _aud_sum(space, aud):
+    """받는 곳 요약 줄(_aud_sum.html)과 받는 사람 칸 머리글·쪽지 문구."""
+    rows = audience_rows(space, aud)
+    head = audience_head(aud)
+    return {"aud_n": len(rows), "aud_text": audience_text(aud, len(rows)), "aud_head_a": head[0], "aud_head_b": head[1],
+            "aud_where": audience_where(aud), "aud_names": [r["who"] for r in rows] if aud.get("mode") == "people" else [],
+            "aud_unmatched": unmatched_count(aud, rows)}
+
+
+@never_cache
+@require_POST
+@school_required
+def aud_summary(request):
+    """받는 사람을 바꿀 때마다 요약 줄(htmx). 저장하지 않는다."""
+    return render(request, "collect/_aud_sum.html", {"oob": True, **_aud_sum(request.space, read_audience(request.space, request.POST))})
+
+
+def _create_cols(request, title, source, fields, unit_head, multi, rows, options=None, audience=None):
+    """직접 입력·양식: 칸 + 명부 줄(C4, 학교 공간은 고른 범위). 칸 값(Cell)은 내는 사람이 만든다."""
     options = options or [[] for _ in fields]
     with transaction.atomic():
         c = Collection.objects.create(space=request.space, created_by=request.member, title=title[:200],
-                                      source=source, unit_head=unit_head, multi=multi, allow_outside=_outside(request))
+                                      source=source, unit_head=unit_head, multi=multi, allow_outside=_outside(request),
+                                      audience=audience or {})
         Field.objects.bulk_create([Field(collection=c, pos=i, name=n, kind=k, options=o)
                                    for i, ((n, k), o) in enumerate(zip(fields, options))])
-        _roster_rows(c, request.space, roster)
+        make_rows(c, rows)
     return c
 
 
@@ -197,17 +225,13 @@ def _outside(request):
     return request.POST.get("outside") == "on"
 
 
-def _roster_rows(c, space, mode):
-    Row.objects.bulk_create([Row(collection=c, pos=i, unit=r["unit"], who=r["who"], member=r["member"])
-                             for i, r in enumerate(roster_rows(space, mode))])
-
-
-def _create(request, title, p):
+def _create(request, title, p, aud, rows):
     valid = {k for k, _ in KINDS}
     with transaction.atomic():
-        # 명부 우선(prototype TR.audRows·design): 표에서는 칸만 가져오고 줄은 동학년 명부(반별)로 만든다.
+        # 명부 우선(prototype TR.audRows·design): 표에서는 칸만 가져오고 줄은 명부(동학년은 반별, 학교 공간은 고른 범위)로 만든다.
         c = Collection.objects.create(space=request.space, created_by=request.member, title=title,
-                                      source=Collection.Source.PASTE, allow_outside=_outside(request), unit_head=SHEET_HEAD)
+                                      source=Collection.Source.PASTE, allow_outside=_outside(request), unit_head=audience_head(aud),
+                                      audience=stored_audience(aud, rows))
         fields = []
         for i, f in enumerate(p["fields"]):
             kind = request.POST.get(f"kind_{i}")
@@ -217,14 +241,14 @@ def _create(request, title, p):
                 options = YES_NO
             fields.append(Field(collection=c, pos=i, name=f["name"], kind=kind, options=options if kind == "select" else []))
         Field.objects.bulk_create(fields)
-        _roster_rows(c, request.space, "class")
+        make_rows(c, rows)
     return c
 
 
 def _hwp_form(request, sf, post):
     """칸 확인 값(hwpform.read) + 명부 ↔ 표 줄 짝. 화면(_hwp_fields.html)과 만들기가 같이 쓴다."""
     form = hwpform.read(sf.picked_schema(), post)
-    roster = roster_rows(request.space, "class")
+    roster = audience_rows(request.space, read_audience(request.space, request.POST))
     pairs, spare = hwpform.plan(form, roster, request.space.grade)
     form.update(f=sf, pairs=pairs, spare=spare, short=sum(r is None for _, r in pairs) if form["mode"] == "rows" else 0,
                 table=f"{sf.table_sec}/{sf.table_index}", picked=sf.picked, roles=hwpform.ROLES, kinds=KINDS,
@@ -238,10 +262,10 @@ def _hwp_form(request, sf, post):
 
 @never_cache
 @require_http_methods(["GET", "POST"])
-def hwp_fields(request, key):
+@owner_view(SourceFile)
+def hwp_fields(request, sf):
     """E6 칸 확인 부분 화면(htmx). GET: 표를 고른 직후 자동 추정 그대로. POST: 고친 값으로 다시 그림(저장 안 함).
     회원·같은 공간·완료되고 표를 고른 파일만. 다른 공간 파일 키는 404."""
-    sf = get_in_space_or_404(SourceFile, request, key=key)
     if sf.status != SourceFile.Status.DONE or sf.picked is None:
         return render(request, "collect/_hwp_fields.html", {"gone": True}, status=409)
     post = request.POST if request.method == "POST" else None
@@ -251,21 +275,22 @@ def hwp_fields(request, key):
     return render(request, "collect/_hwp_fields.html", {"hwpf": form, "space": request.space, "oob": True})
 
 
-def _create_hwp(request, title, sf, form):
-    """한글 양식: 켠 입력 칸만 Field + 동학년 명부 줄(C4) + SourceFile 연결·칸 매핑. 동시에 두 번 만들면 None."""
+def _create_hwp(request, title, sf, form, aud, roster):
+    """한글 양식: 켠 입력 칸만 Field + 명부 줄(C4, 학교 공간은 고른 범위) + SourceFile 연결·칸 매핑. 동시에 두 번 만들면 None."""
     s = sf.picked_schema()
     with transaction.atomic():
         locked = SourceFile.objects.select_for_update().get(pk=sf.pk)
         if locked.collection_id:
             return None
         c = Collection.objects.create(space=request.space, created_by=request.member, title=title,
-                                      source=Collection.Source.HWP, allow_outside=_outside(request), unit_head=SHEET_HEAD)
+                                      source=Collection.Source.HWP, allow_outside=_outside(request), unit_head=audience_head(aud),
+                                      audience=stored_audience(aud, roster))
         Field.objects.bulk_create([Field(collection=c, pos=i, name=it["name"], kind=it["kind"],
                                          options=it["options"] if it["kind"] == "select" else [])
                                    for i, it in enumerate(form["inputs"])])
-        _roster_rows(c, request.space, "class")
+        make_rows(c, roster)
         rows = list(c.rows.order_by("pos"))
-        got = hwpform.assign(form["rows"], roster_rows(request.space, "class"), request.space.grade) if form["mode"] == "rows" else []
+        got = hwpform.assign(form["rows"], roster, request.space.grade) if form["mode"] == "rows" else []
         locked.collection = c
         locked.cellmap = hwpform.cellmap(s, locked.table_sec, form, rows, got)
         locked.save(update_fields=["collection", "cellmap"])
@@ -280,12 +305,12 @@ def preview(request):
     try:
         tsv = html_to_tsv(html) if html else ""
     except PasteError as e:  # 너무 큰 표: 바꾼 글자를 싣지 않는다
-        return render(request, "collect/_paste_out.html", {**_paste_ctx(None, str(e)), "oob": True})
+        return render(request, "collect/_paste_out.html", {**_paste_ctx(None, str(e)), "oob": True, "is_school": request.space.is_school})
     p, error = _read(tsv or request.POST.get("paste", ""), request.POST.get("pii", ""))
     if html and not tsv:
         error = "붙여넣은 내용에서 표를 찾지 못했어요. 표를 드래그해 다시 복사해 주세요."
     ctx = _paste_ctx(p, error)
-    ctx.update(tsv=tsv, oob=True, roster=roster_rows(request.space, "class"))
+    ctx.update(tsv=tsv, oob=True, roster=roster_rows(request.space, "class"), is_school=request.space.is_school)
     return render(request, "collect/_paste_out.html", ctx)
 
 
@@ -303,7 +328,7 @@ def _fmt(n):
 
 def _board(c):
     """합본 표·진행·미제출. 냈는지는 받는 사람 화면과 같은 판정(submit._units)을 쓴다. 값은 템플릿이 이스케이프한다."""
-    ctx = _head(c)
+    ctx = {**_head(c), "stamp": _stamp(c)}  # 값을 읽기 전에: 읽는 사이 들어온 제출은 다음 폴링에 잡힌다
     fields = list(c.fields.all())
     nums = [f for f in fields if f.kind == Field.Kind.NUMBER]
     matrix, need, now = _matrix(c), _need(c), timezone.now()
@@ -348,17 +373,34 @@ def _board(c):
             u["lines"].append(cells)
         at_by = max((last[r.pk] for r in group if r.pk in last), default=None, key=lambda x: x[0])
         u["by"] = at_by[1] if at_by else ""
-        u["proxy"] = bool(u["by"]) and u["by"] != r0.who
+        u["proxy"] = bool(u["by"]) and u["by"] != r0.who and not r0.group
         u["n_cells"] = sum(len(vals.get(r.pk, {})) for r in group)
         u["just"] = bool(u["at"]) and (now - u["at"]).total_seconds() < 6  # 방금 들어온 줄 한 번 깜빡임
     miss = [u for u in ctx["units"] if not u["done"]]
     ctx.update(fields=fields, matrix=matrix, need=need, sums=[_fmt(sums[f.pk]) if f.pk in sums else "" for f in fields],
                has_sum=bool(sums) and not matrix, miss=miss[:MISS_SHOW], miss_more=len(miss) - len(miss[:MISS_SHOW]),
                **_nudge(c, miss, vals, fields, ctx["per"]))
+    ctx["miss_groups"] = _miss_groups(c, miss) if c.space.is_school and len(miss) > MISS_SHOW else []
     return ctx
 
 
 MISS_SHOW = 18  # prototype missShow
+
+
+def _nudge_text(c, units):
+    return (f"[고티처] 「{c.title}」 아직 다 못 채운 분: {', '.join(u['label'] for u in units)}\n"
+            f"{_due_text(c)} · 링크에서 {_where(c)}만 채워 주세요.\n{settings.SITE_URL}/c/{c.link_token}")
+
+
+def _miss_groups(c, miss):
+    """학교 규모(H4): 미제출이 많으면 사람 칩 대신 그룹별 수. 누르면 그 그룹 독촉 문구. 폴링마다 다시 그려도 접힘 상태가 없다."""
+    group_of = dict(Member.objects.in_space(c.space).values_list("pk", "group"))
+    fold = {}
+    for u in miss:
+        r = u["row"]
+        fold.setdefault(r.group or group_of.get(r.member_id, ""), []).append(u)
+    order = [*GROUPS, ""]  # 소속 순, 명부 밖 줄은 끝
+    return [{"label": GROUPS.get(g, "명부 밖"), "n": len(fold[g]), "text": _nudge_text(c, fold[g])} for g in order if g in fold]
 
 
 def _nudge(c, miss, vals, fields, per):
@@ -371,23 +413,22 @@ def _nudge(c, miss, vals, fields, per):
         if matrix:
             what = "아직 이수번호가 없는 연수: " + ", ".join(f.name for f in fields if f.kind != Field.Kind.CALC and not rv.get(f.pk))
         else:
-            what = f"{r.unit if hr else '선생님'} 칸이 아직 비어 있어요."
+            what = f"{r.unit if hr or r.group else '선생님'} 칸이 아직 비어 있어요."
         u["nudge"] = f"{r.who or r.unit} 선생님, 「{c.title}」 {what} {dt}\n{link}/u/{r.key}"
     label = "덜 마친 사람" if matrix else "미제출 반" if c.multi else "미제출"
     if not miss:
         return {"nudge_all": "", "nudge_done": f"모두 냈어요. 독촉할 {'반' if per == '반' else '분'}이 없어요.",
                 "miss_label": label, "miss_unit": ""}
-    return {"nudge_all": f"[고티처] 「{c.title}」 아직 다 못 채운 분: {', '.join(u['label'] for u in miss)}\n"
-                         f"{dt} · 링크에서 {_where(c)}만 채워 주세요.\n{link}",
+    return {"nudge_all": _nudge_text(c, miss),
             "nudge_done": f"{label} {len(miss)} 독촉 문구를 복사했어요.", "miss_label": label,
-            "miss_unit": "개 반" if per == "반" else "명"}
+            "miss_unit": "개 반" if per == "반" else "곳" if per == "곳" else "명"}
 
 
 @never_cache  # 공용 PC: 로그아웃 뒤 '뒤로 가기'로 합본 값이 보이지 않게
 @require_GET
-def detail(request, key):
+@owner_view(Collection)
+def detail(request, c):
     """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
-    c = get_in_space_or_404(Collection, request, key=key)
     ctx = _space_ctx(request, page="collect", can_delete=_owner(request, c),
                      **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
                      hwp_result=result_ctx(request.space, c) if c.source == Collection.Source.HWP else None)
@@ -401,7 +442,8 @@ def _link_ctx(request, c):
     """받는 링크 카드: 링크와 처음 보낼 쪽지 문구(design에 쪽지 카드가 없어 이 카드의 단추로 복사)."""
     link = f"{settings.SITE_URL}/c/{c.link_token}"
     me = request.member
-    msg = (f"[고티처] {c.title}\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.\n"
+    where = _where(c) if request.space.is_school else "우리 반 칸"
+    msg = (f"[고티처] {c.title}\n\n아래 링크에서 {where}만 채워 주세요. 로그인 없이 30초면 돼요.\n"
            f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
     return {"link": link, "msg": msg, "can_relink": _owner(request, c)}
 
@@ -412,6 +454,11 @@ def _owner(request, c):
     if c.created_by_id is not None:
         return c.created_by_id == request.member.pk
     return leads(request.space, request.member)
+
+
+def _can_close(request, c):
+    """마감 정하기·잠그기(H4): 만든 사람, 학교 공간은 관리자도. 지우기·링크 새로 만들기·다시 걷기는 _owner 그대로."""
+    return _owner(request, c) or (request.space.is_school and request.member.is_manager)
 
 
 def _due_text(c):
@@ -425,7 +472,8 @@ def _due_text(c):
 
 
 def _where(c):
-    return "내 줄" if _matrix(c) else "우리 반 칸" if c.unit_head[:1] == ["학년반"] else "내 칸"
+    head = c.unit_head[:1]
+    return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else "우리 그룹 칸" if head == ["그룹"] else "내 칸"
 
 
 WD = "월화수목금토일"
@@ -435,7 +483,7 @@ def _due_ctx(request, c, saved=None, error=None):
     """마감 카드(design 마감 카드 + prototype dueBox). 바꾸기는 만든 사람만(prototype c.mine).
     saved: 방금 정함(first)·바꿈 — 안내 문구의 '안내/변경'과 알림 문구에 쓴다."""
     now = timezone.localtime()
-    ctx = {"can_due": _owner(request, c), "due_saved": saved, "due_error": error}
+    ctx = {"can_due": _can_close(request, c), "due_saved": saved, "due_error": error}
     if not c.due:
         d = (now + timedelta(days=4)).date()  # prototype 기본값: 오늘+4일 17:00
         return {**ctx, "due_d": d.isoformat(), "due_t": "17:00"}
@@ -456,10 +504,10 @@ def _due_ctx(request, c, saved=None, error=None):
 
 @never_cache
 @require_POST
-def due(request, key):
+@owner_view(Collection)
+def due(request, c):
     """마감 정하기·바꾸기(htmx). 날짜·시각은 Asia/Seoul. 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
-    c = get_in_space_or_404(Collection, request, key=key)
-    if not _owner(request, c):
+    if not _can_close(request, c):
         return HttpResponseForbidden("마감은 만든 선생님만 바꿀 수 있어요.")
     if c.closed_at:  # design: 잠근 동안 '마감 바꾸기' 꺼짐
         return HttpResponseForbidden("잠근 동안은 마감을 바꿀 수 없어요. 다시 연 뒤 바꿔 주세요.")
@@ -478,11 +526,11 @@ def due(request, key):
 
 @never_cache
 @require_POST
-def lock(request, key):
-    """D5 마감하고 잠그기·다시 열기(htmx, 만든 사람만). 잠그면 받는 링크가 더 받지 않는다(submit은 잠금 안에서 다시 확인).
+@owner_view(Collection)
+def lock(request, c):
+    """D5 마감하고 잠그기·다시 열기(htmx, 만든 사람과 학교 관리자). 잠그면 받는 링크가 더 받지 않는다(submit은 잠금 안에서 다시 확인).
     마감 카드를 바꾸고, 합본('마감됨'·'안 냄')과 받는 링크 카드는 함께 바꾼다(oob)."""
-    c = get_in_space_or_404(Collection, request, key=key)
-    if not _owner(request, c):
+    if not _can_close(request, c):
         return HttpResponseForbidden("마감하고 잠그기는 만든 선생님만 할 수 있어요.")
     reopen = request.POST.get("open") == "1"
     with transaction.atomic():  # 들어오던 제출과 순서를 정한다(submit.unit도 같은 줄을 잠근다)
@@ -500,11 +548,11 @@ def lock(request, key):
 
 @never_cache
 @require_POST
-def relink(request, key):
+@owner_view(Collection)
+def relink(request, c):
     """받는 링크 새로 만들기(G3 S5, 만든 사람만). 옛 링크(줄 화면 포함)는 바로 404, 낸 값은 그대로.
     🔔 알림의 링크도 새 링크로 바꾼다. 응답은 잠그기와 같은 묶음(마감 카드 + 합본·받는 링크 카드 oob):
     마감 안내 문구에도 링크가 들어 있어서."""
-    c = get_in_space_or_404(Collection, request, key=key)
     if not _owner(request, c):
         return HttpResponseForbidden("받는 링크는 만든 선생님만 새로 만들 수 있어요.")
     old, new = c.link_token, new_token()
@@ -521,10 +569,10 @@ def relink(request, key):
 
 
 @require_POST
-def delete(request, key):
+@owner_view(Collection)
+def delete(request, c):
     """모으기 지우기(처리방침 3항 '요청자가 지우면 파기', 만든 사람만). 칸·줄·제출 값·알림·결과 파일은 CASCADE.
     올린 한글 파일(SourceFile)은 SET_NULL이라 E3 purge처럼 따로 지운다. 디스크 파일은 E3 post_delete가 커밋 뒤 지운다."""
-    c = get_in_space_or_404(Collection, request, key=key)
     if not _owner(request, c):
         return HttpResponseForbidden("모으기는 만든 선생님만 지울 수 있어요.")
     with transaction.atomic():
@@ -535,7 +583,15 @@ def delete(request, key):
 
 @never_cache
 @require_GET
-def live(request, key):
-    """합본 카드만(htmx 5초 폴링). 공간 확인은 detail과 같다."""
-    c = get_in_space_or_404(Collection, request, key=key)
+@owner_view(Collection)
+def live(request, c):
+    """합본 카드만(htmx 5초 폴링). 공간 확인은 detail과 같다.
+    바뀐 것이 없으면 204(H4): 200줄 표를 4초마다 보내고 다시 그리지 않는다. 낸 값·잠금·마감·제목이 바뀌면 표시 값이 달라진다."""
+    if request.GET.get("v") == _stamp(c):
+        return HttpResponse(status=204)
     return render(request, "collect/_board.html", {"space": request.space, **_board(c)})
+
+
+def _stamp(c):
+    cells = Cell.objects.in_space(c.space).filter(row__collection=c).aggregate(n=Count("pk"), at=Max("at"))
+    return f"{c.updated_at.timestamp()}-{c.rows.count()}-{cells['n']}-{cells['at'].timestamp() if cells['at'] else 0}"

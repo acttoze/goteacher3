@@ -15,30 +15,34 @@
 
 {% if view == "pick" %}
 <section class="panel" aria-labelledby="pickH">
-  <h2 id="pickH">어느 {% if per == "반" %}반{% else %}분{% endif %} 칸을 채우시나요?</h2>
+  <h2 id="pickH">어느 {% if per == "반" %}반{% elif per == "곳" %}그룹{% else %}분{% endif %} 칸을 채우시나요?</h2>
   <p class="lead">가입·로그인 없이 바로 써요. 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>
   <ul class="units">{% for u in units %}
     <li><a class="unit{% if u.mine %} mine{% endif %}" href="/c/{{ c.link_token }}/u/{{ u.row.key }}">
       <span class="c num">{{ u.row.unit }}</span>
-      <span class="w"><span class="av sm{% if not u.done %} off{% endif %}{% if u.ink %} ink-t{% endif %}" style="background:{{ u.color }}">{{ u.row.who|slice:":1"|default:"?" }}</span><span>{{ u.row.who|default:"이름 없음" }} 선생님{% if u.mine %}<small>이 PC에서 쓰던 이름이에요</small>{% endif %}</span></span>
-      <span class="st{% if u.late %} late{% elif u.done %} done{% endif %}">{% if u.late %}늦게 냈어요{% elif u.done %}냈어요{% else %}아직{% endif %}</span>
+      <span class="w"><span class="av sm{% if not u.done and per != "곳" %} off{% endif %}{% if u.ink %} ink-t{% endif %}" style="background:{{ u.color }}">{% if u.row.group %}{{ u.row.unit|slice:":1" }}{% else %}{{ u.row.who|slice:":1"|default:"?" }}{% endif %}</span><span>{{ u.row.who_text }}{% if u.mine and not u.row.group %}<small>이 PC에서 쓰던 이름이에요</small>{% endif %}</span></span>
+      {% if per != "곳" %}<span class="st{% if u.late %} late{% elif u.done %} done{% endif %}">{% if u.late %}늦게 냈어요{% elif u.done %}냈어요{% else %}아직{% endif %}</span>{% endif %}
     </a></li>{% endfor %}
   </ul>
-  {% if c.allow_outside %}
-  <form class="field" method="post" action="/c/{{ c.link_token }}/outside">{% csrf_token %}
-    <label for="oname">명부에 없으면 이름을 쓰고 내 칸을 만드세요</label>
-    <div class="outside"><input class="input lg" id="oname" name="name" maxlength="40" autocomplete="name" placeholder="이름"{% if outside_error %} aria-describedby="oErr"{% endif %}><button class="btn sec lg" type="submit">내 칸 만들기</button></div>
-    {% if outside_error %}<p class="ferr" id="oErr" role="alert">{{ outside_error }}</p>{% endif %}
-  </form>
-  {% elif outside_error %}<p class="ferr" role="alert">{{ outside_error }}</p>{% endif %}
-  <p class="privacy">다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.</p>
+  {% include "collect/_recv_outside.html" %}
+  <p class="privacy">{% if per == "곳" %}다른 그룹이 쓴 값과 냈는지는 보이지 않아요.{% else %}다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.{% endif %}</p>
+</section>
+
+{% elif view == "find" %}
+<section class="panel" aria-labelledby="pickH">
+  <h2 id="pickH">어느 분 칸을 채우시나요?</h2>
+  <p class="lead">{% if per == "반" %}이름이나 반(4-1){% else %}이름{% endif %}을 쓰면 그 칸이 열려요. 가입·로그인 없이 바로 써요. 바쁜 분 칸은 그분 이름을 써서 대신 내도 돼요.</p>
+  {% include "collect/_recv_find.html" %}
+  {% if not_found or outside_error %}{% include "collect/_recv_outside.html" with typed=q %}{% endif %}
+  <p class="privacy">다른 선생님 이름과 쓴 값은 보이지 않아요.</p>
 </section>
 
 {% elif view == "form" %}
 <form class="panel" id="f" method="post" action="/c/{{ c.link_token }}/u/{{ row.key }}" hx-post="/c/{{ c.link_token }}/u/{{ row.key }}" hx-target="#main" novalidate aria-labelledby="formH">{% csrf_token %}
-  <div class="who-h"><span class="c num">{{ row.unit }}</span><h2 id="formH">{{ row.who|default:"이름 없음" }} 선생님 칸</h2><a class="tlink acc" href="/c/{{ c.link_token }}">다른 칸 고르기</a></div>
-  {% if done and not sent %}<p class="notice">{% if changed %}보내신 뒤 다른 분이 고쳤어요({{ last|date:"n/j H:i" }}). 지금 값은 보이지 않아요. 다시 내면 새 값으로 바뀌어요.{% else %}{{ row.unit }} 칸은 {{ last|date:"n/j H:i" }}에 이미 냈어요. 다시 내면 새 값으로 바뀌어요.{% endif %}</p>{% endif %}
-  {% if not mine and not done %}<p class="well">{{ row.who|default:"이 칸" }} 선생님 대신 내셔도 돼요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>{% endif %}
+  <div class="who-h"><span class="c num">{{ row.place }}</span><h2 id="formH">{{ row.who_text }} 칸</h2><a class="tlink acc" href="/c/{{ c.link_token }}{% if c.space.is_school %}?find=1{% endif %}">다른 칸 고르기</a></div>
+  {% if done and not sent %}<p class="notice">{% if changed %}보내신 뒤 다른 분이 고쳤어요({{ last|date:"n/j H:i" }}). 지금 값은 보이지 않아요. 다시 내면 새 값으로 바뀌어요.{% else %}{{ row.place }} 칸은 {{ last|date:"n/j H:i" }}에 이미 냈어요. 다시 내면 새 값으로 바뀌어요.{% endif %}</p>{% endif %}
+  {% if row.group %}{% if not done %}<p class="well">{{ row.unit }} 누구나 쓸 수 있어요. 한 명이 내면 제출 완료예요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>{% endif %}
+  {% elif not mine and not done %}<p class="well">{{ row.who|default:"이 칸" }} 선생님 대신 내셔도 돼요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>{% endif %}
   {% if form_error %}<p class="ferr" role="alert">{{ form_error }}</p>{% endif %}
 
   {% if c.multi %}
@@ -63,13 +67,14 @@
   <button class="btn pri lg block" type="submit">{% if matrix %}저장하기{% elif done %}고쳐서 다시 내기{% else %}제출하기{% endif %}</button>
   <p class="after">{% if c.due %}마감 {{ c.due|date:"n/j H:i" }} 전까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
 </form>
+{% if find_box %}<section class="panel" aria-labelledby="proxyH" style="margin-top:16px"><h2 id="proxyH">다른 선생님 대신 내기</h2>{% include "collect/_recv_find.html" %}</section>{% endif %}
 
 {% elif view == "done" %}
 <section class="panel" aria-labelledby="okH" tabindex="-1" id="ok" autofocus>
   <div class="row" style="gap:16px"><span class="ok-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
     <div><h2 id="okH">{% if partial %}저장했어요{% else %}제출했어요{% endif %}</h2><p class="muted">{% if owner %}{{ owner.name }} 선생님 {% endif %}합본에 바로 들어갔어요. 이제 {{ n_done }}/{{ n_total }}{{ per }}이에요.</p></div></div>
   <dl class="sent-kv num">
-    <dt>{% if per == "반" %}반{% else %}칸{% endif %}</dt><dd>{{ row.unit }} {{ row.who }} 선생님</dd>
+    <dt>{% if per == "반" %}반{% else %}칸{% endif %}</dt><dd>{% if row.group %}{{ row.unit }} 그룹{% else %}{{ row.place }} {{ row.who }} 선생님{% endif %}</dd>
     {% for line in summary %}{% if c.multi %}<dt>{{ forloop.counter }}줄</dt><dd>{{ line }}</dd>{% else %}{% for name, v in line %}<dt>{{ name }}</dt><dd>{% if v %}{{ v }}{% else %}<span class="dash">—</span>{% endif %}</dd>{% endfor %}{% endif %}{% endfor %}
     <dt>낸 사람</dt><dd>{% if by %}{{ by }}{% if proxy %} (대신 냄){% endif %}{% else %}<span class="dash">—</span>{% endif %}</dd>
     <dt>시각</dt><dd>{{ at|date:"n/j H:i" }}{% if late %} · 마감 뒤에 냈어요{% endif %}</dd>

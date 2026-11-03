@@ -1,5 +1,4 @@
 """H1 독립 검증(gt-qa): test_merge.py에 없는 경계만. expectedFailure는 확인된 결함이다(고치면 표시를 지운다)."""
-import unittest
 from io import StringIO
 
 from django.contrib.auth import get_user_model
@@ -133,7 +132,8 @@ class NoManagerQa(MergeBase):
         self.base = f"/s/{self.hub.token}"
 
     def test_screens_live(self):
-        for path in ("/today", "/c/", f"/c/{self.c4.key}/", f"/c/{self.c5.key}/", "/c/new", "/schedule", "/", "/members",
+        self.assertEqual(self.client.get(f"{self.base}/c/{self.c4.key}/").status_code, 404)  # H4: 남의 합본은 만든 사람·관리자만
+        for path in ("/today", "/c/", f"/c/{self.c5.key}/", "/c/new", "/schedule", "/", "/members",
                      "/welcome", "/made", "/settings", "/settings?a=alerts", "/settings?a=space", "/settings?a=device"):
             r = self.client.get(self.base + path, follow=True)
             self.assertEqual(r.status_code, 200, path)
@@ -214,7 +214,6 @@ class HwpAfterMergeQa(MergeBase):
         r = self.client.get(f"/s/{hub.token}/hwp/out/{rf.key}/hwpx")
         self.assertEqual(b"".join(r.streaming_content)[:2], b"PK")
 
-    @unittest.expectedFailure  # 결함(H4로 넘김): 학교 공간에서 hwpform에 grade=0이 넘어가 'n-m' 머리가 다른 학년으로 읽힌다
     def test_new_form_in_school_space_matches_rows_by_grade_and_class(self):
         hub = open_school(self.school, UNTIL, self.m4)
         self.client.force_login(self.u4)

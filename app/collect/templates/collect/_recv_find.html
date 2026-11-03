@@ -1,0 +1,7 @@
+{# H4 학교 공간 이름 찾기. 줄은 정확히 같을 때만 서버가 돌려준다. 동명이인이면 그 줄들만(이름·반, 직책·낸 여부 없음). #}
+<form class="field" method="post" action="/c/{{ c.link_token }}/find">{% csrf_token %}
+  <label for="findQ">{% if per == "반" %}이름 또는 반{% else %}이름{% endif %}</label>
+  <div class="outside"><input class="input lg" id="findQ" name="q" maxlength="40" value="{{ q|default:'' }}" autocomplete="off" placeholder="{% if per == "반" %}예: 김서연, 4-1{% else %}예: 김서연{% endif %}"{% if find_error %} aria-describedby="findErr"{% endif %}><button class="btn pri lg" type="submit">찾기</button></div>
+  {% if find_error %}<p class="ferr" id="findErr" role="alert">{{ find_error }}</p>{% endif %}
+</form>
+{% if matches %}<ul class="units">{% for r in matches %}<li><a class="unit" href="/c/{{ c.link_token }}/u/{{ r.key }}"><span class="c num">{{ r.place }}</span><span class="w"><span>{{ r.who_text }}</span></span></a></li>{% endfor %}</ul>{% endif %}

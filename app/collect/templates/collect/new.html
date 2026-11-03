@@ -74,13 +74,34 @@
   .go { display: flex; flex-direction: column; gap: 8px; }
   .go p { font-size: var(--fs-small); color: var(--muted); }
   @media (max-width: 1100px) { .rail { position: static; } }
+  /* H4 학교 공간 받는 사람(prototype .audbox). 사람이 많아도 칸이 끝없이 길어지지 않게 명단은 상자 안에서 넘긴다. */
+  .audbox { display: grid; gap: 8px; }
+  .amode { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 16px; border: 1px solid var(--line); border-radius: var(--radius-in); cursor: pointer; }
+  .amode input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; flex: none; }
+  .amode span { font-size: 15px; color: var(--muted); }
+  .amode:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .apane { padding: 14px 16px; background: var(--surface); border-radius: var(--radius-in); }
+  .apane[hidden] { display: none; }
+  .gck-row, .pg-l { display: flex; flex-wrap: wrap; gap: 8px; }
+  .gck, .pck { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--control); border-radius: 999px; background: var(--bg); cursor: pointer; font-size: 15px; }
+  .gck input, .pck input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  .gck span, .pck span { color: var(--muted); }
+  .gck:has(input:checked), .pck:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .hr-only { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+  .plist { display: grid; gap: 12px; max-height: 330px; overflow-y: auto; margin-top: 12px; }
+  .pg { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; }
+  .pg > b { font-size: 15px; color: var(--muted); padding-top: 8px; }
+  .pck[hidden], .pg[hidden] { display: none; }
+  .audsum { padding: 12px 16px; border-radius: var(--radius-in); background: var(--surface); font-size: 15px; }
+  .audsum .names { display: block; margin-top: 4px; color: var(--muted); }
+  .audsum.empty { background: var(--pill-neg-bg); color: var(--pill-neg-ink); font-weight: 600; }
 </style>
 {% endblock %}
 {% block main %}
 <div class="title">
   <div class="grow">
     <h1>새로 모으기</h1>
-    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {{ space_word }} 명부로 반마다 만들어지고, 마감은 만든 뒤 정해요.</p>
+    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 학교 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감은 만든 뒤 정해요.</p>
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>
@@ -120,10 +141,10 @@
         <div id="pasteOut" aria-live="polite">{% if errors.paste %}<p class="msg-inline" role="alert">{{ errors.paste }}</p>{% else %}{% include "collect/_paste_out.html" %}{% endif %}</div>
         </div>
         <div data-pane="sheet"{% if src != "sheet" %} hidden{% endif %}>
-          <p class="muted" style="margin:16px 0 8px">받을 칸 이름을 적으세요. 학년반·담임은 자동으로 들어가요. 형식을 비워 두면 이름으로 짐작해요.</p>
+          <p class="muted" style="margin:16px 0 8px">받을 칸 이름을 적으세요. {% if space.is_school %}받는 사람 칸은{% else %}학년반·담임은{% endif %} 자동으로 들어가요. 형식을 비워 두면 이름으로 짐작해요.</p>
           <table class="tbl sheet-t"><thead><tr><th>칸 이름</th><th>형식</th><th>고르기 보기(쉼표로)</th></tr></thead><tbody>
-            <tr><td class="lock">학년반 · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
-            <tr><td class="lock">담임 · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
+            <tr><td class="lock">{% if space.is_school %}<span id="lockA">{{ aud_head_a }}</span>{% else %}학년반{% endif %} · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
+            <tr><td class="lock">{% if space.is_school %}<span id="lockB">{{ aud_head_b }}</span>{% else %}담임{% endif %} · 자동</td><td class="lock"><span class="dash">—</span></td><td></td></tr>
             {% for col in sheet_cols %}<tr data-col{% if forloop.counter > 3 and not col.name %} hidden{% endif %}>
               <td><input class="input" name="col_name_{{ col.i }}" value="{{ col.name }}" maxlength="90" placeholder="{% if col.i == 0 %}예: 참가(명){% else %}칸 이름{% endif %}" aria-label="받을 칸 {{ forloop.counter }} 이름"></td>
               <td><select class="select" name="col_kind_{{ col.i }}" aria-label="받을 칸 {{ forloop.counter }} 형식"><option value="">자동</option>{% for k, label in kinds %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></td>
@@ -144,13 +165,19 @@
       </div>
     </section>
     <section class="card" aria-labelledby="audH"><div class="card-b pt">
+      {% if space.is_school %}
+      <div data-pane="paste sheet hwp"{% if src == "preset" %} hidden{% endif %}>{% include "collect/_aud_school.html" %}</div>
+      <div data-pane="preset"{% if src != "preset" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2></div>
+        <p class="muted">자주 쓰는 양식은 받는 사람이 정해져 있어요. 학습준비물은 담임 {{ roster|length }}반, 연수 이수는 전 교직원 {{ roster_all }}명이에요.</p></div>
+      {% else %}
       <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>{% include "collect/_aud.html" %}</div>
       <div data-pane="sheet preset hwp"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2><span class="r num">{{ space_word }} {{ roster|length }}반</span></div>
         <ul class="list aud">{% for r in roster %}<li><span class="cl">{{ r.unit }}</span><span class="grow">{{ r.who }}</span><span class="r">칸 자동</span></li>{% empty %}<li><span class="muted">아직 반을 고른 선생님이 없어요.</span></li>{% endfor %}</ul>
         <p class="small muted" style="margin-top:8px">{{ space_word }} 명부로 반마다 한 줄씩 만들어요. 연수 이수 양식은 전담 포함 {{ roster_all }}명, 한 사람마다 한 줄이에요.</p></div>
+      {% endif %}
       {% if errors.aud %}<p class="msg-inline" role="alert">{{ errors.aud }}</p>{% endif %}
       <label class="opt"><span class="toggle"><input type="checkbox" name="outside"{% if outside %} checked{% endif %}><i></i></span>
-        <span><b>명부 밖 선생님도 링크로 받기</b><span>전담·교무실·다른 학년 선생님은 같은 링크를 열어 칸을 고르거나 이름을 적어 내요. 마감되면 링크가 닫혀요.</span></span></label>
+        <span><b>명부 밖 선생님도 링크로 받기</b><span>{% if space.is_school %}명부에 없는 분(방과후 강사·기간제 첫날 등)은{% else %}전담·교무실·다른 학년 선생님은{% endif %} 같은 링크를 열어 칸을 고르거나 이름을 적어 내요. 마감되면 링크가 닫혀요.</span></span></label>
     </div></section>
   </div>
   <aside class="s4" aria-label="쪽지와 만들기">
@@ -159,7 +186,7 @@
         <div class="card-h"><h2 id="msgH">받는 선생님에게 갈 쪽지</h2></div>
         <div class="card-b"><div class="note-msg" id="msg">[고티처] <span data-title>{{ title|default:"(제목)" }}</span>
 
-아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.{% include "collect/_msg_fields.html" %}
+아래 링크에서 {% if space.is_school %}<span id="msgWhere">{{ aud_where }}</span>{% else %}우리 반 칸{% endif %}만 채워 주세요. 로그인 없이 30초면 돼요.{% include "collect/_msg_fields.html" %}
 (링크는 만들면 생겨요)
 
 보낸 사람: {{ me.name }} ({{ me.cls }})</div>

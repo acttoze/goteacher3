@@ -140,7 +140,8 @@ FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 # 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다. 선언 크기 초과는 뷰가 본문 읽기 전에 거부.
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
-HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 공간 하나의 저장 총량(원본+변환한 HWPX)
+HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
+HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 5 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
 HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 20 * 1024**3))  # 서비스 전체(서버 디스크 보호)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440

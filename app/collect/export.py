@@ -21,8 +21,7 @@ from django.utils.http import content_disposition_header
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from spaces.models import get_in_space_or_404
-
+from .access import owner_view
 from .models import Collection
 from .views import _board
 
@@ -45,7 +44,7 @@ def sheet(c):
             vals = [x["x"] for x in cells]
             if c.multi and not any(vals):  # prototype: 물품을 안 낸 반은 줄이 없다
                 continue
-            rows.append([r.unit, r.who, *vals])
+            rows.append([r.unit, u["by"] if r.group else r.who, *vals])  # 그룹 칸의 '작성' 칸은 실제로 낸 사람
     return [head, *rows]
 
 
@@ -77,8 +76,8 @@ def _safe(v):
 
 @never_cache
 @require_GET
-def export_csv(request, key):
-    c = get_in_space_or_404(Collection, request, key=key)
+@owner_view(Collection)
+def export_csv(request, c):
     buf = io.StringIO()
     w = csv.writer(buf, quoting=csv.QUOTE_ALL, lineterminator="\r\n")
     w.writerows([_safe(v) for v in line] for line in sheet(c))
@@ -93,18 +92,18 @@ def export_csv(request, key):
 
 @never_cache
 @require_GET
-def copy(request, key):
+@owner_view(Collection)
+def copy(request, c):
     """합본 표 복사(브라우저가 text/html·text/plain 둘 다 클립보드에 넣는다)."""
-    c = get_in_space_or_404(Collection, request, key=key)
     lines = sheet(c)
     return JsonResponse({"html": to_html(lines), "tsv": to_tsv(lines)})
 
 
 @never_cache
 @require_POST
-def footer(request, key):
-    """꼬리말 켜고 끄기(htmx, 동학년 회원 누구나). 체크 상자 name=on."""
-    c = get_in_space_or_404(Collection, request, key=key)
+@owner_view(Collection)
+def footer(request, c):
+    """꼬리말 켜고 끄기(htmx, 동학년 회원 누구나, 학교 공간은 만든 사람·관리자). 체크 상자 name=on."""
     c.footer_on = request.POST.get("on") == "on"
     c.save(update_fields=["footer_on"])
     toast = "내보내는 파일에 꼬리말을 넣어요." if c.footer_on else "꼬리말 없이 내보내요."

@@ -31,6 +31,8 @@ class Collection(models.Model):
     multi = models.BooleanField("받는 사람이 줄을 여러 개 추가", default=False)
     allow_outside = models.BooleanField("명부 밖 사람도 링크로 제출", default=False)
     footer_on = models.BooleanField("꼬리말 넣기", default=True)
+    # 학교 공간에서 고른 받는 사람 범위(recipients.read_audience + 만들 때의 설명 text). 다시 걷기와 합본 표시에 쓴다. 동학년·양식은 비어 있다.
+    audience = models.JSONField("받는 사람 범위", default=dict, blank=True)
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     link_token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -91,6 +93,7 @@ class Row(models.Model):
     """받는 사람 한 줄. unit = 반·이름 등 줄 머리(unit_head 순서로 보여 줌), who = 낼 사람 이름.
 
     multi면 같은 unit 줄이 여러 개일 수 있다. member는 명부에서 만든 줄일 때만(나에게 온 것 찾기).
+    group: 그룹별 1칸(prototype aud pergroup)일 때 그 그룹. 구성원 누구나 쓰고 모두의 '낼 것'에 뜬다. who는 비어 있고 낸 사람은 Cell.by.
     """
 
     collection = models.ForeignKey(Collection, on_delete=models.CASCADE, related_name="rows")
@@ -98,6 +101,7 @@ class Row(models.Model):
     unit = models.CharField("받는 곳", max_length=100)
     who = models.CharField("낼 사람", max_length=100, blank=True)
     member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="rows")
+    group = models.CharField("그룹 칸", max_length=10, blank=True, default="")
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
 
     objects = RowQuerySet.as_manager()
@@ -107,6 +111,16 @@ class Row(models.Model):
 
     def __str__(self):
         return f"{self.unit} {self.who}".strip()
+
+    @property
+    def who_text(self):
+        """받는 화면 표시: '김서연 선생님', 그룹 칸은 '그룹 누구나'."""
+        return "그룹 누구나" if self.group else f"{self.who or '이름 없음'} 선생님"
+
+    @property
+    def place(self):
+        """받는 화면의 소속: 직책을 뺀다('교무실 · 교무부장' → '교무실'). 직책은 합본(만든 사람·관리자)에서만 보인다."""
+        return self.unit.split(" · ")[0]
 
 
 class CellQuerySet(SpaceQuerySet):

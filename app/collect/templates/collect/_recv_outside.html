@@ -1,0 +1,7 @@
+{% if c.allow_outside %}
+  <form class="field" method="post" action="/c/{{ c.link_token }}/outside">{% csrf_token %}
+    <label for="oname">명부에 없으면 이름을 쓰고 내 칸을 만드세요</label>
+    <div class="outside"><input class="input lg" id="oname" name="name" maxlength="40" autocomplete="name" placeholder="이름"{% if typed %} value="{{ typed }}"{% endif %}{% if outside_error %} aria-describedby="oErr"{% endif %}><button class="btn sec lg" type="submit">내 칸 만들기</button></div>
+    {% if outside_error %}<p class="ferr" id="oErr" role="alert">{{ outside_error }}</p>{% endif %}
+  </form>
+{% elif outside_error %}<p class="ferr" role="alert">{{ outside_error }}</p>{% endif %}

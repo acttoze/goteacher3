@@ -116,7 +116,10 @@
   var fields = document.getElementById('hwpFields');
   document.addEventListener('gt-hwp-picked', function () {
     if (!fields || !key.value) return;
-    htmx.ajax('GET', fields.dataset.url + encodeURIComponent(key.value), { target: '#hwpFields', swap: 'innerHTML' });
+    var url = fields.dataset.url + encodeURIComponent(key.value);
+    // 학교 공간: 고른 받는 사람으로 표 줄을 짝짓도록 폼 값을 함께 보낸다(칸 값은 hwp_sent가 없으니 자동 추정 그대로)
+    if (document.getElementById('audBox')) htmx.ajax('POST', url, { source: '#newForm', target: '#hwpFields', swap: 'innerHTML' });
+    else htmx.ajax('GET', url, { target: '#hwpFields', swap: 'innerHTML' });
   });
   box.addEventListener('click', function (e) {
     if (!e.target.closest('[data-hwp-reset]')) return;
@@ -127,4 +130,37 @@
     drop.hidden = false;
     file.focus();
   });
+})();
+
+// H4 학교 공간 받는 사람: 고른 방식의 칸만 보이기, 그룹 묶음 단추, 사람 찾기. 요약 줄은 서버가 그린다(htmx, _aud_school.html).
+(function () {
+  var box = document.getElementById('audBox');
+  if (!box) return;
+  function panes() {
+    var on = box.querySelector('input[name=aud]:checked');
+    box.querySelectorAll('[data-aud]').forEach(function (p) { p.hidden = !on || p.dataset.aud !== on.value; });
+  }
+  function changed() { box.dispatchEvent(new Event('change', { bubbles: true })); }
+  box.addEventListener('change', function (e) {
+    if (e.target.name === 'aud') panes();
+    var check = document.getElementById('hwpCheck');  // 한글 양식 '받는 줄'도 새 범위로
+    if (check && e.target.id !== 'psq') htmx.trigger(check, 'change');
+  });
+  box.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-gall]');
+    if (g) {
+      box.querySelectorAll('input[name=aud_groups]').forEach(function (c) { c.checked = g.dataset.gall === 'grade' && /^g\d$/.test(c.value); });
+      changed();
+    } else if (e.target.closest('[data-pclear]')) {
+      box.querySelectorAll('input[name=aud_people]').forEach(function (c) { c.checked = false; });
+      changed();
+    }
+  });
+  document.getElementById('psq').addEventListener('input', function () {
+    var q = this.value.trim();
+    box.querySelectorAll('.pck').forEach(function (l) { l.hidden = !!q && l.textContent.indexOf(q) < 0; });
+    box.querySelectorAll('.pg').forEach(function (g) { g.hidden = !g.querySelector('.pck:not([hidden])'); });
+  });
+  document.getElementById('psq').addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
+  panes();
 })();

@@ -15,4 +15,4 @@
   <td class="r"><select class="select" name="kind_{{ forloop.counter0 }}" aria-label="{{ f.name }} 형식">{% for k, label in kinds %}<option value="{{ k }}"{% if k == f.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>{% endif %}{% endfor %}
 </tbody></table>
 {% endif %}
-{% if oob %}{% include "collect/_aud.html" %}{% include "collect/_msg_fields.html" %}{% endif %}
+{% if oob %}{% if not is_school %}{% include "collect/_aud.html" %}{% endif %}{% include "collect/_msg_fields.html" %}{% endif %}

@@ -53,6 +53,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/", lists.index),
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),
+    path("s/<str:space_token>/c/new/aud", collect.aud_summary),  # H4 받는 곳 요약
     path("s/<str:space_token>/c/new/hwp/<str:key>", collect.hwp_fields),  # E6 칸 확인
     path("s/<str:space_token>/c/<str:key>/", collect.detail),
     path("s/<str:space_token>/c/<str:key>/live", collect.live),
@@ -66,6 +67,7 @@ urlpatterns = [
     path("s/<str:space_token>/c/<str:key>/again", lists.again),
     path("c/<str:link_token>", submit.pick),
     path("c/<str:link_token>/outside", submit.outside),
+    path("c/<str:link_token>/find", submit.find),  # H4 학교 공간 이름 찾기
     path("c/<str:link_token>/u/<str:key>", submit.unit),
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),

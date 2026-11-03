@@ -68,12 +68,12 @@
           </tr>
         {% else %}
           <tr class="link">
-            <td class="c-id"><a class="ttl" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><span class="sub2">{{ x.src }} · {{ x.made|date:"n/j" }} 만듦</span></td>
-            <td><span class="stack" aria-label="낸 {{ x.per }}: {{ x.done_names|default:'없음' }}">{% for r, color, ink in x.done|slice:":4" %}<span class="av sm{% if ink %} ink-t{% endif %}" style="background:{{ color }}">{{ r.who|slice:":1" }}</span>{% endfor %}</span></td>
+            <td class="c-id"><a class="ttl" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><span class="sub2">{% if x.by %}{{ x.by }} · {% endif %}{{ x.src }} · {{ x.made|date:"n/j" }} 만듦</span></td>
+            <td><span class="stack" aria-label="낸 {{ x.per }}: {{ x.done_names|default:'없음' }}">{% for r, color, ink in x.done|slice:":4" %}<span class="av sm{% if ink %} ink-t{% endif %}" style="background:{{ color }}">{% if r.group %}{{ r.unit|slice:":1" }}{% else %}{{ r.who|slice:":1" }}{% endif %}</span>{% endfor %}</span></td>
             <td class="r"><div class="prog"><div class="nums"><span>낸 {{ x.per }}</span><b class="num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</b></div><div class="track thin{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div></div></td>
             <td class="r"><span class="due num{% if x.urgent and tab == 'sent' and not x.all %} urgent{% endif %}"><span class="sr">마감 </span>{{ x.due }}</span></td>
-            <td class="r">{% if tab == "past" %}<span class="st">{% if x.c.closed_at %}닫힘{% else %}마감 지남{% endif %}</span>{% elif x.all %}<span class="st done">다 걷힘</span>{% else %}<span class="st">진행 중</span>{% endif %}</td>
-            <td class="act r"><form method="post" action="/s/{{ space.token }}/c/{{ x.c.key }}/again">{% csrf_token %}<button class="btn ghost sm" type="submit" title="칸·받는 사람은 그대로, 낸 값·마감은 비우고 새로 걷어요">다시 걷기</button></form></td>
+            <td class="r">{% if tab == "past" or x.past %}<span class="st">{% if x.c.closed_at %}닫힘{% else %}마감 지남{% endif %}</span>{% elif x.all %}<span class="st done">다 걷힘</span>{% else %}<span class="st">진행 중</span>{% endif %}</td>
+            <td class="act r">{% if tab != "all" or x.c.created_by_id == me.pk %}<form method="post" action="/s/{{ space.token }}/c/{{ x.c.key }}/again">{% csrf_token %}<button class="btn ghost sm" type="submit" title="칸·받는 사람은 그대로, 낸 값·마감은 비우고 새로 걷어요">다시 걷기</button></form>{% endif %}</td>
           </tr>
         {% endif %}{% empty %}
           <tr class="empty-row"><td colspan="{% if tab == 'todo' %}3{% else %}6{% endif %}"><p class="empty">{% if q %}「{{ q }}」에 맞는 {{ noun }}이 없어요. 검색어를 지우면 모두 보여요.{% elif tab == "todo" %}낼 것이 없어요.{% elif tab == "sent" %}걷는 중인 모으기가 없어요. 「새로 모으기」에서 표를 붙여넣으면 바로 만들어져요.{% else %}아직 {{ noun }}이 없어요.{% endif %}</p></td></tr>
@@ -87,9 +87,9 @@
     <div class="card-h"><h2 id="nextH">다음 할 일</h2></div>
     <div class="card-b">
       {% if side %}
-      <div class="blk"><h3>{{ side.miss_label }} <span class="muted num" style="font-weight:500">{{ side.miss|length }}{{ side.miss_unit }}</span></h3>
+      <div class="blk"><h3>{{ side.miss_label }} <span class="muted num" style="font-weight:500">{{ side.miss|length|add:side.miss_more }}{{ side.miss_unit }}</span></h3>
         <p>{{ side_c.c.title }} · 마감 <b class="num">{{ side_c.due }}</b></p>
-        <div class="left">{% for u in side.miss %}<span>{{ u.label }}</span>{% endfor %}</div>
+        <div class="left">{% if side.miss_groups %}{% for g in side.miss_groups %}<span>{{ g.label }} {{ g.n }}{{ side.miss_unit }}</span>{% endfor %}{% else %}{% for u in side.miss %}<span>{{ u.label }}</span>{% endfor %}{% endif %}</div>
         <pre class="msg-src" id="nudgeAll">{{ side.nudge_all }}</pre>
         <button class="btn sec sm" type="button" data-copy="#nudgeAll" data-done="{{ side.nudge_done }}">독촉 문구 복사</button>
       </div>

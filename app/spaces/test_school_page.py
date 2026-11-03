@@ -183,13 +183,17 @@ class EditMeTests(Base):
         log = MemberLog.objects.in_space(self.hub).get()
         self.assertEqual((log.before, log.after), ("5학년 1반", "2학년 전담"))
 
-    def test_settings_name_change_not_logged_and_grade_space_never(self):
+    def test_settings_name_change_logged_in_school_and_grade_space_never(self):
+        """H4 보안 검토: 이름은 담당 짝짓기·대신 내기 이름 찾기에 쓰이므로 학교 공간에서는 이력에 남긴다."""
         self.teacher.post(f"{self.base}/settings/me", {"name": "새이름"})
-        self.assertFalse(MemberLog.objects.exists())
+        log = MemberLog.objects.get()
+        self.assertEqual((log.name, log.after), ("새이름", "새이름"))
+        self.teacher.post(f"{self.base}/settings/me", {"name": "새이름"})
+        self.assertEqual(MemberLog.objects.count(), 1)  # 안 바뀌면 남기지 않는다
         c = Client()
         c.force_login(self.far_user)
-        c.post(f"/s/{self.far.token}/settings/me", {"cls": "4-2"})
-        self.assertFalse(MemberLog.objects.exists())
+        c.post(f"/s/{self.far.token}/settings/me", {"name": "먼이름", "cls": "4-2"})
+        self.assertEqual(MemberLog.objects.count(), 1)
 
     def test_log_only_managers_see(self):
         self.post(group="office", role="교무")
@@ -406,8 +410,11 @@ class PairTests(Base):
         page = self.teacher.get(f"{self.base}/school?tab=duty")
         self.assertContains(page, "전입예정 명부에 없음")
 
-    def test_space_does_not_split_people(self):
-        self.assertEqual(self.cell("김도윤 송민재")["people"], ["김도윤송민재"])
+    def test_space_splits_only_when_every_piece_is_on_roster(self):
+        """H4 리드 결정: 조각이 모두 명부 이름이면 두 사람, 아니면 한 사람('김 도 윤'·'부장 김도윤')."""
+        self.assertEqual(self.cell("김도윤 송민재")["people"], ["김도윤", "송민재"])
+        self.assertEqual(self.cell("김 도 윤")["people"], ["김도윤"])
+        self.assertEqual(self.cell("부장 김도윤")["people"], ["부장김도윤"])
 
     def test_vacant_is_not_a_person(self):
         r = self.cell("(공석)")

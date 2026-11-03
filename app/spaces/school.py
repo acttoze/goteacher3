@@ -49,6 +49,19 @@ def _person(text):
     return re.sub(r"\s+", "", re.sub(r"[(（][^)）]*[)）]?", "", text))
 
 
+def split_people(who, known):
+    """담당 칸 → 사람들(붙인 이름, 순서대로 한 번씩). 쉼표·/·줄바꿈으로 나누고, 공백으로 나눈 조각이 모두 명부 이름과
+    정확히 같을 때만 공백으로도 나눈다('오일 오이'는 두 사람, '김 서 연'·'부장 김철수'는 한 사람). known: 명부의 _person 이름들."""
+    out = []
+    for part in NAMES.split(who):
+        pieces = re.sub(r"[(（][^)）]*[)）]?", "", part).split()
+        if len(pieces) > 1 and all(p in known for p in pieces):
+            out += pieces
+        else:
+            out.append(_person(part))
+    return list(dict.fromkeys(n for n in out if n))
+
+
 def _name_groups(space):
     """{이름: [그룹 이름들]}. 같은 이름이 둘이면 둘 다 보여 준다."""
     found = {}
@@ -61,7 +74,7 @@ def _name_groups(space):
 
 def _pair(who, known, me=None):
     """담당 글자를 명부와 짝짓는다(FK 없음). 쉼표·/·줄바꿈으로 나눈 사람마다 명부에 있는지 본다."""
-    people = list(dict.fromkeys(n for n in map(_person, NAMES.split(who)) if n))
+    people = split_people(who, known)
     groups = dict.fromkeys(g for n in people for g in known.get(n, []))
     return {"people": people, "groups": " · ".join(groups), "unknown": [n for n in people if n not in known],
             "me": me is not None and _person(me.name) in people}

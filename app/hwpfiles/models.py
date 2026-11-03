@@ -2,7 +2,7 @@
 
 - 공간 소속: space FK, 조회는 SpaceQuerySet.in_space()로만. 주소에는 key만 쓴다(순번 ID 안 씀).
 - 저장 경로는 파일 이름을 쓰지 않고 hwp/<공간 번호>/<key>.<형식> 로 만든다(경로 조작 차단).
-- 상한: 회원당 진행 중 변환 HWP_IN_FLIGHT건, 공간당 저장 HWP_SPACE_QUOTA·서비스 전체 HWP_TOTAL_QUOTA(원본+변환).
+- 상한: 회원당 진행 중 변환 HWP_IN_FLIGHT건, 공간당 저장 HWP_SPACE_QUOTA(학교 공간은 HWP_SCHOOL_QUOTA)·서비스 전체 HWP_TOTAL_QUOTA(원본+변환).
 - MEDIA_URL로 서빙하지 않는다. 내려받기는 회원 확인 뷰로만(E6).
 - 표 위치(E5): 교사가 미리보기에서 눌러 확정한 표 = (table_sec, table_index). report["tables"] 안에 있는 것만 저장한다.
   table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
@@ -163,6 +163,11 @@ def lock_member(member):
     """회원 줄을 잠근다(transaction.atomic 안에서). 진행 중 작업 수를 세고 새 작업을 만드는 사이에
     같은 회원의 동시 요청이 끼어 상한을 넘지 못하게 한다."""
     Member.objects.select_for_update().filter(pk=member.pk).first()
+
+
+def space_quota(space):
+    """공간 하나의 저장 상한: 학교 공간은 학년 여럿과 교무실이 함께 쓴다(H4)."""
+    return settings.HWP_SCHOOL_QUOTA if space.is_school else settings.HWP_SPACE_QUOTA
 
 
 def in_flight(space, member):

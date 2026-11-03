@@ -701,7 +701,7 @@ def update_me(request):
         if not request.headers.get("HX-Request"):
             return redirect(f"/s/{request.space.token}/settings")
         return _me_area(request, status=400, error=error, typed=name)
-    before = me.cls_text
+    before, before_name = me.cls_text, me.name
     me.name, me.cls = name, cls
     # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
     fields = [f for f in ("name", "cls") if f in request.POST]
@@ -711,6 +711,8 @@ def update_me(request):
     me.save(update_fields=fields)
     if school and "cls" in fields:
         log_place(me, before)
+    if school and "name" in fields and before_name != name:  # H4: 이름은 줄 짝짓기·담당 표시에 쓰이므로 관리자가 알 수 있게
+        MemberLog.objects.create(space=request.space, by=before_name, name=name, before=before_name, after=name)
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/settings")
     return _me_area(request, saved=True)

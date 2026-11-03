@@ -6,6 +6,9 @@
 - 받는 사람은 다른 줄의 값을 보지 못한다(냈는지만). 이 세션이 낸 줄만 고칠 때 값을 미리 채운다.
 - Cell은 낼 때만 만든다. 자동 계산(calc) 칸은 입력이 아니어서 저장하지 않는다(합본이 계산).
 - 제출 값은 로그·오류 보고에 남기지 않는다(sensitive_post_parameters, 예외 문구에 값 없음).
+
+H4 학교 공간(보안 검토, 리드 결정): 링크가 교직원 명단이 되지 않게 첫 화면에 줄을 펼치지 않는다. 이름(담임만이면 반)을 쓰면 정확히
+같은 줄만 돌려준다(다른 분 이름을 쓰면 그 줄이 열려 대신 내기는 그대로). 로그인한 회원은 자기 줄로 바로 간다. 그룹별 1칸은 이름이 없어 목록.
 """
 import re
 import time
@@ -26,6 +29,7 @@ from spaces.models import Member
 from spaces.views import PEOPLE_COLORS, _clean_name
 
 from .models import Cell, Collection, Field, Row, get_by_link_or_404
+from .hwpform import _bare, _class_of
 from .paste import clean_text
 from .presets import PRESETS
 from .recipients import OutsideClosed, add_outside_row, pick_row
@@ -41,6 +45,8 @@ NA = "해당 없음"  # 연수 이수(prototype matrixForm) 체크
 ASK = {Field.Kind.NUMBER: "숫자로 써 주세요. 없으면 0이에요.", Field.Kind.SELECT: "골라 주세요.", Field.Kind.DATE: "골라 주세요."}
 SUBMIT_PER_MIN = 120  # 같은 IP·같은 링크로 낸 횟수(한 학교가 IP 하나를 같이 쓴다). 오류 난 제출은 세지 않는다
 OUTSIDE_PER_HOUR = 60  # 같은 IP·같은 링크로 명부 밖 줄 만들기(모으기당 60줄 상한과 함께)
+FIND_PER_HOUR = 300  # 같은 IP·같은 링크로 이름 찾기(학교 하나가 IP 하나: 전 교직원이 한 번씩 + 여유, 명단 긁어내기는 막는다)
+NOT_FOUND = "이름을 찾지 못했어요."
 UNIT_RE = re.compile(r"^(.*?)\s*\(([^()]{1,6})\)$")  # '참가(명)' → 참가 / 명
 
 
@@ -51,9 +57,11 @@ def link_view(view):
     def inner(request, link_token, **kw):
         _forget_stale(request)
         try:
-            return view(request, get_by_link_or_404(link_token), **kw)
+            resp = view(request, get_by_link_or_404(link_token), **kw)
         except Http404:
-            return render(request, "collect/recv.html", {"view": "notfound"}, status=404)
+            resp = render(request, "collect/recv.html", {"view": "notfound"}, status=404)
+        resp["X-Robots-Tag"] = "noindex, nofollow"
+        return resp
 
     return inner
 
@@ -159,7 +167,7 @@ def _me(request, c):
 
 def _mine(row, member, name):
     if member:
-        return row.member_id == member.pk
+        return row.member_id == member.pk or (bool(row.group) and row.group == member.group)
     return bool(name) and row.who == name
 
 
@@ -168,8 +176,23 @@ def _head(c):
     done = sum(u["done"] for u in units)
     return {"c": c, "units": units, "n_done": done, "n_total": len(units),
             "pct": round(done / len(units) * 100) if units else 0,
-            "per": "반" if c.unit_head[:1] == ["학년반"] else "명", "owner": c.created_by,
+            "per": {"학년반": "반", "그룹": "곳"}.get(next(iter(c.unit_head), ""), "명"), "owner": c.created_by,
             "school": c.space.school.name, "grade": c.space.grade}
+
+
+def _by_name(c):
+    """학교 공간의 사람 줄: 명부를 펼치지 않고 이름으로 찾는다."""
+    return c.space.is_school and c.unit_head[:1] != ["그룹"]
+
+
+def _pick_ctx(c):
+    """고르기 화면 값(줄이 어디까지 보이나). 동학년은 지금처럼 모든 줄. 학교 공간은 줄을 싣지 않거나(찾기) 그룹 칸만(명부 밖 이름 제외)."""
+    ctx = {**_head(c), "view": "pick"}
+    if _by_name(c):
+        return {**ctx, "view": "find", "units": []}
+    if c.space.is_school:
+        ctx["units"] = [u for u in ctx["units"] if u["row"].group]
+    return ctx
 
 
 def _colors(c):
@@ -186,16 +209,61 @@ def _page(request, ctx, status=200):
 @require_http_methods(["GET"])
 @link_view
 def pick(request, c):
-    ctx = _head(c)
+    ctx = _pick_ctx(c)
     if c.closed_at:
         return _page(request, {**ctx, "view": "closed"})
     member, name = _me(request, c)
+    if ctx["view"] == "find":
+        own = c.rows.filter(member=member).order_by("pos", "id").first() if member else None
+        if own and "find" not in request.GET:  # 다른 칸을 고르러 돌아온 것이 아니면 내 줄로
+            return redirect(f"/c/{c.link_token}/u/{own.key}")
+        return _page(request, ctx)
     colors = _colors(c)
     for u in ctx["units"]:
         u["mine"] = _mine(u["row"], member, name)
         u["color"], u["ink"] = colors.get(u["row"].member_id, ("var(--ink)", False))
-    ctx.update(view="pick", outside_error=None)
+    ctx.update(outside_error=None)
     return _page(request, ctx)
+
+
+def _matches(c, typed):
+    """쓴 글자와 정확히 같은 줄(공백 무시). 이름, 담임만이면 반(4-1·4학년 1반)도. 같은 이름이 둘이면 둘 다. multi는 받는 곳마다 첫 줄."""
+    q, no = _bare(typed), _class_of(typed, 0)
+    by_class = c.unit_head[:1] == ["학년반"]
+    out, seen = [], set()
+    for r in c.rows.order_by("pos", "id"):
+        k = (r.unit, r.who, r.member_id)
+        if k in seen:
+            continue
+        seen.add(k)
+        if _bare(r.who) == q or (by_class and (r.unit == q or (no and r.unit == f"{no[0]}-{no[1]}"))):
+            out.append(r)
+    return out
+
+
+@never_cache
+@sensitive_post_parameters()
+@require_POST
+@link_view
+def find(request, c):
+    """학교 공간 이름 찾기. 한 줄이면 그 줄로, 동명이인이면 그 줄들만(이름·반). 다른 사람 이름·직책·낸 여부는 응답에 없다."""
+    if not _by_name(c):
+        raise Http404
+    ctx = _pick_ctx(c)
+    if c.closed_at:
+        return _page(request, {**ctx, "view": "closed"}, status=403)
+    typed = clean_text(request.POST.get("q", ""))[:40]
+    if not allow("find", f"{client_ip(request)}:{c.link_token}", FIND_PER_HOUR, 3600):
+        return _page(request, {**ctx, "q": typed, "find_error": TOO_MANY}, status=429)
+    if not _bare(typed):
+        return _page(request, {**ctx, "find_error": "이름을 써 주세요."}, status=400)
+    rows = _matches(c, typed)
+    if len(rows) == 1:
+        r = redirect(f"/c/{c.link_token}/u/{rows[0].key}")
+        r.status_code = 303
+        return r
+    return _page(request, {**ctx, "q": typed, "matches": rows, "not_found": not rows,
+                           "find_error": "" if rows else NOT_FOUND})
 
 
 @never_cache
@@ -205,15 +273,15 @@ def pick(request, c):
 def outside(request, c):
     """명부 밖 사람이 이름을 써서 줄을 만든다(C4 add_outside_row). 쓴 이름을 내는 사람으로 기억한다."""
     if not allow("outside", f"{client_ip(request)}:{c.link_token}", OUTSIDE_PER_HOUR, 3600):
-        return _page(request, {**_head(c), "view": "pick", "outside_error": TOO_MANY}, status=429)
+        return _page(request, {**_pick_ctx(c), "outside_error": TOO_MANY}, status=429)
     try:
         row = add_outside_row(c, request.POST.get("name", ""))
     except OutsideClosed:
-        return _page(request, {**_head(c), "view": "closed" if c.closed_at else "pick",
+        ctx = _pick_ctx(c)
+        return _page(request, {**ctx, "view": "closed" if c.closed_at else ctx["view"],
                                "outside_error": "이 모으기는 명부 밖 이름을 더 받지 않아요."}, status=403)
     except ValueError:
-        ctx = {**_head(c), "view": "pick", "outside_error": "이름을 써 주세요."}
-        return _page(request, ctx, status=400)
+        return _page(request, {**_pick_ctx(c), "outside_error": "이름을 써 주세요."}, status=400)
     request.session[SESSION_BY] = row.who
     _touch(request)
     r = redirect(f"/c/{c.link_token}/u/{row.key}")
@@ -265,7 +333,7 @@ def _form_ctx(request, c, row, group, inputs, lines, errors=None, by=None):
     return {**_head(c), "view": "form", "row": head_row, "cols": cols, "lines": lines, "blank": blank,
             "n_main": sum(col["f"].kind != Field.Kind.URL for col in cols), "done": done,
             "last": last, "sent": sent, "changed": changed, "mine": mine, "by": name if by is None else by,
-            "matrix": _matrix(c), "na": NA, "errors": errors or {}, "form_error": (errors or {}).get("form"), "n_inputs": len(inputs)}
+            "find_box": mine and bool(member) and _by_name(c), "matrix": _matrix(c), "na": NA, "errors": errors or {}, "form_error": (errors or {}).get("form"), "n_inputs": len(inputs)}
 
 
 @never_cache
@@ -327,7 +395,7 @@ def unit(request, c, key):
             r = by_key.get(ln["key"])
             if r is None:  # multi 새 줄: 같은 받는 곳으로 맨 끝에
                 last_pos += 1
-                r = Row.objects.create(collection=c, pos=last_pos, unit=row.unit, who=row.who, member=row.member)
+                r = Row.objects.create(collection=c, pos=last_pos, unit=row.unit, who=row.who, member=row.member, group=row.group)
             kept.add(r.pk)
             for f in inputs:
                 if _matrix(c) and not ln["vals"][f.pk]:  # 연수 이수: 채운 칸만(지운 칸은 값도 지움)
@@ -357,6 +425,6 @@ def unit(request, c, key):
         summary = [" · ".join(v for _, v in line if v) for line in summary]
     at = timezone.localtime()
     ctx = {**_head(c), "view": "done", "row": group[0], "summary": summary, "by": by, "at": at,
-           "late": bool(c.due and at > c.due), "proxy": bool(by) and by != row.who,
+           "late": bool(c.due and at > c.due), "proxy": bool(by) and by != row.who and not row.group,
            "partial": Cell.objects.filter(row=group[0]).count() < _need(c)}
     return _page(request, ctx)

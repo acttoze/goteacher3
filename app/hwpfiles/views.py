@@ -31,12 +31,12 @@ import hwp
 from config import queue
 from config.csp import FONT_SRC
 from config.ratelimit import TOO_MANY, allow
-from spaces.models import get_in_space_or_404
 from spaces.views import _space_ctx
 
+from collect.access import owner_view
 from collect.models import Collection
 
-from .models import ResultFile, SourceFile, in_flight, lock_member
+from .models import ResultFile, SourceFile, in_flight, lock_member, space_quota
 from .tasks import convert, fill_result
 
 log = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def upload(request):
         return _reject(request, type(e).__name__)
     except hwp.HwpError:
         return _reject(request, "UnsafeFile")
-    if SourceFile.used_bytes(request.space) + len(data) > settings.HWP_SPACE_QUOTA:
+    if SourceFile.used_bytes(request.space) + len(data) > space_quota(request.space):
         return _reject(request, "Quota")
     if SourceFile.used_bytes() + len(data) > settings.HWP_TOTAL_QUOTA:
         return _reject(request, "TotalQuota")
@@ -145,19 +145,19 @@ def upload(request):
 
 @never_cache
 @require_GET
-def status(request, key):
+@owner_view(SourceFile)
+def status(request, sf):
     """변환 상태(htmx 2초 폴링). 끝나면 폴링을 멈춘 부분 화면을 돌려준다."""
-    sf = get_in_space_or_404(SourceFile, request, key=key)
     sf.expire_if_stuck()
     return render(request, "hwpfiles/_status.html", {"f": sf, "space": request.space})
 
 
 @never_cache
 @require_GET
-def preview(request, key):
+@owner_view(SourceFile)
+def preview(request, sf):
     """쪽 미리보기(최소). 변환 중이면 상태 부분 화면이 폴링하고, 끝나면 web/static/hwp/preview.js가 그린다.
     표 고르기(클릭 확정)는 만들기 화면의 고르기 부분 화면(pick)에서. 여기서는 표 영역 표시까지."""
-    sf = get_in_space_or_404(SourceFile, request, key=key)
     sf.expire_if_stuck()
     ctx = _space_ctx(request, f=sf, tables=_tables(sf), page="collect")
     resp = render(request, "hwpfiles/preview.html", ctx)
@@ -167,10 +167,10 @@ def preview(request, key):
 
 @never_cache
 @require_http_methods(["GET", "POST"])
-def pick(request, key):
+@owner_view(SourceFile)
+def pick(request, sf):
     """GET: 만들기 화면의 고르기 부분 화면(변환 중이면 2초 폴링). POST: 표 확정 {sec, index} → JSON.
     확정은 완료된 파일의 report["tables"] 안에 있는 표만. 오류 문구에는 표 주소도 넣지 않는다."""
-    sf = get_in_space_or_404(SourceFile, request, key=key)
     if request.method == "GET":
         sf.expire_if_stuck()
         return _pick_part(request, sf)
@@ -190,9 +190,9 @@ def pick(request, key):
 
 @never_cache
 @require_GET
-def hwpx(request, key):
+@owner_view(SourceFile)
+def hwpx(request, sf):
     """변환한 HWPX(원본이 hwpx면 원본). 회원·같은 공간·완료된 파일만. 미리보기와 E6 내려받기가 쓴다."""
-    sf = get_in_space_or_404(SourceFile, request, key=key)
     f = sf.hwpx_file()
     if sf.status != SourceFile.Status.DONE or not f:
         raise Http404
@@ -231,9 +231,9 @@ def _result_part(request, ctx, msg="", status=200):
 
 @never_cache
 @require_http_methods(["GET", "POST"])
-def result(request, key):
+@owner_view(Collection)
+def result(request, c):
     """GET: 한글 파일로 받기 상태(부분 화면, 진행 중이면 2초 폴링). POST: 채우기 작업 맡기기."""
-    c = get_in_space_or_404(Collection, request, key=key)
     ctx = result_ctx(request.space, c)
     if ctx is None:
         raise Http404
@@ -245,7 +245,7 @@ def result(request, key):
         shrink = -1
     if not 0 <= shrink <= hwp.MAX_SHRINK:
         return _result_part(request, ctx, BAD_SHRINK, status=400)
-    if SourceFile.used_bytes(request.space) >= settings.HWP_SPACE_QUOTA:
+    if SourceFile.used_bytes(request.space) >= space_quota(request.space):
         return _result_part(request, ctx, reject_text("Quota", request.space), status=400)
     if SourceFile.used_bytes() >= settings.HWP_TOTAL_QUOTA:
         return _result_part(request, ctx, reject_text("TotalQuota", request.space), status=400)
@@ -268,9 +268,9 @@ def result(request, key):
 
 @never_cache
 @require_GET
-def result_file(request, key, which):
+@owner_view(ResultFile)
+def result_file(request, rf, which):
     """채운 결과 내려받기. which = file(올린 형식) | hwpx. 회원·같은 공간·완료된 것만."""
-    rf = get_in_space_or_404(ResultFile, request, key=key)
     f = getattr(rf, which, None) if which in ("file", "hwpx") else None
     if rf.status != ResultFile.Status.DONE or not f:
         raise Http404

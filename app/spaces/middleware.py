@@ -36,6 +36,8 @@ class SpaceMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        if "\x00" in request.path:  # 주소의 토큰·키는 모두 DB로 간다. NUL은 PostgreSQL이 거부해 500이 되므로 여기서 끊는다(H4)
+            raise Http404
         request.space = None
         request.member = None
         return self.get_response(request)

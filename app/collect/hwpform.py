@@ -176,34 +176,49 @@ def _full_rows(out, rows, default):
 
 
 def _class_of(text, grade):
-    """행 머리 글자 → 반 번호(4-1·1반·4학년 1반·1). 다른 학년이면 None."""
+    """행 머리 글자 → (학년, 반). 동학년(grade≥1): 4-1·1반·4학년 1반·1, 다른 학년이면 None.
+    학교 공간(grade=0): 학년까지 적힌 머리만 반으로 읽는다('1반'은 어느 학년인지 모른다)."""
     m = CLASS_HEAD.match(_bare(text))
-    if not m or (m.group(1) and int(m.group(1)) != grade):
+    if not m:
         return None
-    return int(m.group(2))
+    g = int(m.group(1)) if m.group(1) else grade
+    if not g or (grade and g != grade):
+        return None
+    return g, int(m.group(2))
 
 
-def _roster_class(unit):
-    tail = unit.split("-", 1)[-1]
-    return int(tail) if tail.isdigit() else None
+def _roster_class(line, grade):
+    """명부 줄 → (학년, 반). 사람별 줄의 unit은 '4학년 1반'이라 회원의 반을 먼저 본다."""
+    member = line.get("member")
+    head, _, tail = (member.cls if member else line["unit"]).rpartition("-")
+    if not tail.isdigit():
+        return None
+    if grade:
+        return grade, int(tail)
+    return (int(head), int(tail)) if head.isdigit() else None
 
 
 def assign(rows, roster, grade):
-    """명부 줄마다 표 줄 번호(없으면 None = F1 행 추가). 행 머리가 반이면 그 반 줄, 아니면 남은 줄을 차례로."""
+    """명부 줄마다 표 줄 번호(없으면 None = F1 행 추가). 행 머리가 반이면 그 반 줄, 아니면 남은 줄을 차례로.
+    학교 공간에서는 다른 학년·반 머리 줄에 차례로 넣지 않는다(4-1이 5-1 줄에 들어가면 안 된다)."""
     free = [x for x in rows if x["on"]]
     by_class = {}
     for x in free:
         no = _class_of(x["head"], grade)
         if no is not None:
             by_class.setdefault(no, x["r"])
-    mine = {_roster_class(m["unit"]) for m in roster}
+    classes = [_roster_class(m, grade) for m in roster]
+    mine = set(classes) - {None}
     out, used = [None] * len(roster), set()
-    for k, m in enumerate(roster):
-        r = by_class.get(_roster_class(m["unit"]))
+    for k, no in enumerate(classes):
+        r = by_class.get(no)
         if r is not None and r not in used:
             out[k] = r
             used.add(r)
-    rest = iter(x["r"] for x in free if x["r"] not in used and _class_of(x["head"], grade) not in mine)
+
+    def spare(head):  # 학교 공간: 머리가 빈 줄만 차례로('1반'은 어느 학년인지 몰라 자동으로 넣지 않는다)
+        return _class_of(head, grade) not in mine if grade else not _bare(head)
+    rest = iter(x["r"] for x in free if x["r"] not in used and spare(x["head"]))
     for k in range(len(roster)):
         if out[k] is None:
             out[k] = next(rest, None)
