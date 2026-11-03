@@ -1,0 +1,6 @@
+{# 넣어 둔 복무의 날짜별 지우기(htmx로 이 조각만 바뀐다). #}
+<div id="attDays"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>{% if days %}<section class="card" aria-labelledby="attDaysH">
+  <div class="card-h"><h2 id="attDaysH">넣어 둔 복무</h2><span class="r">잘못 넣은 날짜는 여기서 지워요</span></div>
+  <ul class="list">{% for d in days %}<li><span><b class="num">{{ d.date|date:"n월 j일" }}</b> <span class="muted num">{{ d.n }}줄</span></span>
+    <form>{% csrf_token %}<input type="hidden" name="date" value="{{ d.date|date:'Y-m-d' }}"><button class="btn danger sm" type="button" hx-post="/s/{{ space.token }}/school/attendance/clear" hx-target="#attDays" hx-swap="outerHTML" hx-confirm="{{ d.date|date:'n월 j일' }} 복무 {{ d.n }}줄을 지울까요? 되돌릴 수 없어요.">이 날 복무 지우기</button></form></li>{% endfor %}</ul>
+</section>{% endif %}</div>

@@ -10,6 +10,7 @@ from collect import bell, export, lists, push, submit
 from collect import views as collect
 from library import views as library
 from notices import views as notices
+from spaces import attendance as attendance_page
 from spaces import school as school_page
 from spaces import views as spaces
 
@@ -32,6 +33,10 @@ urlpatterns = [
     path("s/<str:space_token>/school", school_page.school),
     path("s/<str:space_token>/school/me", school_page.edit_me),
     path("s/<str:space_token>/school/members/<str:key>/manager", school_page.set_manager),
+    path("s/<str:space_token>/school/members/<str:key>/attendance", attendance_page.set_writer),
+    path("s/<str:space_token>/school/attendance", attendance_page.page),
+    path("s/<str:space_token>/school/attendance/preview", attendance_page.preview),
+    path("s/<str:space_token>/school/attendance/clear", attendance_page.clear),
     path("s/<str:space_token>/school/duties", school_page.duties),
     path("s/<str:space_token>/school/duties/preview", school_page.duties_preview),
     path("s/<str:space_token>/members", spaces.members),

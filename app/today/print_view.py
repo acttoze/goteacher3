@@ -17,6 +17,7 @@ from django.views.decorators.http import require_GET
 
 from spaces import neis
 from spaces.gates import school_required
+from spaces.models import Attendance
 
 from .models import ALL, Event, reachable_q
 from .parse import SLOTS, event_type, slot_text
@@ -80,6 +81,8 @@ def _week(request, d):
         for day in days:
             if e.date <= day <= e.last_day:
                 cells[(day, e.slot)].append(_item(e, day))
+    for a in Attendance.objects.in_space(request.space).filter(date__range=(mon, days[-1])).order_by("pk"):
+        cells[(a.date, "")].append({"sym": SYM["duty"], "text": a.title, "meta": a.time_text, "cont": False})
     return {"view": "week", "heading": f"주간교육계획 · {_label(mon)}", "failed": failed,
             "dense": sum(max(_lines(cells[(day, r["k"])]) for day in days) for r in ROWS) > DENSE_LINES,
             "prev": (mon - timedelta(days=7)).isoformat(), "next": (mon + timedelta(days=7)).isoformat(),

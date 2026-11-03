@@ -8,6 +8,11 @@
   {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
   {% if alone %}<div class="well first"><p>아직 혼자예요. 초대 링크를 보내면 선생님들이 구글로 로그인하고 소속·직책을 골라 들어와요.</p>
     <button class="btn pri sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></div>{% endif %}
+  <section class="card att" aria-labelledby="attH">
+    <div class="card-h"><h2 id="attH">오늘 복무 현황</h2><span class="n num">{{ n_attendance }}명</span><span class="r"><span>유형·시간만 보여요, 사유 없음</span>{% if can_attend %}<a class="btn sec sm" href="/s/{{ space.token }}/school/attendance">나이스 복무현황 붙여넣기</a>{% endif %}</span></div>
+    <div class="card-b">{% if attendance %}<ul class="att-row">{% for a in attendance %}<li><span class="pill">{{ a.kind }}</span><b>{{ a.name }}</b>{% if a.group_label %}<span class="muted">{{ a.group_label }}</span>{% endif %}{% if a.time_text %}<span class="muted num">{{ a.time_text }}</span>{% endif %}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">오늘 부재자가 없어요.</p>{% endif %}</div>
+  </section>
   <nav class="tabs" aria-label="학교 화면">
     <a href="/s/{{ space.token }}/school"{% if tab == "grade" %} aria-current="page"{% endif %}>학년분장 · 그룹 현황</a>
     <a href="/s/{{ space.token }}/school?tab=duty"{% if tab == "duty" %} aria-current="page"{% endif %}>업무분장 · 부서</a>
@@ -18,7 +23,7 @@
     {% for g in group_cards %}<section class="card s3 gcard" aria-labelledby="gc{{ forloop.counter }}">
       <div class="card-h"><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span></div>
       <div class="card-b">{% if g.rows %}<ul class="rows">
-        {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"><span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}
+        {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"><span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}{% if r.m.can_duty %}<span class="pill">복무 입력</span>{% endif %}
           {% if is_creator and writable or is_creator and not r.me %}<button class="tlink" type="button" data-open="#p-{{ r.m.key }}" aria-label="{{ r.m.name }} 선생님 관리">관리</button>
           {% include "spaces/_school_person.html" %}{% endif %}</li>{% endfor %}
       </ul>{% else %}<p class="muted">아직 아무도 없어요</p>{% endif %}</div>

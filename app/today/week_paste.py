@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
-from collect.paste import FILLER, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, clean_text, html_to_tsv
+from collect.paste import FILLER, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, html_to_tsv, tsv_lines
 from spaces.gates import school_required
 from spaces.models import Space
 from spaces.views import _space_ctx
@@ -117,8 +117,7 @@ def read_week(text, mon):
     """{"rows": [{date, end, s, e, title, place, target, who}], "skipped": 못 읽은 줄 수}. 문제가 있으면 PasteError(붙여넣은 값은 담지 않는다)."""
     if len(text) > MAX_TEXT:
         raise PasteError(TOO_BIG)
-    lines = [[clean_text(c) for c in line.split("\t")] for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
-    lines = [r for r in lines if any(r)]
+    lines = tsv_lines(text)
     if not lines:
         raise PasteError(EMPTY)
     if all(len(r) == 1 for r in lines):

@@ -69,6 +69,12 @@ def clean_text(s):
     return " ".join(s.split())
 
 
+def tsv_lines(text):
+    """TSV → 정리한 칸들의 줄. 빈 줄은 뺀다(업무분장·주간계획·복무 표 읽기 공용)."""
+    lines = [[clean_text(c) for c in line.split("\t")] for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    return [r for r in lines if any(r)]
+
+
 # ---------------------------------------------------------------- HTML → TSV
 class _Tables(HTMLParser):
     """table·tr·td/th만 본다. 칸 안 문단·줄바꿈은 띄어쓰기 하나, 칸 안 표는 글자만 이어 붙인다."""

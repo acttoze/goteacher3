@@ -1,7 +1,7 @@
 """H3 업무분장 표 읽기: TSV(한글 표는 collect.paste.html_to_tsv가 바꾼 것) → 부서·업무·담당 줄. 그 밖의 칸은 버린다."""
 import re
 
-from collect.paste import FILLER, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, clean_text
+from collect.paste import FILLER, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, tsv_lines
 
 DEPT = re.compile(r"^(부서|부서명|소속|소속부서|부)$")
 TASK = re.compile(r"^(업무|업무명|업무내용|담당업무|분장업무|주요업무|사무|담당사무)$")
@@ -25,8 +25,7 @@ def read_duties(text):
     """{"rows": [{dept, task, who}], "skipped": 못 읽은 줄 수, "dropped": 버린 칸 수}. 문제가 있으면 PasteError(붙여넣은 값은 담지 않는다)."""
     if len(text) > MAX_TEXT:
         raise PasteError("표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.")
-    lines = [[clean_text(c) for c in line.split("\t")] for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
-    lines = [r for r in lines if any(r)]
+    lines = tsv_lines(text)
     if not lines:
         raise PasteError(EMPTY)
     if all(len(r) == 1 for r in lines):

@@ -1,0 +1,12 @@
+{# 복무 미리보기(htmx). 원문은 어디에도 싣지 않는다. signed: 읽어 낸 값(이름·유형·시간·날짜)의 서명. 값은 모두 자동 이스케이프. #}
+{% if error %}<p class="field-err" role="alert">{{ error }}</p>
+{% elif rows %}
+<section class="card"><div class="card-b" style="padding-top:var(--pad)">
+<p class="sum"><b><span class="num">{{ n_people }}</span>명, <span class="num">{{ rows|length }}</span>줄</b>을 찾았어요. 사유는 저장하지 않아요.{% if unknown %} 명부에 없는 이름 <span class="num">{{ unknown }}</span>줄은 뺐어요.{% endif %}{% if skipped %} 읽지 못한 줄 <span class="num">{{ skipped }}</span>개는 뺐어요.{% endif %}{% if totals %} 합계 줄 <span class="num">{{ totals }}</span>개는 건너뛰었어요.{% endif %}</p>
+<p class="muted">명부와 업무분장에 있는 이름만 읽어요. 아직 안 들어온 선생님은 관리자가 업무분장을 먼저 붙여 넣으면 이름을 읽어요.</p>
+<form class="acts" method="post">{% csrf_token %}<input type="hidden" name="rows" value="{{ signed }}"><button class="btn pri" type="submit">{% if only_today %}오늘 복무로 바꾸기{% else %}이 날짜 복무로 바꾸기{% endif %}</button>{% if n_now %}<span class="muted">지금 복무 {{ n_now }}줄은 이 표로 통째로 바뀌어요.</span>{% endif %}</form>
+<table class="tbl"><thead><tr><th>날짜</th><th>유형</th><th>이름</th><th>소속</th><th>시간</th></tr></thead><tbody>
+  {% for r in rows %}<tr><td class="num">{{ r.day|date:"n월 j일" }}</td><td>{{ r.kind }}</td><td>{{ r.name }}</td><td>{{ r.group }}{% if r.note %}<span class="pill warn">{{ r.note }}</span>{% endif %}</td><td class="num">{{ r.time }}</td></tr>{% endfor %}
+</tbody></table>
+</div></section>
+{% endif %}

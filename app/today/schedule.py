@@ -19,6 +19,7 @@ from django.views.decorators.http import require_GET
 from collect.lists import _colors, _mine_q
 from collect.models import Collection, Row
 from spaces import neis
+from spaces.models import Attendance
 from spaces.views import _space_ctx
 
 from .models import Event, reachable_q, scope_choices
@@ -113,6 +114,11 @@ def week_ctx(request, mon):
         if d and mon <= d <= fri and (d, r["name"]) not in seen:
             seen.add((d, r["name"]))
             cells[(d.weekday(), "")].append({"kind": "neis", "name": r["name"]})
+
+    # 복무(J1, 학교 공간): 시간 미정 줄에 '이름 유형'. 모든 회원에게 같게.
+    if space.is_school:
+        for a in Attendance.objects.in_space(space).filter(date__range=(mon, fri)).order_by("pk"):
+            cells[(a.date.weekday(), "")].append({"kind": "duty", "title": a.title, "time": a.time_text})
 
     # 모으기 마감(월 0시 ~ 토 0시)
     tz = timezone.get_current_timezone()

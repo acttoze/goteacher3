@@ -6,6 +6,7 @@ import re
 
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
@@ -15,7 +16,7 @@ from collect.paste import PasteError, html_to_tsv
 from .duty_paste import EMPTY, read_duties
 from .gates import manager_required, school_required, school_write_required
 from .merge import remove_manager
-from .models import Duty, Member, MemberLog, Space, get_in_space_or_404
+from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .views import GROUP_ROLES, _cls_label, _invite, _space_ctx, log_place, place_values, read_place
 
 LOG_N = 20  # 관리자에게 보이는 최근 이력
@@ -96,6 +97,9 @@ def _school_ctx(request, **extra):
     ctx.update(_invite(space, me))
     ctx["n_groups"] = len(Member.Group.choices)
     ctx["alone"] = me.is_manager and len(ctx["rows"]) == 1
+    ctx["attendance"] = list(Attendance.objects.in_space(space).filter(date=timezone.localdate()).select_related("member").order_by("pk"))
+    ctx["n_attendance"] = len({a.name for a in ctx["attendance"]})
+    ctx["can_attend"] = (me.is_manager or me.can_duty) and space.school.writable
     if tab == "duty":
         ctx["dept_cards"] = _dept_cards(space, me)
         ctx["n_tasks"] = sum(len(c["rows"]) for c in ctx["dept_cards"])

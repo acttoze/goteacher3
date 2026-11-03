@@ -114,6 +114,13 @@
 </div>
 
 {% if show_school %}
+<section class="card" aria-labelledby="wideAH" style="margin-bottom:var(--gap)">
+  <div class="card-h"><h2 id="wideAH">학교 전체 · 오늘 복무</h2><span class="n num">{{ attendance_wide|length }}</span><span class="r">유형·시간만 보여요, 사유 없음</span></div>
+  <ul class="list wide">
+    {% for a in attendance_wide %}<li><div class="t">{{ a.title }}</div><span class="due num">{{ a.time_text }}</span><span>{{ a.group_label }}</span><span></span></li>
+    {% empty %}<li class="none"><p class="empty">오늘 부재자가 없어요.</p></li>{% endfor %}
+  </ul>
+</section>
 <section class="card" aria-labelledby="wideH" style="margin-bottom:var(--gap)">
   <div class="card-h"><h2 id="wideH">학교 전체 · 진행 중인 모으기</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
   <ul class="list wide">

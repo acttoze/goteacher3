@@ -5,6 +5,7 @@
   1년(마감 없는 모으기는 활동 기준만). 활동과 상관없이 만든 뒤 3년이면 지운다(마감을 먼 앞날로 둔 경우의 상한).
   모으기 자체를 지운다(칸·줄·제출 값·알림·결과 파일이 CASCADE로 함께). 제목에도 이름이 들어갈 수 있어서다.
   그 모으기로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
+- 지난 복무(J1): 그날로부터 7일 지난 spaces.Attendance.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
 - 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile.
@@ -20,8 +21,10 @@ from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models.signals import post_delete
+from django.utils import timezone
 
 from collect.models import Collection
+from spaces.models import Attendance
 
 from .models import ResultFile, SourceFile
 
@@ -30,6 +33,7 @@ log = logging.getLogger(__name__)
 RETENTION = timedelta(days=365)
 MAX_AGE = timedelta(days=3 * 365)
 UNUSED_SOURCE = timedelta(hours=24)
+ATTENDANCE_DAYS = timedelta(days=7)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",)}
@@ -164,6 +168,11 @@ def stored_mismatches():
 def purge(now, dry_run=False):
     """한 번 돌린 결과 건수 dict. dry_run 이면 세기만 한다."""
     n = {}
+    # 지난 복무(7일): 민감정보라 맨 앞에서, 뒤 단계의 예외와 상관없이 지운다
+    done = Attendance.objects.filter(date__lt=timezone.localdate(now) - ATTENDANCE_DAYS)
+    n["attendance"] = done.count()
+    if not dry_run:
+        done.delete()
     # 1) 멈춘 작업 → 실패 + 파일 정리(뒤의 삭제 대상이어도 먼저 상태를 맞춘다)
     stuck = list(stuck_sources(now)) + list(stuck_results(now))
     n["stuck"] = len(stuck)

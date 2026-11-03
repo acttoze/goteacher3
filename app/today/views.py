@@ -26,7 +26,7 @@ from collect.views import _due_text
 from notices import seen as notice_seen
 from notices.models import Notice
 from spaces import neis
-from spaces.models import Member
+from spaces.models import Attendance, Member
 from spaces.views import _josa, _space_ctx
 
 from . import schedule
@@ -210,6 +210,7 @@ def _page_ctx(request):
                       must_list=must[:4], n_must=len(must), n_mine=len(todo) + len(must),
                       show_school=wide, school_wide=_school_wide(request, now) if wide else [],
                       notices_wide=_notices_wide(request) if wide else [],
+                      attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if wide else [],
                       urgent=next((x for x in todo if x["urgent"]), None), sent=sent,
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",
                       weekend=local.weekday() >= 5, first=SLOTS[0], **_live_ctx(request, now))

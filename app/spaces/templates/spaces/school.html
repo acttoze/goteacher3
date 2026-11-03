@@ -27,5 +27,11 @@
   .first { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
   .first p { flex: 1; min-width: 0; }
   .logs { margin-top: var(--gap); }
+  /* prototype school() 오늘 복무 현황 */
+  .att { margin-bottom: 20px; }
+  .att .card-b { padding-bottom: 16px; }
+  .att-row { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px 24px; }
+  .att-row li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; overflow-wrap: anywhere; min-width: 0; }
+  .att-row b { font-weight: 600; }
 </style>{% endblock %}
 {% block main %}{% include "spaces/_school.html" %}{% endblock %}

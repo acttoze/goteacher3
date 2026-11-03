@@ -123,6 +123,7 @@ class Member(models.Model):
     손님도 User라서 기기 토큰·소속 확인 미들웨어를 그대로 쓴다. 구글을 이으면 absorb_guest로 합친다.
     group: 학교 공간의 소속(prototype TR.groups). 동학년 공간에서는 비어 있고, 합칠 때 학년으로 채운다.
     is_manager: 학교 관리자. 구글 회원만 된다(손님 자리는 반·이름으로 찾기 쉬워서). 직위 글자로 권한을 주지 않는다.
+    can_duty: 복무 입력자(J1, 교무실무사). 관리자가 지정하고 구글 회원만 된다.
     """
 
     class Group(models.TextChoices):
@@ -147,6 +148,7 @@ class Member(models.Model):
     position = models.CharField("직위", max_length=40, blank=True)
     group = models.CharField("소속", max_length=10, choices=Group.choices, blank=True, default="")
     is_manager = models.BooleanField("학교 관리자", default=False)
+    can_duty = models.BooleanField("복무 입력자", default=False)
     # G2 설정 > 알림: 끈 웹 푸시 묶음 키(collect.push.SLOTS의 am·noon·pm, 쉼표로). 비면 다 켜짐. 🔔은 그대로 쌓인다.
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -226,6 +228,38 @@ class MemberLog(models.Model):
 
     def __str__(self):
         return f"{self.name}: {self.before} → {self.after}"
+
+
+class Attendance(models.Model):
+    """오늘 복무 한 줄(J1). 유형·시간만, 사유 칸은 두지 않는다. 이름은 글자로 저장한다.
+    member: 명부에서 이름이 하나로 맞을 때만(소속 표시용). 권한에 쓰지 않는다. 동명이인·명부에 없으면 비운다."""
+
+    KINDS = ["출장", "외출", "조퇴", "연가", "휴가", "지각", "부재"]  # 부재: 육아시간 등 가족·건강이 드러나는 유형
+
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="attendance")
+    date = models.DateField("날짜")
+    name = models.CharField("이름", max_length=40)
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    kind = models.CharField("유형", max_length=4, choices=[(k, k) for k in KINDS])
+    time_text = models.CharField("시간", max_length=20, blank=True)
+    by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = SpaceQuerySet.as_manager()
+
+    class Meta:
+        indexes = [models.Index(fields=["space", "date"])]
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def title(self):
+        return f"{self.name} {self.kind}"
+
+    @property
+    def group_label(self):
+        return self.member.get_group_display() if self.member else ""
 
 
 def is_last_manager(member):
