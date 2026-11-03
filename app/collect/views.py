@@ -98,7 +98,7 @@ def new(request):
     if request.method == "POST":
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
-        no_one = "받을 사람이나 그룹을 골라 주세요. 동학년 명부에 반을 고른 선생님이 없어요."  # prototype #create
+        no_one = f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요."  # prototype #create
         if src == "preset":
             spec = PRESETS.get(request.POST.get("preset", ""))
             if spec and not roster_rows(space, spec["roster"]):

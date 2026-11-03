@@ -124,7 +124,7 @@ def again(request, key):
     mode = _roster_mode(src)
     rows = roster_rows(request.space, mode)
     if not rows:
-        error = "받을 사람이 없어요. 동학년 명부에 반을 고른 선생님이 없어요."
+        error = f"받을 사람이 없어요. {request.space.word} 명부에 반을 고른 선생님이 없어요."
         return render(request, "collect/list.html", _ctx(request, error), status=400)
     with transaction.atomic():
         c = Collection.objects.create(space=request.space, created_by=request.member, title=src.title,

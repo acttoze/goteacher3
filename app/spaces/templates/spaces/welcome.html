@@ -4,11 +4,11 @@
 {% block ctx %}<span class="ctx">{{ space.name }}</span>{% endblock %}
 {% block main %}
 <div class="done-h"><span class="ck"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><h1 class="inv-h">들어왔어요, {{ me.name }} 선생님</h1></div>
-<p class="by">{{ space.name }} 동학년 · {{ my_label }} · 동학년 모으기가 생기면 여기서 같이 채워요.</p>
+<p class="by">{% if space.is_school %}{{ space.name }} · {{ my_label }} · 모으기가 오면 여기서 같이 채워요.{% else %}{{ space.name }} 동학년 · {{ my_label }} · 동학년 모으기가 생기면 여기서 같이 채워요.{% endif %}</p>
 <section class="card form" aria-labelledby="whoH"><h2 id="whoH">함께 쓰는 선생님 {{ rows|length }}명</h2>
-  <div class="wrap-row"><span class="stack">{% for r in rows %}<span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span>{% endfor %}</span>
-    <span class="muted">{% for r in rows %}{{ r.m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></div>
-  <div><a class="btn pri lg" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
+  <div class="wrap-row"><span class="stack">{% for r in rows|slice:":12" %}<span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span>{% endfor %}</span>
+    <span class="muted">{% for r in rows|slice:":12" %}{{ r.m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}{% if rows|length > 12 %} 외{% endif %}</span></div>
+  <div><a class="btn pri lg" href="/s/{{ space.token }}/">{{ space_word }} 화면으로</a></div>
 </section>
 <section class="card next-card" aria-labelledby="gH"><h2 id="gH">다른 PC에서도 쓰려면 <span class="small muted" style="font-weight:400">선택</span></h2>
   <p class="muted">교실 PC와 교무실 PC를 같이 쓰거나 PC가 초기화돼도, 구글 계정으로 이어 두면 그대로 이어져요.</p>

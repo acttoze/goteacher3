@@ -46,9 +46,15 @@ REJECT = {
     "UnsupportedFormat": "한글 파일(.hwp, .hwpx)만 올릴 수 있어요. 이름만 바꾼 파일은 열지 않아요.",
     "UnsafeFile": "파일 구조가 안전하지 않아 열지 않았어요. 한글에서 다시 저장해 올려 주세요.",
     "Empty": "올릴 한글 파일을 골라 주세요.",
-    "Quota": "동학년 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 올려 주세요.",
+    "Quota": "{word} 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 올려 주세요.",
     "TotalQuota": "고티처 서비스 저장 공간이 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요.",
 }
+
+
+def reject_text(why, space):
+    return REJECT.get(why, why).replace("{word}", space.word)
+
+
 # 미리보기 화면에만 거는 CSP. WASM 컴파일에 'wasm-unsafe-eval'(크롬 97+)만 더한다. 스크립트 외부 출처는 없다.
 # 외부는 gt.css가 @import 하는 Wanted Sans 글꼴(CSS와 woff2가 이 경로 아래)만, style·font에만 연다.
 # 쪽 SVG는 blob: <img>로 넣는다(문서에서 나온 SVG를 DOM에 직접 넣지 않음). 인라인 style은 공통 틀(shell)이 쓴다.
@@ -79,7 +85,7 @@ def _pick_part(request, sf):
 
 
 def _reject(request, why, status=400):
-    return render(request, "hwpfiles/_reject.html", {"msg": REJECT.get(why, why)}, status=status)
+    return render(request, "hwpfiles/_reject.html", {"msg": reject_text(why, request.space)}, status=status)
 
 
 def _clean_name(raw):
@@ -240,9 +246,9 @@ def result(request, key):
     if not 0 <= shrink <= hwp.MAX_SHRINK:
         return _result_part(request, ctx, BAD_SHRINK, status=400)
     if SourceFile.used_bytes(request.space) >= settings.HWP_SPACE_QUOTA:
-        return _result_part(request, ctx, REJECT["Quota"], status=400)
+        return _result_part(request, ctx, reject_text("Quota", request.space), status=400)
     if SourceFile.used_bytes() >= settings.HWP_TOTAL_QUOTA:
-        return _result_part(request, ctx, REJECT["TotalQuota"], status=400)
+        return _result_part(request, ctx, reject_text("TotalQuota", request.space), status=400)
     sf = ctx["src"]
     with transaction.atomic():  # 회원 잠금 안에서 세고 만든다(동시 요청으로 상한·같은 모으기 중복 우회 막기)
         lock_member(request.member)

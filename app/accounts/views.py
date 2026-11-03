@@ -14,7 +14,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from spaces.models import Member, absorb_guest
+from spaces.models import INVITE, Member, absorb_guest
 
 from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token, is_guest
 
@@ -106,6 +106,8 @@ def google_callback(request):
     User = get_user_model()
     user = User.objects.filter(username=f"google:{sub}").first()
     guest = request.user if is_guest(request.user) else None
+    # 손님이 구글을 이으면 비밀번호 해시가 바뀌어 login이 세션을 비운다. 열어 둔 초대는 이어 간다(학교 공간 입장).
+    invite = request.session.get(INVITE) if guest else None
     if guest and user is None:  # 이름만 들어온 사람이 구글을 처음 잇는다: 같은 사용자 그대로
         user, guest = guest, None
         user.username = f"google:{sub}"
@@ -117,7 +119,9 @@ def google_callback(request):
         if not Member.objects.filter(user=user).exclude(space__members__user=guest).exists():
             absorb_guest(guest, user)
         else:
-            return _fail(request, 409, "이 구글 계정은 이미 다른 동학년에 들어가 있어요. 한 선생님은 동학년 하나만 쓸 수 있어요.")
+            seat = Member.objects.filter(user=guest, space__kind="school").first()
+            word = "공간" if seat else "동학년"
+            return _fail(request, 409, f"이 구글 계정은 이미 다른 {word}에 들어가 있어요. 한 선생님은 {word} 하나만 쓸 수 있어요.")
     if user is None:
         user = User(username=f"google:{sub}")
         user.set_unusable_password()
@@ -126,6 +130,8 @@ def google_callback(request):
     user.email, user.first_name = email[:254], name[:150]
     user.save()
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+    if invite:
+        request.session[INVITE] = invite
     return remember_pc(request, redirect(next_url), user, remember)
 
 

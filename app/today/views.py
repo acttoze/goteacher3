@@ -265,7 +265,7 @@ def edit(request, key):
     if parts:
         e.changed_from, e.by = parts, request.member
     e.save()
-    return _live(request, f"「{e.title}」 {a_dates} {a_slot}" + (" · 동학년 「바뀐 것」에 떠요" if parts else ""))
+    return _live(request, f"「{e.title}」 {a_dates} {a_slot}" + (f" · {request.space.word} 「바뀐 것」에 떠요" if parts else ""))
 
 
 @never_cache

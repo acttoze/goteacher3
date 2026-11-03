@@ -1,5 +1,5 @@
 <div id="aud"{% if oob %} hx-swap-oob="true"{% endif %}>
-  <div class="sec-h"><h2 id="audH">누구에게서 받나요</h2><span class="r num">동학년 {{ roster|length }}반</span></div>
+  <div class="sec-h"><h2 id="audH">누구에게서 받나요</h2><span class="r num">{{ space_word }} {{ roster|length }}반</span></div>
   <ul class="list aud">{% for r in roster %}<li><span class="cl">{{ r.unit }}</span><span class="grow">{{ r.who }}</span><span class="r">칸 자동</span></li>{% empty %}<li><span class="muted">아직 반을 고른 선생님이 없어요.</span></li>{% endfor %}</ul>
   <p class="small muted" style="margin-top:8px">명부로 {{ roster|length }}줄을 만들어요. 표의 반·이름 열은 칸으로 받지 않고 명부로 채워요.</p>
 </div>

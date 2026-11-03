@@ -1,3 +1,6 @@
+{% if school_taken %}
+<div class="well acc stack-y" id="classForm" role="alert" style="margin-top:28px;gap:6px"><b>{{ school_taken }}</b></div>
+{% else %}
 <form class="card form" id="classForm" method="post" action="/new/class" style="margin-top:28px" aria-label="학년·반·이름">
   {% csrf_token %}
   <input type="hidden" name="grade" value="{{ grade }}">
@@ -27,3 +30,4 @@
   <div class="wrap-row"><button class="btn pri lg" type="submit">{{ grade }}학년 동학년 만들기</button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div>
   {% endif %}
 </form>
+{% endif %}

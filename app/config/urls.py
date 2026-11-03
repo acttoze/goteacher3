@@ -27,6 +27,8 @@ urlpatterns = [
     path("new/school", spaces.pick_school),
     path("new/class", spaces.new_class),
     path("s/<str:space_token>/", spaces.grade),
+    path("s/<str:space_token>/school", spaces.school),
+    path("s/<str:space_token>/board", spaces.board),
     path("s/<str:space_token>/members", spaces.members),
     path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
     path("s/<str:space_token>/settings", device.settings_page),

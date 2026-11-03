@@ -1,11 +1,12 @@
 {% extends "shell.html" %}
-{% block title %}동학년 · 고티처{% endblock %}
+{% block title %}{{ space_word }} · 고티처{% endblock %}
 {% block ptitle %}선생님 {{ rows|length }}명{% endblock %}
 {% block head %}
 <style>
   /* design/grade.html — 우리 학년 선생님이 다 들어왔나, 안 들어온 칸에 무엇을 보내나? 위 줄 7/5. */
   .list > li.who-row { display: grid; grid-template-columns: 40px 64px minmax(0, 1fr) auto; gap: 14px; align-items: center; min-height: 74px; }
   .who-row .c { font-weight: 700; font-size: 17px; }
+  .list.wide-c > li.who-row { grid-template-columns: 40px 170px minmax(0, 1fr) auto; }
   .who-row .n b { font-size: 17px; }
   .who-row .n .m { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
   .who-row .at { font-size: var(--fs-small); color: var(--muted); text-align: right; white-space: nowrap; }
@@ -34,13 +35,13 @@
     <h1>{{ space.name }}</h1>
     <p class="sub">{{ space.school.name }} · {% if space.is_school %}학교 공간{% else %}동학년 공간 · 만든 사람 <b>{{ creator.name }}</b>{% endif %} · {{ space.created_at|date:"n월 j일" }}부터</p>
   </div>
-  <button class="btn pri" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>
+  {% if link %}<button class="btn pri" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>{% endif %}
 </div>
 
 <div class="grid stretch">
   {% include "spaces/_roster.html" %}
   <div class="stack-y s5">
-    {% include "spaces/_invite.html" %}
+    {% if link %}{% include "spaces/_invite.html" %}{% endif %}
     <section class="card" aria-labelledby="nxH">
       <div class="card-h"><h2 id="nxH">다음 할 일</h2></div>
       <div class="card-b next">

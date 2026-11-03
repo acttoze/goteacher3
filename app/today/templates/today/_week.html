@@ -2,7 +2,7 @@
 <div id="week"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
     <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
-      <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>동학년</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>모으기 마감</span></span></div>
+      <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>모으기 마감</span></span></div>
     <div class="wk"><div class="wgrid">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}

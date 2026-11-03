@@ -429,19 +429,27 @@ class InviteAfterMergeTests(MergeBase):
         self.assertContains(c.get(f"/j/{self.g4.invite_token}"), "학교 공간으로 바뀌었어요")
         self.assertFalse(Member.objects.filter(user=self.u4b).exists())
 
+    def google_client(self, sub):
+        c = Client()
+        c.force_login(User.objects.create(username=f"google:{sub}", first_name=sub))
+        return c
+
     def test_school_size_is_not_capped_by_one_grade_seats(self):
         for i in range(12):
             Member.objects.create(space=self.hub, name=f"선생{i}", cls="5-2")
-        r = self.enter(Client(), self.hub.invite_token, "4-4", "열세번째")
+        c = self.google_client("thirteen")
+        c.get(f"/j/{self.hub.invite_token}")
+        r = c.post("/join", {"group": "g4", "cls": "4-4", "name": "열세번째"})
         self.assertEqual(r.status_code, 302)
 
     def test_school_invite_link_itself_works(self):
-        c = Client()
+        c = self.google_client("five")
         page = c.get(f"/j/{self.hub.invite_token}", follow=True)
-        self.assertContains(page, "4학년 1반")
-        self.assertContains(page, "5학년 1반")
+        self.assertContains(page, "4학년")
+        self.assertContains(page, "5학년")
         self.assertNotContains(page, "0학년")
-        r = self.enter(c, self.hub.invite_token, "5-3", "오학년샘")
+        c.get(f"/j/{self.hub.invite_token}")
+        r = c.post("/join", {"group": "g5", "cls": "5-3", "name": "오학년샘"})
         self.assertEqual(r.status_code, 302)
         self.assertEqual(Member.objects.in_space(self.hub).get(name="오학년샘").group, "g5")
 
@@ -452,10 +460,12 @@ class InviteAfterMergeTests(MergeBase):
         self.assertEqual(Client().get(f"/j/{old}").status_code, 404)
 
     def seat_is_not_taken(self, seat, cls, name):
+        """이름만으로는(익명) 어떤 자리도 얻지 못한다(H2: 구글 필수)."""
         user_id = seat.user_id
         c = Client()
-        r = self.enter(c, self.hub.invite_token, cls, name)
-        self.assertEqual(r.status_code, 400)
+        c.get(f"/j/{self.hub.invite_token}")
+        r = c.post("/join", {"group": seat.group, "cls": cls, "name": name})
+        self.assertEqual(r.status_code, 403)
         self.assertNotIn("_auth_user_id", c.session)  # 그 자리로 로그인되지 않는다
         seat.refresh_from_db()
         self.assertEqual(seat.user_id, user_id)
@@ -648,12 +658,12 @@ class ScreensAfterMergeTests(MergeBase):
 
     def test_new_grade_blocked_once_school_space_exists(self):
         """옛 공간이 남아 유일 제약이 막고, 아직 없던 학년도 학교 공간이 있으면 새로 못 만든다."""
-        from .views import _grade_taken
+        from .views import _grade_taken, _school_open
 
         pick = {"atpt": "J10", "code": "7531234"}
         self.assertTrue(_grade_taken(pick, 4))
-        self.assertTrue(_grade_taken(pick, 2))
-        self.assertFalse(_grade_taken({"atpt": "B10", "code": "7010001"}, 2))
+        self.assertTrue(_school_open(pick))
+        self.assertFalse(_school_open({"atpt": "B10", "code": "7010001"}))
 
     def test_leave_in_school_space(self):
         r = self.client.post(f"{self.base}/settings/leave", {"confirm": self.hub.name})

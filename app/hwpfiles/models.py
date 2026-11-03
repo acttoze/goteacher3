@@ -175,7 +175,7 @@ def in_flight(space, member):
 RESULT_ERROR_TEXT = {
     "FillError": "원본 표에 값을 넣지 못했어요. 병합 칸이 많은 표는 CSV나 합본 표 복사로 받아 주세요.",
     "NoValues": "아직 낸 선생님이 없어요. 한 분이라도 내면 다시 눌러 주세요.",
-    "Quota": "동학년 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 받아 주세요.",
+    "Quota": "{word} 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 받아 주세요.",
     "Timeout": "한글 파일을 만드는 데 너무 오래 걸려 멈췄어요. CSV나 합본 표 복사로 받아 주세요.",
     "TooManyCopies": "신청서형 양식은 한 번에 {n}부까지 만들 수 있어요. CSV로 받아 주세요.",
 }
@@ -257,7 +257,7 @@ class ResultFile(models.Model):
 
     def error_text(self):
         from .tasks import MAX_COPIES
-        return RESULT_ERROR_TEXT.get(self.error, RESULT_ERROR_DEFAULT).replace("{n}", str(MAX_COPIES))
+        return RESULT_ERROR_TEXT.get(self.error, RESULT_ERROR_DEFAULT).replace("{n}", str(MAX_COPIES)).replace("{word}", self.space.word)
 
     def problem_text(self):
         """문제 칸 주소를 사람이 읽는 말로(1부터). 값은 없다."""

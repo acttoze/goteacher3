@@ -1,0 +1,7 @@
+{% extends "shell.html" %}
+{% block title %}게시판 · 고티처{% endblock %}
+{% block ptitle %}게시판{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>게시판</h1><p class="sub">{{ space.name }} 선생님 {{ rows|length }}명이 함께 보는 공지가 여기에 모여요.</p></div></div>
+<p class="empty">아직 올라온 공지가 없어요.</p>
+{% endblock %}

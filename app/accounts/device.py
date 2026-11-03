@@ -51,7 +51,8 @@ AREAS = {"me": "내 정보", "alerts": "알림", "space": "동학년", "device":
 def settings_page(request):
     area = request.GET.get("a")
     area = area if area in AREAS else "me"
-    ctx = _ctx(request, _this_pc(request), area=area, area_label=AREAS[area], areas=AREAS.items())
+    areas = {**AREAS, "space": request.space.word}
+    ctx = _ctx(request, _this_pc(request), area=area, area_label=areas[area], areas=areas.items())
     if area == "me":
         ctx["classes"] = class_choices(request.space)
     elif area == "alerts":

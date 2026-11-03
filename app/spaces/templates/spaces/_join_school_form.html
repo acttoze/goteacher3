@@ -1,0 +1,39 @@
+{# 학교 입장 양식. 소속을 누르면 이 폼만 다시 받아 반 또는 직책 칸을 바꾼다(prototype editMe). #}
+<form class="card form" id="schoolForm" method="post" action="/join" aria-label="소속·직책·이름" style="margin-top:24px;padding:24px 28px;gap:18px">
+  {% csrf_token %}
+  <input type="hidden" name="group" value="{{ group }}">
+  <div class="field"><span>소속</span>
+    <div class="picks" role="group" aria-label="소속"{% if errors.group %} aria-invalid="true" aria-describedby="gp-err"{% endif %}>
+      {% for g, label in groups %}<button class="pick" type="button" aria-pressed="{% if g == group %}true{% else %}false{% endif %}"
+        hx-get="/join" hx-vals='{"group": "{{ g }}"}' hx-include="#nm" hx-target="#schoolForm" hx-swap="outerHTML">{{ label }}</button>{% endfor %}
+    </div>
+    {% if errors.group %}<p class="field-err" id="gp-err" role="alert">{{ errors.group }}</p>{% endif %}
+    <span class="hint">전담 선생님은 주로 들어가는 학년을 골라 주세요.</span>
+  </div>
+  {% if classes %}
+  <div class="field"><span>반</span>
+    <div class="picks" id="cp" role="group" aria-label="반" data-pick="cls"{% if errors.cls %} aria-invalid="true" aria-describedby="cp-err"{% endif %}>
+      {% for c, label in classes %}<button class="pick" type="button" data-v="{{ c }}" aria-pressed="{% if c == cls %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+    </div>
+    <input type="hidden" name="cls" value="{{ cls }}">
+    {% if errors.cls %}<p class="field-err" id="cp-err" role="alert">{{ errors.cls }}</p>{% endif %}
+  </div>
+  {% elif roles %}
+  <div class="field"><span>직책</span>
+    <div class="picks" id="rp" role="group" aria-label="직책" data-pick="role"{% if errors.role %} aria-invalid="true" aria-describedby="rp-err"{% endif %}>
+      {% for r in roles %}<button class="pick" type="button" data-v="{{ r }}" aria-pressed="{% if r == role %}true{% else %}false{% endif %}">{{ r }}</button>{% endfor %}
+    </div>
+    <input type="hidden" name="role" value="{{ role }}">
+    {% if errors.role %}<p class="field-err" id="rp-err" role="alert">{{ errors.role }}</p>{% endif %}
+  </div>
+  {% endif %}
+  <div class="join-row">
+    <label class="field"><span>이름</span>
+      <input class="input" id="nm" name="name" value="{{ name }}" maxlength="40" autocomplete="name"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
+      {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}
+    </label>
+    {% if roles %}<label class="field"><span>직책이 목록에 없으면 직접 쓰기 <span class="small muted" style="font-weight:400">선택</span></span>
+      <input class="input" name="role_custom" value="{{ custom }}" maxlength="40" placeholder="예: 늘봄실무사" autocomplete="off"></label>{% endif %}
+  </div>
+  <div><button class="btn pri lg" type="submit">들어가기</button></div>
+</form>

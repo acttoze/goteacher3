@@ -9,10 +9,12 @@
     <a href="/s/{{ space.token }}/today"{% if page == "today" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg><span>오늘</span></a>
     <a href="/s/{{ space.token }}/c/"{% if page == "collect" or page == "list" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>모으기</span></a>
     <a href="/s/{{ space.token }}/schedule"{% if page == "schedule" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>일정</span></a>
+    {% if space.is_school %}<a href="/s/{{ space.token }}/board"{% if page == "board" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4l3 .5V9.500z"/><path d="M7 9.500 19 5v14L7 14.500"/><path d="M9 15.500 10 20h3l-1-3.500"/></svg><span>게시판</span></a>
+    <a href="/s/{{ space.token }}/school"{% if page == "school" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M5 20V9l7-5 7 5v11"/><path d="M10 20v-5h4v5"/></svg><span>학교</span></a>{% endif %}
     <a href="/forms"{% if page == "forms" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><span>양식 자료실</span></a>
   </nav>
   <p class="group">{% if space.is_school %}우리 학교{% else %}{{ space.grade }}학년 동학년{% endif %}</p>
-  <nav class="nav sub" aria-label="동학년">
+  <nav class="nav sub" aria-label="{{ space_word }}">
     <a href="/s/{{ space.token }}/"{% if page == "grade" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 6.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.5 2 3 4.2"/></svg><span>선생님 {{ rows|length }}명</span></a>
     <a href="/s/{{ space.token }}/settings"{% if page == "settings" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정</span></a>
   </nav>
@@ -27,6 +29,7 @@
 </header>
 <div class="pop" id="bellPop" hidden role="dialog" aria-label="알림" style="top:58px;right:220px;width:420px"><p class="pi muted">불러오는 중…</p></div>
 <main class="main narrow" id="main" tabindex="-1" style="outline:none">
+{% if space.is_school and not space.school.writable %}<p class="notice" role="status" style="margin-bottom:20px">학교 플랜 기간이 끝났어요. 새 선생님은 들어올 수 없고, 학교 화면은 읽기만 돼요. 모으기·오늘·일정은 그대로 써요.</p>{% endif %}
 {% block main %}{% endblock %}
 </main>
 {% endblock %}

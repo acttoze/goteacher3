@@ -8,7 +8,7 @@
   <input type="hidden" name="hwp_table" value="{{ hwpf.table }}">
   <input type="hidden" name="hwp_items" value="{{ hwpf.items|length }}">
   <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받을 칸 확인</h3><span class="r num">입력 {{ hwpf.inputs|length }}칸 · 명부로 채움 {{ hwpf.n_pre }}칸</span></div>
-  <p class="small muted">표 {{ hwpf.picked.no }}의 머리글로 칸 이름을 짐작했어요. 이름을 다듬고, 받지 않을 칸은 「받지 않음」으로 끄세요. 반·이름 열은 칸으로 받지 않고 동학년 명부로 채워요.</p>
+  <p class="small muted">표 {{ hwpf.picked.no }}의 머리글로 칸 이름을 짐작했어요. 이름을 다듬고, 받지 않을 칸은 「받지 않음」으로 끄세요. 반·이름 열은 칸으로 받지 않고 {{ space_word }} 명부로 채워요.</p>
   <table class="tbl fields hwp-fields"><thead><tr><th>칸 이름</th><th>받는 방식</th><th class="r">형식</th></tr></thead><tbody>
   {% for it in hwpf.items %}<tr{% if it.role == "off" %} class="off"{% endif %}>
     <td><input class="input" id="hf{{ it.i }}n" name="item_{{ it.i }}_name" value="{{ it.name }}" maxlength="100" aria-label="{{ it.where }} 칸 이름">
@@ -20,7 +20,7 @@
   {% for x in hwpf.rows %}{% if x.total %}<tr><td class="id">합계 줄{% if x.head %} · {{ x.head|truncatechars:30 }}{% endif %}</td><td class="pre">받지 않아요 · 표에 그대로 둬요</td><td class="r"><span class="dash">—</span></td></tr>{% endif %}{% endfor %}
   </tbody></table>
   {% if hwpf.mode == "rows" %}
-  <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받는 줄</h3><span class="r num">표 줄 {{ hwpf.on }}개 · 동학년 {{ hwpf.pairs|length }}반</span></div>
+  <div class="sec-h" style="margin-top:28px"><h3 style="font-size:17px;font-weight:700">받는 줄</h3><span class="r num">표 줄 {{ hwpf.on }}개 · {{ space_word }} {{ hwpf.pairs|length }}반</span></div>
   <p class="small muted">반마다 표의 한 줄을 채워요. 줄 머리가 반(4-1·1반)이면 그 반 줄에, 아니면 위에서부터 차례로 넣어요. 소계처럼 받지 않을 줄은 끄세요.</p>
   <div class="hwp-rows-box"><table class="tbl hwp-rows"><thead><tr><th>표 줄</th><th>채울 선생님</th><th class="r">받기</th></tr></thead><tbody>
   {% for x in hwpf.rows %}{% if not x.total %}<tr{% if not x.on %} class="off"{% endif %}>

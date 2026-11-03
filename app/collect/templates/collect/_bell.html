@@ -1,7 +1,7 @@
 {# 🔔 목록(design/assets/shell.js 알림 묶음). 누르면 읽음 + 그 화면으로(POST). #}
 <div class="ph"><b>알림</b><span>안 읽은 {{ unread_n }}건</span></div>
 {% for n in items %}
-<form method="post" action="/s/{{ space.token }}/bell/{{ n.key }}">{% csrf_token %}<button class="pi tlink" type="submit" style="width:100%;text-align:left;font-weight:400"><span class="pill{% if not n.read %} acc{% endif %}">{% if n.row_id %}마감{% else %}기기{% endif %}</span><span{% if n.read %} class="muted"{% endif %}>{{ n.text }}<br><span class="small muted">{{ n.get_kind_display }}{% if n.row_id %} 리마인드{% endif %} · {{ n.created_at|date:"n/j H:i" }}{% if n.read %} · 읽음{% endif %}</span></span></button></form>
+<form method="post" action="/s/{{ space.token }}/bell/{{ n.key }}">{% csrf_token %}<button class="pi tlink" type="submit" style="width:100%;text-align:left;font-weight:400"><span class="pill{% if not n.read %} acc{% endif %}">{% if n.row_id %}마감{% elif n.kind == "join" %}입장{% else %}기기{% endif %}</span><span{% if n.read %} class="muted"{% endif %}>{{ n.text }}<br><span class="small muted">{{ n.get_kind_display }}{% if n.row_id %} 리마인드{% endif %} · {{ n.created_at|date:"n/j H:i" }}{% if n.read %} · 읽음{% endif %}</span></span></button></form>
 {% empty %}
 <p class="pi muted">아직 알림이 없어요.</p>
 {% endfor %}

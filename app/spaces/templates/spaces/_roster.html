@@ -3,8 +3,9 @@
   {% if toast %}<span class="sr" data-toast-now="{{ toast }}"></span>{% endif %}
   <div class="card-h"><h2 id="inH">들어온 선생님</h2><span class="r">들어오면 여기에 바로 떠요</span></div>
   <div class="card-b">
-    <div class="prog-wrap"><div class="head-num"><b class="num">{{ filled }}</b><span class="num">/ {{ total }}칸 들어왔어요</span></div><div class="track"><i style="width:{{ pct }}%"></i></div></div>
-    <ul class="list" id="slots">
+    {% if space.is_school %}<div class="prog-wrap"><div class="head-num"><b class="num">{{ total }}</b><span class="num">명 들어왔어요</span></div></div>
+    {% else %}<div class="prog-wrap"><div class="head-num"><b class="num">{{ filled }}</b><span class="num">/ {{ total }}칸 들어왔어요</span></div><div class="track"><i style="width:{{ pct }}%"></i></div></div>{% endif %}
+    <ul class="list{% if space.is_school %} wide-c{% endif %}" id="slots">
       {% for r in rows %}
       <li class="who-row"><span class="av lg{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span><span class="c">{{ r.label }}</span>
         <div class="n"><b>{{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
@@ -13,7 +14,7 @@
           <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="out-{{ r.m.key }}-h" method="post" action="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-post="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-target="#roster" hx-swap="outerHTML">
             {% csrf_token %}
             <div class="dh"><h2 id="out-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님을 내보낼까요?</h2></div>
-            <div class="db"><p>이 동학년에서 빠지고, 다음 모으기부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}</p>
+            <div class="db"><p>이 {{ space_word }}에서 빠지고, 다음 모으기부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}</p>
               {% if r.made %}<p>이 선생님이 만든 모으기 {{ r.made }}개는 내가 넘겨받아요.</p>{% endif %}
               <p class="muted small">모르는 사람이 들어왔다면 내보낸 뒤 초대 링크도 새로 만드세요.</p></div>
             <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">내보내기</button></div>
@@ -27,6 +28,6 @@
       {% endfor %}
     </ul>
   </div>
-  <div class="card-f"><button class="btn sec sm" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 다시 복사</button>
-    <span>{% if waiting %}아직 {{ waiting|length }}칸 남았어요{% else %}동학년이 모두 들어왔어요{% endif %}</span></div>
+  <div class="card-f">{% if is_creator or not space.is_school %}<button class="btn sec sm" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 다시 복사</button>{% endif %}
+    <span>{% if waiting %}아직 {{ waiting|length }}칸 남았어요{% elif space.is_school %}선생님 {{ total }}명이 함께 써요{% else %}동학년이 모두 들어왔어요{% endif %}</span></div>
 </section>

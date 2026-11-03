@@ -5,6 +5,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+
+INVITE = "invite"  # 세션 키: 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
 
 
 def new_token():
@@ -54,6 +58,13 @@ class School(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def writable(self):
+        """학교판 기능을 쓸 수 있나. plan=free이거나 결제 기한이 지나면 읽기만(리드 결정: 모으기는 계속)."""
+        if self.plan != self.Plan.SCHOOL:
+            return False
+        return self.paid_until is None or self.paid_until >= timezone.localdate()
+
 
 class Space(models.Model):
     """동학년 공간 또는 학교 공간(kind=school, grade=0, 학교당 하나).
@@ -98,6 +109,11 @@ class Space(models.Model):
     @property
     def label(self):
         return "학교" if self.is_school else f"{self.grade}학년"
+
+    @property
+    def word(self):
+        """화면 문구의 공간 낱말: 동학년 / 학교. 템플릿에서는 space_word(spaces.context)."""
+        return self.get_kind_display()
 
 
 class Member(models.Model):
@@ -146,7 +162,15 @@ class Member(models.Model):
         return f"{self.name}({self.cls})"
 
     @property
+    def in_grade(self):
+        """학년 반·전담인가(교무실·행정실 등이 아니라)."""
+        return bool(cls_group(self.cls))
+
+    @property
     def cls_text(self):
+        """화면 표시: '4학년 1반', 학년 밖 교직원은 '교무실 · 교무부장'."""
+        if self.position and not self.in_grade:
+            return f"{self.cls} · {self.position}"
         return cls_text(self.cls)
 
 

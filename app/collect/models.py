@@ -138,12 +138,14 @@ class Notification(models.Model):
 
     text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
     SEAT(G3): 기기가 붙은 손님 자리로 다른 브라우저가 들어오면 만든 사람에게. 줄 없음, link는 동학년 화면.
+    JOIN(H2): 학교 공간에 새 회원이 들어오면 관리자들에게. 🔔만(pushed=True로 웹 푸시 묶음에서 뺀다).
     """
 
     class Kind(models.TextChoices):
         D1 = "d1", "마감 전날"
         D0 = "d0", "마감 당일"
         SEAT = "seat", "새 기기"
+        JOIN = "join", "새 선생님"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")

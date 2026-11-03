@@ -1,0 +1,10 @@
+{% extends "shell.html" %}
+{% block title %}학교 · 고티처{% endblock %}
+{% block ptitle %}학교{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>{{ space.name }}</h1><p class="sub">교직원 <b class="num">{{ rows|length }}</b>명</p></div>
+  {% if is_creator %}<a class="btn sec" href="/s/{{ space.token }}/settings?a=space">선생님 초대하기</a>{% endif %}</div>
+<section aria-label="소속별 인원" class="grid">
+  {% for label, n in groups %}<div class="s3 well"><b>{{ label }}</b><p class="num{% if not n %} muted{% endif %}" style="font-size:24px;font-weight:700;margin-top:4px">{{ n }}명</p></div>{% endfor %}
+</section>
+{% endblock %}

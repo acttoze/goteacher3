@@ -33,10 +33,10 @@
     {% endfor %}
   </section>
   <section class="card s4" aria-labelledby="feedH">
-    <div class="card-h"><h2 id="feedH">동학년 바뀐 것</h2><span class="r">어제부터</span></div>
+    <div class="card-h"><h2 id="feedH">{{ space_word }} 바뀐 것</h2><span class="r">어제부터</span></div>
     <ul class="list feed" id="feed">
       {% for f in feed %}<li class="{% if f.new %}new arrive{% endif %}"><span class="av{% if f.ink %} ink-t{% endif %}" style="background:{{ f.color }}" aria-hidden="true">{{ f.who|slice:":1" }}</span><div class="x"><b>{{ f.who }}</b> 선생님이 {{ f.e.title }}{% if f.changes %} {% for w, a, b in f.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}{{ f.ro }} 바꿨어요{% else %}{{ f.eul }} 올렸어요 <span class="muted">· {{ f.when_ev }}</span>{% endif %}<span class="when">{{ f.at }}</span></div></li>
-      {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 동학년 모두에게 보여요.</p></li>{% endfor %}
+      {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 {{ space_word }} 모두에게 보여요.</p></li>{% endfor %}
     </ul>
   </section>
 </div>

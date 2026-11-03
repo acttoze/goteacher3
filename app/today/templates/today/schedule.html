@@ -4,7 +4,7 @@
 {% block head %}
 <script src="{% static 'js/schedule.js' %}" defer></script>
 <style>
-  /* design/schedule.html — 이번 주 동학년 일정 중 내가 챙길 것과 바뀐 것은? 주간판 12열, 아래 줄 7/5. */
+  /* design/schedule.html — 이번 주 일정 중 내가 챙길 것과 바뀐 것은? 주간판 12열, 아래 줄 7/5. */
   .title .seg button { height: 40px; }
   .add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-bottom: 12px; }
   .add .input { height: 52px; font-size: 18px; padding-left: 46px; border-radius: 999px; }
@@ -84,7 +84,7 @@
     <input class="input" id="line" name="line" maxlength="200" spellcheck="false" placeholder="한 줄로 쓰기 (예: 목요일 방과후 4-1 교실 학년협의)" aria-describedby="parsed"
       hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms" hx-target="#parsed" hx-swap="outerHTML">
   </label>
-  <button class="btn pri lg" type="submit">동학년 일정에 올리기</button>
+  <button class="btn pri lg" type="submit">{{ space_word }} 일정에 올리기</button>
 </form>
 {% include "today/_parsed.html" with oob=False %}
 

@@ -145,8 +145,8 @@ class NoManagerQa(MergeBase):
         DeviceToken.issue(guest)
         c = Client()
         c.get(f"/j/{self.hub.invite_token}")
-        r = c.post("/join", {"cls": "4-3", "name": "손님"})
-        self.assertEqual(r.status_code, 400)  # 학교 공간은 같은 반·이름으로 자리를 잇지 않는다(리드 결정)
+        r = c.post("/join", {"group": "g4", "cls": "4-3", "name": "손님"})
+        self.assertEqual(r.status_code, 403)  # 학교 공간은 구글 필수, 같은 반·이름으로 자리를 잇지 않는다(리드 결정)
         self.assertEqual(Member.objects.filter(space=self.hub, name="손님").count(), 1)
         self.assertFalse(Notification.objects.filter(kind="seat", text__contains="손님").exists())
         self.assertEqual(seat.pk, Member.objects.get(name="손님").pk)
@@ -160,7 +160,7 @@ class SeatAlertQa(MergeBase):
         DeviceToken.issue(guest)
         c = Client()
         c.get(f"/j/{hub.invite_token}")
-        self.assertEqual(c.post("/join", {"cls": "4-3", "name": "손님"}).status_code, 400)
+        self.assertEqual(c.post("/join", {"group": "g4", "cls": "4-3", "name": "손님"}).status_code, 403)
         self.assertFalse(Notification.objects.filter(kind="seat", text__contains="손님").exists())
 
 

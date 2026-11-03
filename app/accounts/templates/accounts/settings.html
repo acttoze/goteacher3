@@ -30,7 +30,7 @@
 {% endblock %}
 {% block main %}
 <div class="title">
-  <div class="grow"><h1>{{ area_label }} 설정</h1><p class="sub">{% if area == "me" %}동학년 선생님들에게 보이는 이름과 반이에요.{% elif area == "alerts" %}알림은 하루 세 번 묶어서 와요. 수업 중에는 띄우지 않아요.{% elif area == "space" %}{{ space.name }} · 선생님 {{ rows|length }}명{% elif remember %}이 PC 브라우저가 1년 동안 로그인을 기억해요.{% else %}이 PC는 로그인을 기억하지 않아요. 브라우저를 닫으면 로그아웃돼요.{% endif %}</p></div>
+  <div class="grow"><h1>{{ area_label }} 설정</h1><p class="sub">{% if area == "me" %}{{ space_word }} 선생님들에게 보이는 이름과 {% if space.is_school and not me.in_grade %}소속{% else %}반{% endif %}이에요.{% elif area == "alerts" %}알림은 하루 세 번 묶어서 와요. 수업 중에는 띄우지 않아요.{% elif area == "space" %}{{ space.name }} · 선생님 {{ rows|length }}명{% elif remember %}이 PC 브라우저가 1년 동안 로그인을 기억해요.{% else %}이 PC는 로그인을 기억하지 않아요. 브라우저를 닫으면 로그아웃돼요.{% endif %}</p></div>
 </div>
 <nav class="tabs" aria-label="설정 영역">{% for k, label in areas %}<a href="?a={{ k }}"{% if k == area %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
 
@@ -50,22 +50,22 @@
   <div class="panel">
     {% for r in rows %}<div class="mem"><span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}">{{ r.m.name|slice:":1" }}</span>
       <div><b>{{ r.label }} {{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
-      {% if space.is_school and r.m.is_manager %}<span class="pill acc">관리자</span>{% elif not space.is_school and forloop.first %}<span class="pill acc">학년 대표</span>{% else %}<span class="small muted">{% if r.label == "전담" %}전담{% else %}담임{% endif %}</span>{% endif %}</div>{% endfor %}
+      {% if space.is_school and r.m.is_manager %}<span class="pill acc">관리자</span>{% elif not space.is_school and forloop.first %}<span class="pill acc">학년 대표</span>{% else %}<span class="small muted">{{ r.role }}</span>{% endif %}</div>{% endfor %}
     {% for label in waiting %}<div class="mem"><span class="av ghost">{{ label|slice:":1" }}</span><div><b class="muted">{{ label }} · 아직이에요</b><div class="m">초대 링크를 보내 보세요</div></div><span></span></div>{% endfor %}
-    <div class="mem"><span></span><div class="m">{% if is_creator %}선생님 내보내기는 동학년 화면에서 할 수 있어요.{% else %}초대·명단은 동학년 화면에서도 볼 수 있어요.{% endif %}</div><a class="btn sec sm" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
+    <div class="mem"><span></span><div class="m">{% if is_creator %}선생님 내보내기는 {{ space_word }} 화면에서 할 수 있어요.{% elif space.is_school %}명단은 학교 화면에서도 볼 수 있어요.{% else %}초대·명단은 {{ space_word }} 화면에서도 볼 수 있어요.{% endif %}</div><a class="btn sec sm" href="/s/{{ space.token }}/">{{ space_word }} 화면으로</a></div>
   </div></section>
-<section class="srow"><div class="lab"><h2>초대 링크</h2><p>링크가 밖으로 퍼졌다면 새로 만드세요. 예전 링크와 QR은 바로 닫히고, 이미 들어온 선생님은 그대로예요.{% if not is_creator %} 새로 만들기는 {% if space.is_school %}관리자{% else %}학년 대표{% endif %}가 할 수 있어요.{% endif %}</p></div>
-  <div>{% include "spaces/_invite.html" %}</div></section>
-<section class="srow"><div class="lab"><h2>동학년에서 나가기</h2><p>전근·학년 이동 때 써요.{% if rows|length > 1 %} 동학년은 다른 선생님들에게 그대로 남아요.{% endif %}</p></div>
+{% if link %}<section class="srow"><div class="lab"><h2>초대 링크</h2><p>링크가 밖으로 퍼졌다면 새로 만드세요. 예전 링크와 QR은 바로 닫히고, 이미 들어온 선생님은 그대로예요.{% if not is_creator %} 새로 만들기는 학년 대표가 할 수 있어요.{% endif %}</p></div>
+  <div>{% include "spaces/_invite.html" %}</div></section>{% endif %}
+<section class="srow"><div class="lab"><h2>{{ space_word }}에서 나가기</h2><p>전근·학년 이동 때 써요.{% if rows|length > 1 %} {% if space.is_school %}학교 공간은{% else %}동학년은{% endif %} 다른 선생님들에게 그대로 남아요.{% endif %}</p></div>
   <div class="panel pad danger-zone">
-    {% if rows|length > 1 %}<p>나가면 이 동학년의 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 남아요.{% if space.is_school %} 내가 만든 모으기는 관리자가 넘겨받아요.{% elif is_creator %} 학년 대표와 내가 만든 모으기는 다음으로 먼저 들어온 선생님이 넘겨받아요.{% else %} 내가 만든 모으기는 학년 대표가 넘겨받아요.{% endif %}</p>
-    {% else %}<p>마지막 선생님이라 나가면 이 동학년과 모으기가 모두 지워져요. 되돌릴 수 없어요.</p>{% endif %}
+    {% if rows|length > 1 %}<p>나가면 이 {{ space_word }}의 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 남아요.{% if space.is_school %} 내가 만든 모으기는 관리자가 넘겨받아요.{% elif is_creator %} 학년 대표와 내가 만든 모으기는 다음으로 먼저 들어온 선생님이 넘겨받아요.{% else %} 내가 만든 모으기는 학년 대표가 넘겨받아요.{% endif %}</p>
+    {% else %}<p>마지막 선생님이라 나가면 이 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 모으기가 모두 지워져요. 되돌릴 수 없어요.</p>{% endif %}
     <div>{% if last_manager %}<p class="small muted">마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요.</p>{% else %}<button class="btn danger" type="button" data-open="#leaveDlg">{{ space.name }}에서 나가기</button>{% endif %}</div></div></section>
 <div class="scrim" id="leaveDlg" hidden>
   <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="lvH" method="post" action="/s/{{ space.token }}/settings/leave">
     {% csrf_token %}
     <div class="dh"><h2 id="lvH">{{ space.name }}에서 나갈까요?</h2></div>
-    <div class="db"><p>{% if rows|length > 1 %}나가면 동학년 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 동학년과 모으기가 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
+    <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 모으기가 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
       <label class="field"><span>확인하려면 「{{ space.name }}」을 써 주세요</span><input class="input" name="confirm" autocomplete="off" data-must="{{ space.name }}" required></label></div>
     <div class="df"><button class="btn sec" type="button" data-close>그대로 두기</button><button class="btn danger" type="submit" disabled>나가기</button></div>
   </form>

@@ -11,7 +11,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -26,7 +26,9 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
+from .gates import school_required
 from .models import (
+    INVITE,
     Member,
     School,
     Space,
@@ -39,7 +41,6 @@ from .models import (
     new_token,
 )
 
-INVITE = "invite"  # 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
 HITS = "new_school_hits"  # 마지막 검색 결과(서버가 NEIS에서 받은 것)
 PICKED = "new_school"  # 고른 학교
 GRADES = range(1, 7)
@@ -47,11 +48,19 @@ FALLBACK_CLASSES = ["1", "2", "3", "4"]  # NEIS 학급 정보가 없을 때(prot
 # 초대 입장 POST: 가짜 이름으로 상한(반 수×2)을 채우지 않게. 학교는 공인 IP 하나를 같이 쓰므로 IP 쪽을 넉넉히.
 JOIN_PER_MIN_IP = 10
 JOIN_PER_MIN_SESSION = 5
-SCHOOL_SEATS = 300  # 학교 공간 입장 상한(H2 입장 화면 전까지 초대 링크 입장에 쓴다)
+SCHOOL_SEATS = 300  # 학교 공간 입장 상한. 큰 학교 교직원(200명 안팎)을 넉넉히 받는다
 LAST_MANAGER = "마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요."
 NEIS_PER_MIN = 20  # 학교 검색(사용자당 분당)
 # design/assets/people.js의 사람 색. 들어온 순서대로 돌려 쓴다. (색, 글자를 검게)
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
+# prototype TR.SUPPORT_ROLES·TR.groupRoles. 학년 그룹은 직책 대신 반·전담을 고른다.
+SUPPORT_ROLES = ["교장", "보건", "사서", "전문상담", "특수", "돌봄전담사"]
+GROUP_ROLES = {
+    "office": ["교감", "교무부장", "교무", "교무실무사", "행정원", *SUPPORT_ROLES],
+    "admin": ["실장", "차장", "계장", "주무관"],
+    "meal": ["영양교사", "조리사", "조리실무사"],
+    "support": SUPPORT_ROLES,
+}
 
 
 # 숫자를 읽은 소리의 받침(종성 번호, 0 = 없음). 일·칠·팔은 ㄹ(8): '으로' 대신 '로'.
@@ -157,13 +166,27 @@ def pick_school(request):
 
 
 GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
+SCHOOL_TAKEN = "이 학교는 학교 공간을 씁니다. 담당 선생님께 학교 링크를 받아 주세요."
 
 
 def _grade_taken(school, grade):
-    """같은 학교·학년 동학년이 이미 있나(사용자 결정 11/3: 하나만). 만든 사람 이름은 알려 주지 않는다.
-    학교 공간(grade=0)이 있는 학교도 새 동학년을 만들지 않는다(H1: 입장 안내는 H2)."""
+    """같은 학교·학년 동학년이 이미 있나(사용자 결정 11/3: 하나만). 만든 사람 이름은 알려 주지 않는다."""
+    return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"], grade=grade).exists()
+
+
+def _school_open(school):
+    """이 학교에 학교 공간이 있나(플랜을 끈 뒤에도 합친 공간은 남으니 새 동학년을 만들지 않는다)."""
     return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"],
-                                grade__in=[grade, 0]).exists()
+                                kind=Space.Kind.SCHOOL).exists()
+
+
+def _school_notice(request, school):
+    """학교 공간이 있는 학교: 만들기 양식 대신 안내만."""
+    if request.method == "POST":
+        request.session[PICKED] = school
+    tpl = "spaces/_class_form.html" if request.headers.get("HX-Request") else "spaces/start_class.html"
+    return render(request, tpl, {"school": school, "school_taken": SCHOOL_TAKEN},
+                  status=409 if request.method == "POST" else 200)
 
 
 def _int_grade(raw):
@@ -188,6 +211,8 @@ def new_class(request):
     school = request.session.pop(PICKED, None) if request.method == "POST" else request.session.get(PICKED)
     if not school:
         return redirect("/")
+    if _school_open(school):
+        return _school_notice(request, school)
     data = request.POST if request.method == "POST" else request.GET
     grade = _int_grade(data.get("grade"))
     names = neis.class_names(school["atpt"], school["code"], grade)
@@ -215,6 +240,9 @@ def new_class(request):
                     sch, _ = School.objects.get_or_create(
                         neis_atpt=school["atpt"], neis_code=school["code"], defaults={"name": school["name"]}
                     )
+                    School.objects.select_for_update().filter(pk=sch.pk).first()  # 플랜 켜기(open_school)와 직렬화
+                    if _school_open(school):
+                        return _school_notice(request, school)
                     space = Space.objects.create(  # 다른 선생님이 같은 학년을 동시에 만들면 유일 제약이 막는다
                         school=sch, grade=grade, name=f"{sch.name.replace('등학교', '')} {grade}학년"
                     )
@@ -255,14 +283,20 @@ def _class_slots(space):
 
 
 def class_choices(space):
-    """[(반, 표시)]. 학교 공간은 합쳐진 학년 + 회원이 이미 쓰는 반(입장 화면은 H2)."""
+    """[(반, 표시)]. 학교 공간은 모든 학년 + 다른 회원이 이미 쓰는 학년 반(교무실 등 학년 밖 값은 고르는 칸이 아니다)."""
     if not space.is_school:
         return [(c, _cls_label(c)) for c in _grade_choices(space.school, space.grade)]
-    grades = sorted(space.merged_spaces.values_list("grade", flat=True)) or list(GRADES)
-    slots = [c for g in grades for c in _grade_choices(space.school, g)]
-    used = Member.objects.in_space(space).values_list("cls", flat=True).distinct()
-    slots += sorted(set(used) - set(slots))
+    slots = [c for g in GRADES for c in _grade_choices(space.school, g)]
+    used = {c for c in Member.objects.in_space(space).values_list("cls", flat=True).distinct() if cls_group(c)}
+    slots += sorted(used - set(slots))
     return [(c, cls_text(c)) for c in slots]
+
+
+def _role(m):
+    """설정 > 선생님 오른쪽 표시: 담임 / 전담 / 학년 밖 교직원은 직책."""
+    if m.cls.rpartition("-")[2] == "전담":
+        return "전담"
+    return m.position if m.group and not m.in_grade else "담임"
 
 
 def _roster(space, me=None):
@@ -280,7 +314,7 @@ def _roster(space, me=None):
             via += " · 관리자"
         elif not space.is_school and i == 0:
             via += " · 만든 사람"
-        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google,
+        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google, "role": _role(m),
                      "at": timezone.localtime(m.joined_at), "me": me is not None and m.pk == me.pk})
     waiting = [_cls_label(c) for c in slots if c not in taken]
     # prototype: 칸(NEIS 반 + 전담) 중 채워진 칸. 칸 밖 반은 칸을 하나씩 더한다. NEIS가 없으면 들어온 사람 수.
@@ -294,10 +328,15 @@ def _roster(space, me=None):
 
 
 def _invite(space, me):
+    """초대 링크·QR·쪽지 문구. 학교 공간은 관리자에게만 준다(명부·공지가 있는 공간이라 회원마다 퍼뜨리지 않게)."""
+    if space.is_school and not me.is_manager:
+        return {}
     link = f"{settings.SITE_URL}/j/{space.invite_token}"
     room = f"{space.school.name} 학교 공간" if space.is_school else f"{space.school.name} {space.grade}학년 동학년방"
+    how = ("아래 링크를 누르고 구글로 로그인한 뒤 소속·직책·이름만 고르면 들어와요." if space.is_school
+           else "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)")
     msg = (f"[고티처] {room}이에요.\n"
-           f"아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)\n{link}\n\n"
+           f"{how}\n{link}\n\n"
            f"— {me.name} ({me.cls_text})")
     # QR은 서버에서 SVG로 만들어 data URI <img>로 넣는다(HTML을 그대로 끼워 넣지 않는다).
     qr = segno.make(link, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)
@@ -327,6 +366,24 @@ def grade(request):
     ctx = _space_ctx(request)
     ctx.update(_invite(request.space, request.member))
     return render(request, "spaces/grade.html", ctx)
+
+
+@never_cache
+@require_GET
+@school_required
+def school(request):
+    """학교 화면 자리(H2): 소속별 인원. 학년분장·업무분장은 H3."""
+    counts = dict(Member.objects.in_space(request.space).values_list("group").annotate(n=Count("pk")))
+    groups = [(label, counts.get(g, 0)) for g, label in Member.Group.choices]
+    return render(request, "spaces/school.html", _space_ctx(request, page="school", groups=groups))
+
+
+@never_cache
+@require_GET
+@school_required
+def board(request):
+    """게시판 자리(H2): 공지 쓰기·목록은 I1."""
+    return render(request, "spaces/board.html", _space_ctx(request, page="board"))
 
 
 @never_cache
@@ -415,12 +472,21 @@ def welcome(request):
 
 
 def _retired_invite(request, old):
-    """합쳐진 옛 동학년 초대는 폐기(리드 결정). 회원이면 학교 공간으로, 아니면 안내만(입장·세션 저장 없음)."""
+    """합쳐진 옛 동학년 초대는 폐기(리드 결정). 회원이면 학교 공간으로, 아니면 안내만(입장·세션 저장 없음).
+    입장 처리 중에 링크가 새로 바뀐 경우(old.merged_into 없음)도 안내만."""
     request.session.pop(INVITE, None)
     hub = old.merged_into
-    if request.user.is_authenticated and Member.objects.in_space(hub).filter(user=request.user).exists():
+    if hub and request.user.is_authenticated and Member.objects.in_space(hub).filter(user=request.user).exists():
         return redirect(f"/s/{hub.token}/")
-    return render(request, "spaces/join.html", {"retired": True})
+    return render(request, "spaces/join.html", {"retired": True, "reissued": hub is None})
+
+
+def _lock_invite(request, space):
+    """공간 행을 잠그고 다시 읽는다(동시 입장·합치기·재발급과 직렬화). 그사이 합쳐졌거나 링크가 바뀌었으면 None."""
+    fresh = Space.objects.select_for_update().filter(pk=space.pk).first()
+    if fresh is None or fresh.merged_into_id or fresh.invite_token != request.session.get(INVITE):
+        return None
+    return fresh
 
 
 @never_cache
@@ -439,8 +505,8 @@ def invite(request, invite_token):
 @never_cache
 @require_http_methods(["GET", "POST"])
 def join(request):
-    """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 동학년은 같은 반·같은 이름이면 같은 사람으로 본다.
-    학교 공간은 그렇게 잇지 않는다(리드 결정: 이름만으로 자리를 차지하면 안 됨). 구글 필수 입장은 H2."""
+    """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 같은 반·같은 이름이면 같은 사람으로 본다.
+    학교 공간은 구글 회원만 따로 들어온다(_join_school)."""
     space = Space.objects.filter(invite_token=request.session.get(INVITE) or "-").select_related("school").first()
     if space is None:
         return render(request, "spaces/join.html", {"missing": True}, status=404)
@@ -451,13 +517,16 @@ def join(request):
     if mine == space:
         request.session.pop(INVITE, None)
         return redirect(f"/s/{space.token}/")
+    if mine:  # 교사 한 명은 공간 하나
+        ctx = {"space": space, "mine": mine}
+        return render(request, "spaces/join.html", ctx, status=409 if request.method == "POST" else 200)
+    if space.is_school:
+        return _join_school(request, space)
     roster = _roster(space)
     picks = class_choices(space)
     slots = [c for c, _ in picks]
-    seats = SCHOOL_SEATS if space.is_school else len(slots) * 2
+    seats = len(slots) * 2
     ctx = {"space": space, "creator": roster["creator"], "n": len(roster["rows"]), "mine": mine}
-    if mine:  # R1: 교사 한 명은 동학년 하나
-        return render(request, "spaces/join.html", ctx, status=409 if request.method == "POST" else 200)
 
     data = request.POST if request.method == "POST" else {}
     cls = data.get("cls", "")
@@ -477,12 +546,10 @@ def join(request):
             errors["name"] = "동학년에게 보일 이름을 써 주세요."
         if not errors:
             with transaction.atomic():
-                Space.objects.select_for_update().filter(pk=space.pk).first()  # 같은 반·이름 동시 입장 직렬화
+                if _lock_invite(request, space) is None:  # 같은 반·이름 동시 입장도 여기서 직렬화
+                    return _retired_invite(request, Space.objects.filter(pk=space.pk).first() or space)
                 same = Member.objects.in_space(space).filter(cls=cls, name=name).select_related("user").first()
-                if same and space.is_school:  # 손님·빈 자리 포함 어떤 자리도 이 경로로 잇지 않는다
-                    errors["name"] = ("이 반·이름은 이미 있어요. 본인이면 처음 들어온 PC에서 「구글 계정으로 이어 두기」를 "
-                                      "누르거나 구글로 들어와 주세요.")
-                elif same and same.user_id and not is_guest(same.user):
+                if same and same.user_id and not is_guest(same.user):
                     errors["name"] = "이 반·이름은 구글 계정으로 이어 둔 선생님이에요. 본인이면 구글로 들어와 주세요."
                 elif same and user.is_authenticated:
                     # 손님 자리를 구글에 잇는 길은 그 손님 PC에서 「구글 계정으로 이어 두기」 하나뿐이다.
@@ -500,8 +567,7 @@ def join(request):
                         same.user = user
                         same.save(update_fields=["user"])
                     else:
-                        Member.objects.create(space=space, user=user, name=name, cls=cls,
-                                              group=cls_group(cls) if space.is_school else "")
+                        Member.objects.create(space=space, user=user, name=name, cls=cls)
             if not errors:
                 request.session.pop(INVITE, None)
                 response = redirect(f"/s/{space.token}/welcome")
@@ -516,6 +582,80 @@ def join(request):
     ctx.update(errors=errors, cls=cls, name=name, remember=remember,
                choices=[{"cls": c, "label": label, "who": by_cls.get(c)} for c, label in picks])
     return render(request, "spaces/join.html", ctx, status=(429 if limited else 400) if errors else 200)
+
+
+def _welcome_alert(space, seat):
+    """새 회원이 들어오면 관리자들 🔔에(승인이 없으니 모르는 사람을 알아볼 수 있게). 웹 푸시 묶음에는 넣지 않는다."""
+    text = f"{seat.name} 선생님({seat.cls_text})이 들어왔어요"
+    Notification.objects.bulk_create(
+        Notification(space=space, member=m, kind=Notification.Kind.JOIN, day=timezone.localdate(), text=text,
+                     link=f"/s/{space.token}/", pushed=True)
+        for m in Member.objects.in_space(space).filter(is_manager=True)
+    )
+
+
+def _join_school(request, space):
+    """학교 공간 입장(리드 결정): 구글 회원만, 승인 없음. 소속·직책(학년이면 반)·이름을 고른다.
+    구글 자리는 사람마다 하나라 같은 이름이어도 각자 들어온다. 익명·손님은 자리를 만들지 않고 구글로 보낸다."""
+    user = request.user
+    post = request.method == "POST"
+    ctx = {"space": space, "n": Member.objects.in_space(space).count()}
+    if not space.school.writable:  # 리드 결정: 플랜이 끝나면 새 교직원만 막는다. 기존 회원은 위에서 공간으로 갔다
+        ctx["expired"] = True
+        return render(request, "spaces/join_school.html", ctx, status=403 if post else 200)
+    if not user.is_authenticated or is_guest(user):
+        ctx["guest"] = user.is_authenticated
+        return render(request, "spaces/join_school.html", ctx, status=403 if post else 200)
+
+    data = request.POST if post else request.GET
+    group = data.get("group", "") if data.get("group") in Member.Group.values else ""
+    cls, role, custom = data.get("cls", ""), data.get("role", ""), _clean_name(data.get("role_custom"))
+    name = _clean_name(data.get("name", user.first_name))
+    classes = roles = None
+    if group[1:].isdigit():
+        classes = [(c, _cls_label(c)) for c in _grade_choices(space.school, int(group[1:]))]
+    elif group:
+        roles = GROUP_ROLES[group]
+    errors = {}
+    if post:
+        if not group:
+            errors["group"] = "어디에서 일하시는지 골라 주세요."
+        elif classes is not None and cls not in {c for c, _ in classes}:
+            errors["cls"] = "몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
+        elif roles is not None and not custom and role not in roles:
+            errors["role"] = "직책을 고르거나 직접 써 주세요."
+        if not name:
+            errors["name"] = "선생님들에게 보일 이름을 써 주세요."
+    if post and not errors:
+        if classes is not None:
+            position = _cls_label(cls)
+        else:
+            cls, position = Member.Group(group).label, custom or role
+        with transaction.atomic():
+            get_user_model().objects.select_for_update().filter(pk=user.pk).first()  # 두 번 클릭·다른 공간 동시 입장
+            mine = _my_space(user)
+            if mine:
+                return redirect(f"/s/{mine.token}/")
+            if _lock_invite(request, space) is None:  # 상한 판단도 여기서 직렬화
+                return _retired_invite(request, Space.objects.filter(pk=space.pk).first() or space)
+            members = Member.objects.in_space(space)
+            # 합칠 때 옮겨진 손님·주인 없는 자리와 겹치면 새 자리를 만들지 않는다(같은 사람이 둘로 갈리지 않게, 리드 결정)
+            if members.filter(Q(user__isnull=True) | Q(user__username__startswith="guest:"), cls=cls, name=name).exists():
+                errors["name"] = ("이 이름으로 이미 들어온 선생님이 있어요. 본인이면 처음 들어온 PC에서 "
+                                  "「구글 계정으로 이어 두기」를 눌러 주세요.")
+            elif members.count() >= SCHOOL_SEATS:
+                errors["name"] = "이 학교 공간에는 더 들어올 수 없어요. 담당 선생님께 알려 주세요."
+            else:
+                seat = Member.objects.create(space=space, user=user, name=name, cls=cls, group=group, position=position)
+                _welcome_alert(space, seat)
+        if not errors:
+            request.session.pop(INVITE, None)
+            return redirect(f"/s/{space.token}/welcome")
+
+    ctx.update(group=group, groups=Member.Group.choices, classes=classes, roles=roles, cls=cls, role=role,
+               custom=custom, name=name, errors=errors)
+    tpl = "spaces/_join_school_form.html" if request.headers.get("HX-Request") else "spaces/join_school.html"
+    return render(request, tpl, ctx, status=400 if errors else 200)
 
 
 def _me_area(request, status=200, **extra):
@@ -536,12 +676,13 @@ def update_me(request):
     me = request.member
     name = _clean_name(request.POST["name"]) if "name" in request.POST else me.name
     cls = request.POST.get("cls", me.cls)
+    school = request.space.is_school
     error = ""
     if not name:
-        error = "동학년에게 보일 이름을 써 주세요."
-    elif cls not in {c for c, _ in class_choices(request.space)}:
+        error = "선생님들에게 보일 이름을 써 주세요." if school else "동학년에게 보일 이름을 써 주세요."
+    elif cls != me.cls and cls not in {c for c, _ in class_choices(request.space)}:
         error = "반을 하나 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
-    elif Member.objects.in_space(request.space).filter(cls=cls, name=name).exclude(pk=me.pk).exists():
+    elif not school and Member.objects.in_space(request.space).filter(cls=cls, name=name).exclude(pk=me.pk).exists():
         error = "같은 반에 같은 이름 선생님이 이미 있어요. 이름 뒤에 글자를 붙여 구분해 주세요."
     if error:
         if not request.headers.get("HX-Request"):
@@ -550,9 +691,9 @@ def update_me(request):
     me.name, me.cls = name, cls
     # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
     fields = [f for f in ("name", "cls") if f in request.POST]
-    if request.space.is_school and "cls" in fields:
-        me.group = cls_group(cls) or me.group
-        fields.append("group")
+    if school and "cls" in fields and cls_group(cls):  # 학교 공간 학년 교사: 소속·직책이 반을 따라간다
+        me.group, me.position = cls_group(cls), _cls_label(cls)
+        fields += ["group", "position"]
     me.save(update_fields=fields)
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/settings")
@@ -571,7 +712,7 @@ def leave(request):
     """
     space, me = request.space, request.member
     if request.POST.get("confirm", "").strip() != space.name:
-        return HttpResponseBadRequest("동학년 이름을 그대로 써 주세요.")
+        return HttpResponseBadRequest(f"{space.word} 이름을 그대로 써 주세요.")
     user = request.user
     with transaction.atomic():
         Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 동시에 나갈 때 마지막 판단을 직렬화

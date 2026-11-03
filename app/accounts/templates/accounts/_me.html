@@ -1,13 +1,17 @@
 {# 설정 > 내 정보(design/settings.html #me). 이름 칸은 바꾸면(change), 반은 누르면 바로 저장하고 이 영역만 다시 받는다. #}
 <div id="meArea" data-err-swap>
   {% if saved %}<span class="sr" data-toast-now="저장했어요"></span>{% endif %}
-  <section class="srow"><div class="lab"><h2>이름</h2><p>동학년 화면·합본·활동 기록에 이 이름으로 보여요. 이미 만든 모으기의 줄은 그대로고, 다음 모으기부터 바뀌어요.</p></div>
+  <section class="srow"><div class="lab"><h2>이름</h2><p>{{ space_word }} 화면·합본·활동 기록에 이 이름으로 보여요. 이미 만든 모으기의 줄은 그대로고, 다음 모으기부터 바뀌어요.</p></div>
     <form class="panel pad" method="post" action="/s/{{ space.token }}/settings/me" hx-post="/s/{{ space.token }}/settings/me" hx-trigger="change, submit" hx-target="#meArea" hx-swap="outerHTML" hx-sync="#meArea:replace">
       {% csrf_token %}
       <label class="field"><span class="sr">이름</span>
         <input class="input" id="nm" name="name" value="{% if typed is not None %}{{ typed }}{% else %}{{ me.name }}{% endif %}" maxlength="40" autocomplete="off" style="max-width:280px"{% if error %} aria-invalid="true" aria-describedby="me-err"{% endif %}></label>
       {% if error %}<p class="field-err" id="me-err" role="alert">{{ error }}</p>{% endif %}
     </form></section>
+  {% if space.is_school and not me.in_grade %}
+  <section class="srow"><div class="lab"><h2>소속</h2><p>처음 들어올 때 고른 소속과 직책이에요.</p></div>
+    <div class="panel pad"><b>{{ me.cls_text }}</b></div></section>
+  {% else %}
   <section class="srow"><div class="lab"><h2>반</h2><p>모으기에서 내 칸을 정할 때 써요. 학년이 바뀌면 3월에 다시 골라요.</p></div>
     <form class="panel pad" method="post" action="/s/{{ space.token }}/settings/me" hx-post="/s/{{ space.token }}/settings/me" hx-include="#nm" hx-target="#meArea" hx-swap="outerHTML" hx-sync="#meArea:replace">
       {% csrf_token %}
@@ -15,7 +19,8 @@
         {% for c, label in classes %}<button class="pick" type="submit" name="cls" value="{{ c }}" data-v="{{ c }}" aria-pressed="{% if c == me.cls %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
       </div>
     </form></section>
-  <section class="srow"><div class="lab"><h2>얼굴 색</h2><p>동학년 화면에서 내 이름표에 쓰는 색이에요. 들어온 순서로 정해져 겹치지 않아요.</p></div>
+  {% endif %}
+  <section class="srow"><div class="lab"><h2>얼굴 색</h2><p>{{ space_word }} 화면에서 내 이름표에 쓰는 색이에요. 들어온 순서로 정해져 겹치지 않아요.</p></div>
     <div class="panel pad"><div class="row"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ my_label }} {{ me.name }}</b><div class="small muted">바꿀 수 없어요</div></div></div></div></section>
 </div>
 {% if saved %}<div class="me" id="meCard" hx-swap-oob="true"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ me.cls_text }}</span></div></div>{% endif %}
