@@ -36,7 +36,7 @@ class DeviceSettingsTests(TestCase):
 
     def test_settings_page_shows_switch_on_with_until_date_and_menu(self):
         c = self.pc()
-        r = c.get(self.url)
+        r = c.get(self.url + "?a=device")
         self.assertContains(r, "이 PC 1년 기억")
         self.assertContains(r, 'name="remember" value="1" checked')
         self.assertContains(r, "까지")

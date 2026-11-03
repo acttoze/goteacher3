@@ -23,6 +23,7 @@ from spaces import neis
 from spaces.models import get_in_space_or_404
 from spaces.views import _josa, _space_ctx
 
+from . import schedule
 from .models import Event
 from .parse import ROOMS, SLOT_KEYS, SLOTS, parse, slot_idx, slot_text
 
@@ -156,6 +157,8 @@ def index(request):
 
 
 def _live(request, toast, status=200):
+    if request.POST.get("view") == "week":  # 일정 화면에서 불렀으면 주간판으로 돌려준다
+        return schedule.reply(request, toast)
     ctx = _space_ctx(request, toast=toast, oob=True, **_live_ctx(request, timezone.now()))
     return render(request, "today/_live.html", ctx, status=status)
 
@@ -189,30 +192,37 @@ def _conf_text(p, conf):
 def preview(request):
     """한 줄 입력 미리보기: 칩(날짜·시간·대상·장소·참석)과 장소 충돌."""
     p, error = _read_line(request)
+    week = request.POST.get("view") == "week"
     if p is None and not error:
-        return render(request, "today/_qpop.html", {"empty": True})
+        return render(request, "today/_parsed.html" if week else "today/_qpop.html", {"empty": True})
     ctx = {"error": error}
     if p:
         conf = _conflicts(request.space, p["date"], p["end"], p["s"], p["e"], p["place"])
         ctx.update(p=p, dates=_dates(p["date"], p["end"]), slot=slot_text(p["s"], p["e"]) if p["s"] else "",
                    conf=_conf_text(p, conf) if conf else "", n_rooms=len(ROOMS))
-    return render(request, "today/_qpop.html", ctx)
+        if week:
+            today = timezone.localdate()
+            ctx["where"] = schedule.where_text(p, schedule.shown_monday(request.POST.get("w"), today), today)
+    return render(request, "today/_parsed.html" if week else "today/_qpop.html", ctx)
 
 
 @never_cache
 @require_POST
 def add(request):
     p, error = _read_line(request)
+    week = request.POST.get("view") == "week"
     if p is None:
-        r = render(request, "today/_qpop.html", {"error": error or "일정을 한 줄로 써 주세요. 예: 내일 2블록 과학실 안전교육"})
-        r["HX-Retarget"], r["HX-Reswap"] = "#qpop", "outerHTML"
+        r = render(request, "today/_parsed.html" if week else "today/_qpop.html",
+                   {"error": error or "일정을 한 줄로 써 주세요. 예: 내일 2블록 과학실 안전교육"})
+        r["HX-Retarget"], r["HX-Reswap"] = "#parsed" if week else "#qpop", "outerHTML"
         return r
     conf = _conflicts(request.space, p["date"], p["end"], p["s"], p["e"], p["place"])
     e = Event.objects.create(space=request.space, by=request.member, date=p["date"], end=p["end"],
                              slot=p["s"] or "", slot_end=p["e"] or "", title=p["title"],
                              place=(p["place"] or "")[:PLACE_MAX], target=p["target"])
     if not request.headers.get("HX-Request"):
-        r = redirect(f"/s/{request.space.token}/today")
+        mon = schedule.shown_monday(request.POST.get("w"), timezone.localdate())
+        r = redirect(f"/s/{request.space.token}/schedule?w={mon:%Y-%m-%d}" if week else f"/s/{request.space.token}/today")
         r.status_code = 303
         return r
     toast = f"{_dates(e.date, e.end)} {slot_text(e.slot, e.slot_end) if e.slot else '시간 미정'} 「{e.title}」 올렸어요"

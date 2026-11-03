@@ -1,7 +1,10 @@
-"""설정 > 이 PC(design/settings.html #device): '이 PC 1년 기억' 스위치와 '모든 기기에서 로그아웃'(G3 S2).
+"""설정(design/settings.html): 영역마다 한 화면(?a=me|alerts|space|device). 기본은 내 정보.
 
+이 PC: '이 PC 1년 기억' 스위치와 '모든 기기에서 로그아웃'(G3 S2).
 켜짐 = 이 PC 기기 쿠키가 있고 DB 토큰이 살아 있음. 끄면 이 PC 토큰을 지우고 세션을 브라우저 닫을 때까지로 바꾼다.
+내 정보 저장·동학년 나가기는 spaces.views(update_me·leave).
 """
+from django.conf import settings
 from django.contrib.auth import logout
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -9,7 +12,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from collect.models import PushSubscription
-from spaces.views import _space_ctx
+from collect.push import SLOTS
+from spaces.views import _invite, _space_ctx, class_choices
 
 from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token, is_guest
 from .views import set_device_cookie
@@ -34,10 +38,22 @@ def _ctx(request, token, **extra):
     )
 
 
+AREAS = {"me": "내 정보", "alerts": "알림", "space": "동학년", "device": "이 PC"}
+
+
 @never_cache
 @require_GET
 def settings_page(request):
-    return render(request, "accounts/settings.html", _ctx(request, _this_pc(request)))
+    area = request.GET.get("a")
+    area = area if area in AREAS else "me"
+    ctx = _ctx(request, _this_pc(request), area=area, area_label=AREAS[area], areas=AREAS.items())
+    if area == "me":
+        ctx["classes"] = class_choices(request.space)
+    elif area == "alerts":
+        ctx.update(slots=[(t.strftime("%H:%M"), name) for _, t, _, name in SLOTS], vapid=settings.VAPID_PUBLIC_KEY)
+    elif area == "space":
+        ctx.update(_invite(request.space, request.member))
+    return render(request, "accounts/settings.html", ctx)
 
 
 @never_cache

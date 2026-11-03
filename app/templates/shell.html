@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{# design/assets/shell.js의 공통 틀. 아직 없는 기능(일정·접속 중)은 넣지 않는다. 설정은 이 PC 영역만(G3). #}
+{# design/assets/shell.js의 공통 틀. 아직 없는 기능(접속 중 표시)은 넣지 않는다. #}
 {% block html_attr %} class="has-shell"{% endblock %}
 {% block body %}
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -8,6 +8,7 @@
   <nav class="nav" aria-label="주 메뉴">
     <a href="/s/{{ space.token }}/today"{% if page == "today" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg><span>오늘</span></a>
     <a href="/s/{{ space.token }}/c/"{% if page == "collect" or page == "list" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>모으기</span></a>
+    <a href="/s/{{ space.token }}/schedule"{% if page == "schedule" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>일정</span></a>
     <a href="/forms"{% if page == "forms" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><span>양식 자료실</span></a>
   </nav>
   <p class="group">{{ space.grade }}학년 동학년</p>
@@ -15,7 +16,7 @@
     <a href="/s/{{ space.token }}/"{% if page == "grade" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 6.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.5 2 3 4.2"/></svg><span>선생님 {{ rows|length }}명</span></a>
     <a href="/s/{{ space.token }}/settings"{% if page == "settings" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>설정</span></a>
   </nav>
-  <div class="me"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ space.grade }}학년 {{ my_label }}</span></div></div>
+  <div class="me" id="meCard"><span class="av lg{% if my_ink %} ink-t{% endif %}" style="background:{{ my_color }}">{{ me.name|slice:":1" }}</span><div><b>{{ me.name }}</b><span>{{ space.grade }}학년 {{ my_label }}</span></div></div>
 </aside>
 <header class="top">
   <b class="ptitle">{% include "_mark.html" with size=20 %}{% block ptitle %}고티처{% endblock %}</b>

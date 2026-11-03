@@ -1,7 +1,8 @@
 """G3 2차: 로그인·초대 입장에서 '이 PC 기억하기(1년)' 선택(S2), 받는 사람 세션은 브라우저를 닫으면 끝(같은 PC 다음 사람).
 
 불변식
-- 시작 화면과 초대 입장 화면에 '이 PC 기억하기(1년)' 체크가 기본으로 켜져 있고, '공용 PC라면 끄세요' 안내가 있다.
+- 시작 화면과 초대 입장 화면의 '이 PC 기억하기(1년)' 체크는 기본으로 꺼져 있다(사용자 결정 11/3, 공용 PC 보호).
+  '이 PC에서 계속 쓰면 켜 두세요' 안내가 있다. 선택 값 없이 오면 서버도 끔으로 본다.
 - 끄고 들어오면 기기 토큰이 없고(DB에도 없음) 세션은 브라우저를 닫으면 끝난다. 이 PC의 앞사람 기기 토큰도 지운다.
 - 켜고 들어오면 지금처럼 1년 기기 토큰 + 기본 세션.
 - 구글 콜백까지 선택이 state와 함께 세션으로 간다. 선택 없이(잇기 단추) 오면 이 PC의 지금 상태(기기 쿠키 있음/없음)를 따른다.
@@ -39,12 +40,13 @@ class GoogleRememberTests(TestCase):
         with mock.patch("accounts.views._http_json", side_effect=[TOKEN, info]):
             return client.get("/auth/google/callback", {"state": state, "code": "c"})
 
-    def test_start_has_remember_checked_and_public_pc_hint(self):
+    def test_start_has_remember_unchecked_and_hint(self):
         r = self.client.get("/start")
         self.assertContains(r, 'action="/auth/google/login"')
-        self.assertRegex(r.content.decode(), r'<input type="checkbox" name="remember" value="1" checked')
+        self.assertRegex(r.content.decode(), r'<input type="checkbox" name="remember" value="1">')
+        self.assertNotRegex(r.content.decode(), r'name="remember" value="1" checked')
         self.assertContains(r, "이 PC 기억하기(1년)")
-        self.assertContains(r, "공용 PC라면 끄세요")
+        self.assertContains(r, "이 PC에서 계속 쓰면 켜 두세요")
 
     def test_remember_off_no_device_token_browser_session(self):
         r = self.login(query="?remember=0")
@@ -63,7 +65,7 @@ class GoogleRememberTests(TestCase):
         self.assertFalse(self.client.session.get_expire_at_browser_close())
 
     def test_remember_off_clears_previous_pc_token(self):
-        self.login()
+        self.login(query="?remember=1")
         old = self.client.cookies[DEVICE_COOKIE].value
         r = self.login(query="?remember=0", info={**INFO, "sub": "222", "name": "다른 사람"})
         self.assertFalse(DeviceToken.objects.filter(token_hash=hash_token(old)).exists())
@@ -79,9 +81,11 @@ class GoogleRememberTests(TestCase):
             r = self.client.get("/auth/google/callback", {"state": state, "code": "c", "remember": "1"})
         self.assertNotIn(DEVICE_COOKIE, r.cookies)
 
-    def test_without_choice_defaults_on(self):
-        r = self.login()  # 선택 값 없이 부르면 화면 기본값(켬)
-        self.assertIn(DEVICE_COOKIE, r.cookies)
+    def test_without_choice_defaults_off(self):
+        r = self.login()  # 선택 값 없이 부르면 화면 기본값(끔)
+        self.assertNotIn(DEVICE_COOKIE, r.cookies)
+        self.assertFalse(DeviceToken.objects.exists())
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
 
 
 @override_settings(**GOOGLE)
@@ -102,13 +106,20 @@ class JoinRememberTests(InviteBase):
             self.assertEqual(bool(r.cookies.get(DEVICE_COOKIE) and r.cookies[DEVICE_COOKIE].value), has, remember)
             self.assertEqual(c.session.get_expire_at_browser_close(), not has)
 
-    def test_join_shows_checked_box_and_hint(self):
+    def test_join_shows_unchecked_box_and_hint(self):
         c = Client()
         c.get(f"/j/{self.space.invite_token}")
         r = c.get("/join")
-        self.assertRegex(r.content.decode(), r'<input type="checkbox" name="remember" value="1" checked')
+        self.assertRegex(r.content.decode(), r'<input type="checkbox" name="remember" value="1">')
+        self.assertNotRegex(r.content.decode(), r'name="remember" value="1" checked')
         self.assertContains(r, "이 PC 기억하기(1년)")
-        self.assertContains(r, "공용 PC라면 끄세요")
+        self.assertContains(r, "이 PC에서 계속 쓰면 켜 두세요")
+
+    def test_join_without_choice_is_off(self):
+        c = Client()
+        r = self.go(c, {"cls": "4-2", "name": "정하은"})
+        self.assertNotIn(DEVICE_COOKIE, r.cookies)
+        self.assertTrue(c.session.get_expire_at_browser_close())
 
     def test_join_off_no_device_browser_session(self):
         c = Client()
@@ -128,9 +139,9 @@ class JoinRememberTests(InviteBase):
 
     def test_error_keeps_choice(self):
         c = Client()
-        r = self.go(c, {"cls": "", "name": "정하은", "remember": "0"})
+        r = self.go(c, {"cls": "", "name": "정하은", "remember": ["0", "1"]})
         self.assertEqual(r.status_code, 400)
-        self.assertNotRegex(r.content.decode(), r'name="remember" value="1" checked')
+        self.assertRegex(r.content.decode(), r'name="remember" value="1" checked')
 
 
 class RecipientSessionTests(TestCase):

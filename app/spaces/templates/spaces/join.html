@@ -35,9 +35,9 @@
     </label>
     {% if not user.is_authenticated %}<div class="remember"><input type="hidden" name="remember" value="0">
       <label class="chk"><input type="checkbox" name="remember" value="1"{% if remember %} checked{% endif %}> 이 PC 기억하기(1년)</label>
-      <span class="hint">공용 PC라면 끄세요</span></div>{% endif %}
+      <span class="hint">이 PC에서 계속 쓰면 켜 두세요</span></div>{% endif %}
     <div><button class="btn pri lg" type="submit">들어가기</button></div>
-    <p class="note">이 PC 브라우저가 기억해서 다음부터는 바로 열려요. 비밀번호도 문자 인증도 없어요.</p>
+    <p class="note">{% if user.is_authenticated %}비밀번호도 문자 인증도 없어요.{% else %}기억하기를 켜 두면 다음부터 이 PC에서 바로 열려요. 비밀번호도 문자 인증도 없어요.{% endif %}</p>
   </form>
 {% endif %}
 {% endblock %}

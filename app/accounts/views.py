@@ -58,9 +58,10 @@ def google_login(request):
     state = secrets.token_urlsafe(24)
     request.session["google_state"] = state
     request.session["google_next"] = _safe_next(request.GET.get("next"))
-    # 이 PC 기억(G3 S2): 시작 화면 체크(숨은 0 + 체크 1). 값이 없으면(손님의 '구글로 이어 두기') 입장 때 고른 대로.
+    # 이 PC 기억(G3 S2): 시작 화면 체크(숨은 0 + 체크 1, 기본 끔 — 사용자 결정 11/3).
+    # 값이 없으면 끔. 손님의 '구글로 이어 두기'는 입장 때 고른 대로(이 PC 기기 쿠키가 있나).
     request.session["google_remember"] = wants_remember(
-        request.GET, bool(request.COOKIES.get(DEVICE_COOKIE)) if is_guest(request.user) else True)
+        request.GET, bool(request.COOKIES.get(DEVICE_COOKIE)) if is_guest(request.user) else False)
     verifier = secrets.token_urlsafe(48)  # PKCE: 원문은 세션에만, 구글에는 S256 해시만
     request.session["google_verifier"] = verifier
     params = {
@@ -80,7 +81,7 @@ def google_login(request):
 def google_callback(request):
     expected = request.session.pop("google_state", None)
     next_url = request.session.pop("google_next", "/")
-    remember = request.session.pop("google_remember", True)
+    remember = request.session.pop("google_remember", False)
     verifier = request.session.pop("google_verifier", None)
     state = request.GET.get("state", "")
     code = request.GET.get("code", "")

@@ -8,17 +8,17 @@ import unicodedata
 import segno
 
 from django.conf import settings
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from accounts.models import DEVICE_AGE, DeviceToken, is_guest, new_guest
+from accounts.models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, is_guest, new_guest
 from accounts.views import home as login_home
 from accounts.views import remember_pc, wants_remember
 from collect.models import Collection, Notification
@@ -143,6 +143,14 @@ def pick_school(request):
     return redirect("/new/class")
 
 
+GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
+
+
+def _grade_taken(school, grade):
+    """같은 학교·학년 동학년이 이미 있나(사용자 결정 11/3: 하나만). 만든 사람 이름은 알려 주지 않는다."""
+    return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"], grade=grade).exists()
+
+
 def _int_grade(raw):
     try:
         g = int(raw)
@@ -174,43 +182,57 @@ def new_class(request):
     cls = data.get("cls", "")
     name = _clean_name(data.get("name", request.user.first_name))
     errors = {}
+    taken = _grade_taken(school, grade)
 
-    if request.method == "POST":
+    if request.method == "POST" and not taken:
         if cls not in {c for c, _ in classes}:
             errors["cls"] = "반을 하나 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
         if not name:
             errors["name"] = "동학년에게 보일 이름을 써 주세요."
         if not errors:
-            with transaction.atomic():
-                # 동시 POST: 사용자 행을 잠근 뒤 다시 확인한다(PostgreSQL에서 직렬화).
-                get_user_model().objects.select_for_update().filter(pk=request.user.pk).first()
-                mine = _my_space(request.user)
-                if mine:
-                    return redirect(f"/s/{mine.token}/")
-                sch, _ = School.objects.get_or_create(
-                    neis_atpt=school["atpt"], neis_code=school["code"], defaults={"name": school["name"]}
-                )
-                space = Space.objects.create(
-                    school=sch, grade=grade, name=f"{sch.name.replace('등학교', '')} {grade}학년"
-                )
-                Member.objects.create(space=space, user=request.user, name=name, cls=cls)
-            request.session.pop(HITS, None)
-            return redirect(f"/s/{space.token}/made")
+            try:
+                with transaction.atomic():
+                    # 동시 POST: 사용자 행을 잠근 뒤 다시 확인한다(PostgreSQL에서 직렬화).
+                    get_user_model().objects.select_for_update().filter(pk=request.user.pk).first()
+                    mine = _my_space(request.user)
+                    if mine:
+                        return redirect(f"/s/{mine.token}/")
+                    sch, _ = School.objects.get_or_create(
+                        neis_atpt=school["atpt"], neis_code=school["code"], defaults={"name": school["name"]}
+                    )
+                    space = Space.objects.create(  # 다른 선생님이 같은 학년을 동시에 만들면 유일 제약이 막는다
+                        school=sch, grade=grade, name=f"{sch.name.replace('등학교', '')} {grade}학년"
+                    )
+                    Member.objects.create(space=space, user=request.user, name=name, cls=cls)
+            except IntegrityError:
+                taken = True
+            else:
+                request.session.pop(HITS, None)
+                return redirect(f"/s/{space.token}/made")
+    if request.method == "POST":
         request.session[PICKED] = school
 
     ctx = {
         "school": school, "grade": grade, "grades": GRADES, "classes": classes, "from_neis": from_neis,
         "n_classes": len(classes) - 1, "cls": cls, "name": name, "errors": errors,
+        "taken": GRADE_TAKEN if taken else "",
     }
     if request.headers.get("HX-Request"):
         return render(request, "spaces/_class_form.html", ctx)
-    return render(request, "spaces/start_class.html", ctx, status=400 if errors else 200)
+    status = 409 if taken and request.method == "POST" else 400 if errors else 200
+    return render(request, "spaces/start_class.html", ctx, status=status)
 
 
 def _class_slots(space):
     """NEIS 반 + 전담. NEIS가 없으면 빈 목록."""
     names = neis.class_names(space.school.neis_atpt, space.school.neis_code, space.grade)
     return [f"{space.grade}-{n}" for n in names] + ([f"{space.grade}-전담"] if names else [])
+
+
+def class_choices(space):
+    """[(반, 표시)]: NEIS 반 + 전담. NEIS가 없으면 1~4반 + 전담(초대 입장과 같은 칸)."""
+    slots = _class_slots(space) or [f"{space.grade}-{n}" for n in FALLBACK_CLASSES] + [f"{space.grade}-전담"]
+    return [(c, _cls_label(c)) for c in slots]
 
 
 def _roster(space, me=None):
@@ -375,7 +397,7 @@ def join(request):
         request.session.pop(INVITE, None)
         return redirect(f"/s/{space.token}/")
     roster = _roster(space)
-    slots = roster["slots"] or [f"{space.grade}-{n}" for n in FALLBACK_CLASSES] + [f"{space.grade}-전담"]
+    slots = [c for c, _ in class_choices(space)]
     ctx = {"space": space, "creator": roster["creator"], "n": len(roster["rows"]), "mine": mine}
     if mine:  # R1: 교사 한 명은 동학년 하나
         return render(request, "spaces/join.html", ctx, status=409 if request.method == "POST" else 200)
@@ -383,7 +405,7 @@ def join(request):
     data = request.POST if request.method == "POST" else {}
     cls = data.get("cls", "")
     name = _clean_name(data.get("name", user.first_name if user.is_authenticated else ""))
-    remember = wants_remember(request.POST, True)  # '이 PC 기억하기(1년)'(G3 S2), 화면 기본은 켬
+    remember = wants_remember(request.POST, False)  # '이 PC 기억하기(1년)'(G3 S2), 기본 끔(사용자 결정 11/3)
     errors = {}
     limited = request.method == "POST" and not (  # 둘 다 센다(& 는 앞이 거짓이어도 뒤를 부른다)
         allow("join-ip", client_ip(request), JOIN_PER_MIN_IP, 60)
@@ -433,3 +455,71 @@ def join(request):
     ctx.update(errors=errors, cls=cls, name=name, remember=remember,
                choices=[{"cls": c, "label": _cls_label(c), "who": by_cls.get(c)} for c in slots])
     return render(request, "spaces/join.html", ctx, status=(429 if limited else 400) if errors else 200)
+
+
+def _me_area(request, status=200, **extra):
+    from accounts.device import _ctx, _this_pc  # 설정 화면 공통 문맥(이 PC 상태 포함)
+
+    ctx = _ctx(request, _this_pc(request), area="me", classes=class_choices(request.space), **extra)
+    return render(request, "accounts/_me.html", ctx, status=status)
+
+
+@never_cache
+@require_POST
+def update_me(request):
+    """설정 > 내 정보: 이름·반(design #me, 바꾸면 바로 저장). 둘 중 보낸 것만 바꾼다(이름 칸·반 단추가 따로 보낸다).
+
+    같은 반·같은 이름 선생님이 이미 있으면 거부한다(초대 입장은 반·이름으로 같은 사람을 찾는다).
+    이미 만든 모으기의 줄은 그대로고, 다음 모으기 명부부터 바뀐다.
+    """
+    me = request.member
+    name = _clean_name(request.POST["name"]) if "name" in request.POST else me.name
+    cls = request.POST.get("cls", me.cls)
+    error = ""
+    if not name:
+        error = "동학년에게 보일 이름을 써 주세요."
+    elif cls not in {c for c, _ in class_choices(request.space)}:
+        error = "반을 하나 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요."
+    elif Member.objects.in_space(request.space).filter(cls=cls, name=name).exclude(pk=me.pk).exists():
+        error = "같은 반에 같은 이름 선생님이 이미 있어요. 이름 뒤에 글자를 붙여 구분해 주세요."
+    if error:
+        if not request.headers.get("HX-Request"):
+            return redirect(f"/s/{request.space.token}/settings")
+        return _me_area(request, status=400, error=error, typed=name)
+    me.name, me.cls = name, cls
+    # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
+    me.save(update_fields=[f for f in ("name", "cls") if f in request.POST])
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{request.space.token}/settings")
+    return _me_area(request, saved=True)
+
+
+@never_cache
+@require_POST
+def leave(request):
+    """동학년 나가기(design #space). 동학년 이름을 써야 나간다.
+
+    내가 만든 모으기는 남은 선생님 중 가장 먼저 들어온 분이 넘겨받는다(그분이 새 학년 대표, _roster의 creator).
+    내가 낸 칸은 합본에 남는다(줄의 member만 빈다). 마지막 한 명이면 동학년을 지운다(같은 학년을 새로 만들 수 있게).
+    손님은 다른 소속이 없으므로 계정도 지우고(기기 토큰 CASCADE) 로그아웃한다. 구글 회원은 첫 화면으로.
+    """
+    space, me = request.space, request.member
+    if request.POST.get("confirm", "").strip() != space.name:
+        return HttpResponseBadRequest("동학년 이름을 그대로 써 주세요.")
+    user = request.user
+    with transaction.atomic():
+        Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 동시에 나갈 때 마지막 판단을 직렬화
+        heir = Member.objects.in_space(space).exclude(pk=me.pk).order_by("joined_at", "pk").first()
+        if heir is None:
+            space.delete()  # 모으기·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)
+        else:
+            Collection.objects.in_space(space).filter(created_by=me).update(created_by=heir)
+            me.delete()
+        gone = is_guest(user) and not Member.objects.filter(user=user).exists()
+        if gone:
+            user.delete()
+    response = redirect("/")
+    if gone:
+        logout(request)
+        response.delete_cookie(DEVICE_COOKIE)
+    return response

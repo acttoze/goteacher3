@@ -32,9 +32,17 @@
   // 저장 뒤 바뀐 내용에 [data-autocopy="알림"]이 있으면 그 단추의 복사를 한 번 한다(prototype: 마감 저장 = 안내 문구 복사).
   // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
   // 폴링하는 카드 안 대화상자(예: 명단의 내보내기 확인)가 열려 있으면 그 폴링은 건너뛴다(열린 창이 바뀌지 않게).
-  // 빈도 제한(429) 안내는 화면에 그대로 넣는다(htmx 기본은 4xx를 버림).
+  // 빈도 제한(429) 안내는 화면에 그대로 넣는다(htmx 기본은 4xx를 버림). [data-err-swap] 안은 입력 오류(400)도 넣는다.
   document.addEventListener('htmx:beforeSwap', function (e) {
-    if (e.detail.xhr.status === 429) { e.detail.shouldSwap = true; e.detail.isError = false; }
+    var st = e.detail.xhr.status;
+    if (st === 429 || (st === 400 && e.detail.elt.closest('[data-err-swap]'))) { e.detail.shouldSwap = true; e.detail.isError = false; }
+  });
+  // 확인 글자: <input data-must="글자">에 그대로 써야 같은 폼의 제출 단추가 켜진다(동학년 나가기). 서버도 다시 확인한다.
+  document.addEventListener('input', function (e) {
+    var i = e.target.closest('[data-must]');
+    if (!i) return;
+    var b = i.form && i.form.querySelector('[type=submit]');
+    if (b) b.disabled = i.value.trim() !== i.dataset.must;
   });
   document.addEventListener('htmx:beforeRequest', function (e) {
     var el = e.detail.elt;
@@ -52,7 +60,8 @@
     else fail();
   });
 
-  // 이 PC에서 알림 받기(G2). 🔔 목록이 열리면 이 브라우저 구독 상태로 단추를 맞춘다. 권한 요청은 단추를 누를 때만.
+  // 이 PC에서 알림 받기(G2). 🔔 목록이 열리거나 설정 > 알림을 열면 이 브라우저 구독 상태로 단추를 맞춘다. 권한 요청은 단추를 누를 때만.
+  // 상자: .pushbox[data-vapid·data-on·data-off·data-mine] 안의 [data-push-btn]·[data-push-msg]. 한 화면에 둘(🔔·설정)일 수 있다.
   var SW = '/static/sw.js';
   function pushOk() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
   function csrf() { var i = document.querySelector('input[name=csrfmiddlewaretoken]'); return i ? i.value : ''; }
@@ -73,12 +82,11 @@
     if (reg.active || !w) return Promise.resolve(reg);
     return new Promise(function (ok) { w.addEventListener('statechange', function () { if (w.state === 'activated') ok(reg); }); });
   }
-  function pushSync() {
-    var btn = document.getElementById('pushBtn'), msg = document.getElementById('pushMsg');
-    if (!btn) return;
+  function pushSync() { document.querySelectorAll('.pushbox').forEach(syncBox); }
+  function syncBox(box) {
+    var btn = box.querySelector('[data-push-btn]'), msg = box.querySelector('[data-push-msg]');
     if (!pushOk()) { btn.hidden = true; msg.textContent = '이 브라우저는 알림을 받을 수 없어요.'; return; }
     if (Notification.permission === 'denied') { btn.disabled = true; msg.textContent = '브라우저 설정에서 고티처 알림이 막혀 있어요.'; return; }
-    var box = document.getElementById('pushBox');
     mySub().then(function (sub) {
       if (!sub || Notification.permission !== 'granted') return false;
       // 이 브라우저 구독이 지금 회원 것인지 서버에 묻는다. 앞사람 것이면 '꺼짐'으로 보이고, 켜면 지금 회원으로 옮긴다.
@@ -105,7 +113,7 @@
     }).catch(function () {}).then(function () { clearTimeout(t); go(); });
   });
   function pushToggle(btn) {
-    var box = document.getElementById('pushBox'), msg = document.getElementById('pushMsg'), on = btn.dataset.state !== 'on';
+    var box = btn.closest('.pushbox'), msg = box.querySelector('[data-push-msg]'), on = btn.dataset.state !== 'on';
     btn.disabled = true;
     var job = on
       ? Notification.requestPermission().then(function (p) {
@@ -126,6 +134,7 @@
       });
   }
   document.addEventListener('htmx:afterSwap', function (e) { if (e.target.id === 'bellPop') pushSync(); });
+  if (document.querySelector('.pushbox')) pushSync();  // 설정 > 알림(defer라 문서는 이미 읽혔다)
 
   // 한 줄 일정(오늘): 올리면 칸을 비우고, Esc·바깥을 누르면 미리보기를 닫고, n으로 칸에 들어간다(design shell.js).
   function hideQ() { var q = document.getElementById('qpop'); if (q) q.hidden = true; }
@@ -142,7 +151,7 @@
 
   document.addEventListener('click', function (e) {
     if (!e.target.closest('.quick')) hideQ();
-    var pb = e.target.closest('#pushBtn');
+    var pb = e.target.closest('[data-push-btn]');
     if (pb) { pushToggle(pb); return; }
     if (e.target.closest('#bellBtn')) {
       var p = document.getElementById('bellPop'), open = p.hidden;

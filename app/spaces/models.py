@@ -54,6 +54,12 @@ class Space(models.Model):
     invite_token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        # 같은 학교·학년 동학년은 하나(사용자 결정 11/3). 동시에 만들어도 DB가 하나만 받는다.
+        constraints = [
+            models.UniqueConstraint(fields=["school", "grade"], name="uniq_space_school_grade"),
+        ]
+
     def __str__(self):
         return f"{self.school} {self.name}"
 

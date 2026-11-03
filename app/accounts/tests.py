@@ -26,7 +26,7 @@ INFO = {"sub": "1098765", "email": "kim@school.kr", "email_verified": True, "nam
 @override_settings(**GOOGLE)
 class GoogleLoginTests(TestCase):
     def start(self, next_url=None):
-        url = "/auth/google/login" + (f"?next={next_url}" if next_url else "")
+        url = "/auth/google/login?remember=1" + (f"&next={next_url}" if next_url else "")  # 기기 토큰 확인: 기억 켬
         r = self.client.get(url)
         self.assertEqual(r.status_code, 302)
         q = parse_qs(urlparse(r["Location"]).query)
@@ -200,7 +200,7 @@ class QAEdgeTests(TestCase):
         cls.user = User.objects.create(username="google:9", first_name="박다솜", email="park@school.kr")
 
     def login_flow(self, next_url=None):
-        url = "/auth/google/login" + (f"?next={next_url}" if next_url else "")
+        url = "/auth/google/login?remember=1" + (f"&next={next_url}" if next_url else "")  # 기기 토큰 확인: 기억 켬
         state = parse_qs(urlparse(self.client.get(url)["Location"]).query)["state"][0]
         with mock.patch("accounts.views._http_json", side_effect=[TOKEN, INFO]):
             return self.client.get("/auth/google/callback", {"state": state, "code": "c"})
@@ -290,7 +290,7 @@ class SecurityFollowupTests(TestCase):
     """B4 보안 검토 후속: 재로그인 토큰 교체, CSRF 회전, PKCE, email_verified."""
 
     def start(self):
-        r = self.client.get("/auth/google/login")
+        r = self.client.get("/auth/google/login?remember=1")  # 기기 토큰 확인: 기억 켬
         return parse_qs(urlparse(r["Location"]).query)
 
     def callback(self, state, info=INFO):

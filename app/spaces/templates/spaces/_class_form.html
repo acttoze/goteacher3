@@ -7,6 +7,10 @@
         hx-get="/new/class" hx-vals='{"grade": {{ n }}}' hx-include="#nm" hx-target="#classForm" hx-swap="outerHTML">{{ n }}학년</button>{% endfor %}
     </div>
   </div>
+  {% if taken %}
+  <div class="well acc stack-y" role="alert" style="gap:6px"><b>{{ taken }}</b>
+    <p>한 학년에는 동학년이 하나예요. 초대 링크를 연 뒤 반과 이름만 고르면 바로 들어와요. 다른 학년이면 위에서 학년을 바꿔 주세요.</p></div>
+  {% else %}
   <div class="field"><span>반</span>
     <div class="picks" id="cp" role="group" aria-label="반" data-pick="cls"{% if errors.cls %} aria-invalid="true" aria-describedby="cp-err"{% endif %}>
       {% for c, label in classes %}<button class="pick" type="button" data-v="{{ c }}" aria-pressed="{% if c == cls %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
@@ -21,4 +25,5 @@
     <span class="hint">구글 계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span>
   </label>
   <div class="wrap-row"><button class="btn pri lg" type="submit">{{ grade }}학년 동학년 만들기</button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div>
+  {% endif %}
 </form>

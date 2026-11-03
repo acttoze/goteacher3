@@ -1,0 +1,7 @@
+{# design/schedule.html .parsed — 한 줄 입력이 어떻게 나뉘고 판의 어디에 놓이나. 서버가 파싱해 htmx로 바꾼다. #}
+<div class="parsed" id="parsed" role="status" aria-live="polite"{% if oob %} hx-swap-oob="true"{% endif %}>
+{% if error %}<span class="err" role="alert">{{ error }}</span>
+{% elif p %}<span>날짜 <b>{{ dates }}</b>{% if not p.date_given %} <span class="miss">(오늘)</span>{% endif %}</span><span>블록 {% if slot %}<b>{{ slot }}</b>{% else %}<span class="miss">시간 미정</span>{% endif %}</span><span>장소 {% if p.place %}<b>{{ p.place }}</b>{% else %}<span class="miss">없음</span>{% endif %}</span>{% if p.target %}<span>대상 <b>{{ p.target }}</b></span>{% endif %}<span>제목 <b>{{ p.title }}</b></span><span class="to">{{ where }}</span>
+{% if conf %}<span class="warn" role="alert">{{ conf }}</span>{% endif %}
+{% else %}날짜·블록·장소를 아무 순서로 써도 알아서 나눠요. 날짜가 없으면 오늘, 블록이 없으면 「시간 미정」 줄에 놓여요.{% endif %}
+</div>

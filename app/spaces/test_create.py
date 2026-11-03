@@ -146,13 +146,47 @@ class CreateFlowTests(NeisMocked):
         self.assertEqual(School.objects.count(), 1)
         self.assertEqual(Space.objects.count(), 2)
 
-    def test_same_school_grade_duplicate_allowed(self):
-        # prototype: 막지 않고 "초대 링크로 들어오세요" 안내만. 가장 단순하게 중복 허용(리드 확인 대기).
+    TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
+
+    def test_same_school_grade_is_blocked(self):
+        """사용자 결정(11/3): 같은 학교·학년 동학년은 하나. 고르는 단계에서 안내하고, 서버도 거부한다."""
         self.make()
-        other = User.objects.create(username="google:3")
+        creator = Space.objects.get()
+        other = User.objects.create(username="google:3", first_name="김도윤")
         self.client.force_login(other)
-        self.make(cls="4-2", name="김도윤")
+        self.client.get("/", {"q": "새솔"})
+        self.client.post("/new/school", {"i": 0})
+        r = self.client.get("/new/class", {"grade": 4})
+        self.assertContains(r, self.TAKEN)
+        self.assertNotContains(r, "4학년 동학년 만들기</button>")  # 만들기 단추 대신 안내
+        self.assertNotContains(r, "송민재")  # 만든 사람 이름은 보여 주지 않는다(학년 대표로만)
+        r = self.client.get("/new/class", {"grade": 4}, headers={"HX-Request": "true"})
+        self.assertContains(r, self.TAKEN)
+        r = self.client.post("/new/class", {"grade": 4, "cls": "4-2", "name": "김도윤"})
+        self.assertContains(r, self.TAKEN, status_code=409)
+        self.assertEqual(list(Space.objects.all()), [creator])
+        self.assertFalse(Member.objects.filter(user=other).exists())
+        # 같은 학교 다른 학년, 다른 학교 같은 학년은 된다
+        self.assertNotContains(self.client.get("/new/class", {"grade": 5}), self.TAKEN)
+        self.assertTrue(self.make(cls="5-1", grade=5, name="김도윤")["Location"].endswith("/made"))
+
+    def test_other_school_same_grade_ok(self):
+        self.make()
+        self.client.force_login(User.objects.create(username="google:3"))
+        self.assertTrue(self.make(school_i=1, cls="4-2", name="김도윤")["Location"].endswith("/made"))
         self.assertEqual(Space.objects.filter(grade=4).count(), 2)
+
+    def test_concurrent_create_db_constraint(self):
+        """화면 확인을 지나 동시에 만들어도 DB 유일 제약이 막고, 같은 안내를 보여 준다."""
+        self.make()
+        self.client.force_login(User.objects.create(username="google:3"))
+        self.client.get("/", {"q": "새솔"})
+        self.client.post("/new/school", {"i": 0})
+        with mock.patch("spaces.views._grade_taken", return_value=False):
+            r = self.client.post("/new/class", {"grade": 4, "cls": "4-2", "name": "김도윤"})
+        self.assertContains(r, self.TAKEN, status_code=409)
+        self.assertEqual(Space.objects.count(), 1)
+        self.assertEqual(Member.objects.count(), 1)
 
     def test_validation_errors(self):
         r = self.make(cls="")

@@ -31,7 +31,7 @@ class InviteBase(TestCase):
     def join(self, client, cls, name, token=None):
         r = client.get(f"/j/{token or self.space.invite_token}")
         self.assertEqual((r.status_code, r["Location"]), (302, "/join"))
-        return client.post("/join", {"cls": cls, "name": name})
+        return client.post("/join", {"cls": cls, "name": name, "remember": "1"})  # 기기 토큰 확인: 기억 켬
 
 
 class JoinFlowTests(InviteBase):

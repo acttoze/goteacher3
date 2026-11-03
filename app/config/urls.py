@@ -32,6 +32,8 @@ urlpatterns = [
     path("s/<str:space_token>/settings", device.settings_page),
     path("s/<str:space_token>/settings/remember", device.remember),
     path("s/<str:space_token>/settings/logout-all", device.logout_all),
+    path("s/<str:space_token>/settings/me", spaces.update_me),
+    path("s/<str:space_token>/settings/leave", spaces.leave),
     path("s/<str:space_token>/invite", spaces.new_invite),
     path("s/<str:space_token>/made", spaces.made),
     path("s/<str:space_token>/welcome", spaces.welcome),
