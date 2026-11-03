@@ -1,0 +1,70 @@
+{% extends "shell.html" %}
+{% block title %}{{ title }} · 고티처{% endblock %}
+{% block ptitle %}게시판{% endblock %}
+{% block head %}<style>
+  /* prototype .diff. 바뀐 항목은 옛 값을 지우고 새 값을 굵게 */
+  .diff { padding: 16px 20px; border-radius: var(--radius-card); background: var(--accent-soft); overflow-wrap: anywhere; }
+  .diff h2 { font-size: var(--fs-body); font-weight: 700; margin: 0 0 10px; }
+  .diff h2 span { font-weight: 400; color: var(--muted); font-size: 15px; margin-left: 8px; }
+  del { color: var(--muted); }
+  ins { text-decoration: none; font-weight: 700; }
+  .diff .pill { background: var(--bg); }
+  .lines { margin: 8px 0 0; padding: 0; list-style: none; }
+  .lines li { padding: 2px 0; }
+  .ntitle { overflow-wrap: anywhere; }
+  .nbody { margin: 16px 0 0; overflow-wrap: anywhere; }
+  .kv dd { overflow-wrap: anywhere; min-width: 0; }
+  .files { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .files li { display: flex; align-items: center; gap: 12px; }
+  .files .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .files .nm span { display: block; font-size: 15px; color: var(--muted); }
+  .hist { list-style: none; margin: 0; padding: 0; }
+  .hist a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 2px 8px; margin: 0 -8px; border-radius: var(--radius-in); text-decoration: none; color: inherit; font-size: 15px; }
+  .hist a:hover { background: var(--surface); }
+  .hist a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  .hist .num { font-weight: 700; }
+</style>{% endblock %}
+{% block main %}
+<p class="small muted" style="margin-bottom:8px"><a class="tlink" href="/s/{{ space.token }}/board" style="font-weight:600;color:var(--muted)">게시판 · 공지</a> /</p>
+<div class="title">
+  <div class="grow">
+    <h1 class="ntitle">{{ title }} <span class="pill acc" style="vertical-align:middle">v{{ ver.v }}</span></h1>
+    <p class="sub">{% if n.group %}{{ n.get_group_display }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }} · 받는 곳 {{ audience }}</p>
+  </div>
+  {% if can_edit %}<a class="btn sec" href="/s/{{ space.token }}/board/{{ n.key }}/edit">고치기</a>
+  <button class="btn ghost" type="button" data-open="#delDlg">지우기</button>
+  {# .main.narrow > * 의 max-width에 걸리지 않게 .title 안에 둔다 #}
+  <div class="scrim" id="delDlg" hidden>
+  <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="delDlgH" method="post" action="/s/{{ space.token }}/board/{{ n.key }}/delete">
+    {% csrf_token %}
+    <div class="dh"><h2 id="delDlgH" style="overflow-wrap:anywhere">「{{ title }}」 공지를 지울까요?</h2></div>
+    <div class="db"><p>모든 판과 첨부가 지워지고 되돌릴 수 없어요. 백업에는 7일 동안 남아요.</p></div>
+    <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">지우기</button></div>
+  </form>
+</div>{% endif %}
+</div>
+{% if not is_latest %}<p class="notice" role="status" style="margin-bottom:20px">예전 판(v{{ ver.v }})을 보고 있어요. <a class="tlink acc" href="/s/{{ space.token }}/board/{{ n.key }}/">최신 판 v{{ latest_v }} 보기</a></p>{% endif %}
+<div class="grid">
+  <div class="s8 stack-y" style="min-width:0">
+    {% if prev %}<section class="diff">
+      <h2>v{{ prev.v }} → v{{ ver.v }}에서 바뀐 부분<span>{{ ver.by }} · {{ ver.at|date:"n/j H:i" }}</span></h2>
+      {% if changes %}<dl class="kv">{% for c in changes %}<dt>{{ c.name }}</dt><dd>{% if c.old %}<del>{{ c.old }}</del>{% endif %}{% if c.old and c.new %} → {% endif %}{% if c.new %}<ins>{{ c.new }}</ins>{% endif %}</dd>{% endfor %}</dl>{% endif %}
+      {% if body_changed %}<p style="margin:{% if changes %}10px{% else %}0{% endif %} 0 0"><span class="pill acc">본문 바뀜</span></p>
+      {% if body_diff %}<ul class="lines">{% for l in body_diff %}<li>{% if l.op == "del" %}<del>{{ l.text }}</del>{% else %}<ins>{{ l.text }}</ins>{% endif %}</li>{% endfor %}</ul>{% endif %}{% endif %}
+    </section>{% endif %}
+    <section class="card"><div class="card-h"><h2>내용</h2></div><div class="card-b">
+      {% if items %}<dl class="kv">{% for i in items %}<dt>{{ i.name }}</dt><dd>{{ i.value }}</dd>{% endfor %}</dl>{% endif %}
+      {% if ver.body %}<p class="nbody"{% if not items %} style="margin-top:0"{% endif %}>{{ ver.body|linebreaksbr }}</p>{% elif not items %}<p class="muted">적은 내용이 없어요.</p>{% endif %}
+    </div></section>
+  </div>
+  <aside class="s4 stack-y" style="min-width:0">
+    <section class="card"><div class="card-h"><h2>{% if is_latest %}첨부{% else %}그때 첨부{% endif %}</h2></div><div class="card-b">
+      {% if attach %}<ul class="files">{% for a in attach %}<li>{% if a.file %}<div class="nm">{{ a.name }}<span>{{ a.file.stored|filesizeformat }}</span></div><a class="btn sec sm" href="/s/{{ space.token }}/board/{{ n.key }}/f/{{ a.file.key }}" download>받기</a>{% else %}<div class="nm">{{ a.name }}<span>지금은 없음</span></div>{% endif %}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">첨부가 없어요.</p>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-h"><h2>판 기록</h2></div><div class="card-b">
+      <ul class="hist">{% for h in history %}<li><a href="/s/{{ space.token }}/board/{{ n.key }}/?v={{ h.v }}"{% if h.v == ver.v %} aria-current="true"{% endif %}><span class="num">v{{ h.v }}</span><span>{{ h.by }} · {{ h.at|date:"n/j H:i" }}</span></a></li>{% endfor %}</ul>
+    </div></section>
+  </aside>
+</div>
+{% endblock %}

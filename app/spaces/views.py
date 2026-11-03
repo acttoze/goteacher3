@@ -26,7 +26,6 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
-from .gates import school_required
 from .models import (
     INVITE,
     Member,
@@ -370,14 +369,6 @@ def grade(request):
     ctx = _space_ctx(request)
     ctx.update(_invite(request.space, request.member))
     return render(request, "spaces/grade.html", ctx)
-
-
-@never_cache
-@require_GET
-@school_required
-def board(request):
-    """게시판 자리(H2): 공지 쓰기·목록은 I1."""
-    return render(request, "spaces/board.html", _space_ctx(request, page="board"))
 
 
 @never_cache

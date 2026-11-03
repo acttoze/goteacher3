@@ -33,7 +33,6 @@ urlpatterns = [
     path("s/<str:space_token>/school/members/<str:key>/manager", school_page.set_manager),
     path("s/<str:space_token>/school/duties", school_page.duties),
     path("s/<str:space_token>/school/duties/preview", school_page.duties_preview),
-    path("s/<str:space_token>/board", spaces.board),
     path("s/<str:space_token>/members", spaces.members),
     path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
     path("s/<str:space_token>/settings", device.settings_page),
@@ -79,6 +78,7 @@ urlpatterns = [
     path("terms", TemplateView.as_view(template_name="legal/terms.html")),
     path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("s/<str:space_token>/", include("today.urls")),  # G1 간이 오늘
+    path("s/<str:space_token>/", include("notices.urls")),  # I1 공지
     path("forms", library.index),  # G4 양식 자료실(로그인 없이)
     path("forms/<str:slug>", library.index),
     path("forms/<str:slug>/download", library.download),

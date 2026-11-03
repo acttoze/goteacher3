@@ -7,8 +7,9 @@
   그 모으기로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
-- 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc.
-- 고아 파일: hwp/·forms/ 아래 어느 행도 가리키지 않는 파일(1시간 넘은 것만 — 저장 중인 파일 보호).
+- 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile.
+  공지 첨부는 기간으로 지우지 않는다(공지가 있는 동안 보관, 쓴 사람·관리자가 지우면 함께).
+- 고아 파일: hwp/·forms/·notice/ 아래 어느 행도 가리키지 않는 파일(1시간 넘은 것만 — 저장 중인 파일 보호).
 - 저장 크기(stored): 디스크에 실제로 있는 파일 크기 합과 다르면 고친다(공간·전체 상한 계산이 맞게).
 출력·로그에는 건수만 남긴다(제목·이름·값·파일 이름 없음).
 """
@@ -31,8 +32,8 @@ MAX_AGE = timedelta(days=3 * 365)
 UNUSED_SOURCE = timedelta(hours=24)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
-               "library.FormDoc": ("file",)}
-MEDIA_DIRS = ("hwp", "forms")
+               "library.FormDoc": ("file",), "notices.NoticeFile": ("file",)}
+MEDIA_DIRS = ("hwp", "forms", "notice")
 
 
 # ---------------------------------------------------------------- 행이 지워지면 파일도
@@ -95,7 +96,9 @@ def _referenced():
         for row in model.objects.values_list(*fields):
             names.update(n for n in row if n)
     from library.models import FormDoc
-    names.update(n for n in FormDoc.objects.values_list("file", flat=True) if n)
+    from notices.models import NoticeFile
+    for model in (FormDoc, NoticeFile):
+        names.update(n for n in model.objects.values_list("file", flat=True) if n)
     return names
 
 
@@ -150,6 +153,11 @@ def stored_mismatches():
         n = _disk_size((rf.file, rf.hwpx))
         if n != rf.stored:
             out.append((rf, n))
+    from notices.models import NoticeFile
+    for nf in NoticeFile.objects.all():
+        n = _disk_size((nf.file,))
+        if n != nf.stored:
+            out.append((nf, n))
     return out
 
 

@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     "hwpfiles",
     "today",
     "library",
+    "notices",
 ]
 
 MIDDLEWARE = [

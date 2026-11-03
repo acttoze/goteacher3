@@ -1,0 +1,37 @@
+{% extends "shell.html" %}
+{% block title %}게시판 · 고티처{% endblock %}
+{% block ptitle %}게시판{% endblock %}
+{% block head %}<style>
+  .nrow { display: block; min-width: 0; flex: 1; text-decoration: none; color: inherit; overflow-wrap: anywhere; }
+  .nrow:hover .t { color: var(--accent); }
+  .nrow .head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .nto { flex: none; max-width: 220px; font-size: 15px; color: var(--muted); text-align: right; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
+</style>{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow"><h1>게시판</h1><p class="sub">고칠 때마다 판(v1, v2…)이 올라가고, 바뀐 부분만 다시 보여 줘요.</p></div>
+  {% if writable %}<a class="btn pri" href="/s/{{ space.token }}/board/new">공지 쓰기</a>{% endif %}
+</div>
+<nav class="tabs" aria-label="게시판"><a href="/s/{{ space.token }}/board" aria-current="page">공지 <span class="c num">{{ notices.paginator.count }}</span></a></nav>
+{% if notices.paginator.count %}
+<section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
+  <ul class="list">{% for n in notices %}
+    <li>
+      <a class="nrow" href="/s/{{ space.token }}/board/{{ n.key }}/">
+        <span class="head"><b class="t">{{ n.title }}</b>{% if n.v > 1 %}<span class="pill acc">v{{ n.v }} 바뀜</span>{% endif %}</span>
+        <span class="m" style="display:block">{% if n.group %}{{ n.get_group_display }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }}</span>
+      </a>
+      <span class="nto">{{ n.audience_text }}</span>
+    </li>{% endfor %}
+  </ul>
+</div></section>
+{% if notices.has_other_pages %}<nav class="pager" aria-label="쪽 넘기기">
+  {% if notices.has_previous %}<a class="btn sec sm" href="?page={{ notices.previous_page_number }}">이전</a>{% endif %}
+  <span class="num">{{ notices.number }} / {{ notices.paginator.num_pages }}쪽</span>
+  {% if notices.has_next %}<a class="btn sec sm" href="?page={{ notices.next_page_number }}">다음</a>{% endif %}
+</nav>{% endif %}
+{% else %}
+<p class="empty">아직 올라온 공지가 없어요.{% if writable %} 첫 공지를 써 보세요.{% endif %}</p>
+{% endif %}
+{% endblock %}
