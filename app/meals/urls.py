@@ -5,6 +5,8 @@ from . import views
 
 urlpatterns = [
     path("meals", views.index),
+    path("meals/live", views.live),
+    path("meals/qr", views.qr),
     path("meals/screens", views.screens),
     path("meals/tv/reissue", views.reissue_tv),
     path("meals/<str:ymd>/photo", views.photo_file),

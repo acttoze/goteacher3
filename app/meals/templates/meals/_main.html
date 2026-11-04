@@ -1,5 +1,6 @@
 {# 이번 주 칸. 사진을 올리거나 지우면 이 조각을 통째로 다시 받는다. #}
 <div id="mealMain" data-err-swap>
+<span hidden data-poll hx-get="/s/{{ space.token }}/meals/live?v={{ live_v }}&amp;until={{ live_until }}" hx-trigger="every 5s" hx-target="#mealMain" hx-swap="outerHTML"></span>
 {% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
 <div class="title" style="margin-bottom:12px">
   <div class="grow"><h1>급식</h1>
@@ -20,7 +21,8 @@
         <label class="btn sm {% if c.need %}pri{% else %}sec{% endif %}">{% if c.photo %}바꾸기{% else %}사진 고르기{% endif %}<input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label></form>{% endif %}
       {% if c.photo %}<form method="post" action="/s/{{ space.token }}/meals/{{ c.ymd }}/delete" hx-post="/s/{{ space.token }}/meals/{{ c.ymd }}/delete" hx-target="#mealMain" hx-swap="outerHTML">{% csrf_token %}<button class="btn ghost sm" type="submit">지우기</button></form>{% endif %}
     </div>
-    {% if c.photo %}<p class="mat">{{ c.photo.created_at|date:"H:i" }} 올림{% if c.photo.by %} · {{ c.photo.by.name }}{% endif %}</p>{% endif %}
+    {% if c.today %}{% include "meals/_qr.html" %}{% endif %}
+    {% if c.photo %}<p class="mat">{{ c.photo.created_at|date:"H:i" }} {% if c.photo.source == "phone" %}폰 QR로 올림(QR 만든 사람: {{ c.photo.by_name }}){% else %}올림{% if c.photo.by %} · {{ c.photo.by.name }}{% endif %}{% endif %}</p>{% endif %}
     <div class="mmenu">
       {% if c.meal %}<ul>{% for x in c.meal.dishes %}<li>{{ x.name }}</li>{% endfor %}</ul>
       <p class="mfacts num">{{ c.meal.kcal }}kcal · 알레르기 {{ c.allergy_n }}종<br>영양 {{ c.meal.nutr|length }}종 · 원산지 {{ c.meal.origin|length }}종</p>

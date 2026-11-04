@@ -144,6 +144,7 @@ FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 # 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일이 아닌 본문은 Django 기본(2.5MB) 그대로,
 # 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다. 선언 크기 초과는 뷰가 본문 읽기 전에 거부.
 MAX_REQUEST_BYTES = 101 * 1024 * 1024  # 요청 본문 전역 상한(공지 첨부 100MB + 머리 몫). config.bodylimit
+MAX_PHONE_REQUEST_BYTES = 9 * 1024 * 1024  # /m/(M3): 사진 8MB + 머리 몫
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
 HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)

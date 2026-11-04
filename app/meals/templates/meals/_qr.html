@@ -1,0 +1,5 @@
+{# 폰으로 올리기(M3): 단추 ↔ QR. QR은 끝나는 시각에 스스로 내려가 단추로 돌아간다(자동으로 새로 만들지 않는다). #}
+{% if qr %}<div id="mealQr" class="mqr" hx-get="/s/{{ space.token }}/meals/qr" hx-trigger="load delay:{{ qr.seconds }}s" hx-swap="outerHTML" data-poll>
+  <a href="{{ qr.url }}" target="_blank" rel="noopener noreferrer" aria-label="폰으로 올리기 QR. 누르면 이 PC에서 열려요."><img src="{{ qr.img }}" alt=""></a>
+  <p><b>폰 카메라로 찍으세요</b>2시간 안에 찍어 주세요. 사진을 올리면 이 QR은 닫혀요.</p>
+</div>{% elif writable %}<form id="mealQr" class="mqr-btn" method="post" action="/s/{{ space.token }}/meals/qr" hx-post="/s/{{ space.token }}/meals/qr" hx-swap="outerHTML">{% csrf_token %}<button class="btn sec sm block" type="submit">폰으로 올리기</button></form>{% endif %}

@@ -43,10 +43,11 @@
     e.preventDefault();
     send(form, f);
   });
+  // 폴링([data-poll]) 실패는 알리지 않는다: 사용자가 누른 일이 아니고, 다음 폴링이 다시 본다
   document.body.addEventListener('htmx:responseError', function (e) {
-    if (e.detail.elt.closest('#mealMain')) say(e.detail.xhr.status === 413 ? '사진이 너무 커요. 크기를 줄여 다시 올려 주세요.' : '처리하지 못했어요. 잠시 뒤 다시 해 주세요.');
+    if (e.detail.elt.closest('#mealMain') && !e.detail.elt.hasAttribute('data-poll')) say(e.detail.xhr.status === 413 ? '사진이 너무 커요. 크기를 줄여 다시 올려 주세요.' : '처리하지 못했어요. 잠시 뒤 다시 해 주세요.');
   });
   document.body.addEventListener('htmx:sendError', function (e) {
-    if (e.detail.elt.closest('#mealMain')) say('인터넷 연결을 확인하고 다시 해 주세요.');
+    if (e.detail.elt.closest('#mealMain') && !e.detail.elt.hasAttribute('data-poll')) say('인터넷 연결을 확인하고 다시 해 주세요.');
   });
 })();

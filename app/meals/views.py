@@ -5,6 +5,7 @@
 """
 from datetime import datetime, timedelta
 from functools import wraps
+from math import ceil
 
 import segno
 from django.conf import settings
@@ -29,12 +30,14 @@ from spaces.school import school_body
 from spaces.views import _space_ctx
 
 from . import content
-from .models import MealPhoto, MealSettings, new_tv_token
+from .models import MealPhoto, MealSettings, PhotoLink, new_tv_token, next_midnight
 
 WD = "월화수목금토일"
 UPLOAD_PER_HOUR = 30
 RETRY_PER_MINUTE = 6
 EXIF_IFD, DATE_ORIGINAL = 0x8769, 36867
+QR_SCALE = 4  # 폰 QR 모듈 하나 4px: 1배율 모니터에서도 폰으로 읽힌다. 축소·확대하지 않는다(버전 5 + 여백 4모듈 = 180px)
+PHOTO_GONE = "방금 다른 선생님이 이 칸 사진을 지웠어요. 사진을 다시 올려 주세요."
 
 
 def meal_required(view):
@@ -87,8 +90,14 @@ def _warnings(day, taken, today):
     return out
 
 
+def _today_version(space):
+    """폴링이 비교하는 값: 오늘 사진이 바뀌면 달라진다."""
+    row = MealPhoto.objects.in_space(space).filter(date=timezone.localdate()).exclude(photo="").first()
+    return row.version if row else ""
+
+
 def _main_ctx(request, retry=False, **extra):
-    """이번 주 칸 + NEIS 메뉴. NEIS 실패(fail)와 그날 급식 없음(meal 없음)은 다르게 보여 준다."""
+    """이번 주 칸 + NEIS 메뉴. NEIS 실패(fail)와 그날 급식 없음(meal 없음)은 다르게 보여 준다. 폰 QR 토큰은 여기서 만들지 않는다(qr 뷰만)."""
     space, today = request.space, timezone.localdate()
     days = _week(today)
     span = (space.school.neis_atpt, space.school.neis_code, f"{days[0]:%Y%m%d}", f"{days[-1]:%Y%m%d}")
@@ -106,6 +115,7 @@ def _main_ctx(request, retry=False, **extra):
     for c in cells:
         c["need"] = c["today"] and not c["photo"] and bool(c["meal"] or fail)
     return {"space": space, "cells": cells, "fail": fail, "writable": space.school.writable, "weekend": today.weekday() >= 5,
+            "live_v": _today_version(space), "live_until": int(next_midnight().timestamp()),
             "need_today": any(c["need"] for c in cells), "today_done": any(c["today"] and c["photo"] for c in cells), **extra}
 
 
@@ -126,12 +136,78 @@ def index(request):
 
 
 @never_cache
+@require_GET
+@school_required
+@meal_required
+def live(request):
+    """열어 둔 입력 화면의 폴링(M3): 오늘 사진이 바뀌거나(QR도 내려간다) 날짜가 바뀌면 다시 그린다. 그대로면 204."""
+    try:
+        fresh = timezone.now().timestamp() < int(request.GET.get("until", 0))
+    except ValueError:
+        fresh = False
+    if fresh and request.GET.get("v", "") == _today_version(request.space):
+        return HttpResponse(status=204)
+    return render(request, "meals/_main.html", _main_ctx(request))
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+@school_required
+@meal_required
+@school_write_required
+def qr(request):
+    """'폰으로 올리기'. POST(누를 때)만 토큰을 만든다. GET은 끝난 QR을 내리고 단추로 돌아가는 것(자동으로 새로 만들지 않는다)."""
+    space, today, ctx = request.space, timezone.localdate(), {}
+    if request.method == "POST":
+        if today not in _week(today):
+            return HttpResponseBadRequest()
+        link, raw = PhotoLink.issue(space, today, request.member)
+        url = f"{settings.SITE_URL}/m/{raw}"
+        ctx["qr"] = {"url": url, "img": segno.make(url, error="m").svg_data_uri(border=4, scale=QR_SCALE, dark="#0d0d0d", encode_minimal=True),
+                     "seconds": ceil((link.expires_at - timezone.now()).total_seconds())}
+    if request.headers.get("HX-Request"):
+        return render(request, "meals/_qr.html", {"space": space, "writable": space.school.writable, **ctx})
+    return _page(request, **ctx)
+
+
+def check_size(f):
+    """머리를 읽기 전에 부른다. 넘으면 BadPhoto."""
+    if f.size > repair_photo.MAX_BYTES:
+        raise repair_photo.BadPhoto(f"사진은 {repair_photo.MAX_BYTES // repair_photo.MB}MB까지 올릴 수 있어요. 크기를 줄여 다시 올려 주세요.")
+
+
+def clean_photo(space, day, f):
+    """check_size를 지난 파일 → 저장할 JPEG 바이트. 입력 화면과 폰 화면이 같은 규칙(재인코딩·화소·스캔·저장 한도)을 쓴다. 못 받으면 BadPhoto(안내 한 줄)."""
+    data = repair_photo.reencode(f)
+    old_size = MealPhoto.objects.in_space(space).filter(date=day).values_list("stored", flat=True).first() or 0
+    quota = _quota_error(space, [{"size": max(0, len(data) - old_size)}])
+    if quota:
+        raise repair_photo.BadPhoto(quota)
+    return data
+
+
+def store_photo(space, day, data, by, source=MealPhoto.Source.PC, link_ref=None):
+    """그 날짜 칸에 저장. 같은 날 다시 올리면 교체(옛 파일은 커밋 뒤 삭제). 잠그기 전에 다른 분이 칸을 지웠으면 저장하지 않고 False."""
+    with transaction.atomic():
+        made, _ = MealPhoto.objects.get_or_create(space=space, date=day)
+        row = MealPhoto.objects.in_space(space).select_for_update().filter(pk=made.pk).first()
+        if row is None:
+            return False
+        if row.photo:
+            _drop_after_commit(row.photo.storage, row.photo.name)
+        row.photo.save("photo.jpg", ContentFile(data), save=False)
+        row.stored, row.by, row.by_name, row.source, row.link_ref, row.created_at = len(data), by, by.name, source, link_ref, timezone.now()
+        row.save()
+    return True
+
+
+@never_cache
 @require_POST
 @school_required
 @meal_required
 @school_write_required
 def upload(request, ymd):
-    """그 날짜 칸에 사진 저장. 같은 날 다시 올리면 교체(옛 파일은 커밋 뒤 삭제). 오늘이 아닌 칸·다른 날 사진은 막지 않고 알려 준다."""
+    """그 날짜 칸에 사진 저장. 오늘이 아닌 칸·다른 날 사진은 막지 않고 알려 준다."""
     day, today, me = _day_or_404(ymd), timezone.localdate(), request.member
     if day not in _week(today):
         return _page(request, status=400, error="이번 주 칸에만 올릴 수 있어요. 화면을 새로 고쳐 주세요.")
@@ -140,28 +216,14 @@ def upload(request, ymd):
         return _page(request, status=400, error="사진을 골라 주세요.")
     if not allow("meal-up", me.key, UPLOAD_PER_HOUR, 3600):
         return _page(request, status=429, error=TOO_MANY)
-    if f.size > repair_photo.MAX_BYTES:
-        return _page(request, status=400, error=f"사진은 {repair_photo.MAX_BYTES // repair_photo.MB}MB까지 올릴 수 있어요. 크기를 줄여 다시 올려 주세요.")
-    taken = _taken_day(f)
     try:
-        data = repair_photo.reencode(f)
+        check_size(f)
+        taken = _taken_day(f)
+        data = clean_photo(request.space, day, f)
     except repair_photo.BadPhoto as e:
         return _page(request, status=400, error=str(e))
-    rows = MealPhoto.objects.in_space(request.space)
-    old_size = rows.filter(date=day).values_list("stored", flat=True).first() or 0
-    quota = _quota_error(request.space, [{"size": max(0, len(data) - old_size)}])
-    if quota:
-        return _page(request, status=400, error=quota)
-    with transaction.atomic():
-        made, _ = MealPhoto.objects.get_or_create(space=request.space, date=day)
-        row = rows.select_for_update().filter(pk=made.pk).first()
-        if row is None:  # 잠그기 전에 다른 분이 이 칸을 지웠다: 저장하지 않았으니 그대로 알린다
-            return _page(request, error="방금 다른 선생님이 이 칸 사진을 지웠어요. 사진을 다시 올려 주세요.")
-        if row.photo:
-            _drop_after_commit(row.photo.storage, row.photo.name)
-        row.photo.save("photo.jpg", ContentFile(data), save=False)
-        row.stored, row.by, row.created_at = len(data), me, timezone.now()
-        row.save()
+    if not store_photo(request.space, day, data, me):
+        return _page(request, error=PHOTO_GONE)
     return _page(request, toast="사진을 올렸어요.", warnings=_warnings(day, taken, today))
 
 
@@ -172,6 +234,7 @@ def upload(request, ymd):
 def delete(request, ymd):
     day = _day_or_404(ymd)
     with transaction.atomic():  # 잠그고 읽는다: 잠그기 전 값으로 지우면 그사이 교체된 새 파일이 디스크에 남는다
+        PhotoLink.objects.in_space(request.space).filter(date=day).delete()  # 지우면 그날 폰 QR도 끊는다. 폰 올리기와 잠그는 순서를 맞췄다(QR 먼저, 사진 다음)
         get_object_or_404(MealPhoto.objects.in_space(request.space).select_for_update(), date=day).delete()  # 파일은 커밋 뒤 hwpfiles.retention
     return _page(request, toast="사진을 지웠어요.")
 

@@ -1,0 +1,45 @@
+<!doctype html>
+{% load static %}<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>식판 사진 · 고티처</title>
+<link rel="icon" href="{% static 'mark.svg' %}" type="image/svg+xml">
+<link rel="stylesheet" href="{% static 'css/gt.css' %}">
+<link rel="stylesheet" href="{% static 'css/meal_phone.css' %}">
+</head>
+<body class="ph">
+<header class="ph-top"><img src="{% static 'mark.svg' %}" width="24" height="24" alt=""><b>고티처</b>{% if school %}<span>{{ school }}</span>{% endif %}</header>
+<main class="ph-wrap">
+{% if state == "closed" %}
+  <h1>이 QR은 쓸 수 없어요</h1>
+  <p class="ph-lead">시간이 지났거나 이미 많이 쓴 QR이에요. PC 급식 화면의 새 QR을 찍어 주세요.</p>
+{% elif state == "ended" %}
+  <h1>{{ label }}</h1>
+  <p class="notice" role="alert">{{ message }}</p>
+{% elif state == "done" %}
+  <div class="ph-done">
+    <span class="ph-ck" aria-hidden="true">✓</span>
+    <h1>올렸어요</h1>
+    <p class="ph-lead">{{ label }} 식판 사진이에요. PC 급식 화면에 바로 보이고, TV에는 5분 안에 떠요.{% if token %} 잘못 찍었으면 10분 안에 다시 찍어 바꿀 수 있어요.{% endif %}</p>
+  </div>
+  {% if token %}<a class="btn sec lg block" href="/m/{{ token }}">다른 사진으로 바꾸기</a>{% endif %}
+{% else %}
+  <h1>{{ label }} 점심 식판 사진</h1>
+  <form class="ph-form" id="phForm" method="post" enctype="multipart/form-data" action="/m/{{ token }}">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf }}">
+    <label class="ph-shot" id="phShot">
+      <input class="sr" type="file" name="photo" id="phFile" accept="image/*" capture="environment">
+      <img id="phPrev" alt="찍은 식판 사진 미리 보기" hidden>
+      <b id="phLabel">눌러서 식판 찍기</b>
+      <span id="phHint">배식 직전 오늘 식판을 찍어 주세요</span>
+    </label>
+    <p class="notice" id="phMsg" role="alert"{% if not error %} hidden{% endif %}>{{ error }}</p>
+    <button class="btn pri lg block" id="phSend" type="submit">올리기</button>
+  </form>
+  <script src="{% static 'js/meal_phone.js' %}"></script>
+{% endif %}
+</main>
+</body>
+</html>

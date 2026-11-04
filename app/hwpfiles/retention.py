@@ -7,7 +7,7 @@
   그 모으기로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
 - 지난 복무(J1): 그날로부터 7일 지난 spaces.Attendance.
 - 지난 수리 요청(K1): 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진(사진에 교실 모습이 찍힌다). 플랜이 끝나 처리할 수 없게 된 요청도 지워진다.
-- 지난 식판 사진(M1): 급식 날짜로부터 30일 지난 행·사진.
+- 지난 식판 사진(M1): 급식 날짜로부터 30일 지난 행·사진. 끝난 폰 QR 토큰(M3).
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
 - 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto.
@@ -26,7 +26,7 @@ from django.db.models.signals import post_delete
 from django.utils import timezone
 
 from collect.models import Collection
-from meals.models import MealPhoto
+from meals.models import MealPhoto, PhotoLink
 from repairs.models import Repair, VendorAccess, VendorAccount
 from spaces.models import Attendance, MemberLog
 
@@ -206,6 +206,10 @@ def purge(now, dry_run=False):
     if not dry_run:
         with transaction.atomic():
             old_meals.delete()
+    old_links = PhotoLink.objects.filter(expires_at__lte=now)
+    n["photo_links"] = old_links.count()
+    if not dry_run:
+        old_links.delete()
     # 업체 접속 기록·해제되거나 기간이 지난 업체 계정(담당자 이름): 30일
     cut = now - VENDOR_DAYS
     old_access = VendorAccess.objects.filter(at__lt=cut)

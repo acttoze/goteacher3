@@ -156,6 +156,7 @@ class Notification(models.Model):
     NOTICE·CHANGE(I2): 확인 필수 공지 / 실질 변경. notice가 있고 공지가 지워지면 함께 지운다. 확인 필수 알림은 공지·회원당 하나.
     REPAIR·REPAIR_UP(K1): 요청 옴(담당자) / 상태 바뀜(요청자, 안 읽은 건 한 건으로 고친다). repair가 지워지면 함께 지운다.
     VENDOR(K2): 업체 링크 발급·재발급·해제를 관리자 모두에게. 🔔만(pushed=True).
+    MEAL(M3): 기존 식판 사진이 폰 QR로 바뀌면 QR 만든 담당자와 관리자에게. 🔔만(pushed=True).
     """
 
     class Kind(models.TextChoices):
@@ -168,6 +169,7 @@ class Notification(models.Model):
         REPAIR = "repair", "수리 요청"
         REPAIR_UP = "repair_up", "수리 상태"
         VENDOR = "vendor", "업체 계정"
+        MEAL = "meal", "식판 사진 바뀜"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")
