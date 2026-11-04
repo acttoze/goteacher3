@@ -2,7 +2,7 @@
 (function () {
   // 알림 한 줄(design/assets/shell.js U.toast)
   var timer;
-  function toast(text) {
+  function toast(text, ms) {
     var el = document.getElementById('toast');
     if (!el) {
       el = document.createElement('div'); el.id = 'toast'; el.className = 'toast';
@@ -11,7 +11,7 @@
     }
     el.textContent = text;
     el.classList.add('show');
-    clearTimeout(timer); timer = setTimeout(function () { el.classList.remove('show'); }, 2800);
+    clearTimeout(timer); timer = setTimeout(function () { el.classList.remove('show'); }, ms || 2800);
   }
 
   // 대화상자(design .scrim): <button data-open="#id">로 열고, [data-close]·바깥·Esc로 닫는다.
@@ -56,6 +56,36 @@
     e.stopPropagation();
     toast('파일이 너무 커요. ' + over.dataset.maxMb + 'MB까지 올릴 수 있어요. 줄여서 다시 올려 주세요.');
   }, true);
+  // 일반 폼(data-upload-form)을 fetch로 보낸다. 앞단의 413·429는 앱 화면이 아닌 글자라 일반 POST면 화면 전체가 그 글자로 바뀌고 쓴 내용·고른 파일이 사라진다.
+  // 413·429 글자·연결 실패는 폼을 그대로 두고 안내, 리디렉트는 그 주소로, 앱이 준 HTML(폼 오류 등)은 화면을 교체. 스크립트가 없으면 일반 POST 그대로.
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.matches('[data-upload-form]') || e.defaultPrevented) return;
+    e.preventDefault();
+    if (form.dataset.sending) return;
+    form.dataset.sending = '1';
+    var multi = form.enctype === 'multipart/form-data', fd = new FormData(form), by = e.submitter;
+    if (by && by.name) fd.append(by.name, by.value);
+    var buttons = [].filter.call(form.elements, function (b) { return b.type === 'submit'; });  // form= 로 밖에 둔 단추까지
+    buttons.forEach(function (b) { b.disabled = true; });
+    function stay(text) {
+      delete form.dataset.sending;
+      buttons.forEach(function (b) { b.disabled = false; });
+      toast(text, 6000);
+    }
+    fetch(form.getAttribute('action') || location.href, { method: 'POST', credentials: 'same-origin', body: multi ? fd : new URLSearchParams(fd) })
+      .then(function (r) { return r.text().then(function (h) { return { r: r, h: h }; }); })
+      .then(function (x) {
+        var r = x.r, page = /text\/html/.test(r.headers.get('Content-Type') || '');
+        if (r.status === 413) return stay(multi ? '파일이 너무 커요. 크기를 줄여 다시 올려 주세요.' : '내용이 너무 커요. 줄여서 다시 보내 주세요.');
+        if (r.status === 429 && !page) return stay('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
+        if (r.redirected) { location.assign(r.url); return; }
+        if (!page) return stay('처리하지 못했어요. 잠시 뒤 다시 해 주세요.');
+        document.open(); document.write(x.h); document.close();
+        window.scrollTo(0, 0);
+      })
+      .catch(function () { stay('인터넷 연결을 확인하고 다시 해 주세요.'); });
+  });
   // 파일 칸: <input type="file" data-names="#id">에서 고른 파일 이름을 #id에 적는다. 안 골랐으면 처음 글자로 돌린다.
   document.addEventListener('change', function (e) {
     var i = e.target.closest('input[type=file][data-names]');

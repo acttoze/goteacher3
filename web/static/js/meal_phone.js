@@ -1,5 +1,5 @@
 // 폰으로 식판 사진 올리기(M3). 찍으면 미리 보여 주고, 큰 사진은 올리기 전에 긴 변 2400px로 줄인다(업로드 상한 8MB). 실패하면 원본을 보낸다.
-// 폼은 보통 POST다. 줄인 파일은 입력칸에 도로 넣으므로 스크립트가 없어도 같은 주소로 올라간다. 사진 검사는 서버가 한다.
+// 줄인 파일은 입력칸에 도로 넣는다. 사진 검사는 서버가 한다. 스크립트가 있으면 fetch로 보내 앞단의 413·429 글자 응답에도 사진과 화면을 그대로 두고 다시 올릴 수 있게 한다(없으면 일반 POST).
 (function () {
   var LONG = 2400, MAX = 8 * 1024 * 1024, QUALITY = 0.88;
   var form = document.getElementById('phForm'), file = document.getElementById('phFile'), prev = document.getElementById('phPrev');
@@ -71,9 +71,28 @@
     prev.src = url;
   });
 
+  function retry(text) {
+    msg.textContent = text; msg.hidden = false;
+    BUTTON = '다시 올리기';
+    setBusy(false);
+  }
   form.addEventListener('submit', function (e) {
-    if (send.disabled) { e.preventDefault(); return; }
-    setTimeout(function () { setBusy(true, '올리는 중…'); }, 0);
+    e.preventDefault();
+    if (send.disabled) return;
+    var body = new FormData(form);
+    msg.hidden = true;
+    setBusy(true, '올리는 중…');
+    fetch(form.getAttribute('action'), { method: 'POST', credentials: 'same-origin', body: body })
+      .then(function (r) { return r.text().then(function (h) { return { r: r, h: h }; }); })
+      .then(function (x) {
+        var r = x.r, page = /text\/html/.test(r.headers.get('Content-Type') || '');
+        if (r.status === 413) return retry('파일이 너무 커요. 폰 카메라 화질을 낮춰 다시 찍어 주세요.');
+        if (r.status === 429 && !page) return retry('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
+        if (r.redirected) { location.assign(r.url); return; }
+        if (!page) return retry('처리하지 못했어요. 잠시 뒤 다시 올려 주세요.');
+        document.open(); document.write(x.h); document.close();
+      })
+      .catch(function () { retry('인터넷 연결을 확인하고 다시 올려 주세요.'); });
   });
   // 뒤로 가기로 돌아왔을 때 '올리는 중'에 멈춰 있지 않게
   window.addEventListener('pageshow', function (e) { if (e.persisted) setBusy(!file.files.length); });

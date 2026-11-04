@@ -572,9 +572,9 @@ class BodyLimitTests(SimpleTestCase):
         self.assertEqual(found, {"repairs/views.py", "notices/views.py", "meals/phone.py", "meals/views.py", "hwpfiles/views.py"})
 
     def test_paste_fits(self):
-        """표본의 URL 인코딩 비율은 1.54~1.86배. 받을 수 있는 가장 큰 HTML도 Django 상한 안, 그 상한은 일반 본문 상한 안."""
+        """표본의 URL 인코딩 비율은 1.54~1.86배. 받을 수 있는 가장 큰 HTML도 Django 상한 안, 그 상한은 일반 본문 상한과 같다."""
         self.assertLess(MAX_HTML * 1.9, settings.DATA_UPLOAD_MAX_MEMORY_SIZE)
-        self.assertLess(settings.DATA_UPLOAD_MAX_MEMORY_SIZE, settings.MAX_REQUEST_BYTES)
+        self.assertEqual(settings.DATA_UPLOAD_MAX_MEMORY_SIZE, settings.MAX_REQUEST_BYTES)
 
 
 class EarlyResponseDrainTests(SimpleTestCase):

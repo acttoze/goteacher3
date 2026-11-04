@@ -68,6 +68,7 @@ class VendorAccount(models.Model):
     - 원문 링크 토큰은 저장하지 않는다. 기기 쿠키는 토큰에서 한 방향으로 만들어(cookie_value) 한 링크로 여러 PC가 들어와도
       같은 값이고, 재발급하면 함께 끊긴다. DB가 새어도 token_hash·cookie_hash로는 링크도 쿠키도 만들 수 없다.
     - visible_from: 업체에 보이는 요청의 시작. 첫 발급·해제 뒤 새 발급은 그 시각, 재발급(담당자 교체)은 이어받는다.
+      plan_cut: 플랜 재개가 해제한 계정. 다음 발급은 이어받는다(처리 중이던 요청이 사라져 보이지 않게). 담당자가 직접 끊으면 그 시각부터.
       요청의 생성 시각으로 본다(옛 요청을 나중에 정보로 바꿔도 안 보인다).
     - 담당자 이름이 들어 있어 해제·기간 만료 30일 뒤 행을 지운다(hwpfiles.retention).
     """
@@ -82,6 +83,7 @@ class VendorAccount(models.Model):
     invited_by = models.ForeignKey("spaces.Member", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+    plan_cut = models.BooleanField("플랜이 끊겨 해제함", default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
 
     objects = SpaceQuerySet.as_manager()
@@ -108,6 +110,12 @@ class VendorAccount(models.Model):
     def current(cls, space):
         """해제하지 않은 계정(기간이 지났어도 담당자가 다시 발급하도록 보여 준다) 또는 None."""
         return cls.objects.in_space(space).filter(revoked_at__isnull=True).select_related("invited_by", "space__school").first()
+
+    @classmethod
+    def after_plan_cut(cls, space):
+        """마지막 해제가 플랜 재개 때문이면 그 계정의 visible_from, 아니면 None(새 발급 시각부터)."""
+        last = cls.objects.in_space(space).filter(revoked_at__isnull=False).order_by("-revoked_at", "-pk").first()
+        return last.visible_from if last and last.plan_cut else None
 
     def repairs(self):
         """업체가 보거나 바꿀 수 있는 요청 전부. 목록·사진·상태 변경이 모두 여기서 시작한다."""

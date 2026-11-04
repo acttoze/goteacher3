@@ -36,7 +36,7 @@ services:
       traefik.docker.network: infra
       # 본문은 Traefik이 다 받은 뒤 앱에 넘긴다(느린 본문이 gthread 슬롯을 쥐지 못하게). 라우터 4개로 나눈다:
       #   gt-staging: GET·HEAD. 버퍼링 없음 — buffering은 응답도 쌓으므로 내려받기를 공용 디스크에 두지 않는다
-      #   gt-staging-body: 그 밖의 메서드, 3MB(앱 DATA_UPLOAD_MAX 2.5MB + 머리 몫)
+      #   gt-staging-body: 그 밖의 메서드, 3MB(앱 DATA_UPLOAD_MAX 3MB + 머리 몫)
       #   gt-staging-up101·up31·up9: 파일을 받는 POST만. 상한은 앱과 같게
       # 인증 전에 받으므로 업로드 라우터는 동시 건수를 묶어 공용 디스크에 쌓이는 양을 제한한다(합계 약 1.2GB). ops/README.md
       traefik.http.routers.gt-staging.rule: Host(`t.goteacher.xyz`) && (Method(`GET`) || Method(`HEAD`))

@@ -257,6 +257,7 @@ def _audit(request, account, before, after):
 @school_write_required
 def issue(request):
     """발급·재발급: 옛 계정을 해제하고 새 행. 옛 링크·쿠키는 커밋과 동시에 끊긴다. 입력이 틀리면 옛 계정은 그대로.
+    플랜 재개로 끊긴 뒤의 새 발급은 보이는 범위를 이어받는다(VendorAccount.after_plan_cut).
     새 링크는 이 응답에서 한 번만 보인다. 목록 화면 전체를 돌려줘 '누가 받나요'·담당 칸도 함께 바뀐다."""
     form, until, errors = _read_form(request.POST)
     if errors:
@@ -267,7 +268,7 @@ def issue(request):
         if old:  # 재발급(담당자 교체): 보이는 범위를 이어받는다. 해제한 뒤 새로 발급하면 그 시각부터
             VendorAccount.objects.filter(pk=old.pk).update(revoked_at=timezone.now())
         account, token = VendorAccount.issue(request.space, form["name"], form["contact_name"], until, request.member,
-                                             visible_from=old.visible_from if old else None)
+                                             visible_from=old.visible_from if old else VendorAccount.after_plan_cut(request.space))
         _audit(request, account, "링크 있음" if old else "없음", "새 링크 발급" if old else "링크 발급")
     return list_page(request, link=f"{settings.SITE_URL}/v/{token}")
 

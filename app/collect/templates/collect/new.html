@@ -105,7 +105,7 @@
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>
-<form id="newForm" method="post" action="/s/{{ space.token }}/c/new" novalidate>{% csrf_token %}
+<form id="newForm" method="post" action="/s/{{ space.token }}/c/new" novalidate data-upload-form data-max-body="{{ max_body }}">{% csrf_token %}
 <div class="grid">
   <div class="s8 stack-y">
     <section class="card" aria-labelledby="formH">

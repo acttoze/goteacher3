@@ -152,11 +152,10 @@ STORAGES = {
 MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(REPO_DIR / "media"))
 FILE_UPLOAD_PERMISSIONS = 0o600
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
-# 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일이 아닌 본문은 Django 기본(2.5MB) 그대로,
-# 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다.
+# 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다.
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
 # 요청 본문 상한(config.bodylimit). 앞단 Traefik 라우터(ops/compose.yml)와 같은 값·같은 주소를 쓴다.
-MAX_REQUEST_BYTES = 3 * 1024 * 1024  # 일반 POST: 아래 DATA_UPLOAD_MAX_MEMORY_SIZE(2.5MB) + 머리 몫. 붙여넣은 표 HTML 100만 자(인코딩 뒤 1.9MB)도 든다
+MAX_REQUEST_BYTES = 3 * 1024 * 1024  # 일반 POST. 붙여넣은 표 HTML 100만 자(인코딩 뒤 1.9MB)도 든다
 MAX_NOTICE_REQUEST_BYTES = 101 * 1024 * 1024  # 공지 쓰기·고치기: 첨부 100MB + 머리 몫
 MAX_HWP_REQUEST_BYTES = HWP_MAX_UPLOAD + 1024 * 1024  # 한글 올리기
 MAX_PHOTO_REQUEST_BYTES = 9 * 1024 * 1024  # 수리·식판·폰 사진: 8MB + 머리 몫
@@ -169,7 +168,7 @@ PARTNER_REVIEW_MIN_DAYS = 14  # N2 후기 자격: 무료 공간은 가입 뒤 �
 PARTNER_REVIEW_MIN_GOOGLE = 2  # N2 후기 자격: 무료 공간은 구글 회원이 이만큼 있어야
 PARTNER_REVIEW_PER_DAY = 5  # N2 후기 제출 한도(사용자당 하루). 거부된 제출도 센다(명부 확인 통로 차단)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
-DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_REQUEST_BYTES  # 같은 값이라 2.5~3MB에서 Django 400이 따로 나지 않는다(넘으면 413 하나)
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

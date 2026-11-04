@@ -31,6 +31,17 @@
     p.textContent = '표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.';
     document.getElementById('pasteOut').replaceChildren(p);
   });
+  // 만들기 제출도 재 본다: 넘으면 보내지 않고 미리보기와 같은 안내를 띄운다(413은 gt.js의 data-upload-form 처리).
+  var newForm = document.getElementById('newForm');
+  newForm.addEventListener('submit', function (e) {
+    if (new URLSearchParams(new FormData(newForm)).toString().length < +newForm.dataset.maxBody) return;
+    e.preventDefault();
+    var p = document.createElement('p');
+    p.className = 'msg-inline'; p.setAttribute('role', 'alert');
+    p.textContent = '표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.';
+    document.getElementById('pasteOut').replaceChildren(p);
+    p.scrollIntoView({ block: 'center' });
+  });
   document.body.addEventListener('htmx:afterRequest', function (e) {
     if (e.detail.elt === ta) html.value = '';  // HTML은 한 번만 보낸다
   });

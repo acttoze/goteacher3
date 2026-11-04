@@ -29,4 +29,4 @@ ENV MALLOC_MMAP_THRESHOLD_=131072
 USER gt
 
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--worker-tmp-dir", "/dev/shm", "--keep-alive", "0"]
+CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--worker-tmp-dir", "/dev/shm", "--keep-alive", "0", "--no-control-socket"]

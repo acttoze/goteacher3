@@ -94,7 +94,7 @@ def open_school(school, until, manager=None, applicant=None, identity_checked=Fa
         school.save(update_fields=["plan", "paid_until"])
         hub, _ = Space.objects.get_or_create(school=school, grade=0, defaults={"kind": Space.Kind.SCHOOL, "name": school.name})
         if resumed:
-            VendorAccount.objects.in_space(hub).filter(revoked_at__isnull=True).update(revoked_at=timezone.now())
+            VendorAccount.objects.in_space(hub).filter(revoked_at__isnull=True).update(revoked_at=timezone.now(), plan_cut=True)
         gone = _one_seat_per_user(school, hub)
         for old in olds:
             _merge_one(old, hub)

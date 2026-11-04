@@ -2,7 +2,9 @@
 
 - 지운다: 회원 자리(남은 사람이 없는 동학년은 공간째), 기기 토큰, 웹 푸시 구독, 세션, 대기 중인 플랜 신청, 그 사람의 복무 줄, 계정.
 - 이름을 바꾼다: 공지·공지 판·수리 요청·식판 사진·업체 추천의 쓴 사람 표시를 '나간 선생님'으로.
+- 이름을 지운다: 아직 안 낸 모으기 줄(줄 자리는 남고 이름만 빈다. 화면·합본·독촉 문구에 나오지 않는다).
 - 남긴다(처리방침 2항의 기간대로): 후기(자리·계정 연결만 끊긴다), 이미 낸 값의 이름, 업무분장표, 명부 고친 기록, 처리한 플랜 신청.
+- 수리 제목·메모에 직접 쓴 이름은 고치지 않고 건수만 안내한다(그 글을 쓴 사람의 내용이다).
 - 마지막 관리자면 거부한다. 자리를 지우므로 합치지 않은 동학년에서 같은 반·이름으로 들어와도 옛 자리의 대표 권한은 이어지지 않는다.
 출력은 건수만(이름·메일 없음).
 """
@@ -13,7 +15,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from accounts.models import DeviceToken
-from collect.models import PushSubscription
+from collect.models import PushSubscription, Row
 from meals.models import MealPhoto
 from notices.models import Notice, NoticeVersion
 from partners.models import Review, Suggestion
@@ -22,10 +24,27 @@ from spaces.merge import retry_once, vacate
 from spaces.models import Attendance, Member, PlanRequest, Space, is_last_manager
 
 GONE_NAME = "나간 선생님"
+GONE_UNIT = "나간 분"  # 줄 머리가 이름이던 줄. 화면은 뒤에 '선생님'을 붙인다
 
 
 def _sessions_of(user_pk):
     return [s.pk for s in Session.objects.all() if s.get_decoded().get("_auth_user_id") == str(user_pk)]
+
+
+def _forget_rows(seat):
+    """안 낸 줄의 이름을 지운 건수. 붙여넣어 이름 글자만 있는 줄도 같은 사람으로 본다(같은 이름이 공간에 또 있으면 그 자리 줄만).
+    여러 줄 칸에서 이미 낸 줄이 있으면 빈 줄은 없앤다: 이름을 지우면 낸 줄과 다른 사람으로 묶인다."""
+    mine = Q(member=seat)
+    if not Member.objects.in_space(seat.space).filter(name=seat.name).exclude(pk=seat.pk).exists():
+        mine |= Q(member__isnull=True, who=seat.name)
+    n = 0
+    for r in Row.objects.in_space(seat.space).filter(mine, cells__isnull=True).select_related("collection"):
+        n += 1
+        if r.collection.multi and r.collection.rows.filter(unit=r.unit, who=r.who, member=r.member_id, cells__isnull=False).exists():
+            r.delete()
+            continue
+        Row.objects.filter(pk=r.pk).update(who="", unit=GONE_UNIT if r.unit == seat.name else r.unit)
+    return n
 
 
 def _forget_names(seat):
@@ -37,13 +56,14 @@ def _forget_names(seat):
         "식판 사진": MealPhoto.objects.in_space(seat.space).filter(by=seat).update(by_name=GONE_NAME),
         "업체 추천": Suggestion.objects.filter(by_member=seat).update(by_name=GONE_NAME),
     }
+    n["안 낸 모으기 줄"] = _forget_rows(seat)
     n["복무"] = Attendance.objects.in_space(seat.space).filter(member=seat).delete()[0]
     return n
 
 
 class Command(BaseCommand):
-    help = ("계정 삭제(개인정보처리방침의 파기 요청). 회원 자리·기기 토큰·푸시 구독·세션을 지우고 쓴 사람 표시는 '나간 선생님'으로 바꾼다. "
-            "마지막 관리자는 거부한다. 건수만 출력한다.")
+    help = ("계정 삭제(개인정보처리방침의 파기 요청). 회원 자리·기기 토큰·푸시 구독·세션을 지우고, 쓴 사람 표시는 '나간 선생님'으로, 안 낸 모으기 줄의 이름은 지운다. "
+            "이미 낸 값의 이름은 기간까지 남는다. 마지막 관리자는 거부한다. 건수만 출력한다.")
 
     def add_arguments(self, parser):
         parser.add_argument("who", help="이메일 또는 구글 sub")
@@ -70,6 +90,8 @@ class Command(BaseCommand):
                       "후기 연결 끊음": Review.objects.filter(Q(author_user=user) | Q(member__in=seats)).count()}
             sessions = _sessions_of(user_pk)
             counts["세션"] = len(sessions)
+            counts["typed"] = sum(
+                Repair.objects.in_space(s.space).filter(Q(title__contains=s.name) | Q(note__contains=s.name) | Q(reply__contains=s.name)).count() for s in seats)
             for seat in seats:
                 for key, value in _forget_names(seat).items():
                     counts[key] = counts.get(key, 0) + value
@@ -84,5 +106,8 @@ class Command(BaseCommand):
             return counts
 
         counts = retry_once(work)
+        typed = counts.pop("typed")
         line = " · ".join(f"{k} {v}" for k, v in counts.items())
         self.stdout.write(f"{'(지우지 않음) ' if dry else ''}계정 1 · {line}")
+        if typed:
+            self.stdout.write(f"안내: 제목·메모에 이름이 든 수리 요청 {typed}건은 고치지 않았습니다. 삭제를 요청받았으면 학교 담당자와 확인해 주세요.")
