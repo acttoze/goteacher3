@@ -108,6 +108,8 @@ urlpatterns = [
     path("partners", partners.index),  # N1 협력업체(로그인 없이)
     path("partners/suggest", partners.suggest),
     path("partners/<str:slug>", partners.detail),
+    path("partners/<str:slug>/review", partners.review),  # N2 후기(내 학교의 이 업체 후기 하나만 다룬다)
+    path("partners/<str:slug>/review/delete", partners.review_delete),
     path("sitemap.xml", library.sitemap),
     path("healthz", healthz),
 ]

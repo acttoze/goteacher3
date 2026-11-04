@@ -8,6 +8,7 @@
 - 지난 복무(J1): 그날로부터 7일 지난 spaces.Attendance.
 - 지난 수리 요청(K1): 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진(사진에 교실 모습이 찍힌다). 플랜이 끝나 처리할 수 없게 된 요청도 지워진다.
 - 지난 식판 사진(M1): 급식 날짜로부터 30일 지난 행·사진. 끝난 폰 QR 토큰(M3).
+- 지난 협력업체 후기(N2): 쓴 지 3년 지난 후기와 3년 지난 조치 이력.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
 - 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto.
@@ -27,7 +28,7 @@ from django.utils import timezone
 
 from collect.models import Collection
 from meals.models import MealPhoto, PhotoLink
-from partners.models import Suggestion
+from partners.models import Review, ReviewAction, Suggestion
 from repairs.models import Repair, VendorAccess, VendorAccount
 from spaces.models import Attendance, MemberLog
 
@@ -229,6 +230,13 @@ def purge(now, dry_run=False):
     n["suggestions"] = old_suggestions.count()
     if not dry_run:
         old_suggestions.delete()
+    # 후기(N2): 3년 지난 후기와 조치 이력
+    old_reviews = Review.objects.filter(created_at__lt=now - MAX_AGE)
+    old_actions = ReviewAction.objects.filter(created_at__lt=now - MAX_AGE)
+    n["reviews"] = old_reviews.count()
+    if not dry_run:
+        old_reviews.delete()
+        old_actions.delete()
     # 1) 멈춘 작업 → 실패 + 파일 정리(뒤의 삭제 대상이어도 먼저 상태를 맞춘다)
     stuck = list(stuck_sources(now)) + list(stuck_results(now))
     n["stuck"] = len(stuck)

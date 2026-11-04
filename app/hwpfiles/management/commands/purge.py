@@ -16,6 +16,6 @@ class Command(BaseCommand):
         if options["verbosity"]:
             self.stdout.write(
                 f"{'(지우지 않음) ' if options['dry_run'] else ''}"
-                f"지난 모으기 {n['collections']}건 · 올린 파일 {n['sources']}건 · 지난 복무 {n['attendance']}건 · 지난 수리 요청 {n['repairs']}건 · 지난 식판 사진 {n['meal_photos']}건 · 업체 접속 기록 {n['vendor_access']}건 · 지난 업체 계정 {n['vendor_accounts']}건 · 지난 권한 기록 {n['member_logs']}건 · 업체 추천 {n['suggestions']}건 · 멈춘 작업 {n['stuck']}건 · "
+                f"지난 모으기 {n['collections']}건 · 올린 파일 {n['sources']}건 · 지난 복무 {n['attendance']}건 · 지난 수리 요청 {n['repairs']}건 · 지난 식판 사진 {n['meal_photos']}건 · 업체 접속 기록 {n['vendor_access']}건 · 지난 업체 계정 {n['vendor_accounts']}건 · 지난 권한 기록 {n['member_logs']}건 · 업체 추천 {n['suggestions']}건 · 지난 후기 {n['reviews']}건 · 멈춘 작업 {n['stuck']}건 · "
                 f"고아 파일 {n['orphans']}개(못 지움 {n['failed']}개) · 저장 크기 고침 {n['stored']}건"
             )

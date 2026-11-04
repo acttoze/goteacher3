@@ -1,5 +1,5 @@
 {% extends frame %}
-{# N1 협력업체 상세. 왼쪽 열 소개 아래에 N2 후기가 붙는다. #}
+{# N1·N2 협력업체 상세. 왼쪽 소개·후기, 오른쪽 연락처·좋은 점. 후기에는 고티처 선생님 · 지역 · 학교급, 월 단위 날짜, 신고 번호만 나간다. #}
 {% block title %}{{ p.name }} · 협력업체 · 고티처{% endblock %}
 {% block head %}
 <meta name="description" content="{{ p.desc|truncatechars:150 }}">
@@ -13,6 +13,15 @@
   .fact dt { color: var(--muted); }
   .fact dd { margin: 0; }
   .card-b .ptags { margin-top: 16px; }
+  .card-h .btn { margin-left: auto; }
+  .rv { padding: 14px 0; border-top: 1px solid var(--rule); }
+  .rv:first-child { border-top: 0; padding-top: 0; }
+  .rv .ptags + p { margin-top: 8px; }
+  .rv .by { margin-top: 6px; color: var(--muted); font-size: 15px; }
+  .bcount { display: grid; grid-template-columns: auto minmax(0, 1fr) 28px; gap: 10px 12px; align-items: center; font-size: 15px; }
+  .bcount b { text-align: right; }
+  .cnote { margin-top: 14px !important; color: var(--muted); font-size: 15px; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
 </style>
 {% include "partners/_ptags_style.html" %}
 {% endblock %}
@@ -27,24 +36,61 @@
     <p class="sub"><span class="pill">{{ p.cat }}</span> {{ p.area }}</p>
   </div>
 </div>
+{% if saved %}<p class="well acc" role="status" style="margin:0 0 16px">후기를 올렸어요. 배지는 바로 보이고, 한 줄은 운영자가 확인한 뒤 보여요. 이름·학교는 가려서 보입니다.</p>{% elif deleted %}<p class="well" role="status" style="margin:0 0 16px">후기를 지웠어요.</p>{% endif %}
 <div class="grid pdetail">
-  <section class="s7 card" aria-labelledby="introH">
-    <div class="card-h"><h2 id="introH">소개</h2></div>
-    <div class="card-b">
-      <p>{{ p.desc|linebreaksbr }}</p>
-      {% if p.tag_list %}<div class="ptags">{% for t in p.tag_list %}<span class="pill">{{ t }}</span>{% endfor %}</div>{% endif %}
-    </div>
-  </section>
-  <aside class="s5 card" aria-labelledby="contactH">
-    <div class="card-h"><h2 id="contactH">연락처</h2></div>
-    <div class="card-b">
-      {% if p.phone or p.link %}
-      <dl class="fact">
-        {% if p.phone %}<dt>전화</dt><dd class="num">{{ p.phone }}</dd>{% endif %}
-        {% if p.link %}<dt>누리집</dt><dd><a href="{{ p.link }}" target="_blank" rel="nofollow noopener">{{ p.link }}</a></dd>{% endif %}
-      </dl>
-      {% else %}<p class="muted">등록된 연락처가 없어요.</p>{% endif %}
-    </div>
-  </aside>
+  <div class="s7 stack-y">
+    <section class="card" aria-labelledby="introH">
+      <div class="card-h"><h2 id="introH">소개</h2></div>
+      <div class="card-b">
+        <p>{{ p.desc|linebreaksbr }}</p>
+        {% if p.tag_list %}<div class="ptags">{% for t in p.tag_list %}<span class="pill">{{ t }}</span>{% endfor %}</div>{% endif %}
+      </div>
+    </section>
+    <section class="card" aria-labelledby="rvH">
+      <div class="card-h"><h2 id="rvH">선생님 후기</h2><span class="n">{{ review_count }}</span>
+        {% if mine.is_hidden %}<span class="r">운영자가 내렸어요</span>{% else %}<a class="btn pri sm" href="{{ write_href }}">{% if mine %}내 후기 고치기{% else %}후기 쓰기{% endif %}</a>{% endif %}</div>
+      <div class="card-b">
+        {% for r in page_obj.object_list %}
+        <div class="rv">
+          <div class="ptags">{% for b in r.badge_names %}<span class="pill acc">{{ b }}</span>{% endfor %}</div>
+          {% if r.public_text %}<p>{{ r.public_text }}</p>{% endif %}
+          <p class="by">{{ r.by_label }} · <span class="num">{{ r.created_at|date:"Y년 n월" }}</span>{% if r.edited %} · 고침{% endif %} · 신고 번호 <span class="num">{{ r.report_no }}</span></p>
+        </div>
+        {% empty %}<p class="muted">아직 후기가 없어요.</p>
+        {% endfor %}
+        {% if page_obj.has_other_pages %}
+        <nav class="pager" aria-label="후기 쪽 나누기">
+          {% if page_obj.has_previous %}<a class="btn sec" href="?page={{ page_obj.previous_page_number }}">이전</a>{% endif %}
+          <span class="num">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}쪽</span>
+          {% if page_obj.has_next %}<a class="btn sec" href="?page={{ page_obj.next_page_number }}">다음</a>{% endif %}
+        </nav>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  <div class="s5 stack-y">
+    <aside class="card" aria-labelledby="contactH">
+      <div class="card-h"><h2 id="contactH">연락처</h2></div>
+      <div class="card-b">
+        {% if p.phone or p.link %}
+        <dl class="fact">
+          {% if p.phone %}<dt>전화</dt><dd class="num">{{ p.phone }}</dd>{% endif %}
+          {% if p.link %}<dt>누리집</dt><dd><a href="{{ p.link }}" target="_blank" rel="nofollow noopener">{{ p.link }}</a></dd>{% endif %}
+        </dl>
+        {% else %}<p class="muted">등록된 연락처가 없어요.</p>{% endif %}
+      </div>
+    </aside>
+    <aside class="card" aria-labelledby="goodH">
+      <div class="card-h"><h2 id="goodH">선생님들이 고른 좋은 점</h2></div>
+      <div class="card-b">
+        <div class="bcount">
+          {% for b in badge_rows %}<span>{{ b.name }}</span><div class="track thin"><i style="width:{{ b.pct }}%"></i></div><b class="num">{{ b.n }}</b>
+          {% endfor %}
+        </div>
+        <p class="cnote">점수·나쁜 배지는 없어요.</p>
+        <p class="cnote">후기 신고는 운영자에게: <a href="mailto:admin@goteacher.xyz?subject=%ED%9B%84%EA%B8%B0%20%EC%8B%A0%EA%B3%A0%3A%20{{ p.name|urlencode }}">admin@goteacher.xyz</a> (후기 아래 신고 번호를 적어 주세요). 확인하는 동안 운영자가 임시로 내릴 수 있어요.</p>
+      </div>
+    </aside>
+  </div>
 </div>
 {% endblock %}

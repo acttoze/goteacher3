@@ -13,6 +13,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from collect.models import PushSubscription
 from collect.push import SLOTS, off_keys
+from partners.models import Review
 from spaces.views import _invite, _space_ctx, class_choices
 
 from .models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, hash_token, is_guest
@@ -59,6 +60,7 @@ def settings_page(request):
         ctx.update(slots=_slots(request.member), vapid=settings.VAPID_PUBLIC_KEY)
     elif area == "space":
         ctx.update(_invite(request.space, request.member))
+        ctx["my_reviews"] = Review.objects.filter(member=request.member, partner__is_public=True).select_related("partner")
     return render(request, "accounts/settings.html", ctx)
 
 

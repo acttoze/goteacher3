@@ -151,6 +151,9 @@ HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기
 HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
 HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 5 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
 HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 20 * 1024**3))  # 서비스 전체(서버 디스크 보호)
+PARTNER_REVIEW_MIN_DAYS = 14  # N2 후기 자격: 무료 공간은 가입 뒤 이 날수가 지나야
+PARTNER_REVIEW_MIN_GOOGLE = 2  # N2 후기 자격: 무료 공간은 구글 회원이 이만큼 있어야
+PARTNER_REVIEW_PER_DAY = 5  # N2 후기 제출 한도(사용자당 하루). 거부된 제출도 센다(명부 확인 통로 차단)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 DATA_UPLOAD_MAX_MEMORY_SIZE = 2_621_440
 

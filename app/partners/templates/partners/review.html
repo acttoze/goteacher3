@@ -1,0 +1,79 @@
+{% extends frame %}
+{% load static %}
+{# N2 후기 쓰기·고치기. 동작은 prototype reviewNew. 칸은 고르기 칩(gt.css .pick)에 체크 칸을 담아 스크립트 없이도 낸다. #}
+{% block title %}{{ p.name }} 후기 · 고티처{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  #main > .rform { max-width: 760px; }
+  .rform form { display: flex; flex-direction: column; gap: 16px; }
+  .rform .acts { display: flex; gap: 10px; }
+  .rform .acts .del { margin-left: auto; }
+  .rform .hint { font-size: 15px; color: var(--muted); font-weight: 400; }
+  .pick { display: inline-flex; align-items: center; }
+  .pick input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+  .pick:has(input:checked) { background: var(--ink); color: #fff; }
+  .pick:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>
+<script src="{% static 'js/partners.js' %}" defer></script>
+{% endblock %}
+{% block ptitle %}협력업체 후기{% endblock %}
+{% block ctx %}<span class="ctx">협력업체</span>{% endblock %}
+{% block main %}
+<div class="rform">
+  <p class="crumb" style="margin:0 0 12px"><a href="/partners">협력업체</a> / <a href="/partners/{{ p.slug }}">{{ p.name }}</a></p>
+  <div class="title"><div class="grow">
+    <h1>{{ p.name }} 후기</h1>
+  </div></div>
+  {% if refused %}
+  <p class="notice">후기는 구글로 로그인한 선생님만 쓸 수 있어요.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a> <a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif no_space %}
+  <p class="notice">후기는 학교당 한 건이라 학교를 알아야 해요. 동학년이나 학교 공간에 들어온 뒤 써 주세요.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="/">공간 만들기</a> <a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif not_yet %}
+  <p class="notice">이 공간에서 {{ min_days }}일 넘게 함께 쓰면 후기를 남길 수 있어요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif too_many %}
+  <p class="err" role="alert">후기 제출은 하루 {{ per_day }}번까지예요. 내일 다시 해 주세요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif already %}
+  <p class="notice">이 업체에는 이미 후기를 남기셨어요. 후기는 계정마다 업체 한 건이에요. 문의는 <a href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a>로 보내 주세요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif nothing %}
+  <p class="notice">지울 수 있는 내 후기가 없어요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif taken %}
+  <p class="notice">우리 학교 선생님이 이미 후기를 남겼어요. 후기는 학교당 업체 한 건이에요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% elif hidden %}
+  <p class="notice">운영자가 이 후기를 내렸어요. 고치거나 지울 수 없어요. 문의는 <a href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a>로 보내 주세요.</p>
+  <p style="margin-top:16px"><a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  {% else %}
+  <form method="post" action="{{ review_path }}">
+    {% csrf_token %}
+    <fieldset style="border:0;margin:0;padding:0">
+      <legend class="lbl" style="padding:0;margin-bottom:8px">좋았던 점을 골라 주세요 <span class="hint">여러 개 · 최대 {{ badges_max }}개</span></legend>
+      <div class="picks"{% if errors.badges %} aria-invalid="true"{% endif %}>
+        {% for b in badge_opts %}<label class="pick"><input type="checkbox" name="badges" value="{{ b.i }}"{% if b.on %} checked{% endif %}>{{ b.name }}</label>
+        {% endfor %}
+      </div>
+      <p class="field-err" id="badgeMsg" role="status" hidden style="margin-top:8px">배지는 {{ badges_max }}개까지 고를 수 있어요.</p>
+      {% if errors.badges %}<p class="field-err" style="margin-top:8px">{{ errors.badges }}</p>{% endif %}
+    </fieldset>
+    <label class="field"><span>한 줄 <span class="hint">안 써도 돼요 · {{ text_max }}자까지 · 한 줄은 운영자가 확인한 뒤 보여요</span></span>
+      <input class="input" name="text" value="{{ text }}" maxlength="{{ text_max }}" autocomplete="off" placeholder="예: 견적서·사업자등록증을 한 번에 보내 줬어요"{% if errors.text %} aria-invalid="true"{% endif %}>
+      {% if errors.text %}<span class="field-err">{{ errors.text }}</span>{% endif %}
+      {% if existing.text_state == "no" %}<span class="hint">운영자가 지금 한 줄을 공개하지 않기로 했어요. 고치면 다시 확인해요.</span>{% endif %}
+    </label>
+    <p class="notice" style="margin:0"><b>이 후기는 학교 밖에 공개됩니다.</b> 다른 학교 선생님과 업체도 봅니다. 이름·학교는 가리고 표시는 <b>{{ label }}</b>까지만 보여요. 학생·교직원 이름, 비방은 적지 마세요.</p>
+    <div class="acts">
+      <button class="btn pri" type="submit">{% if existing %}고친 내용 올리기{% else %}공개로 올리기{% endif %}</button>
+      <a class="btn sec" href="/partners/{{ p.slug }}">취소</a>
+      {% if existing %}<button class="btn danger del" type="submit" formaction="{{ review_path }}/delete" formnovalidate hx-post="{{ review_path }}/delete" hx-confirm="이 후기를 지울까요? 되돌릴 수 없어요.">후기 지우기</button>{% endif %}
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -66,6 +66,9 @@
     {% csrf_token %}
     <div class="dh"><h2 id="lvH">{{ space.name }}에서 나갈까요?</h2></div>
     <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 모으기가 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
+      {% if my_reviews %}<p>협력업체 후기는 나간 뒤에도 익명으로 남고, 나간 뒤에는 고치거나 지울 수 없어요(운영자에게 메일). 지우려면 지금 지워 주세요.</p>
+      {% for r in my_reviews %}<p class="df" style="justify-content:space-between;align-items:center"><span>{{ r.partner.name }}{% if r.is_hidden %} · 운영자가 내렸어요{% endif %}</span>{% if not r.is_hidden %}<button class="btn sec sm" type="button" hx-post="/partners/{{ r.partner.slug }}/review/delete" hx-vals='{"back":"settings"}' hx-confirm="{{ r.partner.name }} 후기를 지울까요? 되돌릴 수 없어요.">내 후기 지우기</button>{% endif %}</p>
+      {% endfor %}{% endif %}
       <label class="field"><span>확인하려면 「{{ space.name }}」을 써 주세요</span><input class="input" name="confirm" autocomplete="off" data-must="{{ space.name }}" required></label></div>
     <div class="df"><button class="btn sec" type="button" data-close>그대로 두기</button><button class="btn danger" type="submit" disabled>나가기</button></div>
   </form>
