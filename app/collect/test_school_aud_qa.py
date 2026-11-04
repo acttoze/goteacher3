@@ -1,5 +1,4 @@
 """H4 독립 검증(gt-qa): test_school_aud.py에 없는 경계만. expectedFailure는 확인된 결함이다(고치면 표시를 지운다)."""
-import unittest
 from datetime import date, timedelta
 
 from django.test import Client
@@ -126,7 +125,6 @@ class PollQa(SchoolBase):
 
 
 class ReminderQa(SchoolBase):
-    @unittest.expectedFailure  # 결함: remind가 member 있는 줄만 본다(bell.remind). 범위는 리드 판단
     def test_group_row_reminder_reaches_group_members(self):
         """prototype: 그룹 칸은 내기 전까지 구성원 모두에게 온 것. 마감 🔔도 구성원에게 가야 한다."""
         c = self.make(who=self.boss, aud="pergroup", aud_pgroups=["g4"])
@@ -134,3 +132,45 @@ class ReminderQa(SchoolBase):
         bell.remind(timezone.localtime().replace(hour=9, minute=0))
         self.assertTrue(Notification.objects.filter(member=self.t41).exists())
 
+
+
+class GroupBellTests(SchoolBase):
+    """O1 후속: 그룹 칸 마감 🔔은 구성원마다 하나, 다시 불러도 그대로. 회원 없는 줄은 만든 사람의 합본에 표시만."""
+
+    def due_soon(self, c):
+        Collection.objects.filter(pk=c.pk).update(due=timezone.now() + timedelta(hours=30))
+
+    def at9(self):
+        return timezone.localtime().replace(hour=9, minute=0)
+
+    def test_each_group_member_once_others_none(self):
+        c = self.make(who=self.boss, aud="pergroup", aud_pgroups=["g4"])
+        self.due_soon(c)
+        first = bell.remind(self.at9())
+        members = Member.objects.in_space(self.hub).filter(group="g4")
+        self.assertGreaterEqual(members.count(), 2)
+        self.assertEqual(first, members.count())
+        row = c.rows.get()
+        for m in members:
+            n = Notification.objects.get(member=m)
+            self.assertEqual((n.row, n.link), (row, f"/c/{c.link_token}/u/{row.key}"))
+        self.assertFalse(Notification.objects.filter(member=self.t51).exists())
+        self.assertEqual(bell.remind(self.at9()), 0)
+
+    def test_filled_group_row_quiet(self):
+        c = self.make(who=self.boss, aud="pergroup", aud_pgroups=["g4"])
+        self.due_soon(c)
+        row, f = c.rows.get(), c.fields.first()
+        for field in c.fields.all():
+            Cell.objects.create(row=row, field=field, value="1", by="누구")
+        self.assertIsNotNone(f)
+        self.assertEqual(bell.remind(self.at9()), 0)
+
+    def test_no_member_row_no_bell_and_shown_on_board(self):
+        c = self.make(who=self.t41, aud="groups", aud_groups=["g4"], aud_hr="on")
+        self.due_soon(c)
+        c.rows.update(member=None)
+        self.assertEqual(bell.remind(self.at9()), 0)
+        Collection.objects.filter(pk=c.pk).update(audience={})
+        r = self.login(self.t41).get(f"{self.base}/c/{c.key}/")
+        self.assertContains(r, "마감 알림이 가지 않아요")

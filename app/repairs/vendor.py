@@ -3,7 +3,7 @@
 업체 쿠키는 이 파일의 /v/ 뷰만 읽는다. Django 로그인·Member를 만들지 않으므로 /s/ 주소는 SpaceMiddleware가 그대로 막고,
 쿠키 경로도 /v/라 브라우저가 교내 주소에는 보내지 않는다. 거꾸로 /v/ 뷰는 request.user를 보지 않는다(회원 권한이 섞이지 않게).
 조회: 입장·쿠키 확인만 해시로 계정을 찾고, 그 뒤 요청은 전부 VendorAccount.repairs()(그 공간 + 정보 + 발급 뒤)로만 찾는다.
-요청자 이름이 화면에 갈 수 없도록 _rows는 보여 줄 칸만 꺼내고(by·by_name을 읽지 않는다), 메모·답변의 명부 이름은 가린다.
+요청자 이름이 화면에 갈 수 없도록 _rows는 보여 줄 칸만 꺼내고(by·by_name을 읽지 않는다), 제목·위치·메모·답변의 명부 이름은 가린다.
 Referrer-Policy: 토큰이 주소에 든 /v/<token>만 no-referrer. /v/ 화면은 same-origin이어야 한다(no-referrer면 폼 제출의
 Origin이 null이 되어 CSRF가 막는다). 업체 화면 주소에는 비밀이 없고 same-origin은 밖으로 Referer를 보내지 않는다.
 """
@@ -101,7 +101,7 @@ def _record(account, action, repair_key=""):
 
 
 def _masker(space):
-    """메모·답변에 든 명부 이름(나간 요청자 포함)을 가리는 함수. 한 글자 이름은 낱말과 섞여 가리지 않는다."""
+    """제목·위치·메모·답변에 든 명부 이름(나간 요청자 포함)을 가리는 함수. 한 글자 이름은 낱말과 섞여 가리지 않는다."""
     names = set(Member.objects.in_space(space).values_list("name", flat=True))
     names.update(Repair.objects.in_space(space).values_list("by_name", flat=True))
     names = sorted((n for n in names if len(n) >= 2), key=len, reverse=True)
@@ -117,7 +117,7 @@ def _rows(rows):
 
 
 def _masked(row, mask):
-    return {**row, "note": mask(row["note"]), "reply": mask(row["reply"])}
+    return {**row, **{k: mask(row[k]) for k in ("title", "place", "note", "reply")}}
 
 
 def _body_ctx(space, rows, get_page, photo_base, readonly):

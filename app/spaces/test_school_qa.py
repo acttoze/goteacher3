@@ -20,7 +20,8 @@ from .test_school import TOKEN, JoinBase, google
 User = get_user_model()
 BANNED = ("동학년", "0학년", "티로드")
 LINK = re.compile(r'(?:href|hx-get|action)="(/[^"#]*)"')
-SKIP = re.compile(r"^/(static|auth/|media)|^/forms/.+/download")
+# /school-plan·/privacy·/terms: 학교 밖 공개 문서라 무료판(동학년) 설명이 정상이다
+SKIP = re.compile(r"^/(static|auth/|media|school-plan|privacy|terms)|^/forms/.+/download")
 
 
 def _say(request):

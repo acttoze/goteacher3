@@ -1,35 +1,53 @@
 """학교 플랜 켜고 끄기(운영자):
-school_plan <NEIS 학교 코드> --on --until YYYY-MM-DD [--manager=<회원 key>] | --off | --remove-manager=<회원 key>
+school_plan requests  (대기 신청 목록. 신청을 처리하려고 담당자 이름·메일을 보여 준다. 첫 줄은 "대기 N건")
+school_plan <NEIS 학교 코드> --on --until YYYY-MM-DD [--manager=<회원 key> | --manager-request=<신청 ID>] | --off | --remove-manager=<회원 key>
 
---on: 학교 공간을 만들고 동학년을 합친다. 다시 돌려도 안전하다(기한 연장·관리자 추가에도 쓴다).
-      학교에 관리자가 없으면 --manager가 필수다. 관리자는 구글 회원만 된다.
---off: 플랜만 끈다. 합친 것은 되돌리지 않는다.
+--on: 학교 공간을 만들고 동학년을 합친다. 다시 돌려도 안전하다(기한 연장·관리자 추가에도 쓴다). 이 학교의 대기 신청은 닫는다.
+      학교에 관리자가 없으면 --manager 또는 --manager-request가 필수다. 관리자는 구글 회원만 된다.
+      --manager-request: 신청자를 관리자로. 회원 0명 학교도 켤 수 있다. 신청자가 다른 공간에 있으면 오류.
+--off: 플랜만 끈다(기한도 오늘로 앞당겨 보관 기간을 시작한다). 합친 것은 되돌리지 않는다.
 --remove-manager: 관리자 해제. 마지막 관리자는 해제하지 않는다.
 회원 key는 -로 시작할 수 있어 --manager=<key>처럼 등호로 붙여 쓴다.
-이름·토큰은 출력하지 않는다.
+requests 말고는 이름·토큰을 출력하지 않는다.
 """
 from datetime import date
 
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from spaces.merge import open_school, remove_manager
-from spaces.models import Member, School
+from spaces.models import Member, PlanRequest, School
 
 
 class Command(BaseCommand):
     help = "학교 플랜을 켜거나(--on, 동학년 합침) 끈다(--off)."
 
     def add_arguments(self, parser):
-        parser.add_argument("code", help="NEIS 학교 코드")
+        parser.add_argument("code", help="NEIS 학교 코드, 또는 대기 신청 목록을 볼 때 requests")
         parser.add_argument("--atpt", help="시도교육청 코드(학교 코드가 겹칠 때)")
-        mode = parser.add_mutually_exclusive_group(required=True)
+        mode = parser.add_mutually_exclusive_group()
         mode.add_argument("--on", action="store_true")
         mode.add_argument("--off", action="store_true")
         mode.add_argument("--remove-manager", help="관리자 해제할 회원 key(--remove-manager=<key>처럼 등호로)")
         parser.add_argument("--until", help="결제 기한 YYYY-MM-DD(--on에 필수)")
-        parser.add_argument("--manager", help="첫 관리자의 회원 key(--manager=<key>처럼 등호로)")
+        who = parser.add_mutually_exclusive_group()
+        who.add_argument("--manager", help="첫 관리자의 회원 key(--manager=<key>처럼 등호로)")
+        who.add_argument("--manager-request", type=int, help="첫 관리자로 세울 신청 ID(school_plan requests의 #번호)")
+
+    def _requests(self):
+        rows = PlanRequest.objects.filter(status=PlanRequest.Status.PENDING).select_related("school", "member").order_by("created_at", "pk")
+        self.stdout.write(f"대기 {len(rows)}건")
+        for r in rows:
+            size = " ".join(x for x in (f"학생 {r.students}" if r.students else "", f"학급 {r.classes}" if r.classes else "") if x)
+            seat = "이 학교 회원" if r.member_id else "공간 없음" if r.user_id and not Member.objects.filter(user_id=r.user_id).exists() else "다른 공간 또는 계정 없음"
+            self.stdout.write(f"#{r.pk} {r.school.name} {r.school.neis_atpt}/{r.school.neis_code} · {timezone.localtime(r.created_at):%Y-%m-%d} · "
+                              f"{r.by_name}({r.position}) {r.email} · {size or '규모 안 씀'} · {seat}")
 
     def handle(self, *args, **o):
+        if o["code"] == "requests":
+            return self._requests()
+        if not (o["on"] or o["off"] or o["remove_manager"]):
+            raise CommandError("--on, --off, --remove-manager 중 하나를 써 주세요.")
         schools = School.objects.filter(neis_code=o["code"])
         if o["atpt"]:
             schools = schools.filter(neis_atpt=o["atpt"])
@@ -39,7 +57,10 @@ class Command(BaseCommand):
 
         if o["off"]:
             school.plan = School.Plan.FREE
-            school.save(update_fields=["plan"])
+            today = timezone.localdate()
+            if school.paid_until and school.paid_until > today:  # 공지 보관 기간은 플랜이 끝난 날부터 센다
+                school.paid_until = today
+            school.save(update_fields=["plan", "paid_until"])
             self.stdout.write(f"학교 {school.pk}: 플랜을 껐습니다. 합친 공간은 그대로입니다.")
             return
 
@@ -65,11 +86,14 @@ class Command(BaseCommand):
             manager = Member.objects.filter(key=o["manager"], space__school=school).first()
             if manager is None:
                 raise CommandError("이 학교에서 그 회원을 찾지 못했습니다.")
-        elif not Member.objects.filter(space__school=school, is_manager=True).exists():
-            raise CommandError("이 학교에는 관리자가 없습니다. --manager=<회원 key>로 첫 관리자를 정해 주세요.")
+        applicant = None
+        if o["manager_request"] is not None:
+            applicant = PlanRequest.objects.filter(pk=o["manager_request"], school=school).select_related("user").first()
+            if applicant is None:
+                raise CommandError("이 학교의 신청에서 그 번호를 찾지 못했습니다.")
 
         try:
-            hub = open_school(school, until, manager)
+            hub = open_school(school, until, manager, applicant)
         except ValueError as e:
             raise CommandError(str(e))
         counts = {

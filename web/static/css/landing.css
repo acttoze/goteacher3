@@ -258,6 +258,7 @@ section { scroll-margin-top: 24px; }
 .faq summary::after { content: ""; width: 12px; height: 12px; border: solid var(--ink); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-3px, -3px); transition: transform .2s; flex: none; }
 .faq details[open] summary::after { transform: rotate(-135deg) translate(-3px, -3px); }
 .faq summary:hover { color: var(--accent); }
+.faq .plan-p { font-size: var(--step-body); max-width: 48ch; }
 .faq details p { font-size: var(--step-body); max-width: 48ch; padding: 4px 0 14px; }
 
 /* ---------- 마무리: 빈칸이 있는 문장 ---------- */

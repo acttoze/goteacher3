@@ -9,10 +9,13 @@
 - 지난 수리 요청(K1): 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진(사진에 교실 모습이 찍힌다). 플랜이 끝나 처리할 수 없게 된 요청도 지워진다.
 - 지난 식판 사진(M1): 급식 날짜로부터 30일 지난 행·사진. 끝난 폰 QR 토큰(M3).
 - 지난 협력업체 후기(N2): 쓴 지 3년 지난 후기와 3년 지난 조치 이력.
+- 지난 공지(O1): 공지는 있는 동안 보관하고 쓴 사람·관리자가 지우면 함께 지운다. 플랜이 끝나면 지울 수 없으니(읽기 전용) 끝난 날부터 1년 뒤 공지·판·첨부·봄 기록을 지운다.
+- 신청 정보(O1): spaces.PlanRequest. 처리한 날(대기 중이면 접수한 날)부터 1년.
+- 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
 - 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto.
-  공지 첨부는 기간으로 지우지 않는다(공지가 있는 동안 보관, 쓴 사람·관리자가 지우면 함께).
+  공지 첨부는 따로 기간을 두지 않고 공지와 함께 지운다(쓴 사람·관리자가 지울 때, 플랜이 끝나고 1년 뒤).
 - 고아 파일: hwp/·forms/·notice/·repair/·meal/ 아래 어느 행도 가리키지 않는 파일(1시간 넘은 것만 — 저장 중인 파일 보호).
 - 저장 크기(stored): 디스크에 실제로 있는 파일 크기 합과 다르면 고친다(공간·전체 상한 계산이 맞게).
 출력·로그에는 건수만 남긴다(제목·이름·값·파일 이름 없음).
@@ -28,9 +31,11 @@ from django.utils import timezone
 
 from collect.models import Collection
 from meals.models import MealPhoto, PhotoLink
+from notices.models import Notice
 from partners.models import Review, ReviewAction, Suggestion
 from repairs.models import Repair, VendorAccess, VendorAccount
-from spaces.models import Attendance, MemberLog
+from spaces.models import Attendance, MemberLog, PlanRequest
+from today.models import ME, Event
 
 from .models import ResultFile, SourceFile
 
@@ -46,6 +51,8 @@ VENDOR_DAYS = timedelta(days=30)
 MEAL_PHOTO_DAYS = timedelta(days=30)
 MEMBER_LOG_AGE = timedelta(days=365)
 SUGGESTION_AGE = timedelta(days=365)
+NOTICE_AFTER_PLAN = timedelta(days=365)
+PLAN_REQUEST_AGE = timedelta(days=365)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",), "repairs.Repair": ("photo",),
@@ -237,6 +244,23 @@ def purge(now, dry_run=False):
     if not dry_run:
         old_reviews.delete()
         old_actions.delete()
+    # 플랜이 끝나고 1년 지난 공지(O1). 첨부 파일은 post_delete가 커밋 뒤에 지운다
+    old_notices = Notice.objects.filter(space__school__paid_until__lt=timezone.localdate(now) - NOTICE_AFTER_PLAN)
+    n["notices"] = old_notices.count()
+    if not dry_run:
+        with transaction.atomic():
+            old_notices.delete()
+    # 신청 정보(O1): 처리한 날, 대기 중이면 접수한 날부터 1년
+    cut = now - PLAN_REQUEST_AGE
+    old_requests = PlanRequest.objects.filter(models.Q(done_at__lt=cut) | models.Q(status=PlanRequest.Status.PENDING, created_at__lt=cut))
+    n["plan_requests"] = old_requests.count()
+    if not dry_run:
+        old_requests.delete()
+    # 나간 회원의 '나' 일정(O1): 쓴 사람(by)이 비면 아무도 못 본다
+    orphan_events = Event.objects.filter(scope=ME, by__isnull=True)
+    n["my_events"] = orphan_events.count()
+    if not dry_run:
+        orphan_events.delete()
     # 1) 멈춘 작업 → 실패 + 파일 정리(뒤의 삭제 대상이어도 먼저 상태를 맞춘다)
     stuck = list(stuck_sources(now)) + list(stuck_results(now))
     n["stuck"] = len(stuck)

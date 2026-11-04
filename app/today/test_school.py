@@ -299,7 +299,7 @@ class MergeTests(TestCase):
         return {s: Event.objects.in_space(hub).filter(scope=s).count() for s in ("g4", "g5", "all")}
 
     def test_merge_records_source_grade_and_is_safe_to_rerun(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.a)
         self.assertEqual(self.counts(hub), {"g4": 3, "g5": 2, "all": 0})
         school_wide = Event.objects.create(space=hub, by=self.a, date=TODAY, title="온학교", scope="all")
         late = Event.objects.create(space=self.g5, by=self.b, date=TODAY, title="늦게쓴오학년")
@@ -310,7 +310,7 @@ class MergeTests(TestCase):
         self.assertEqual((school_wide.scope, late.scope, late.space), ("all", "g5", hub))
 
     def test_merged_old_events_show_only_to_that_grade(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.a)
         self.a.refresh_from_db()
         self.b.refresh_from_db()
         with mock.patch("django.utils.timezone.now", return_value=NOW), \

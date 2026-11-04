@@ -240,7 +240,9 @@ class EntryTests(JoinBase):
 class NewGradeBlockedTests(TestCase):
     def setUp(self):
         self.school = School.objects.create(neis_atpt="J10", neis_code="7531234", name="새솔초등학교")
-        open_school(self.school, UNTIL)
+        seat = Member.objects.create(space=Space.objects.create(school=self.school, grade=4, name="4학년"),
+                                     user=google("ncboss"), name="관리", cls="4-1")
+        open_school(self.school, UNTIL, seat)
         self.free = School.objects.create(neis_atpt="J10", neis_code="7000000", name="옆초등학교")
         self.client.force_login(google("nc"))
         p = mock.patch("spaces.neis.class_names", return_value=["1", "2"])
@@ -262,7 +264,7 @@ class NewGradeBlockedTests(TestCase):
         self.pick(self.school)
         r = self.client.post("/new/class", {"grade": 4, "cls": "4-1", "name": "만들기"})
         self.assertContains(r, "이 학교는 학교 공간을 씁니다", status_code=409)
-        self.assertEqual(Space.objects.filter(school=self.school).count(), 1)
+        self.assertEqual(Space.objects.filter(school=self.school).count(), 2)  # 학교 공간과 합쳐진 옛 공간뿐
         self.assertFalse(Member.objects.filter(name="만들기").exists())
 
     def test_free_school_still_creates_grade(self):

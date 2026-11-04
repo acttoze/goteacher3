@@ -121,6 +121,7 @@ img, svg { display: block; }
 
 .main { margin-left: var(--sidebar); padding: calc(var(--topbar) + 28px) var(--gutter) 64px; min-height: 100svh; }
 .main.narrow > * { max-width: 1150px; }
+.main.narrow > .scrim { max-width: none; } /* 대화상자 배경은 화면 전체 */
 
 /* 셸 없는 화면(가입·초대 입장·제출): 가운데 한 열 */
 .bare-top { height: var(--topbar); display: flex; align-items: center; gap: 12px; padding: 0 var(--gutter); border-bottom: 1px solid var(--line); }

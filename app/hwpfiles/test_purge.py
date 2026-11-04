@@ -21,7 +21,9 @@ from django.test import TestCase, override_settings
 
 from collect.models import Cell, Collection, Field, Row
 from library.models import FormDoc
-from spaces.models import Member, School, Space
+from notices.models import Notice, NoticeFile, NoticeSeen
+from spaces.models import Member, MemberLog, PlanRequest, School, Space
+from today.models import Event
 
 from . import retention
 from .models import ResultFile, SourceFile
@@ -398,3 +400,78 @@ class UploadMaliciousQaTests(TestCase):
                 self.assertNotContains(r, "root:", status_code=r.status_code)
                 files = [f for _, _, fs in os.walk(self.media) for f in fs]
                 self.assertEqual(files, [], "원본이 디스크에 남음")
+
+
+class O1PurgeTests(TestCase):
+    """O1: 나간 회원의 '나' 일정, 신청 정보(처리 뒤 1년·대기도 접수 뒤 1년), 플랜 끝나고 1년 지난 공지. 권한 이력은 나가도 1년."""
+
+    def setUp(self):
+        media = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, media, ignore_errors=True)
+        o = override_settings(MEDIA_ROOT=media)
+        o.enable()
+        self.addCleanup(o.disable)
+        self.school = School.objects.create(neis_atpt="J10", neis_code="1", name="새솔", plan="school", paid_until=NOW.date())
+        self.hub = Space.objects.create(school=self.school, kind="school", grade=0, name="새솔")
+        self.m = Member.objects.create(space=self.hub, name="가", cls="교무실")
+
+    def test_left_members_my_events_go_others_stay(self):
+        gone = Member.objects.create(space=self.hub, name="나", cls="교무실")
+        Event.objects.create(space=self.hub, date=NOW.date(), title="나간 사람 나만", scope="me", by=gone)
+        Event.objects.create(space=self.hub, date=NOW.date(), title="나간 사람 전체", scope="all", by=gone)
+        Event.objects.create(space=self.hub, date=NOW.date(), title="남은 사람 나만", scope="me", by=self.m)
+        log = MemberLog.objects.create(space=self.hub, by="나", name="나", before="가", after="나")
+        MemberLog.objects.filter(pk=log.pk).update(at=NOW - DAY)
+        gone.delete()
+        self.assertEqual(retention.purge(NOW, dry_run=True)["my_events"], 1)
+        self.assertEqual(Event.objects.count(), 3)
+        self.assertEqual(retention.purge(NOW)["my_events"], 1)
+        self.assertEqual(set(Event.objects.values_list("title", flat=True)), {"나간 사람 전체", "남은 사람 나만"})
+        self.assertTrue(MemberLog.objects.filter(pk=log.pk).exists())  # 나간 사람의 이력은 1년 규칙대로
+
+    def test_member_log_one_year_boundary(self):
+        old = MemberLog.objects.create(space=self.hub, by="나", name="나", before="가", after="나")
+        keep = MemberLog.objects.create(space=self.hub, by="나", name="나", before="가", after="나")
+        MemberLog.objects.filter(pk=old.pk).update(at=NOW - 366 * DAY)
+        MemberLog.objects.filter(pk=keep.pk).update(at=NOW - 364 * DAY)
+        retention.purge(NOW)
+        self.assertEqual(list(MemberLog.objects.values_list("pk", flat=True)), [keep.pk])
+
+    def _req(self, status, created_days, done_days=None):
+        r = PlanRequest.objects.create(school=self.school, by_name="가", position="교감", email="a@b.c", status=status)
+        PlanRequest.objects.filter(pk=r.pk).update(created_at=NOW - created_days * DAY,
+                                                   done_at=NOW - done_days * DAY if done_days is not None else None)
+        return r.pk
+
+    def test_plan_request_retention(self):
+        gone = [self._req("done", 500, 366), self._req("pending", 366)]
+        keep = [self._req("done", 500, 364), self._req("pending", 364)]
+        self.assertEqual(retention.purge(NOW)["plan_requests"], 2)
+        self.assertEqual(set(PlanRequest.objects.values_list("pk", flat=True)), set(keep))
+        self.assertFalse(PlanRequest.objects.filter(pk__in=gone).exists())
+
+    def _notice(self):
+        n = Notice.objects.create(space=self.hub, title="공지", by_name="가")
+        f = NoticeFile(notice=n, name="a.pdf", kind="pdf", stored=1)
+        f.file.save("x", ContentFile(b"x"))
+        NoticeSeen.objects.create(notice=n, member=self.m, v=1)
+        return n, f.file.name
+
+    def test_notice_stays_until_a_year_after_plan_end(self):
+        _, name = self._notice()
+        School.objects.filter(pk=self.school.pk).update(paid_until=NOW.date() - 365 * DAY)
+        self.assertEqual(retention.purge(NOW)["notices"], 0)
+        self.assertTrue(Notice.objects.exists())
+        School.objects.filter(pk=self.school.pk).update(paid_until=NOW.date() - 366 * DAY)
+        self.assertEqual(retention.purge(NOW, dry_run=True)["notices"], 1)
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertEqual(retention.purge(NOW)["notices"], 1)
+        self.assertFalse(Notice.objects.exists())
+        self.assertFalse(NoticeSeen.objects.exists())
+        self.assertFalse(default_storage.exists(name))
+
+    def test_command_output_counts(self):
+        out = io.StringIO()
+        call_command("purge", "--dry-run", stdout=out)
+        for word in ("신청 정보", "나간 회원의 나만 일정", "지난 공지"):
+            self.assertIn(word, out.getvalue())

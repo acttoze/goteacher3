@@ -425,8 +425,8 @@ class HwpRowTests(SchoolBase):
 
 
 class QuotaTests(SchoolBase):
-    def test_school_setting_is_used_and_default_is_5gb(self):
-        self.assertEqual(settings.HWP_SCHOOL_QUOTA, 5 * 1024**3)
+    def test_school_setting_is_used_and_defaults(self):
+        self.assertEqual((settings.HWP_SCHOOL_QUOTA, settings.HWP_TOTAL_QUOTA), (2 * 1024**3, 5 * 1024**3))
         grade = Space.objects.create(school=self.school, grade=4, name="옆")
         self.assertEqual((space_quota(self.hub), space_quota(grade)), (settings.HWP_SCHOOL_QUOTA, settings.HWP_SPACE_QUOTA))
 

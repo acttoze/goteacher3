@@ -148,7 +148,7 @@ class Cell(models.Model):
 
 
 class Notification(models.Model):
-    """🔔 알림 한 건(D3 자동 리마인드). 받는 회원 한 명 것. 같은 줄·종류·날짜에는 하나만(cron이 여러 번 불러도).
+    """🔔 알림 한 건(D3 자동 리마인드). 받는 회원 한 명 것. 같은 줄·회원·종류·날짜에는 하나만(cron이 여러 번 불러도, 그룹 칸은 구성원마다).
 
     text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
     SEAT(G3): 기기가 붙은 손님 자리로 다른 브라우저가 들어오면 만든 사람에게. 줄 없음, link는 동학년 화면.
@@ -157,6 +157,7 @@ class Notification(models.Model):
     REPAIR·REPAIR_UP(K1): 요청 옴(담당자) / 상태 바뀜(요청자, 안 읽은 건 한 건으로 고친다). repair가 지워지면 함께 지운다.
     VENDOR(K2): 업체 링크 발급·재발급·해제를 관리자 모두에게. 🔔만(pushed=True).
     MEAL(M3): 기존 식판 사진이 폰 QR로 바뀌면 QR 만든 담당자와 관리자에게. 🔔만(pushed=True).
+    PLAN(O1): 학교 플랜 만료 전 관리자에게. 🔔만(pushed=True). 같은 회원·같은 문구(기한과 단계가 든다)는 하나.
     """
 
     class Kind(models.TextChoices):
@@ -170,6 +171,7 @@ class Notification(models.Model):
         REPAIR_UP = "repair_up", "수리 상태"
         VENDOR = "vendor", "업체 계정"
         MEAL = "meal", "식판 사진 바뀜"
+        PLAN = "plan", "학교 플랜 만료 전"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")
@@ -190,7 +192,8 @@ class Notification(models.Model):
     class Meta:
         ordering = ["-created_at", "-id"]
         constraints = [
-            models.UniqueConstraint(fields=["row", "kind", "day"], name="uniq_notice_row_kind_day"),
+            models.UniqueConstraint(fields=["row", "member", "kind", "day"], name="uniq_notice_row_member_kind_day"),
+            models.UniqueConstraint(fields=["member", "text"], condition=models.Q(kind="plan"), name="uniq_plan_bell"),
             models.UniqueConstraint(fields=["notice", "member"], condition=models.Q(kind="notice"), name="uniq_must_bell"),
         ]
 

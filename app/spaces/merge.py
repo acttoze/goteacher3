@@ -3,15 +3,17 @@
 공간을 가리키는 모델과 회원을 가리키는 모델은 Django 메타 정보로 찾는다(새 모델이 생겨도 빠지지 않게).
 저장된 파일 경로(hwp/<옛 공간 번호>/…)는 그대로 두어도 DB에 저장된 이름으로 열린다.
 """
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Value
 from django.db.models.functions import Replace
+from django.utils import timezone
 
 from accounts.models import is_guest
 from collect.models import Notification
 from today.models import ALL, Event
 
-from .models import Member, School, Space, is_last_manager
+from .models import Member, PlanRequest, School, Space, is_last_manager
 
 
 def _fks_to(model):
@@ -52,9 +54,27 @@ def _merge_one(old, hub):
     Space.objects.filter(pk=old.pk).update(merged_into=hub)
 
 
-def open_school(school, until, manager=None):
+def _seat_applicant(school, hub, req):
+    """신청자(구글 회원)를 학교 공간 관리자로. 이 학교에 자리가 있으면 그 자리, 없으면 새 자리(소속은 교무실, 본인이 고칠 수 있다).
+    다른 학교 공간·동학년에 있으면 ValueError(교사 한 명은 공간 하나)."""
+    if req.school_id != school.pk:
+        raise ValueError("이 학교의 신청이 아닙니다.")
+    user = req.user
+    if user is None or is_guest(user):
+        raise ValueError("신청자가 구글 회원이 아닙니다.")
+    get_user_model().objects.select_for_update().filter(pk=user.pk).first()  # 동학년 만들기·입장과 직렬화
+    if Member.objects.filter(user=user).exclude(space=hub).exists():
+        raise ValueError("신청자가 이미 다른 공간에 있습니다. 그 공간에서 나간 뒤 다시 켜 주세요.")
+    seat, _ = Member.objects.get_or_create(space=hub, user=user, defaults={
+        "name": req.by_name, "cls": Member.Group.OFFICE.label, "group": Member.Group.OFFICE, "position": req.position,
+    })
+    Member.objects.filter(pk=seat.pk).update(is_manager=True)
+
+
+def open_school(school, until, manager=None, applicant=None):
     """학교 플랜을 켜고 합친다(한 트랜잭션). 다시 돌려도 결과가 같고, 그사이 옛 공간에 생긴 것까지 쓸어 온다.
-    관리자 없는 학교를 켜지 못하게 막는 것은 관리 명령(school_plan)이 한다."""
+    manager: 관리자로 세울 이 학교 회원. applicant: 첫 관리자로 세울 신청(PlanRequest).
+    끝났을 때 학교에 관리자가 없으면 ValueError(모두 되돌린다). 이 학교의 대기 신청은 처리한 것으로 닫는다."""
     with transaction.atomic():
         School.objects.select_for_update().filter(pk=school.pk).first()
         olds = list(Space.objects.select_for_update().filter(school=school, kind=Space.Kind.GRADE))
@@ -71,6 +91,12 @@ def open_school(school, until, manager=None):
             _merge_one(old, hub)
         if manager is not None:
             Member.objects.filter(pk=gone.get(manager.pk, manager.pk)).update(is_manager=True)
+        if applicant is not None:
+            _seat_applicant(school, hub, applicant)
+        if not Member.objects.in_space(hub).filter(is_manager=True).exists():
+            raise ValueError("이 학교에는 관리자가 없습니다. --manager=<회원 key> 또는 --manager-request=<신청 ID>로 첫 관리자를 정해 주세요.")
+        PlanRequest.objects.filter(school=school, status=PlanRequest.Status.PENDING).update(
+            status=PlanRequest.Status.DONE, done_at=timezone.now())
     return hub
 
 

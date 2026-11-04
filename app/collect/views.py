@@ -323,12 +323,14 @@ def _num(v):
 
 
 def _fmt(n):
-    return "" if n is None else f"{n.normalize():,f}" if n != n.to_integral() else f"{int(n):,}"
+    return "" if n is None else f"{n.normalize():,f}"  # int를 거치지 않는다(아주 큰 곱은 정수 글자 변환 한도를 넘는다)
 
 
 def _board(c):
     """합본 표·진행·미제출. 냈는지는 받는 사람 화면과 같은 판정(submit._units)을 쓴다. 값은 템플릿이 이스케이프한다."""
     ctx = {**_head(c), "stamp": _stamp(c)}  # 값을 읽기 전에: 읽는 사이 들어온 제출은 다음 폴링에 잡힌다
+    if c.due and not c.closed_at:  # 회원 없는 줄(부서·명부 밖)에는 마감 🔔이 못 간다(bell.remind): 합본에 알린다
+        ctx["no_bell"] = sum(not u["done"] and not u["row"].member_id and not u["row"].group for u in ctx["units"])
     fields = list(c.fields.all())
     nums = [f for f in fields if f.kind == Field.Kind.NUMBER]
     matrix, need, now = _matrix(c), _need(c), timezone.now()

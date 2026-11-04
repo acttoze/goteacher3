@@ -49,6 +49,12 @@ REDIS_URL = os.environ.get("REDIS_URL", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@goteacher.xyz")
+# 학교 플랜 견적서(O1). 비우면 그 칸에 "담당자가 안내드려요". 가격은 숫자만(1년 기준)
+SCHOOL_PLAN_PRICE = os.environ.get("SCHOOL_PLAN_PRICE", "").strip()
+SUPPLIER_NAME = os.environ.get("SUPPLIER_NAME", "").strip()
+SUPPLIER_BIZ_NO = os.environ.get("SUPPLIER_BIZ_NO", "").strip()
+SUPPLIER_ADDRESS = os.environ.get("SUPPLIER_ADDRESS", "").strip()
+SUPPLIER_ACCOUNT = os.environ.get("SUPPLIER_ACCOUNT", "").strip()
 RQ_JOB_TIMEOUT = 300  # 작업당 상한(초). 한글 변환 표본 최대 205초(30번 리드 결정)
 
 # 빈도 제한(config/ratelimit.py): 여러 gunicorn 프로세스가 같은 수를 세도록 큐와 같은 Redis의 다른 DB(/1). Redis가 멈춰도 요청이 붙잡히지 않게 1초에서 끊는다.
@@ -149,8 +155,8 @@ MAX_PHONE_REQUEST_BYTES = 9 * 1024 * 1024  # /m/(M3): 사진 8MB + 머리 몫
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
 HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
-HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 5 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
-HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 20 * 1024**3))  # 서비스 전체(서버 디스크 보호)
+HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 2 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
+HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 5 * 1024**3))  # 서비스 전체(서버 디스크 보호). 미디어 백업 7벌을 감안(한글·공지 첨부·수리·식판 사진 합, SourceFile.used_bytes)
 PARTNER_REVIEW_MIN_DAYS = 14  # N2 후기 자격: 무료 공간은 가입 뒤 이 날수가 지나야
 PARTNER_REVIEW_MIN_GOOGLE = 2  # N2 후기 자격: 무료 공간은 구글 회원이 이만큼 있어야
 PARTNER_REVIEW_PER_DAY = 5  # N2 후기 제출 한도(사용자당 하루). 거부된 제출도 센다(명부 확인 통로 차단)

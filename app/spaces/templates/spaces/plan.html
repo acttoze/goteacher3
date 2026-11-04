@@ -1,0 +1,108 @@
+{% extends "bare.html" %}
+{# O1 학교 플랜 소개·신청. 27번 2-1 표에서 구현된 것만 적는다. 값은 자동 이스케이프. #}
+{% block title %}학교 플랜 · 고티처{% endblock %}
+{% block head %}
+<style>
+  .bare.wide { max-width: 1320px; padding-top: 28px; padding-bottom: 48px; }
+  .bare .title { margin-bottom: 20px; }
+  .plan { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: var(--gap); align-items: start; }
+  .plan-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
+  .plan-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .plan-list li { line-height: 1.45; }
+  .plan-how { margin-top: var(--gap); display: flex; flex-direction: column; gap: 6px; }
+  .plan-form form, .plan-form .sf { display: flex; flex-direction: column; gap: 14px; }
+  .plan-form .card-b { display: flex; flex-direction: column; gap: 14px; }
+  .plan-form .sf { flex-direction: row; gap: 8px; }
+  .plan-form .sf .input { flex: 1; min-width: 0; }
+  .plan-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .plan-hits { display: flex; flex-direction: column; max-height: 148px; overflow-y: auto; }
+  .plan-hit { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+  .plan-hit input { width: 18px; height: 18px; flex: none; }
+  .plan-hit > span { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .plan-hit b { font-weight: 600; }
+  .plan-sent { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+</style>
+{% endblock %}
+{% block ctx %}<span class="ctx">학교 플랜</span>{% endblock %}
+{% block main %}
+<div class="title"><div class="grow">
+  <h1>학교 전체가 한 공간에서 쓰는 학교 플랜</h1>
+  <p class="sub">{% if price %}1년 <b class="num">{{ price }}</b> · 견적서로 품의하고, 계좌이체와 계산서는 담당자가 안내드려요.{% else %}가격은 견적서로 안내드려요. 계좌이체와 계산서도 담당자가 안내드려요.{% endif %}</p>
+</div></div>
+<div class="plan">
+  <div>
+    <div class="plan-cols">
+      <section class="card" aria-labelledby="freeH">
+        <div class="card-h"><h2 id="freeH">무료 · 동학년</h2></div>
+        <div class="card-b"><ul class="plan-list">
+          <li>동학년 공간·초대 링크</li>
+          <li>모으기 전부(붙여넣기·직접 입력·자주 쓰는 양식)</li>
+          <li>원본 한글 양식에 채워 받기</li>
+          <li>엑셀·합본 표 복사, 독촉 문구, 마감 알림</li>
+          <li>양식 자료실, 협력업체 보기·후기</li>
+          <li>간이 오늘(나에게 온 것, 나이스 학사·급식)</li>
+        </ul></div>
+      </section>
+      <section class="card" aria-labelledby="schoolH">
+        <div class="card-h"><h2 id="schoolH">학교 플랜 · 학교 전체</h2><span class="pill acc">무료 기능 포함</span></div>
+        <div class="card-b"><ul class="plan-list">
+          <li>학교 전체 명부·그룹·업무분장</li>
+          <li>확인 필수 공지, 확인 현황</li>
+          <li>학교 일정·주간계획 인쇄</li>
+          <li>복무 공유(유형·시간만, 사유 없음)</li>
+          <li>수리 요청, 정보 업체 계정</li>
+          <li>학교 업무 요약 한 장(결재용)</li>
+          <li>급식 현황판(TV 화면)</li>
+        </ul></div>
+      </section>
+    </div>
+    <div class="well plan-how">
+      <p><b>이렇게 진행돼요</b> 신청 → 견적서 인쇄 → 계좌이체 → 확인되면 학교 공간이 열려요. 신청한 선생님이 첫 관리자가 되고, 동학년에서 쓰던 내용은 학교 공간으로 옮겨 와요.</p>
+      <p>기간이 끝나면 학교 화면은 읽기만 돼요. 모으기·오늘·일정은 그대로 써요.</p>
+    </div>
+  </div>
+  <section class="card plan-form" aria-labelledby="applyH">
+    <div class="card-h"><h2 id="applyH">학교 플랜 신청</h2></div>
+    <div class="card-b">
+    {% if sent %}<ul class="plan-sent">{% for r in sent %}<li>{{ r.school.name }} · {{ r.get_status_display }} · <a href="/school-plan/q/{{ r.key }}">견적서 보기</a></li>{% endfor %}</ul>{% endif %}
+    {% if not can_apply %}
+      <p>{% if guest %}이름만 들어오신 분은 신청할 수 없어요. 학교 플랜 관리자는 구글 계정이 필요해서, 구글로 이어 주시면 신청할 수 있어요.{% else %}신청은 구글 계정으로 해요. 첫 관리자가 될 선생님이 로그인해 주세요.{% endif %}</p>
+      <p><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a></p>
+    {% elif already and my_school %}
+      <p class="notice" role="status">{{ already }} 기한이 30일 안으로 남으면 여기서 다시 신청할 수 있어요.</p>
+    {% else %}
+      {% if already %}<p class="notice" role="alert">{{ already }}</p>{% endif %}
+      {% if limited %}<p class="err" role="alert">{{ limited }}</p>{% endif %}
+      {% if not my_school %}
+      <form class="sf" action="/school-plan" method="get" hx-get="/school-plan" hx-target="#res" hx-disabled-elt="find button">
+        <input class="input" name="q" value="{{ q }}" autocomplete="off" placeholder="학교 이름. 예: 새솔초" maxlength="40" aria-label="학교 이름">
+        <button class="btn ink" type="submit">찾기</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/school-plan{% if q %}?q={{ q|urlencode }}{% endif %}">
+        {% csrf_token %}
+        {% if my_school %}<div class="field"><span>학교</span><b>{{ my_school.name }}</b></div>
+        {% else %}<div id="res" aria-live="polite">{% include "spaces/_plan_schools.html" %}</div>
+        {% if errors.school %}<p class="field-err" role="alert">{{ errors.school }}</p>{% endif %}{% endif %}
+        <div class="plan-two">
+          <label class="field"><span>담당자 이름</span><input class="input" name="by_name" value="{{ values.by_name|default:'' }}" maxlength="40" required{% if errors.by_name %} aria-invalid="true"{% endif %}>
+            {% if errors.by_name %}<span class="field-err">{{ errors.by_name }}</span>{% endif %}</label>
+          <label class="field"><span>직위</span><input class="input" name="position" value="{{ values.position|default:'' }}" maxlength="40" required placeholder="예: 교무부장"{% if errors.position %} aria-invalid="true"{% endif %}>
+            {% if errors.position %}<span class="field-err">{{ errors.position }}</span>{% endif %}</label>
+        </div>
+        <label class="field"><span>연락 메일</span><input class="input" type="email" name="email" value="{{ values.email|default:'' }}" maxlength="254" required{% if errors.email %} aria-invalid="true"{% endif %}>
+          {% if errors.email %}<span class="field-err">{{ errors.email }}</span>{% endif %}</label>
+        <div class="plan-two">
+          <label class="field"><span>학생 수 <span class="hint">안 써도 돼요</span></span><input class="input" name="students" inputmode="numeric" value="{{ values.students|default_if_none:''|default:'' }}" maxlength="5"{% if errors.students %} aria-invalid="true"{% endif %}>
+            {% if errors.students %}<span class="field-err">{{ errors.students }}</span>{% endif %}</label>
+          <label class="field"><span>학급 수 <span class="hint">안 써도 돼요</span></span><input class="input" name="classes" inputmode="numeric" value="{{ values.classes|default_if_none:''|default:'' }}" maxlength="5"{% if errors.classes %} aria-invalid="true"{% endif %}>
+            {% if errors.classes %}<span class="field-err">{{ errors.classes }}</span>{% endif %}</label>
+        </div>
+        <button class="btn pri" type="submit">신청하고 견적서 받기</button>
+      </form>
+    {% endif %}
+    </div>
+  </section>
+</div>
+<p class="muted small" style="margin-top:20px"><a href="/privacy">개인정보처리방침</a> · <a href="/terms">이용약관</a> · 문의 <a href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a></p>
+{% endblock %}

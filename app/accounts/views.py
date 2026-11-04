@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_POST, require_safe
 
 from spaces.models import INVITE, Member, absorb_guest
 
@@ -43,7 +43,7 @@ def _fail(request, status, message):
 
 
 @never_cache
-@require_GET
+@require_safe
 def home(request):
     next_url = _safe_next(request.GET.get("next"))
     if request.user.is_authenticated and not is_guest(request.user):  # 이미 구글 로그인: 시작 화면 대신 가려던 곳으로

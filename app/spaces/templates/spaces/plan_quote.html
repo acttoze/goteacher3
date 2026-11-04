@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% load static %}
+{# O1 견적서 A4 한 장. 금액·공급자 값은 설정에서만 온다. 틀은 학교 요약 인쇄(summary.html)와 같다. #}
+{% block title %}학교 플랜 견적서 · 고티처{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex">
+<script src="{% static 'js/print.js' %}" defer></script>
+<style>
+  @page { size: A4 portrait; margin: 15mm; }
+  body { background: var(--surface); }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 16px var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .bar .grow { flex: 1; min-width: 0; color: var(--muted); }
+  .sheet { width: 180mm; margin: 0 auto 24px; padding: 15mm; box-sizing: content-box; background: var(--bg); color: var(--ink); font-size: 12pt; line-height: 1.5; }
+  .sheet h1 { font-size: 22pt; line-height: 1.25; font-weight: 700; text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: 4mm; margin-bottom: 8mm; }
+  .sheet h2 { font-size: 13pt; font-weight: 700; margin: 8mm 0 2mm; }
+  .sheet table { width: 100%; border-collapse: collapse; }
+  .sheet th, .sheet td { border: 1px solid var(--ink); padding: 2.5mm 3mm; text-align: left; font-weight: 400; vertical-align: top; }
+  .sheet thead th, .sheet tbody th { background: #f4f4f4; width: 34mm; }
+  .sheet .items th { width: auto; }
+  .sheet .amt { font-weight: 700; }
+  .sheet .to { display: flex; justify-content: space-between; gap: 8mm; }
+  .sheet .to b { font-size: 15pt; font-weight: 700; }
+  .sheet .note { margin-top: 8mm; }
+  @media print {
+    body { background: #fff; }
+    .bar { display: none !important; }
+    .sheet { width: auto; margin: 0; padding: 0; }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="bar">
+  <a class="btn ghost" href="/school-plan">학교 플랜으로</a>
+  <span class="grow">A4 세로 한 장으로 나가요. 인쇄해서 품의에 붙여 주세요.</span>
+  <button class="btn pri" type="button" id="printBtn">인쇄</button>
+</div>
+<main class="sheet">
+  <h1>견적서</h1>
+  <div class="to">
+    <div><b>{{ r.school.name }}</b> 귀중<br>담당: {{ r.by_name }} {{ r.position }}</div>
+    <div class="num">{{ r.created_at|date:"Y년 n월 j일" }}</div>
+  </div>
+  <h2>품목</h2>
+  <table class="items">
+    <thead><tr><th>품목</th><th>기간</th><th>금액</th></tr></thead>
+    <tbody><tr><td>고티처 학교 플랜(학교 전체)</td><td>1년(입금 확인 뒤 시작)</td><td class="amt num">{{ price }}</td></tr></tbody>
+  </table>
+  <p style="margin-top:3mm">포함: 학교 명부·업무분장, 확인 필수 공지, 일정 인쇄, 복무 공유, 수리 요청·업체 계정, 학교 업무 요약, 급식 현황판</p>
+  <h2>공급자</h2>
+  <table>
+    <tbody>
+      <tr><th>상호</th><td>{{ supplier_name }}</td></tr>
+      <tr><th>사업자등록번호</th><td class="num">{{ supplier_biz_no }}</td></tr>
+      <tr><th>주소</th><td>{{ supplier_address }}</td></tr>
+      <tr><th>입금 계좌</th><td class="num">{{ supplier_account }}</td></tr>
+    </tbody>
+  </table>
+  <p class="note">입금을 확인하면 학교 공간을 열어 드려요. 계좌이체·계산서 문의: admin@goteacher.xyz</p>
+</main>
+{% endblock %}

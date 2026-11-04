@@ -1,0 +1,11 @@
+{# 학교 플랜 신청의 학교 검색 결과. 번호로 고르고 서버가 세션의 검색 결과에서 학교 값을 읽는다. #}
+{% if search_error %}<p class="field-err" role="alert">{{ search_error }}</p>
+{% elif schools %}
+{% if more %}<p class="hint">{{ total }}곳 중 {{ schools|length }}곳만 보여요. 이름을 더 정확히 써 주세요.</p>{% endif %}
+<div class="plan-hits" role="radiogroup" aria-label="학교 고르기">
+  {% for s in schools %}<label class="plan-hit"><input type="radio" name="i" value="{{ forloop.counter0 }}"{% if checked == forloop.counter0|stringformat:"d" %} checked{% endif %} required>
+    <span><b>{{ s.name }}</b><span class="hint">{{ s.office }}</span></span></label>
+  {% endfor %}
+</div>
+{% elif q %}<p class="hint">「{{ q }}」{{ josa }} 찾은 학교가 없어요. 이름을 줄여서 다시 써 보세요.</p>
+{% endif %}

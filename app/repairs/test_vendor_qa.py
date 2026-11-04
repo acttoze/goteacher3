@@ -190,7 +190,7 @@ class SwapTests(VendorBase):
             self.closed(c.get("/v/"))
 
     def test_cookie_of_other_school_sees_only_its_own(self):
-        far_hub = open_school(self.far_school, LATER)
+        far_hub = open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user))
         far_member = Member.objects.in_space(far_hub).get(user=self.far_user)
         _, token = VendorAccount.issue(far_hub, "먼업체", "먼담당", LATER, far_member)
         Repair.objects.create(space=far_hub, by=far_member, by_name="먼사람", cat="info", title="먼학교요청")

@@ -14,6 +14,7 @@ from notices import views as notices
 from partners import views as partners
 from repairs import vendor
 from spaces import attendance as attendance_page
+from spaces import plan as school_plan
 from spaces import school as school_page
 from spaces import summary as school_summary
 from spaces import views as spaces
@@ -110,6 +111,8 @@ urlpatterns = [
     path("partners/<str:slug>", partners.detail),
     path("partners/<str:slug>/review", partners.review),  # N2 후기(내 학교의 이 업체 후기 하나만 다룬다)
     path("partners/<str:slug>/review/delete", partners.review_delete),
+    path("school-plan", school_plan.page),  # O1 소개는 로그인 없이, 신청은 구글 회원
+    path("school-plan/q/<str:key>", school_plan.quote),
     path("sitemap.xml", library.sitemap),
     path("healthz", healthz),
 ]

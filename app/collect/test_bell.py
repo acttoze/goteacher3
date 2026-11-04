@@ -2,12 +2,12 @@
 
 불변식
 - 관리 명령 remind는 "보낼 때가 된 것만, 한 번씩만": 마감 전날 08:20 이후 첫 실행에 D-1, 당일 08:20 이후 첫 실행에 당일.
-  cron이 5분마다 불러도 중복 없음(줄·종류·날짜로 유일), 늦게 불려도 그날 안이면 보낸다. 시간대 Asia/Seoul.
+  cron이 5분마다 불러도 중복 없음(줄·회원·종류·날짜로 유일), 늦게 불려도 그날 안이면 보낸다. 시간대 Asia/Seoul.
 - 대상은 아직 안 낸 줄의 회원(submit._units). 잠근·마감 지난·마감 없는 모으기는 뺀다. 명부 밖 줄(회원 없음)도 뺀다.
 - 🔔은 내 알림만. 다른 공간·다른 사람 알림은 404. 읽음은 POST(CSRF), 누르면 그 줄의 제출 화면으로. 캐시 금지.
 - 문구에 제출 값은 넣지 않는다(제목·마감 시각만).
 """
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from unittest import mock
 from zoneinfo import ZoneInfo
 
@@ -17,6 +17,7 @@ from django.test import Client, TestCase
 
 from spaces.models import Member, School, Space
 
+from . import bell
 from .models import Collection, Field, Notification, Row
 from .submit import save_cell
 
@@ -368,3 +369,66 @@ class BellQATests(Base):
             ctx = unread(req)
         with self.assertNumQueries(1):
             self.assertEqual(str(ctx["bell_n"]), "1")
+
+
+class PlanExpiryTests(TestCase):
+    """O1 학교 플랜 만료 안내: 30일·7일 전 관리자 🔔, 경계·중복 없음, 관리자만."""
+
+    UNTIL = date(2027, 2, 28)
+
+    def setUp(self):
+        self.school = School.objects.create(neis_atpt="J10", neis_code="1", name="새솔", plan="school", paid_until=self.UNTIL)
+        self.hub = Space.objects.create(school=self.school, kind="school", grade=0, name="새솔")
+        self.boss = Member.objects.create(space=self.hub, name="가", cls="교무실", is_manager=True)
+        self.boss2 = Member.objects.create(space=self.hub, name="나", cls="교무실", is_manager=True)
+        self.t = Member.objects.create(space=self.hub, name="다", cls="4-1")
+
+    def at(self, left, hour=9):
+        """기한 left일 전 그 시각에 cron이 돈다."""
+        day = self.UNTIL - timedelta(days=left)
+        return bell.remind(datetime(day.year, day.month, day.day, hour, 0, tzinfo=SEOUL))
+
+    def n(self):
+        return Notification.objects.filter(kind="plan").count()
+
+    def test_boundaries_and_no_duplicates(self):
+        self.assertEqual(self.at(31), 0)
+        self.assertEqual(self.at(30), 2)
+        self.assertEqual(self.at(30), 0)  # 5분 뒤 다시 돌아도
+        self.assertEqual(self.at(29), 0)
+        self.assertEqual(self.at(8), 0)
+        self.assertEqual(self.at(7), 2)
+        self.assertEqual(self.at(6), 0)
+        self.assertEqual(self.at(0), 0)
+        self.assertEqual(self.n(), 4)
+        self.assertFalse(Notification.objects.filter(member=self.t).exists())
+
+    def test_before_send_time_quiet(self):
+        self.at(30, hour=7)
+        self.assertEqual(self.n(), 0)
+
+    def test_missed_day_catches_up_and_renewal_starts_over(self):
+        self.assertEqual(self.at(29), 2)
+        School.objects.filter(pk=self.school.pk).update(paid_until=self.UNTIL + timedelta(days=365))
+        self.assertEqual(self.at(29), 0)  # 늘렸으니 조용
+        self.UNTIL = self.UNTIL + timedelta(days=365)
+        self.assertEqual(self.at(30), 2)  # 기한이 다시 다가오면 새 안내
+
+    def test_expired_free_or_no_date_quiet(self):
+        self.assertEqual(self.at(-1), 0)
+        School.objects.filter(pk=self.school.pk).update(plan="free")
+        self.assertEqual(self.at(7), 0)
+        School.objects.filter(pk=self.school.pk).update(plan="school", paid_until=None)
+        self.assertEqual(self.at(7), 0)
+
+    def test_link_goes_to_plan_page(self):
+        self.at(7)
+        n = Notification.objects.filter(kind="plan").first()
+        self.assertEqual(n.link, "/school-plan")
+        self.assertTrue(n.pushed)
+        self.assertIn("학교 플랜", n.text)
+        self.boss.user = get_user_model().objects.create(username="google:planboss")
+        self.boss.save(update_fields=["user"])
+        c = Client()
+        c.force_login(self.boss.user)
+        self.assertContains(c.get(f"/s/{self.hub.token}/bell"), ">플랜<")

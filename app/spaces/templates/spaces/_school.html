@@ -1,7 +1,7 @@
 {# 학교 화면 본문. 관리자 지정·내보내기 응답(htmx)도 이 조각을 통째로 돌려준다. 모든 값은 자동 이스케이프. #}
 <div id="schoolMain" data-err-swap>
   {% if toast %}<span class="sr" data-toast-now="{{ toast }}"></span>{% endif %}
-  <div class="title"><div class="grow"><h1>{{ space.name }}</h1><p class="sub">교직원 <b class="num">{{ rows|length }}</b>명 · 모든 선생님이 같은 화면을 봐요</p></div>
+  <div class="title"><div class="grow"><h1>{{ space.name }}</h1><p class="sub">교직원 <b class="num">{{ rows|length }}</b>명 · 모든 선생님이 같은 화면을 봐요{% if plan_left is not None %} · <a href="/school-plan">학교 플랜 {% if plan_left %}{{ plan_left }}일 남음{% else %}오늘까지{% endif %}</a>{% endif %}</p></div>
     {% if writable %}<a class="btn sec" href="/s/{{ space.token }}/school/me">내 그룹·직책 고치기</a>{% endif %}
     {% if tab == "duty" and is_creator and writable and dept_cards %}<a class="btn sec" href="/s/{{ space.token }}/school/duties">업무분장 다시 붙여넣기</a>{% endif %}
     {% if link %}<button class="btn pri" type="button" data-open="#inviteDlg">선생님 초대하기</button>{% endif %}</div>

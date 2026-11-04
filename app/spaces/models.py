@@ -65,6 +65,13 @@ class School(models.Model):
             return False
         return self.paid_until is None or self.paid_until >= timezone.localdate()
 
+    @property
+    def days_left(self):
+        """쓰는 중인 플랜의 남은 날(오늘이 마지막이면 0). 기한이 없거나 끝났으면 None."""
+        if not self.writable or self.paid_until is None:
+            return None
+        return (self.paid_until - timezone.localdate()).days
+
 
 class Space(models.Model):
     """동학년 공간 또는 학교 공간(kind=school, grade=0, 학교당 하나).
@@ -264,6 +271,37 @@ class Attendance(models.Model):
     @property
     def group_label(self):
         return self.member.get_group_display() if self.member else ""
+
+
+class PlanRequest(models.Model):
+    """학교 플랜 신청(O1). 공간이 아직 없을 수 있어 공간 대신 신청자(user)에게 속한다: 조회는 언제나 user로 좁힌다.
+    key: 견적서 주소. user: 구글 회원(첫 관리자로 세울 사람). member: 신청 때 이 학교 회원이었으면 그 자리.
+    학생·학급 수는 숫자만. 처리한 날(대기 중이면 접수한 날)부터 1년 뒤 지운다(hwpfiles.retention)."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "대기"
+        DONE = "done", "처리함"
+
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="plan_requests")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
+    by_name = models.CharField("담당자 이름", max_length=40)
+    position = models.CharField("직위", max_length=40)
+    email = models.EmailField("연락 메일")
+    students = models.PositiveIntegerField("학생 수", null=True, blank=True)
+    classes = models.PositiveIntegerField("학급 수", null=True, blank=True)
+    status = models.CharField("상태", max_length=10, choices=Status.choices, default=Status.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    done_at = models.DateTimeField("처리한 때", null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["school", "user"], condition=Q(status="pending"), name="uniq_plan_request_pending"),
+        ]
+
+    def __str__(self):
+        return f"신청 {self.pk}"
 
 
 def is_last_manager(member):

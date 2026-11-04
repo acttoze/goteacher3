@@ -14,7 +14,7 @@ from hwpfiles.models import ResultFile, SourceFile
 from today.models import Event
 
 from .merge import open_school
-from .models import Member, School, Space
+from .models import Member, PlanRequest, School, Space
 from .test_merge import UNTIL, MergeBase, fill
 
 User = get_user_model()
@@ -54,7 +54,7 @@ class IsolationQa(MergeBase):
         self.assertIsNone(self.far_c.closed_at)
 
     def test_two_merged_schools_do_not_forward_into_each_other(self):
-        far_hub = open_school(self.far_school, UNTIL)
+        far_hub = open_school(self.far_school, UNTIL, self.far_member)
         for c, old in ((self.far_client, self.g4), (self.client, self.far)):
             self.assertEqual(c.get(f"/s/{old.token}/today").status_code, 404)
         self.assertRedirects(self.far_client.get(f"/s/{self.far.token}/today"), f"/s/{far_hub.token}/today",
@@ -90,7 +90,7 @@ class MergeDataQa(MergeBase):
 
     def test_user_seated_in_two_schools_keeps_other_school_seat(self):
         seat = Member.objects.create(space=self.far, user=self.u4, name="송민재", cls="4-2")
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         seat.refresh_from_db()
         self.assertEqual(seat.space, self.far)
         self.assertEqual(Member.objects.filter(user=self.u4).count(), 2)
@@ -109,25 +109,27 @@ class MergeDataQa(MergeBase):
         self.assertEqual((twin.plan, twin_sp.merged_into_id), ("free", None))
 
     def test_off_then_on_keeps_one_school_space(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         call_command("school_plan", self.school.neis_code, "--off", stdout=StringIO())
-        self.assertEqual(open_school(self.school, UNTIL).pk, hub.pk)
+        self.assertEqual(open_school(self.school, UNTIL, self.m4).pk, hub.pk)
         self.assertEqual(Space.objects.filter(school=self.school, grade=0).count(), 1)
 
     def test_school_without_spaces_opens_and_invite_page_lives(self):
         empty = School.objects.create(neis_atpt="D10", neis_code="1110001", name="빈초등학교")
-        hub = open_school(empty, UNTIL)
+        req = PlanRequest.objects.create(school=empty, user=get_user_model().objects.create(username="google:empty1"), by_name="빈샘", position="교감", email="a@b.c")
+        hub = open_school(empty, UNTIL, applicant=req)
         r = Client().get(f"/j/{hub.invite_token}", follow=True)
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, "0학년")
 
 
 class NoManagerQa(MergeBase):
-    """--manager 없이 켠 학교: 대표가 없어도 화면이 깨지면 안 된다."""
+    """관리자가 비어 버린 학교(O1부터 켤 때는 못 만든다. 계정이 지워진 옛 자리 등): 대표가 없어도 화면이 깨지면 안 된다."""
 
     def setUp(self):
         super().setUp()
-        self.hub = open_school(self.school, UNTIL)
+        self.hub = open_school(self.school, UNTIL, self.m4)
+        Member.objects.in_space(self.hub).update(is_manager=False)
         self.client.force_login(self.u5)
         self.base = f"/s/{self.hub.token}"
 
@@ -225,11 +227,11 @@ class HwpAfterMergeQa(MergeBase):
 
 class LateMembersQa(MergeBase):
     def test_duplicate_seat_rows_files_survive_second_run(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         late = Space.objects.create(school=self.school, grade=2, name="2학년")
         dup = Member.objects.create(space=late, user=self.u4, name="송민재", cls="2-1")
         c, row, sf, rf = fill(late, dup, "늦은겹침")
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         with self.assertRaises(ObjectDoesNotExist):
             dup.refresh_from_db()
         c.refresh_from_db()

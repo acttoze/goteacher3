@@ -7,6 +7,7 @@ DEPT = re.compile(r"^(부서|부서명|소속|소속부서|부)$")
 TASK = re.compile(r"^(업무|업무명|업무내용|담당업무|분장업무|주요업무|사무|담당사무)$")
 WHO = re.compile(r"^(담당|담당자|담당자명|담당교사|담당교직원|성명|이름|교사|교사명)$")
 HEAD_LINES = 5  # 머리글을 찾는 범위(표 위 제목 줄)
+TOO_BIG = "표가 너무 커요. 업무 500줄 안으로 나눠 붙여넣어 주세요."
 EMPTY = "표를 붙여넣어 주세요. 한글·엑셀에서 표를 드래그해 복사(Ctrl+C)한 뒤 붙여넣으면 돼요."
 
 
@@ -24,7 +25,7 @@ def _columns(line):
 def read_duties(text):
     """{"rows": [{dept, task, who}], "skipped": 못 읽은 줄 수, "dropped": 버린 칸 수}. 문제가 있으면 PasteError(붙여넣은 값은 담지 않는다)."""
     if len(text) > MAX_TEXT:
-        raise PasteError("표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.")
+        raise PasteError(TOO_BIG)
     lines = tsv_lines(text)
     if not lines:
         raise PasteError(EMPTY)

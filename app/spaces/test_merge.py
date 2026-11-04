@@ -89,7 +89,7 @@ class MergeBase(TestCase):
 
 class OpenSchoolTests(MergeBase):
     def test_plan_on_makes_one_school_space_with_grade_zero(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         self.school.refresh_from_db()
         self.assertEqual((self.school.plan, self.school.paid_until), ("school", UNTIL))
         self.assertEqual((hub.kind, hub.grade, hub.merged_into_id), ("school", 0, None))
@@ -98,7 +98,7 @@ class OpenSchoolTests(MergeBase):
 
     def test_every_space_fk_moved_counts_match(self):
         before = self.snapshot()
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         self.assertEqual(self.snapshot(), before)
         for fk in merge._fks_to(Space):  # 앞으로 생길 모델까지: 옛 공간에 남은 FK가 하나도 없어야 한다
             if fk.model is Space:
@@ -111,7 +111,7 @@ class OpenSchoolTests(MergeBase):
         self.assertEqual(self.g4.merged_into, hub)
 
     def test_group_filled_from_grade_and_keys_kept(self):
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         self.m4.refresh_from_db()
         self.m5.refresh_from_db()
         self.assertEqual((self.m4.group, self.m5.group), ("g4", "g5"))
@@ -119,7 +119,7 @@ class OpenSchoolTests(MergeBase):
 
     def test_other_school_untouched(self):
         before = list(Collection.objects.filter(space=self.far).values_list("pk", "space_id"))
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         self.far.refresh_from_db()
         self.far_member.refresh_from_db()
         self.far_school.refresh_from_db()
@@ -128,17 +128,17 @@ class OpenSchoolTests(MergeBase):
         self.assertEqual(list(Collection.objects.filter(space=self.far).values_list("pk", "space_id")), before)
 
     def test_twice_is_same_and_sweeps_late_rows(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         before = self.snapshot()
         spaces = sorted(self.school.spaces.values_list("pk", "merged_into_id"))
-        self.assertEqual(open_school(self.school, UNTIL).pk, hub.pk)
+        self.assertEqual(open_school(self.school, UNTIL, self.m4).pk, hub.pk)
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(sorted(self.school.spaces.values_list("pk", "merged_into_id")), spaces)
         # 합치는 순간 옛 공간 화면에서 막 쓴 일정·새로 생긴 동학년도 다시 돌리면 들어온다
         late = Event.objects.create(space=self.g4, date=timezone.localdate(), title="늦게 쓴 일정")
         g2 = Space.objects.create(school=self.school, grade=2, name="새솔초 2학년")
         m2 = Member.objects.create(space=g2, name="늦은 선생님", cls="2-1")
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         late.refresh_from_db()
         m2.refresh_from_db()
         g2.refresh_from_db()
@@ -155,7 +155,7 @@ class OpenSchoolTests(MergeBase):
                 raise RuntimeError("중간 실패")
 
         with mock.patch("spaces.merge._merge_one", side_effect=boom), self.assertRaises(RuntimeError):
-            open_school(self.school, UNTIL)
+            open_school(self.school, UNTIL, self.m4)
         self.assertEqual(len(calls), 2)
         self.school.refresh_from_db()
         self.assertEqual((self.school.plan, self.school.paid_until), ("free", None))
@@ -200,7 +200,7 @@ class OpenSchoolTests(MergeBase):
     def test_null_user_seats_are_kept(self):
         Member.objects.create(space=self.g4, user=None, name="빈자리1", cls="4-3")
         Member.objects.create(space=self.g5, user=None, name="빈자리2", cls="5-3")
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         self.assertEqual(Member.objects.in_space(hub).filter(user=None).count(), 2)
 
     def test_manager_must_be_in_this_school(self):
@@ -210,14 +210,14 @@ class OpenSchoolTests(MergeBase):
         self.assertEqual(self.school.plan, "free")
 
     def test_stored_links_point_at_new_space(self):
-        hub = open_school(self.school, UNTIL)
+        hub = open_school(self.school, UNTIL, self.m4)
         seat = Notification.objects.in_space(hub).filter(kind="seat", member=self.m4).get()
         self.assertEqual(seat.link, f"/s/{hub.token}/")
         far = Notification.objects.in_space(self.far).get(kind="seat")
         self.assertEqual(far.link, f"/s/{self.far.token}/")
 
     def test_only_one_school_space_per_school_by_constraint(self):
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         with self.assertRaises(IntegrityError), transaction.atomic():
             Space.objects.create(school=self.school, grade=0, kind="school", name="둘째")
 
@@ -486,7 +486,7 @@ class InviteAfterMergeTests(MergeBase):
     def test_guest_merged_from_grade_keeps_seat_but_cannot_be_reentered(self):
         guest = User.objects.create(username="guest:merged", first_name="옮긴손님")
         seat = Member.objects.create(space=self.g5, user=guest, name="옮긴손님", cls="5-3")
-        open_school(self.school, UNTIL)
+        open_school(self.school, UNTIL, self.m4)
         seat.refresh_from_db()
         self.assertEqual(seat.space_id, self.hub.pk)
         self.seat_is_not_taken(seat, "5-3", "옮긴손님")

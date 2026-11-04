@@ -163,9 +163,10 @@ class DigestContentTests(Base):
         Cell.objects.create(row=self.r2, field=f, value="27")
         self.sub(self.m2)
         self.note(self.m2, self.r2)
-        data = self.run_at(at(4, 8, 20)).call_args.kwargs["data"]
-        self.assertNotIn("27", data)
-        self.assertNotIn("박서준", data)
+        data = json.loads(self.run_at(at(4, 8, 20)).call_args.kwargs["data"])
+        data.pop("url")  # 공간 토큰은 무작위라 "27"이 들어갈 수 있다
+        self.assertNotIn("27", str(data))
+        self.assertNotIn("박서준", str(data))
 
     def test_gone_subscription_deleted(self):
         s410, s404, ok = self.sub(self.m2, 1), self.sub(self.m2, 2), self.sub(self.m2, 3)

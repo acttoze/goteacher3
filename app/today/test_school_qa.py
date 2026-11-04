@@ -350,8 +350,9 @@ class GradeSpaceQa(TestCase):
     def test_other_school_merge_leaves_this_space_alone(self):
         Event.objects.create(space=self.g, by=self.a, date=TODAY, title="협의")
         other = School.objects.create(neis_atpt="J10", neis_code="5", name="켠학교")
-        Space.objects.create(school=other, grade=4, name="켠4")
-        open_school(other, UNTIL)
+        seat = Member.objects.create(space=Space.objects.create(school=other, grade=4, name="켠4"),
+                                     user=get_user_model().objects.create(username="google:other"), name="다른", cls="4-1")
+        open_school(other, UNTIL, seat)
         e = Event.objects.get(title="협의")
         self.assertEqual((e.space, e.scope), (self.g, "all"))
         self.g.refresh_from_db()
@@ -374,6 +375,7 @@ class MergeFeedQa(TestCase):
         e = Event.objects.create(space=g4, date=TODAY, title="옛일정")
         old = NOW - timedelta(days=30)
         Event.objects.filter(pk=e.pk).update(updated_at=old)
-        open_school(school, UNTIL)
+        seat = Member.objects.create(space=g4, user=get_user_model().objects.create(username="google:feed"), name="합침", cls="4-1")
+        open_school(school, UNTIL, seat)
         e.refresh_from_db()
         self.assertEqual((e.updated_at, e.scope), (old, "g4"))

@@ -128,4 +128,4 @@ def place(items, inputs):
 def head_value(ref_head, k, row):
     """칸 틀에 반 열이 없을 때 더한 줄의 행 머리: 위 줄이 번호면 이어 세고, 아니면 받는 곳(Row.unit)."""
     first = (ref_head or "").split(" · ")[0].strip()
-    return str(int(first) + 1 + k) if first.isdigit() else text("unit", "", row, {})
+    return str(int(first) + 1 + k) if first.isdecimal() and len(first) < 10 else text("unit", "", row, {})  # 칸 글자는 길이 제한이 없다

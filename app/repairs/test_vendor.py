@@ -301,7 +301,7 @@ class ScreenTests(VendorBase):
         self.assertEqual(self.facility.status, Repair.Status.RECEIVED)
 
     def test_other_school_key_404(self):
-        far_hub = open_school(self.far_school, LATER)
+        far_hub = open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user))
         far_member = Member.objects.in_space(far_hub).get(user=self.far_user)
         far = Repair.objects.create(space=far_hub, by=far_member, by_name="먼사람", cat="info", title="먼학교요청")
         self.assertEqual(self.c.post(f"/v/r/{far.key}/state", {"status": "done", "reply": ""}).status_code, 404)
@@ -635,7 +635,7 @@ class ManageTests(VendorBase):
     def test_log_page_lists_only_this_school_and_only_30_days(self):
         _, link = self.issued()
         self.entered(link).get("/v/")
-        far_hub = open_school(self.far_school, LATER)
+        far_hub = open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user))
         far = VendorAccount.objects.create(space=far_hub, name="먼업체", contact_name="먼담당자", until=LATER, token_hash="a" * 64, cookie_hash="b" * 64)
         VendorAccess.objects.create(account=far, action="view")
         old = VendorAccess.objects.create(account=VendorAccount.objects.in_space(self.hub).get(), action="state")
@@ -763,7 +763,7 @@ class RetentionTests(VendorBase):
     def test_gone_accounts_purged_after_30_days(self):
         gone, _ = self.issued()
         live, _ = self.issued()
-        ended = VendorAccount.objects.create(space=open_school(self.far_school, LATER), name="끝남", contact_name="",
+        ended = VendorAccount.objects.create(space=open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user)), name="끝남", contact_name="",
                                              until=timezone.localdate() - timedelta(days=31), token_hash="a" * 64, cookie_hash="b" * 64)
         VendorAccount.objects.filter(pk=gone.pk).update(revoked_at=timezone.now() - timedelta(days=31))
         self.assertEqual(purge(timezone.now(), dry_run=True)["vendor_accounts"], 2)
@@ -783,3 +783,28 @@ class RetentionTests(VendorBase):
         out = StringIO()
         call_command("purge", "--dry-run", stdout=out)
         self.assertIn("업체 접속 기록 0건", out.getvalue())
+
+
+class TitleMaskTests(VendorBase):
+    """O1 후속: 이름 가림은 메모·답변뿐 아니라 제목·위치까지. 원문은 교내에 그대로."""
+
+    def setUp(self):
+        super().setUp()
+        Repair.objects.filter(pk=self.info.pk).update(title=f"{self.m5.name} 선생님 전자칠판", place=f"{MARK_NAME} 자리 옆")
+        self.c = self.entered()
+
+    def test_vendor_list_and_preview_hide_names(self):
+        for page in (self.c.get("/v/"), self.manager.get(f"{self.vurl}/preview")):
+            body = page.content.decode()
+            self.assertIn("○○○ 선생님 전자칠판", body)
+            self.assertIn("○○○ 자리 옆", body)
+            self.assertNotIn(f"{self.m5.name} 선생님 전자칠판", body)
+            self.assertNotIn(MARK_NAME, body)
+
+    def test_state_response_hides_names_and_keeps_original(self):
+        res = self.c.post(f"/v/r/{self.info.key}/state", {"status": "doing", "reply": ""}, headers={"HX-Request": "true"})
+        self.assertContains(res, "○○○ 선생님 전자칠판")
+        self.assertNotContains(res, MARK_NAME)
+        self.info.refresh_from_db()
+        self.assertEqual(self.info.title, f"{self.m5.name} 선생님 전자칠판")
+        self.assertEqual(self.info.place, f"{MARK_NAME} 자리 옆")

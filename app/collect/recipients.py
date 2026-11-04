@@ -32,7 +32,7 @@ class OutsideClosed(Exception):
 
 def _class_no(cls):
     tail = cls.split("-", 1)[-1]
-    return int(tail) if tail.isdigit() else None
+    return int(tail) if tail.isdecimal() else None
 
 
 def _members(space):

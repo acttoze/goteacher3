@@ -7,7 +7,7 @@
     <div class="bar"><div class="track{% if n_total and n_done == n_total %} done{% endif %}"><i style="width:{{ pct }}%"></i></div><span class="n num"><b>{{ n_done }}</b> / {{ n_total }}{{ per }} 냈어요</span></div>
     {% if miss %}<div class="miss" aria-label="아직 안 낸 {{ per }}"><span class="lb">{{ miss_label }} {{ miss|length|add:miss_more }}{{ miss_unit }}</span>{% if miss_groups %}{% for g in miss_groups %}<button class="btn sec chip" type="button" data-text="{{ g.text }}" data-done="{{ g.label }} 문구를 복사했어요.">{{ g.label }} {{ g.n }}{{ miss_unit }}</button>{% endfor %}{% else %}{% for u in miss %}<button class="btn sec chip" type="button" data-miss="{{ u.row.unit }}" data-text="{{ u.nudge }}" data-done="{{ u.label }} 쪽 문구를 복사했어요.">{{ u.label }}</button>{% endfor %}{% if miss_more %}<span class="lb">외 {{ miss_more }}{{ miss_unit }}</span>{% endif %}{% endif %}</div>
     <p class="miss-note">{% if miss_groups %}그룹을 누르면 그 그룹에서 아직 안 낸 분을 적은 쪽지 문구가 복사됩니다{% else %}{% if per == "반" %}반{% else %}이름{% endif %}을 누르면 그 선생님께 보낼 쪽지 문구가 복사됩니다{% if matrix %} (안 한 연수만 적어서){% endif %}{% endif %}. 일일이 명단과 대조하지 않아도 돼요.</p>{% endif %}
-    {% if c.audience.unmatched %}<p class="miss-note">명부와 짝짓지 못한 담당 {{ c.audience.unmatched }}명: 이 줄은 누구의 낼 것에도 뜨지 않아요. 링크를 직접 전해 주세요.</p>{% endif %}
+    {% if c.audience.unmatched %}<p class="miss-note">명부와 짝짓지 못한 담당 {{ c.audience.unmatched }}명: 이 줄은 누구의 낼 것에도 뜨지 않아요. 링크를 직접 전해 주세요.</p>{% elif no_bell %}<p class="miss-note">명부에 없는 {{ no_bell }}줄에는 마감 알림이 가지 않아요. 링크를 직접 전해 주세요.</p>{% endif %}
     <p class="sr" id="nudgeAll" data-done="{{ nudge_done }}">{{ nudge_all }}</p>
   </div>
   <div class="live-wrap">

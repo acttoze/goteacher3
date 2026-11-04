@@ -16,7 +16,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbid
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
 from accounts.models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, is_guest, new_guest
 from accounts.views import home as login_home
@@ -117,7 +117,7 @@ def _clean_name(raw):
 
 
 @never_cache
-@require_GET
+@require_safe
 def home(request):
     """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
     mine = _my_space(request.user) if request.user.is_authenticated else None

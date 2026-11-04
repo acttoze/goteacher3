@@ -66,7 +66,7 @@ class PhotoEdgeTests(TvBase):
         head = str(dict(r.headers))
         for w in words:
             self.assertNotIn(w, head)
-        self.assertNotIn("p.jpg", head)  # 올린 파일 이름
+        self.assertNotRegex(head, r"(?<![\w-])p\.jpg")  # 올린 파일 이름(저장 이름은 무작위라 'p.jpg'로 끝날 수 있다)
         b"".join(r.streaming_content)
 
     def test_jpeg_has_no_exif_left(self):

@@ -23,8 +23,8 @@ WHO_HEAD = re.compile(r"^(성명|이름|담임|담임교사|교사|교사명|담
 UNIT_HEAD = re.compile(r"^(학년반|학년-반|반|학급|학반|학급명)$")
 NO_HEAD = re.compile(r"^(연번|순|순번|번호|no\.?)$", re.I)  # 빈 번호 열은 받지 않음이 기본
 CLASS_HEAD = re.compile(r"^(?:([1-6])(?:-|학년))?([1-9]|1\d|20)반?$")
-ITEM_KEY = re.compile(r"^item_(\d+)_(role|name|kind)$")
-ROW_KEY = re.compile(r"^row_(\d+)$")
+ITEM_KEY = re.compile(r"^item_(\d{1,6})_(role|name|kind)$")
+ROW_KEY = re.compile(r"^row_(\d{1,6})$")
 STALE = "표가 바뀌었어요. 표를 다시 눌러 고른 뒤 칸을 확인해 주세요."
 PII_MSG = ("학생 개인정보로 보이는 칸이 켜져 있어요: {}. 고티처는 교직원 정보만 받아요. "
            "이 칸은 「받지 않음」으로 바꾸거나 반별 인원 수로 받아 주세요.")
@@ -191,11 +191,11 @@ def _roster_class(line, grade):
     """명부 줄 → (학년, 반). 사람별 줄의 unit은 '4학년 1반'이라 회원의 반을 먼저 본다."""
     member = line.get("member")
     head, _, tail = (member.cls if member else line["unit"]).rpartition("-")
-    if not tail.isdigit():
+    if not tail.isdecimal():  # isdigit은 '²'도 참이라 int가 실패한다
         return None
     if grade:
         return grade, int(tail)
-    return (int(head), int(tail)) if head.isdigit() else None
+    return (int(head), int(tail)) if head.isdecimal() else None
 
 
 def assign(rows, roster, grade):

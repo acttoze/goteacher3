@@ -16,7 +16,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.encoding import iri_to_uri
 from django.utils.cache import add_never_cache_headers
 from django.utils.http import urlencode
-from django.views.decorators.http import require_GET, require_safe
+from django.views.decorators.http import require_safe
 
 from config.ratelimit import allow, client_ip
 from partners.models import Partner
@@ -54,7 +54,7 @@ def _frame(request, page="forms"):
     return {"frame": "shell.html", **_space_ctx(request, page=page)}
 
 
-@require_GET
+@require_safe
 def index(request, slug=None):
     doc = get_object_or_404(FormDoc, slug=slug) if slug else None
     q = " ".join(request.GET.get("q", "").split())[:Q_MAX]
@@ -106,7 +106,7 @@ def download(request, slug):
     return r
 
 
-@require_GET
+@require_safe
 def sitemap(request):
     docs = FormDoc.objects.only("slug", "created_at")
     partners = Partner.objects.filter(is_public=True).only("slug", "created_at")

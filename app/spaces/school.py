@@ -13,7 +13,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from accounts.models import is_guest
 from collect.paste import PasteError, html_to_tsv
 
-from .duty_paste import EMPTY, read_duties
+from .duty_paste import EMPTY, TOO_BIG, read_duties
 from .gates import manager_required, school_required, school_write_required
 from .merge import remove_manager
 from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
@@ -30,7 +30,7 @@ def _order(m):
         return (-1, 0)
     if m.in_grade:
         tail = m.cls.partition("-")[2]
-        return (0, int(tail)) if tail.isdigit() else (1, 0)
+        return (0, int(tail)) if tail.isdecimal() else (1, 0)
     roles = GROUP_ROLES.get(m.group, [])
     return (0, roles.index(m.position)) if m.position in roles else (1, 0)
 
@@ -97,6 +97,7 @@ def _school_ctx(request, **extra):
     ctx.update(_invite(space, me))
     ctx["n_groups"] = len(Member.Group.choices)
     ctx["alone"] = me.is_manager and len(ctx["rows"]) == 1
+    ctx["plan_left"] = space.school.days_left if me.is_manager else None
     ctx["attendance"] = list(Attendance.objects.in_space(space).filter(date=timezone.localdate()).select_related("member").order_by("pk"))
     ctx["n_attendance"] = len({a.name for a in ctx["attendance"]})
     ctx["can_attend"] = (me.is_manager or me.can_duty) and space.school.writable
@@ -230,7 +231,7 @@ def duties_preview(request):
     """붙여넣기 미리보기(htmx). 저장하지 않는다. html이 오면(한글·엑셀 클립보드) TSV로 바꿔 입력 칸에 넣도록 함께 돌려준다."""
     html, ctx = request.POST.get("html", ""), {}
     try:
-        tsv = html_to_tsv(html) if html else ""
+        tsv = html_to_tsv(html, too_big=TOO_BIG) if html else ""
         if html and not tsv:
             raise PasteError("붙여넣은 내용에서 표를 찾지 못했어요. 표를 드래그해 다시 복사해 주세요.")
         text = tsv or request.POST.get("paste", "")
