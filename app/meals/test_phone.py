@@ -208,6 +208,12 @@ class PhonePageTests(PhoneBase):
         self.assertEqual(PhotoLink.objects.values().get(), before)
         self.assertFalse(MealPhoto.objects.exists())
 
+    def test_says_tray_only_on_form_and_pc_page(self):
+        """TV에 공개되는 사진이라 학생 얼굴이 찍히지 않게 찍는 곳 두 군데에 한 줄."""
+        line = "식판만 찍어 주세요. 학생 얼굴이 나오지 않게요."
+        self.assertIn(line, self.anon.get(f"/m/{self.token()}").content.decode())
+        self.assertEqual(self.writer.get(self.base).content.decode().count(line), 1)
+
     def test_logged_in_viewer_sees_the_same_page(self):
         raw = self.token()
         html = self.writer.get(f"/m/{raw}").content.decode()

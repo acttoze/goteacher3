@@ -128,7 +128,7 @@ class ReminderQa(SchoolBase):
     def test_group_row_reminder_reaches_group_members(self):
         """prototype: 그룹 칸은 내기 전까지 구성원 모두에게 온 것. 마감 🔔도 구성원에게 가야 한다."""
         c = self.make(who=self.boss, aud="pergroup", aud_pgroups=["g4"])
-        Collection.objects.filter(pk=c.pk).update(due=timezone.now() + timedelta(hours=30))
+        Collection.objects.filter(pk=c.pk).update(due=timezone.localtime().replace(hour=12, minute=0, second=0, microsecond=0) + timedelta(days=1))
         bell.remind(timezone.localtime().replace(hour=9, minute=0))
         self.assertTrue(Notification.objects.filter(member=self.t41).exists())
 
@@ -138,7 +138,7 @@ class GroupBellTests(SchoolBase):
     """O1 후속: 그룹 칸 마감 🔔은 구성원마다 하나, 다시 불러도 그대로. 회원 없는 줄은 만든 사람의 합본에 표시만."""
 
     def due_soon(self, c):
-        Collection.objects.filter(pk=c.pk).update(due=timezone.now() + timedelta(hours=30))
+        Collection.objects.filter(pk=c.pk).update(due=timezone.localtime().replace(hour=12, minute=0, second=0, microsecond=0) + timedelta(days=1))
 
     def at9(self):
         return timezone.localtime().replace(hour=9, minute=0)

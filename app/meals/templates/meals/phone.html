@@ -27,6 +27,7 @@
   {% if token %}<a class="btn sec lg block" href="/m/{{ token }}">다른 사진으로 바꾸기</a>{% endif %}
 {% else %}
   <h1>{{ label }} 점심 식판 사진</h1>
+  <p class="ph-lead">식판만 찍어 주세요. 학생 얼굴이 나오지 않게요.</p>
   <form class="ph-form" id="phForm" method="post" enctype="multipart/form-data" action="/m/{{ token }}">
     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf }}">
     <label class="ph-shot" id="phShot">

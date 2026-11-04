@@ -373,9 +373,9 @@ class WeekPageTests(Base):
         self.assertContains(r, "주말이라")
         self.assertNotContains(r, "mday today")
 
-    def test_no_face_notice_and_no_school_wording(self):
+    def test_no_old_or_school_wording(self):
         r = self.writer.get(self.base).content.decode()
-        for word in ("얼굴", "티로드", "영양사"):
+        for word in ("티로드", "영양사"):
             self.assertNotIn(word, r)
 
 

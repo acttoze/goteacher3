@@ -13,7 +13,7 @@ class LegalPageTests(TestCase):
             r = Client().get(url)
             self.assertEqual(r.status_code, 200, url)
             body = r.content.decode()
-            for want in ("정이점", "admin@goteacher.xyz", "2022년 3월 1일"):
+            for want in ("정이점", "admin@goteacher.xyz", "시행일: 2026년 12월 14일"):
                 self.assertIn(want, body, url)
             for bad in ('class="blank"', 'class="draft"', "초안", "[", "티로드"):
                 self.assertNotIn(bad, body, url)

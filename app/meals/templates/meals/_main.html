@@ -8,7 +8,7 @@
   {% if today_done %}<span class="pill pos">오늘 사진 올림</span>{% elif need_today %}<span class="pill neg">오늘 사진 아직</span>{% endif %}
 </div>
 {% include "meals/_tabs.html" with on="photo" %}
-<p class="mauto mdel">사진을 지워도 TV에는 최대 5분 남을 수 있어요.</p>
+<p class="mauto mdel">식판만 찍어 주세요. 학생 얼굴이 나오지 않게요. 사진을 지워도 TV에는 최대 5분 남을 수 있어요.</p>
 <p class="mmsg notice" role="alert" id="mealMsg"{% if not error %} hidden{% endif %}>{{ error }}</p>
 {% for w in warnings %}<p class="mmsg notice" role="alert">{{ w }}</p>{% endfor %}
 <div class="mweek">
