@@ -6,6 +6,8 @@
 from datetime import datetime, timedelta
 from functools import wraps
 
+import segno
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -27,7 +29,7 @@ from spaces.school import school_body
 from spaces.views import _space_ctx
 
 from . import content
-from .models import MealPhoto, MealSettings
+from .models import MealPhoto, MealSettings, new_tv_token
 
 WD = "월화수목금토일"
 UPLOAD_PER_HOUR = 30
@@ -214,14 +216,32 @@ def screens(request):
                 toast = "화면 순서를 바꿨어요."
             saved.screens = [{"key": x["key"], "on": x["on"]} for x in items]
             saved.save(update_fields=["screens"])
-    today = timezone.localdate()
+    return _screens_page(request, toast)
+
+
+def _screens_page(request, toast=""):
+    space, today = request.space, timezone.localdate()
+    row, _ = MealSettings.objects.get_or_create(space=space)  # 처음 열면 TV 주소가 생긴다
+    tv_url = f"{settings.SITE_URL}/tv/{row.tv_token}"
     items = MealSettings.screens_of(space)
     on = [x for x in items if x["on"]]
-    ctx = {"space": space, "screens": items, "n_on": len(on), "loop": sum(x["sec"] for x in on), "last": len(items) - 1,
-           "writable": space.school.writable, "hygiene": content.hygiene_of(today), "slogan": content.slogan_of(today), "toast": toast}
+    ctx = {"space": space, "screens": items, "n_on": len(on), "loop": sum(x["sec"] * x.get("pages", 1) for x in on), "last": len(items) - 1,
+           "writable": space.school.writable, "hygiene": content.hygiene_of(today), "slogan": content.slogan_of(today), "toast": toast,
+           "tv_url": tv_url, "tv_qr": segno.make(tv_url, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)}
     if request.headers.get("HX-Request"):
         return render(request, "meals/_screens.html", ctx)
     return render(request, "meals/screens.html", _space_ctx(request, page="meals", **ctx))
+
+
+@never_cache
+@require_POST
+@school_required
+@meal_required
+def reissue_tv(request):
+    """TV 주소 새로 만들기: 옛 주소는 바로 끊긴다. 보안 조치라 플랜이 끝난 학교도 받는다(초대 재발급과 같다)."""
+    MealSettings.objects.get_or_create(space=request.space)
+    MealSettings.objects.in_space(request.space).update(tv_token=new_tv_token())
+    return _screens_page(request, "TV 주소를 새로 만들었어요. 옛 주소는 이제 열리지 않아요. TV에서 새 주소를 열어 주세요.")
 
 
 @never_cache

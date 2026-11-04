@@ -9,6 +9,7 @@ from accounts import views as accounts
 from collect import bell, export, lists, push, submit
 from collect import views as collect
 from library import views as library
+from meals import tv
 from notices import views as notices
 from repairs import vendor
 from spaces import attendance as attendance_page
@@ -83,6 +84,9 @@ urlpatterns = [
     path("v/r/<str:key>/state", vendor.state),
     path("v/r/<str:key>/photo", vendor.photo),
     path("v/<str:token>", vendor.enter),
+    path("tv/<str:token>", tv.page),  # M2 급식 TV(로그인 없음)
+    path("tv/<str:token>/data", tv.data),
+    path("tv/<str:token>/photo/<str:ymd>", tv.photo),
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
     path("start", accounts.home),  # 시작 화면(구글로 시작하기). 로그인 전 / 는 소개 페이지

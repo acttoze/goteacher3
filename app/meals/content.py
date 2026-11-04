@@ -1,20 +1,21 @@
 """급식 현황판 내용(prototype/assets/meal.js에서 옮김). 입력 칸이 없다: 위생 주제·표어는 날짜로 돌고, 같은 날엔 어느 TV나 같다.
 
-M2 TV 화면이 그대로 쓴다: screens(저장값) → 켜진 화면과 순서·초, hygiene_of(날짜)·slogan_of(날짜).
+M2 TV 화면이 그대로 쓴다: screens(저장값) → 켜진 화면과 순서·장당 초(pages는 보통 나뉘는 장 수), hygiene_of(날짜)·slogan_of(날짜).
 """
+import re
 from datetime import date
 
 PHOTO = "photo"  # 식판 사진 화면: 규정상 매일 게시라 끌 수 없다
 
 SCREENS = [
-    {"key": "menu", "name": "오늘의 메뉴", "what": "메뉴 · 자율배식 표시 · 알레르기 번호 · 급식 인원", "src": "NEIS 자동", "sec": 7},
+    {"key": "menu", "name": "오늘의 메뉴", "what": "메뉴 · 자율배식 표시 · 알레르기 번호", "src": "NEIS 자동", "sec": 7},
     {"key": "allergy", "name": "알레르기", "what": "그날 들어간 알레르기 식품만 크게 · 해당 메뉴", "src": "NEIS 자동", "sec": 7},
-    {"key": "cal", "name": "칼로리 · 영양", "what": "칼로리 · 영양 6종 · 초등 1~6학년 표준 기준과 비교", "src": "NEIS 자동", "sec": 7},
-    {"key": "origin", "name": "원산지", "what": "학교가 NEIS에 올린 원산지 목록 그대로 · 14개씩 두 장", "src": "NEIS 자동", "sec": 14},
+    {"key": "cal", "name": "칼로리 · 영양", "what": "칼로리 · 탄수화물 · 단백질 · 지방", "src": "NEIS 자동", "sec": 7},
+    {"key": "origin", "name": "원산지", "what": "학교가 NEIS에 올린 원산지 목록 그대로 · 14개씩 두 장", "src": "NEIS 자동", "sec": 12, "pages": 2},
     {"key": "hygiene", "name": "위생 교육", "what": "손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며", "src": "자동 순환", "sec": 7},
     {"key": "eat", "name": "골고루 먹어요", "what": "메뉴 이름으로 나눈 식품군 · 표어가 날마다 돌아가며", "src": "자동 순환", "sec": 7},
     {"key": PHOTO, "name": "오늘의 식사", "what": "그날 식판 사진 (당일 찍은 사진)", "src": "직접 올림", "sec": 7},
-    {"key": "week", "name": "이번 주 메뉴", "what": "월~금 메뉴 · 칼로리", "src": "NEIS 자동", "sec": 12},
+    {"key": "week", "name": "이번 주 메뉴", "what": "월~금 메뉴 · 칼로리", "src": "NEIS 자동", "sec": 12, "pages": 2},
 ]
 SCREEN_KEYS = [s["key"] for s in SCREENS]
 
@@ -47,6 +48,21 @@ SLOGANS = [
     "음식을 만들어 주신 분들께 감사해요",
 ]
 
+# NEIS 알레르기 표기 번호 1~19
+ALLERGENS = ["난류", "우유", "메밀", "땅콩", "대두", "밀", "고등어", "게", "새우", "돼지고기", "복숭아", "토마토", "아황산류", "호두", "닭고기", "쇠고기", "오징어", "조개류", "잣"]
+NUTRIENTS = ["탄수화물", "단백질", "지방"]  # 3~5m에서 읽을 핵심 3종(26번 4장)
+
+# 식품구성자전거 여섯 무리. 메뉴 이름으로 어림한다(prototype M.autoGroups).
+GROUPS = [("grain", "곡류"), ("protein", "고기·생선·달걀·콩류"), ("veg", "채소류"), ("fruit", "과일류"), ("milk", "우유·유제품류"), ("fat", "유지·당류")]
+FRUITS = ["귤", "감귤", "한라봉", "사과", "배", "바나나", "포도", "청포도", "샤인머스켓", "샤인머스캣", "방울토마토", "토마토", "수박", "참외", "딸기", "키위", "골드키위", "오렌지", "자몽", "파인애플", "복숭아", "천도복숭아", "자두", "망고", "멜론", "감", "단감", "홍시", "블루베리", "체리", "과일", "주스"]
+RULES = [
+    ("grain", re.compile(r"밥|떡(?!갈비)|면|국수|빵|죽|시리얼|파스타|스파게티|피자|만두|감자|고구마|옥수수|누룽지|또띠아|토스트|버거|라이스|리조또|필라프|우동|수제비|샌드위치|핫도그|베이글|호떡|쌀|도시락")),
+    ("protein", re.compile(r"고기|돈육|돼지|불고기|갈비|닭|오리|맥적|돈가스|까스|생선|고등어|참치|명태|동태|조기|갈치|오징어|주꾸미|쭈꾸미|낙지|새우|해물|어묵|달걀|계란|메추리알|두부|콩(?!나물)|햄|소시지|미트|추어|장어|연어|삼치|꽁치|코다리|가자미|멸치|북어|순대|치킨")),
+    ("veg", re.compile(r"김치|깍두기|겉절이|나물|무침|샐러드|채소|야채|시금치|미역|김자반|김구이|파래|톳|다시마|버섯|연근|우엉|오이|배추|부추|고추|시락|시래기|우거지|무생채|단무지|양파|호박|브로콜리|숙주|잡채|피클|쌈|상추|깻잎|당근|가지")),
+    ("milk", re.compile(r"우유|요구르트|요거트|치즈|요플레|라떼")),
+    ("fat", re.compile(r"튀김|볶음|전$|까스|잡채|강정|맛탕|버터|마요|도넛|탕수|슈$|케이크|쿠키|아이스|초코|머핀|와플|젤리")),
+]
+
 EPOCH = date(1970, 1, 1)
 
 
@@ -56,6 +72,15 @@ def hygiene_of(day):
 
 def slogan_of(day):
     return SLOGANS[(day - EPOCH).days % len(SLOGANS)]
+
+
+def groups_of(name):
+    """메뉴 이름 → 식품군 id 목록. 과일은 이름 끝이 맞을 때만('사과주스'는 맞고 '배추'는 아니다)."""
+    out = []
+    if any(name == f or (len(f) > 1 and len(name) <= len(f) + 2 and name.endswith(f)) for f in FRUITS):
+        out.append("fruit")
+    out += [gid for gid, rule in RULES if rule.search(name) and gid not in out]
+    return out
 
 
 def screens(saved):

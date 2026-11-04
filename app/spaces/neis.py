@@ -5,6 +5,7 @@
   빈 결과는 Failed(빈 list)라 기존 호출부는 그대로 돌고, '없음(INFO-200)'과 가르려면 failed(x)로 본다.
 - 캐시는 Django 기본 캐시. 학교·학급은 하루, 학사·급식은 한 시간. 실패도 FAIL_TTL(1분) 캐시 —
   NEIS가 멈췄을 때 같은 요청이 매번 TIMEOUT만큼 워커를 붙잡지 않게.
+  급식 실패는 MEAL_FAIL_TTL(10분): TV가 5분마다 부르므로 그보다 길어야 장애 때 TV마다 워커를 붙잡지 않는다. 담당자의 '다시 시도'는 forget_failed_meals로 바로.
 """
 import json
 import logging
@@ -23,6 +24,7 @@ TIMEOUT = 5
 DAY = 60 * 60 * 24
 HOUR = 60 * 60
 FAIL_TTL = 60
+MEAL_FAIL_TTL = 600
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +46,7 @@ def _cache_key(path, params):
     return "neis:" + path + ":" + urlencode(sorted(params.items()))
 
 
-def _get(path, params, ttl):
+def _get(path, params, ttl, fail_ttl=FAIL_TTL):
     """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
     ck = _cache_key(path, params)
     hit = cache.get(ck)
@@ -66,7 +68,7 @@ def _get(path, params, ttl):
     except (URLError, OSError, ValueError, KeyError, IndexError, NeisError) as e:
         # 주소에 키가 들어 있으므로 예외 메시지·주소는 남기지 않는다.
         log.warning("NEIS %s 실패: %s %s", path, type(e).__name__, e if isinstance(e, NeisError) else "")
-        result, ttl = (Failed(), 0), FAIL_TTL
+        result, ttl = (Failed(), 0), fail_ttl
     cache.set(ck, result, ttl)
     return result
 
@@ -169,7 +171,7 @@ def forget_failed_meals(atpt, code, start, end):
 
 def meals(atpt, code, start, end):
     """점심 [{ymd, dishes, kcal, count, nutr, origin}] — start·end는 'YYYYMMDD'."""
-    rows, _ = _get("mealServiceDietInfo", _meal_params(atpt, code, start, end), HOUR)
+    rows, _ = _get("mealServiceDietInfo", _meal_params(atpt, code, start, end), HOUR, MEAL_FAIL_TTL)
     if failed(rows):
         return rows
     out = []

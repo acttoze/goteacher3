@@ -617,10 +617,10 @@ class ScreenQa(QaBase):
     def test_loop_seconds_default_and_after_off(self):
         html = self.writer.get(f"{self.base}/screens").content.decode()
         self.assertIn('<b class="num">8</b>개', html)
-        self.assertIn('<b class="num">68</b>초', html)  # 7×6 + 14 + 12
+        self.assertIn('<b class="num">90</b>초', html)  # 7×6 + 12×2 + 12×2
         html = self.post(toggle="origin").content.decode()
         self.assertIn('<b class="num">7</b>개', html)
-        self.assertIn('<b class="num">54</b>초', html)
+        self.assertIn('<b class="num">66</b>초', html)
 
     def test_order_survives_and_keeps_off_state(self):
         self.post(toggle="week")
@@ -669,7 +669,7 @@ class PrototypeParityQa(QaBase):
 
     def test_screen_keys_order_lock_and_seconds(self):
         self.assertEqual(content.SCREEN_KEYS, ["menu", "allergy", "cal", "origin", "hygiene", "eat", "photo", "week"])
-        self.assertEqual({s["key"]: s["sec"] for s in content.SCREENS if s["sec"] != 7}, {"origin": 14, "week": 12})
+        self.assertEqual({s["key"]: s["sec"] for s in content.SCREENS if s["sec"] != 7}, {"origin": 12, "week": 12})
         self.assertIn("{ key: 'photo', name: '오늘의 식사', what: '그날 식판 사진 (당일 찍은 사진)', src: 'me', lock: true }", self.js)
 
     def test_no_old_name_or_staff_words_anywhere_in_new_code(self):

@@ -1,0 +1,20 @@
+<!doctype html>
+{% load static %}<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>급식</title>
+<link rel="icon" href="{% static 'mark.svg' %}" type="image/svg+xml">
+<link rel="stylesheet" href="{% static 'css/gt.css' %}">
+<link rel="stylesheet" href="{% static 'css/tv.css' %}">
+</head>
+<body class="tv-body">
+<div class="stage" id="stage" data-base="{{ base }}">
+  <header class="tv-h" id="head"><div class="sch" id="sch"></div><div class="when"><span id="date"></span><span class="clock" id="clock"></span></div></header>
+  <main class="pages" id="pages"></main>
+  <footer class="tv-f" id="foot"></footer>
+</div>
+<script src="{% static 'js/tv.js' %}"></script>
+</body>
+</html>

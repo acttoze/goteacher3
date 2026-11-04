@@ -6,7 +6,8 @@
     <p class="sub">켜진 화면 <b class="num">{{ n_on }}</b>개 · 한 바퀴 <b class="num">{{ loop }}</b>초. 나머지는 자동이라 고를 것이 없어요.</p></div>
 </div>
 {% include "meals/_tabs.html" with on="screens" %}
-<form method="post" action="/s/{{ space.token }}/meals/screens" hx-post="/s/{{ space.token }}/meals/screens" hx-target="#screensMain" hx-swap="outerHTML">{% csrf_token %}
+<div class="mtv-wrap">
+<form class="grow" method="post" action="/s/{{ space.token }}/meals/screens" hx-post="/s/{{ space.token }}/meals/screens" hx-target="#screensMain" hx-swap="outerHTML">{% csrf_token %}
 <table class="mscr">
   <thead><tr><th>화면</th><th>보여 주는 것</th><th>출처</th><th>표시</th>{% if writable %}<th>순서</th>{% endif %}</tr></thead>
   <tbody>{% for s in screens %}
@@ -20,5 +21,26 @@
   </tbody>
 </table>
 </form>
+<aside class="card mtv">
+  <div class="mtv-b">
+    <h2>TV 주소</h2>
+    {% if not writable %}<p class="mtv-end">학교 플랜 기간이 끝나 TV에는 학교 이름과 날짜만 보여요. 기간을 늘리면 메뉴가 다시 나와요.</p>{% endif %}
+    <label class="sr" for="tvUrl">TV 주소</label><input class="input" id="tvUrl" readonly value="{{ tv_url }}">
+    <div class="mtv-row">
+      <div class="mtv-qr"><img src="{{ tv_qr }}" alt="TV 주소 QR 코드" width="104" height="104"></div>
+      <div class="mtv-act"><button class="btn ink" type="button" data-copy="#tvUrl" data-done="TV 주소를 복사했어요">복사</button>
+        <form method="post" action="/s/{{ space.token }}/meals/tv/reissue" hx-post="/s/{{ space.token }}/meals/tv/reissue" hx-target="#screensMain" hx-swap="outerHTML"
+          hx-confirm="옛 주소는 바로 끊겨서, 켜 둔 TV의 화면이 사라져요. 새 주소를 TV에서 다시 열어야 해요. 새로 만들까요?">{% csrf_token %}<button class="btn sec" type="submit">주소 새로 만들기</button></form></div>
+    </div>
+    <ul class="mtv-how">
+      <li>로그인 없이 열려요. 주소는 급식 TV에만 넣어 주세요.</li>
+      <li>담당이 바뀌면 주소를 새로 만들어 주세요.</li>
+      <li>TV에서 주소를 연 뒤 <b>F</b> 키를 누르면 전체 화면이에요.</li>
+      <li>TV 컴퓨터의 화면 보호기와 절전 모드는 꺼 주세요.</li>
+      <li>인터넷이 끊겨도 마지막 화면을 계속 보여 줘요.</li>
+    </ul>
+  </div>
+</aside>
+</div>
 <p class="mauto">오늘의 위생 교육 <b>{{ hygiene.title }}</b> · 오늘의 표어 <b>{{ slogan }}</b> (날마다 자동으로 바뀌어요)</p>
 </div>

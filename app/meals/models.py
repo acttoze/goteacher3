@@ -1,10 +1,12 @@
 """M1 급식 설정·식판 사진. 조회는 SpaceQuerySet.in_space()로만.
 
-- MealPhoto.photo: 서버가 재인코딩한 JPEG만(repairs.photo). 경로에 올린 이름을 쓰지 않는다. 내려받기는 회원 확인 뷰로만(TV 공개 경로는 M2).
+- MealPhoto.photo: 서버가 재인코딩한 JPEG만(repairs.photo). 경로에 올린 이름을 쓰지 않는다. 내려받기는 회원 확인 뷰, 또는 TV 토큰으로 그 학교 오늘 사진만(meals.tv).
+- MealSettings.tv_token: TV 주소(/tv/<token>). 로그인이 없는 교실 밖 화면이라 입력 화면에서 복사해야 하므로 원문으로 둔다. 재발급하면 옛 주소는 바로 끊긴다.
 - stored는 한글 파일·공지 첨부·수리 사진과 같은 한도(SourceFile.used_bytes). 행이 지워지면 파일도 지운다(hwpfiles.retention).
 - 보관: 그 급식 날짜부터 30일 뒤 삭제(hwpfiles.retention).
 """
 import hashlib
+import secrets
 
 from django.db import models
 from django.utils import timezone
@@ -19,8 +21,13 @@ def _photo_path(instance, filename):
     return f"meal/{instance.space_id}/{new_token()}.jpg"
 
 
+def new_tv_token():
+    return secrets.token_urlsafe(32)
+
+
 class MealSettings(models.Model):
     space = models.OneToOneField(Space, on_delete=models.CASCADE, related_name="meal_settings")
+    tv_token = models.CharField("TV 주소 토큰", max_length=64, unique=True, default=new_tv_token)
     screens = models.JSONField("TV 화면 순서·켜고 끄기", default=list)  # [{"key": "menu", "on": true}, ...]
 
     objects = SpaceQuerySet.as_manager()

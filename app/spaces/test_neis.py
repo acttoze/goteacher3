@@ -127,8 +127,12 @@ class NeisTests(SimpleTestCase):
         self.assertNotIn("secret-key-123", "".join(logs.output))
         now = time.time()
         with mock.patch("time.time", return_value=now + neis.FAIL_TTL + 1):
+            with mock.patch.object(neis, "urlopen") as m:
+                neis.meals("S10", "9010000", "20261102", "20261106")
+        m.assert_not_called()  # 급식 실패는 TV 폴링(5분)보다 오래 기억한다
+        with mock.patch("time.time", return_value=now + neis.MEAL_FAIL_TTL + 1):
             _, m = self.call(MEALS, neis.meals, "S10", "9010000", "20261102", "20261106")
-        m.assert_called_once()  # 짧은 시간이 지나면 다시 부른다
+        m.assert_called_once()  # 그 시간이 지나면 다시 부른다
 
     def test_http_error_cached_briefly(self):
         from urllib.error import HTTPError

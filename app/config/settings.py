@@ -50,12 +50,13 @@ VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_SUBJECT = os.environ.get("VAPID_SUBJECT", "mailto:admin@goteacher.xyz")
 RQ_JOB_TIMEOUT = 300  # 작업당 상한(초). 한글 변환 표본 최대 205초(30번 리드 결정)
-# 빈도 제한(config/ratelimit.py): 여러 gunicorn 프로세스가 같은 수를 세도록 큐와 같은 Redis의 다른 DB(/1).
+
+# 빈도 제한(config/ratelimit.py): 여러 gunicorn 프로세스가 같은 수를 세도록 큐와 같은 Redis의 다른 DB(/1). Redis가 멈춰도 요청이 붙잡히지 않게 1초에서 끊는다.
 # NEIS 응답 캐시(default)는 프로세스 메모리 그대로 — Redis가 noeviction 96MB라 큐와 메모리를 다투지 않게.
-_RL = (("django.core.cache.backends.redis.RedisCache", urlparse(REDIS_URL)._replace(path="/1").geturl()) if REDIS_URL
-       else ("django.core.cache.backends.locmem.LocMemCache", "ratelimit"))
-CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
-          "ratelimit": {"BACKEND": _RL[0], "LOCATION": _RL[1]}}
+_RL = ({"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": urlparse(REDIS_URL)._replace(path="/1").geturl(),
+        "OPTIONS": {"socket_connect_timeout": 1, "socket_timeout": 1}} if REDIS_URL
+       else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "ratelimit"})
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}, "ratelimit": _RL}
 
 CSRF_TRUSTED_ORIGINS = [SITE_URL] if SITE_URL.startswith("https://") else []
 
