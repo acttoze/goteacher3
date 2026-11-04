@@ -12,6 +12,9 @@ dir="${GT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 out="$dir/var/backups"
 mkdir -p "$out"
 f="$out/goteacher-$(date +%F_%H%M).dump"
+# 어느 단계에서 실패해도(디스크 가득 등) 이번 묶음의 .part를 남기지 않는다. 지난 실행의 잔여물도 함께 지운다
+trap 'rm -f "$out"/*.part' EXIT
+rm -f "$out"/*.part
 
 cd "$dir/ops"
 docker compose exec -T db pg_dump -U goteacher -d goteacher -Fc > "$f.part"

@@ -22,7 +22,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_started }
     volumes: [media:/srv/media]  # 올린 한글 파일(E2). worker와 공유
-    mem_limit: 512m
+    mem_limit: 1g  # gthread 8슬롯 + 사진 재인코딩 최악 기준
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 30s

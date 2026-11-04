@@ -4,6 +4,10 @@
 
 - `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis` · `goteacher-worker`(RQ, 같은 이미지, 작업당 300초·메모리 2.5GB).
 - `Dockerfile` — 빌드 컨텍스트는 저장소 루트(`.dockerignore`).
+- gunicorn은 gthread 워커 2개·스레드 4개(요청 슬롯 8개, DB 연결 최대 8개, 교체 중 16개). 느린 업로드가 슬롯 하나만 쥐므로 다른 요청이 계속 응답한다.
+  gthread에서 `--timeout`(30초)은 워커 생존 신호 제한이라 느린 요청을 끊지 않는다. 대신 멈춘 요청도 끊지 않으므로 앱의 외부 호출에는 자체 제한이 있어야 한다.
+  **업로드 상한 시간은 Traefik이 정한다**: 공용 Traefik은 시간 제한 인자가 없어 기본 `readTimeout` 60초다(로컬 v3.7.5 재현: 60초에 502, 공용 설정은 바꾸지 않는다).
+  60초 안에 끝나려면 8MB 약 1.1Mbps, 30MB 약 4Mbps, 100MB 약 13.3Mbps가 필요하다.
 - 기반 이미지 4개(python·uv·postgres·redis)는 `@sha256:` 다이제스트로 고정. 갱신: `docker buildx imagetools inspect <이름:태그>`의 Digest로 바꿔 푸시(앱 이미지는 다음 배포에 반영, db·redis는 deploy가 다시 만들지 않으므로 승인 뒤 서버에서 `docker compose up -d db redis`).
 - `.env.example` — 서버 `ops/.env`(chmod 600) 견본. 실제 값은 서버에서 생성하고 저장소·출력에 남기지 않는다.
 
@@ -45,10 +49,19 @@
 복구 시험: `ops/restore_test.sh [파일]` — 네트워크 없는 임시 컨테이너 `goteacher-restoretest`에 풀어
 표마다 행 수를 운영 db와 비교하고 지운다. 운영 db에 실제로 복구하는 것은 리드 승인 뒤:
 `docker compose exec -T db pg_restore -U goteacher -d goteacher --clean --if-exists < 파일`.
+쓰는 중인 `*.part`는 실패해도 지운다(디스크가 찬 채로 남지 않게).
 
-감시(G6): crontab 5분마다 `ops/monitor.sh` — Traefik 경유 `/healthz`·worker·db·디스크 여유 15GB·백업 26시간 안·
-최근 5분 500 오류(`config/logsafe.py`: 경로 토큰 가림, 예외 메시지 없이 종류·위치만)·배포 실패. 문제 목록이 바뀔 때만
-`var/alerts.log`에 남긴다(같은 문제는 6시간마다). 보내는 수단은 미정 → `notify()`. 지금 상태만 보기: `GT_DRY=1 ops/monitor.sh`.
+저장 한도 근거(2026-11-04): 기본값 서비스 전체 `HWP_TOTAL_QUOTA` 5GB·학교 하나 `HWP_SCHOOL_QUOTA` 2GB(`app/config/settings.py`, 서버 `.env`에 따로 두지 않음).
+사진·한글은 거의 압축되지 않으므로 미디어 S를 채우면 원본 S + 백업 7벌 + 쓰는 중 1벌 = 약 9S를 쓴다. 5GB면 45GB(20GB였다면 180GB).
+그날 서버 여유는 59GB였고 공용 디스크라 다른 서비스로도 줄어든다. 디스크 감시 기준 20GB = 안전 여유 15GB + 다음 백업 1벌 최대 5GB.
+여유 59GB에서 다른 서비스가 그대로라면 미디어 약 4.3GB((59-20)/9)에서 경보가 울린다. 한도를 올릴 때는 이 계산을 다시 한다.
+
+감시(G6): crontab 5분마다 `ops/monitor.sh` — Traefik 경유 `/healthz`·worker·db·디스크 여유 20GB·백업 26시간 안·
+최근 5분 500 오류(`config/logsafe.py`: 경로 토큰 가림, 예외 메시지 없이 종류·위치만)·배포 실패·purge 성공 26시간 안·
+Redis 메모리 80% 이하. 문제 목록이 바뀔 때만 `var/alerts.log`와 텔레그램(`ops/notify.sh`)으로 알린다(같은 문제는 6시간마다).
+지금 상태만 보기: `GT_DRY=1 ops/monitor.sh`.
+문제와 별도로 처리할 건수만 알린다: 학교 플랜 신청(대기가 늘었을 때 한 번, `var/plan-pending`), 후기 한 줄 대기(있으면 하루 한 번
+09시 뒤, `var/review-day`). 알림에는 숫자만 나간다. 이름·메일·글은 서버에서 아래 운영 명령으로 본다.
 
 공용 서버 규칙: 이 프로젝트 밖의 컨테이너·네트워크·볼륨과 Traefik 설정은 건드리지 않는다.
 `docker system prune`·`volume prune` 금지. DB·Redis 포트는 호스트에 열지 않는다.
@@ -56,10 +69,60 @@
 정기 작업(D3·G2): crontab 5분마다 `remind`(🔔 리마인드 쌓기) 다음 `push_digest`(08:20·12:20·14:40 묶음 웹 푸시).
 같은 줄에서 순서대로 부른다(08:20 리마인드가 아침 묶음에 들어가게). 두 명령 모두 여러 번 불려도 한 번만 보낸다.
 
-보관 기간 삭제(E3): crontab 하루 한 번 03:40(04:30 DB 백업 전) `purge` — 마지막 활동 1년·만든 뒤 3년 지난 모으기(제출 값·
-올린 파일·결과 파일), 모으기에 안 쓴 올린 파일(24시간), 멈춘 한글 작업, 고아 파일, 저장 크기 정합. 건수만 출력한다.
-`40 3 * * * cd <저장소> && docker compose -f ops/compose.yml exec -T goteacher-app python manage.py purge`
-먼저 보기: 같은 명령 끝에 `--dry-run`(지우지 않고 건수만).
+보관 기간 삭제(E3): crontab 하루 한 번 03:40(04:30 DB 백업 전) `purge`. 건수만 출력한다. 지우는 것(앞에서부터 차례로):
+- 복무: 지난 날짜 7일
+- 수리 요청: 완료 90일 · 미완료 1년
+- 식판 사진: 30일(폰 올리기 링크는 만료되면 바로)
+- 업체 접속 기록 30일 · 업체 계정: 해제되거나 기간이 끝나고 30일
+- 명부 이력(권한 변경 기록): 1년
+- 업체 추천: 처리한 것은 다음 purge에서, 대기 중이어도 1년
+- 후기: 3년 · 조치 이력: 3년
+- 공지·첨부·봄 기록: 플랜이 끝난 날부터 1년
+- 플랜 신청 정보: 처리한 날부터 1년, 대기 중이면 접수한 날부터 1년
+- 나간 회원의 나만 일정, 멈춘 한글 작업
+- 모으기(제출 값·올린 파일·결과 파일): 마지막 활동 1년 · 만든 뒤 3년
+- 모으기에 안 쓴 올린 파일: 24시간
+- 고아 파일(1시간 유예), 저장 크기 정합
+
+단계 사이에 예외를 잡지 않는다. 한 단계가 실패하면 앞 단계는 지워진 채로 남고 뒤 단계는 그날 돌지 않으며, 종료 코드가 0이 아니라
+성공 표시가 갱신되지 않는다 → 감시가 26시간 뒤 경보. 고아 파일 "못 지움 N개"는 실패로 치지 않는다(`var/purge.log`에서 본다).
+
+```
+40 3 * * * cd /home/ubuntu/prod/goteacher/ops && docker compose exec -T goteacher-app python app/manage.py purge >> /home/ubuntu/prod/goteacher/var/purge.log 2>&1 && touch /home/ubuntu/prod/goteacher/var/purge-ok
+```
+먼저 보기: `purge --dry-run`(지우지 않고 건수만, 성공 표시는 손으로 갱신하지 않는다).
+
+운영 명령: `ops/`에서 `docker compose exec -T goteacher-app python app/manage.py <명령>`. 출력은 터미널에서만 보고 로그·알림으로 보내지 않는다.
+
+학교 플랜 `school_plan`:
+- `requests` — 대기 신청 목록. 첫 줄 "대기 N건", 다음 줄부터 담당자 이름·메일
+- `<NEIS 코드> --on --until YYYY-MM-DD` — 켜기·기한 연장(동학년 합침, 다시 돌려도 안전). 학교에 관리자가 없으면 아래 하나가 필수
+  - `--manager=<회원 key>` · `--manager-request=<신청 ID>`(requests의 #번호. 회원 0명 학교도 가능)
+- `<NEIS 코드> --remove-manager=<회원 key>` — 관리자 해제(마지막 관리자는 안 됨)
+- `<NEIS 코드> --off` — 플랜만 끈다(기한을 오늘로 앞당겨 공지 보관 기간 시작). 합친 공간은 되돌리지 않는다
+- 학교 코드가 겹치면 `--atpt <시도교육청 코드>`. 회원 key는 `-`로 시작할 수 있어 `=`로 붙여 쓴다
+
+협력업체 `partners`:
+- `add --name 이름 --cat 분류 --area 지역 --desc 소개 [--phone 번호] [--url 주소] [--tags "가, 나"] [--public]`
+- `publish <slug>` · `hide <slug>`
+- `suggestions`(대기 추천 목록, 추천인 이름·연락처 포함) · `suggestion-done <id> [--reject]`
+- `reviews --partner <slug>` · `reviews --pending`(확인 기다리는 한 줄, 글 포함)
+- `review-text-ok <번호>` · `review-text-no <번호> [--reason 까닭]`
+- `review-hide <번호> --reason 까닭 [--note 메모] [--by 이름]` · `review-show <번호> [--reason 까닭]` · `review-delete <번호> --reason 까닭`
+- `<번호>`는 화면의 신고 번호(R-…). 까닭·메모에 개인정보를 적지 않는다
+
+도메인 전환 체크리스트(G7). 실행은 승인 뒤, 구버전 처리는 사용자 결정:
+- [ ] **운영 라우터 둘 다 접근 로그 끄기 라벨** — `compose.yml`의 끄기 라벨은 `gt-staging`·`gt-staging-http`에만 있다. 운영 라우터를 새로 만들면
+  HTTPS 라우터와 HTTP(리다이렉트) 라우터 모두에 `traefik.http.routers.<이름>.observability.accesslogs: "false"`를 붙인다. 처리방침이 "요청 주소가 담긴 접속 기록은 남기지 않습니다"이고
+  공용 Traefik은 `--accesslog=true`라 빠뜨리면 바로 어긋난다. 공용 Traefik 설정은 바꾸지 않는다.
+- [ ] **토큰이 경로에 있는 주소**: `/tv/` `/m/` `/v/` `/n/`, 그 밖에 `/s/` `/c/` `/j/` `/school-plan/q/`. 라벨이 빠진 라우터나 리다이렉트를 거치면 전부 로그에 남는다.
+- [ ] 전환 뒤 확인: 운영 주소로 요청을 보내고 `docker logs --since 10m traefik 2>&1 | grep -cE '<운영 라우터>|goteacher\.xyz'`를 본다. 구버전 라우터(`goteacher-xyz`)가 남아 있으면 줄이 잡히므로 라우터 이름으로 구별한다. 내용을 화면에 찍지 않고 건수만 본다.
+- [ ] `traefik:latest`(2026-11-04 v3.7.5). 라우터 라벨은 v3.1 이상 기능이다. 공용 Traefik이 바뀌면 위 확인을 다시 한다.
+- [ ] 같은 Host를 쓰는 구버전 라우터 `goteacher-xyz`와 겹치지 않게 구버전을 먼저 정리(사용자 결정).
+- [ ] 라벨을 바꾸는 배포는 수 초 끊긴다(위 무중단 설명). 사용이 적은 때 한다.
+- [ ] `ops/.env`: `SITE_URL=https://goteacher.xyz`, `SECURE_HSTS_SECONDS=31536000`.
+- [ ] `ops/monitor.sh`의 `host=t.goteacher.xyz`를 운영 주소로(스테이징을 끄지 않으면 둘 다 보는지 결정).
+- [ ] 구글 클라이언트에 `https://goteacher.xyz` 원본·`/auth/google/callback` 추가, 동의 화면 브랜딩 → 프로덕션 게시(`meeting/28_tasks_r1.md` G7).
 
 VAPID 키(G2) 만들기 — 서버에서 한 번, 출력은 `ops/.env`에만 붙이고 화면·저장소에 남기지 않는다:
 `docker compose -f ops/compose.yml exec -T goteacher-app python -c "from py_vapid import Vapid; from py_vapid.utils import b64urlencode as e; from cryptography.hazmat.primitives import serialization as s; v=Vapid(); v.generate_keys(); print('VAPID_PRIVATE_KEY='+e(v.private_key.private_numbers().private_value.to_bytes(32,'big'))); print('VAPID_PUBLIC_KEY='+e(v.public_key.public_bytes(s.Encoding.X962, s.PublicFormat.UncompressedPoint)))" >> ops/.env`

@@ -27,4 +27,4 @@ ENV MEDIA_ROOT=/srv/media
 USER gt
 
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--workers", "2"]
+CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--worker-tmp-dir", "/dev/shm"]
