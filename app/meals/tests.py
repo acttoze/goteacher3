@@ -6,7 +6,7 @@ from unittest import mock
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.test import Client, SimpleTestCase
+from django.test import Client, SimpleTestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
@@ -250,7 +250,7 @@ class PhotoTests(Base):
         self.post_photo()
         used = SourceFile.used_bytes(self.hub)
         self.assertEqual(used, self.used0 + self.row().stored)
-        with mock.patch("notices.views.space_quota", return_value=used):  # 꽉 찬 공간
+        with override_settings(HWP_SCHOOL_QUOTA=used):  # 꽉 찬 공간
             self.assertEqual(self.post_photo(ymd="20261104").status_code, 400)  # 새 칸은 못 올린다
             self.assertEqual(self.post_photo(jpeg_bytes()).status_code, 200)  # 같은 크기로 바꾸기는 된다
 

@@ -33,10 +33,29 @@
   // 브라우저가 클립보드를 막으면 단추를 눌러 달라고 알린다.
   // 폴링하는 카드 안 대화상자(예: 명단의 내보내기 확인)가 열려 있으면 그 폴링은 건너뛴다(열린 창이 바뀌지 않게).
   // 빈도 제한(429) 안내는 화면에 그대로 넣는다(htmx 기본은 4xx를 버림). [data-err-swap] 안은 입력 오류(400)도 넣는다.
+  // 앞단(Traefik)의 429는 앱 화면이 아닌 글자라 넣지 않는다. 아래 htmx:responseError가 안내한다.
   document.addEventListener('htmx:beforeSwap', function (e) {
     var st = e.detail.xhr.status;
-    if (st === 429 || (st === 400 && e.detail.elt.closest('[data-err-swap]'))) { e.detail.shouldSwap = true; e.detail.isError = false; }
+    var page = /text\/html/.test(e.detail.xhr.getResponseHeader('Content-Type') || '');
+    if ((st === 429 && page) || (st === 400 && e.detail.elt.closest('[data-err-swap]'))) { e.detail.shouldSwap = true; e.detail.isError = false; }
   });
+  // 앱까지 오지 못한 거절: 앞단 본문 상한(413)·동시 업로드 상한(429). 자기 안내가 있는 화면은 stopPropagation으로 여기 오지 않는다.
+  document.addEventListener('htmx:responseError', function (e) {
+    var st = e.detail.xhr.status;
+    if (st === 413) toast('파일이 너무 커요. 크기를 줄여 다시 올려 주세요.');
+    else if (st === 429) toast('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
+  });
+  // 보내기 전 크기 검사: <input type="file" data-max-mb="n">의 파일 합이 n MB를 넘으면 보내지 않는다. 일반 폼은 앞단 거절이 브라우저 기본 화면으로 뜨기 때문이다.
+  // 캡처 단계에서 막아 htmx 폼도 보내지 않는다.
+  document.addEventListener('submit', function (e) {
+    var over = [].find.call(e.target.querySelectorAll('input[type=file][data-max-mb]'), function (i) {
+      return [].reduce.call(i.files, function (n, f) { return n + f.size; }, 0) > i.dataset.maxMb * 1048576;
+    });
+    if (!over) return;
+    e.preventDefault();
+    e.stopPropagation();
+    toast('파일이 너무 커요. ' + over.dataset.maxMb + 'MB까지 올릴 수 있어요. 줄여서 다시 올려 주세요.');
+  }, true);
   // 파일 칸: <input type="file" data-names="#id">에서 고른 파일 이름을 #id에 적는다. 안 골랐으면 처음 글자로 돌린다.
   document.addEventListener('change', function (e) {
     var i = e.target.closest('input[type=file][data-names]');

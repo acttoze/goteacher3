@@ -13,7 +13,7 @@ from django.urls import URLPattern, URLResolver, get_resolver
 from django.utils import timezone
 
 from collect.models import Notification
-from config.logsafe import _TOKEN
+from config.logsafe import _mask
 from hwpfiles.retention import purge
 from notices.models import Notice
 from spaces.merge import open_school
@@ -185,7 +185,7 @@ class EntryTests(VendorBase):
         self.assertEqual(codes[-1], 429)
 
     def test_log_masks_token(self):
-        self.assertEqual(_TOKEN.sub(r"\1***", "Internal Server Error: /v/abcDEF"), "Internal Server Error: /v/***")
+        self.assertEqual(_mask("Internal Server Error: /v/abcDEF"), "Internal Server Error: /v/***")
 
 
 class CutTests(VendorBase):

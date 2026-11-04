@@ -24,7 +24,9 @@ RUN SECRET_KEY=build-only python app/manage.py collectstatic --noinput -v 0 \
 RUN useradd --system --no-create-home gt \
     && mkdir -p /srv/media && chown gt /srv/media && chmod 700 /srv/media  # 올린 한글 파일 볼륨(새 볼륨이 이 소유권을 받음)
 ENV MEDIA_ROOT=/srv/media
+# 사진 처리 뒤 메모리를 운영체제에 돌려준다
+ENV MALLOC_MMAP_THRESHOLD_=131072
 USER gt
 
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--worker-tmp-dir", "/dev/shm"]
+CMD ["gunicorn", "config.wsgi", "--chdir", "app", "--bind", "0.0.0.0:8000", "--worker-class", "gthread", "--workers", "2", "--threads", "4", "--worker-tmp-dir", "/dev/shm", "--keep-alive", "0"]

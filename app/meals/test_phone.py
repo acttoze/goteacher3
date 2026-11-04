@@ -675,7 +675,7 @@ class BodyLimitTests(PhoneBase):
         rf = RequestFactory()
         mw = BodyLimitMiddleware(lambda r: "passed")
         self.assertEqual(mw(rf.post("/m/x", b"", content_type="text/plain", CONTENT_LENGTH=str(9 * 1024 * 1024))), "passed")
-        self.assertEqual(mw(rf.post("/meals/x", b"", content_type="text/plain", CONTENT_LENGTH=str(20 * 1024 * 1024))), "passed")  # /m/로 시작하는 것만
+        self.assertEqual(mw(rf.post("/meals/x", b"", content_type="text/plain", CONTENT_LENGTH=str(3 * 1024 * 1024))), "passed")  # 올리는 주소가 아니면 일반 상한
 
 
 class LogTests(PhoneBase):

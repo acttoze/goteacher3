@@ -6,11 +6,16 @@
 - 캐시는 Django 기본 캐시. 학교·학급은 하루, 학사·급식은 한 시간. 실패도 FAIL_TTL(1분) 캐시 —
   NEIS가 멈췄을 때 같은 요청이 매번 TIMEOUT만큼 워커를 붙잡지 않게.
   급식 실패는 MEAL_FAIL_TTL(10분): TV가 5분마다 부르므로 그보다 길어야 장애 때 TV마다 워커를 붙잡지 않는다. 담당자의 '다시 시도'는 forget_failed_meals로 바로.
+- 멈춤 대비(웹 슬롯을 묶지 않게): 요청당 TIMEOUT 2초·재시도 없음. 연결·HTTP 실패가 FAIL_LIMIT번 이어지면 BREAK_SECONDS 동안 부르지 않고 곧장 실패로 돌려준다(차단기).
+  NEIS가 답을 하고 오류 코드를 준 것(인증키 등)은 멈춤이 아니라 세지 않는다. 같은 키 동시 호출은 한 스레드만 부르고 나머지는 그 결과를 기다린다.
+  차단기 값은 Django 기본 캐시(프로세스 메모리)라 프로세스마다 따로 센다.
 """
+import http.client
 import json
 import logging
 import math
 import re
+import threading
 from datetime import date
 from urllib.error import URLError
 from urllib.parse import urlencode
@@ -20,11 +25,16 @@ from django.conf import settings
 from django.core.cache import cache
 
 API = "https://open.neis.go.kr/hub/"
-TIMEOUT = 5
+TIMEOUT = 2
 DAY = 60 * 60 * 24
 HOUR = 60 * 60
 FAIL_TTL = 60
 MEAL_FAIL_TTL = 600
+FAIL_LIMIT = 3
+BREAK_SECONDS = 60
+BREAKER = "neis:breaker"
+FAILS = "neis:fails"
+STALLED = (URLError, OSError, http.client.HTTPException)  # 연결·시간 초과·HTTP 오류·응답 끊김
 
 log = logging.getLogger(__name__)
 
@@ -46,12 +56,18 @@ def _cache_key(path, params):
     return "neis:" + path + ":" + urlencode(sorted(params.items()))
 
 
-def _get(path, params, ttl, fail_ttl=FAIL_TTL):
-    """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
-    ck = _cache_key(path, params)
-    hit = cache.get(ck)
-    if hit is not None:
-        return hit
+def _note_stalled():
+    cache.add(FAILS, 0, BREAK_SECONDS * 5)
+    try:
+        if cache.incr(FAILS) >= FAIL_LIMIT:
+            cache.set(BREAKER, True, BREAK_SECONDS)
+            cache.delete(FAILS)
+    except ValueError:  # 그사이 지워졌다
+        pass
+
+
+def _fetch(path, params):
+    """NEIS 한 번 부르기. 성공 (행, 건수)·실패 None."""
     q = {"Type": "json", "pIndex": 1, "pSize": 100, **params}
     if settings.NEIS_KEY:
         q["KEY"] = settings.NEIS_KEY
@@ -65,12 +81,47 @@ def _get(path, params, ttl, fail_ttl=FAIL_TTL):
             result = ([], 0)
         else:
             raise NeisError(data.get("RESULT", {}).get("CODE", "형식 오류"))
-    except (URLError, OSError, ValueError, KeyError, IndexError, NeisError) as e:
+    except (*STALLED, ValueError, KeyError, IndexError, NeisError) as e:
         # 주소에 키가 들어 있으므로 예외 메시지·주소는 남기지 않는다.
         log.warning("NEIS %s 실패: %s %s", path, type(e).__name__, e if isinstance(e, NeisError) else "")
-        result, ttl = (Failed(), 0), fail_ttl
-    cache.set(ck, result, ttl)
+        if isinstance(e, STALLED):
+            _note_stalled()
+        return None
+    cache.delete(FAILS)
     return result
+
+
+_flights = {}
+_flights_lock = threading.Lock()
+
+
+def _get(path, params, ttl, fail_ttl=FAIL_TTL):
+    """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
+    ck = _cache_key(path, params)
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    if cache.get(BREAKER):
+        return Failed(), 0
+    with _flights_lock:
+        flight = _flights.get(ck)
+        mine = flight is None
+        if mine:
+            flight = _flights[ck] = threading.Event()
+    if not mine:
+        flight.wait(TIMEOUT + 1)
+        hit = cache.get(ck)
+        return hit if hit is not None else (Failed(), 0)
+    try:
+        result = _fetch(path, params)
+        if result is None:
+            result, ttl = (Failed(), 0), fail_ttl
+        cache.set(ck, result, ttl)
+        return result
+    finally:
+        with _flights_lock:
+            del _flights[ck]
+        flight.set()
 
 
 def school_year(today=None):
@@ -80,11 +131,13 @@ def school_year(today=None):
 
 
 def search_schools(name):
-    """초등학교 이름 검색. (학교 목록, 전체 건수) — 키가 없으면 목록은 5곳까지 잘린다."""
+    """초등학교 이름 검색. (학교 목록, 전체 건수) — 키가 없으면 목록은 5곳까지 잘린다. 못 불렀으면 목록이 Failed(failed()로 본다)."""
     name = name.strip()
     if len(name) < 2:
         return [], 0
     rows, total = _get("schoolInfo", {"SCHUL_NM": name, "SCHUL_KND_SC_NM": "초등학교"}, DAY)
+    if failed(rows):
+        return rows, 0
     return [
         {
             "name": r["SCHUL_NM"],

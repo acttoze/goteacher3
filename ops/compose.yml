@@ -22,7 +22,7 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_started }
     volumes: [media:/srv/media]  # 올린 한글 파일(E2). worker와 공유
-    mem_limit: 1g  # gthread 8슬롯 + 사진 재인코딩 최악 기준
+    mem_limit: 1g  # gthread 8슬롯 + 사진 재인코딩 여유(동시 재인코딩 수는 앱이 제한)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
       interval: 30s
@@ -34,11 +34,66 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: infra
-      traefik.http.routers.gt-staging.rule: Host(`t.goteacher.xyz`)
+      # 본문은 Traefik이 다 받은 뒤 앱에 넘긴다(느린 본문이 gthread 슬롯을 쥐지 못하게). 라우터 4개로 나눈다:
+      #   gt-staging: GET·HEAD. 버퍼링 없음 — buffering은 응답도 쌓으므로 내려받기를 공용 디스크에 두지 않는다
+      #   gt-staging-body: 그 밖의 메서드, 3MB(앱 DATA_UPLOAD_MAX 2.5MB + 머리 몫)
+      #   gt-staging-up101·up31·up9: 파일을 받는 POST만. 상한은 앱과 같게
+      # 인증 전에 받으므로 업로드 라우터는 동시 건수를 묶어 공용 디스크에 쌓이는 양을 제한한다(합계 약 1.2GB). ops/README.md
+      traefik.http.routers.gt-staging.rule: Host(`t.goteacher.xyz`) && (Method(`GET`) || Method(`HEAD`))
       traefik.http.routers.gt-staging.entrypoints: websecure
       traefik.http.routers.gt-staging.tls: "true"
       traefik.http.routers.gt-staging.tls.certresolver: letsencrypt
       traefik.http.routers.gt-staging.service: gt-staging
+      traefik.http.routers.gt-staging-body.rule: Host(`t.goteacher.xyz`) && !Method(`GET`) && !Method(`HEAD`)
+      traefik.http.routers.gt-staging-body.entrypoints: websecure
+      traefik.http.routers.gt-staging-body.tls: "true"
+      traefik.http.routers.gt-staging-body.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-staging-body.service: gt-staging
+      traefik.http.routers.gt-staging-body.middlewares: gt-staging-buf3
+      # 공지 쓰기·고치기
+      traefik.http.routers.gt-staging-up101.rule: Host(`t.goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/board/(new|[^/]+/edit)$$`)
+      traefik.http.routers.gt-staging-up101.priority: "1000"
+      traefik.http.routers.gt-staging-up101.entrypoints: websecure
+      traefik.http.routers.gt-staging-up101.tls: "true"
+      traefik.http.routers.gt-staging-up101.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-staging-up101.service: gt-staging
+      traefik.http.routers.gt-staging-up101.middlewares: gt-staging-in8,gt-staging-buf101
+      # 한글 올리기
+      traefik.http.routers.gt-staging-up31.rule: Host(`t.goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/hwp/upload$$`)
+      traefik.http.routers.gt-staging-up31.priority: "1000"
+      traefik.http.routers.gt-staging-up31.entrypoints: websecure
+      traefik.http.routers.gt-staging-up31.tls: "true"
+      traefik.http.routers.gt-staging-up31.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-staging-up31.service: gt-staging
+      traefik.http.routers.gt-staging-up31.middlewares: gt-staging-in8b,gt-staging-buf31
+      # 수리 사진·식판 사진·폰 사진
+      traefik.http.routers.gt-staging-up9.rule: Host(`t.goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/(repairs/new|repairs/[^/]+/edit|meals/[^/]+/upload)$$|^/m/[^/]+$$`)
+      traefik.http.routers.gt-staging-up9.priority: "1000"
+      traefik.http.routers.gt-staging-up9.entrypoints: websecure
+      traefik.http.routers.gt-staging-up9.tls: "true"
+      traefik.http.routers.gt-staging-up9.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-staging-up9.service: gt-staging
+      traefik.http.routers.gt-staging-up9.middlewares: gt-staging-in16,gt-staging-buf9
+      # 메모리에는 64KB까지만, 넘으면 Traefik 컨테이너 /tmp(공용 호스트 디스크)
+      traefik.http.middlewares.gt-staging-buf3.buffering.maxRequestBodyBytes: "3145728"
+      traefik.http.middlewares.gt-staging-buf3.buffering.memRequestBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf3.buffering.memResponseBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf101.buffering.maxRequestBodyBytes: "105906176"
+      traefik.http.middlewares.gt-staging-buf101.buffering.memRequestBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf101.buffering.memResponseBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf31.buffering.maxRequestBodyBytes: "32505856"
+      traefik.http.middlewares.gt-staging-buf31.buffering.memRequestBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf31.buffering.memResponseBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf9.buffering.maxRequestBodyBytes: "9437184"
+      traefik.http.middlewares.gt-staging-buf9.buffering.memRequestBodyBytes: "65536"
+      traefik.http.middlewares.gt-staging-buf9.buffering.memResponseBodyBytes: "65536"
+      # 동시 건수(라우터별 서비스 전체). 넘으면 429. 8×101MB + 8×31MB + 16×9MB
+      traefik.http.middlewares.gt-staging-in8.inflightreq.amount: "8"
+      traefik.http.middlewares.gt-staging-in8.inflightreq.sourcecriterion.requesthost: "true"
+      traefik.http.middlewares.gt-staging-in8b.inflightreq.amount: "8"
+      traefik.http.middlewares.gt-staging-in8b.inflightreq.sourcecriterion.requesthost: "true"
+      traefik.http.middlewares.gt-staging-in16.inflightreq.amount: "16"
+      traefik.http.middlewares.gt-staging-in16.inflightreq.sourcecriterion.requesthost: "true"
       traefik.http.routers.gt-staging-http.rule: Host(`t.goteacher.xyz`)
       traefik.http.routers.gt-staging-http.entrypoints: web
       traefik.http.routers.gt-staging-http.middlewares: gt-staging-redirect
@@ -47,6 +102,10 @@ services:
       # Traefik v3.1+ 라우터 observability. 3.7.5 로컬 재현: 이 라우터 요청은 안 남고 다른 라우터는 남음. 공용 설정은 그대로.
       traefik.http.routers.gt-staging.observability.accesslogs: "false"
       traefik.http.routers.gt-staging-http.observability.accesslogs: "false"
+      traefik.http.routers.gt-staging-body.observability.accesslogs: "false"
+      traefik.http.routers.gt-staging-up101.observability.accesslogs: "false"
+      traefik.http.routers.gt-staging-up31.observability.accesslogs: "false"
+      traefik.http.routers.gt-staging-up9.observability.accesslogs: "false"
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.scheme: https
       traefik.http.middlewares.gt-staging-redirect.redirectscheme.permanent: "true"
       traefik.http.services.gt-staging.loadbalancer.server.port: "8000"

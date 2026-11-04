@@ -122,7 +122,7 @@
           <input type="hidden" name="hwp" id="hwpKey" value="{{ hwp.f.key|default:'' }}">
           <input type="hidden" id="hwpTable" value="">
           <label class="drop" id="hwpDrop"{% if hwp %} hidden{% endif %} data-upload="/s/{{ space.token }}/hwp/upload?pick=1">
-            <input type="file" accept=".hwp,.hwpx" id="hwpFile" class="sr">
+            <input type="file" data-max-mb="{{ hwp_max_mb }}" accept=".hwp,.hwpx" id="hwpFile" class="sr">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 9l6-6 6 6M5 20h14"/></svg>
             <span><b>hwp·hwpx 파일을 끌어다 놓거나 눌러서 고르세요</b><span>본문·결재란은 그대로 두고, 다 모이면 같은 파일의 그 표 칸만 채워 돌려드려요. 30MB까지.</span></span></label>
           <div id="hwpUpMsg" aria-live="polite"></div>

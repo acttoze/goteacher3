@@ -330,7 +330,7 @@ class PhotoQa(QaBase):
     def test_quota_refused_replacement_keeps_old_photo_and_no_new_file(self):
         self.post_photo(jpeg_bytes(size=(64, 48)))
         before = self.row()
-        with mock.patch("notices.views.space_quota", return_value=SourceFile.used_bytes(self.hub)):
+        with override_settings(HWP_SCHOOL_QUOTA=SourceFile.used_bytes(self.hub)):
             with self.captureOnCommitCallbacks(execute=True):
                 big = noise_jpeg(side=500)
                 self.assertEqual(self.post_photo(big).status_code, 400)
@@ -518,6 +518,7 @@ class NeisQa(QaBase):
             self.writer.get(self.base)
             base = len(self.calls)
             for _ in range(views.RETRY_PER_MINUTE):
+                cache.delete(neis.FAILS)  # 차단기는 config.test_o2가 본다. 여기서는 빈도 제한만
                 self.writer.get(self.base + "?retry=1")
             self.assertEqual(len(self.calls), base + 6)
             for _ in range(5):

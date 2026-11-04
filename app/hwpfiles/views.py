@@ -36,7 +36,7 @@ from spaces.views import _space_ctx
 from collect.access import owner_view
 from collect.models import Collection
 
-from .models import ResultFile, SourceFile, in_flight, lock_member, space_quota
+from .models import ResultFile, SourceFile, in_flight, lock_member, storage_room
 from .tasks import convert, fill_result
 
 log = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ REJECT = {
     "UnsafeFile": "파일 구조가 안전하지 않아 열지 않았어요. 한글에서 다시 저장해 올려 주세요.",
     "Empty": "올릴 한글 파일을 골라 주세요.",
     "Quota": "{word} 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 올려 주세요.",
+    "FreeQuota": "무료로 쓸 수 있는 저장 공간이 서비스 전체에서 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요.",
     "TotalQuota": "고티처 서비스 저장 공간이 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요.",
 }
 
@@ -98,13 +99,6 @@ def _clean_name(raw):
 def upload(request):
     if not allow("hwp-up", request.member.key, UPLOAD_PER_HOUR, 3600):  # 빈도 제한(G3 ⑥): 본문을 읽기 전에
         return _reject(request, TOO_MANY, status=429)
-    # 본문을 읽기 전에 선언 크기로 먼저 거른다(멀티파트 머리 몫 1MB 여유).
-    try:
-        declared = int(request.META.get("CONTENT_LENGTH") or 0)
-    except ValueError:
-        declared = 0
-    if declared > settings.HWP_MAX_UPLOAD + MB:
-        return _reject(request, "TooLarge")
     f = request.FILES.get("file")
     if f is None or not f.size:
         return _reject(request, "Empty")
@@ -117,10 +111,9 @@ def upload(request):
         return _reject(request, type(e).__name__)
     except hwp.HwpError:
         return _reject(request, "UnsafeFile")
-    if SourceFile.used_bytes(request.space) + len(data) > space_quota(request.space):
-        return _reject(request, "Quota")
-    if SourceFile.used_bytes() + len(data) > settings.HWP_TOTAL_QUOTA:
-        return _reject(request, "TotalQuota")
+    room, why = storage_room(request.space)
+    if len(data) > room:
+        return _reject(request, why)
     # 행을 먼저 만들고 파일을 쓴다. 쓰다 실패하면 행을 지워 고아(행 없는 파일·파일 없는 행)를 남기지 않는다.
     with transaction.atomic():  # 진행 중 상한: 회원 잠금 안에서 세고 만든다(동시 요청 우회 막기)
         lock_member(request.member)
@@ -245,10 +238,9 @@ def result(request, c):
         shrink = -1
     if not 0 <= shrink <= hwp.MAX_SHRINK:
         return _result_part(request, ctx, BAD_SHRINK, status=400)
-    if SourceFile.used_bytes(request.space) >= space_quota(request.space):
-        return _result_part(request, ctx, reject_text("Quota", request.space), status=400)
-    if SourceFile.used_bytes() >= settings.HWP_TOTAL_QUOTA:
-        return _result_part(request, ctx, reject_text("TotalQuota", request.space), status=400)
+    room, why = storage_room(request.space)
+    if room <= 0:
+        return _result_part(request, ctx, reject_text(why, request.space), status=400)
     sf = ctx["src"]
     with transaction.atomic():  # 회원 잠금 안에서 세고 만든다(동시 요청으로 상한·같은 모으기 중복 우회 막기)
         lock_member(request.member)

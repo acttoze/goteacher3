@@ -18,7 +18,7 @@
     <div class="mpic">{% if c.photo %}<img src="/s/{{ space.token }}/meals/{{ c.ymd }}/photo?v={{ c.photo.version }}" alt="{{ c.label }} 식판 사진">{% elif c.need %}오늘 사진이 아직 없어요.{% if writable %}<br>끌어 놓거나 Ctrl+V{% endif %}{% elif c.meal or fail %}사진 없음{% else %}급식 없음{% endif %}</div>
     <div class="mact">
       {% if writable %}<form class="mup" method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/meals/{{ c.ymd }}/upload" hx-post="/s/{{ space.token }}/meals/{{ c.ymd }}/upload" hx-encoding="multipart/form-data" hx-target="#mealMain" hx-swap="outerHTML">{% csrf_token %}
-        <label class="btn sm {% if c.need %}pri{% else %}sec{% endif %}">{% if c.photo %}바꾸기{% else %}사진 고르기{% endif %}<input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label></form>{% endif %}
+        <label class="btn sm {% if c.need %}pri{% else %}sec{% endif %}">{% if c.photo %}바꾸기{% else %}사진 고르기{% endif %}<input type="file" name="photo" data-max-mb="{{ max_mb }}" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label></form>{% endif %}
       {% if c.photo %}<form method="post" action="/s/{{ space.token }}/meals/{{ c.ymd }}/delete" hx-post="/s/{{ space.token }}/meals/{{ c.ymd }}/delete" hx-target="#mealMain" hx-swap="outerHTML">{% csrf_token %}<button class="btn ghost sm" type="submit">지우기</button></form>{% endif %}
     </div>
     {% if c.today %}{% include "meals/_qr.html" %}{% endif %}

@@ -21,7 +21,7 @@ from config.ratelimit import too_many
 
 from . import neis
 from .models import Member, PlanRequest, School
-from .views import HITS, NEIS_PER_MIN, _clean_name, _josa, _my_space
+from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, _clean_name, _josa, _my_space
 
 LOGIN_HREF = "/start?next=/school-plan"
 RENEW_DAYS = 30  # 기한이 이만큼 남으면 다시 신청할 수 있다(만료 안내와 같은 날)
@@ -114,6 +114,8 @@ def _search(request, ctx):
         ctx["schools"], total = neis.search_schools(q)
         request.session[HITS] = ctx["schools"]
         ctx.update(more=total > len(ctx["schools"]), total=total, josa=_josa(q, "으로", "로"))
+        if neis.failed(ctx["schools"]):
+            ctx["search_error"] = NEIS_DOWN
     ctx["checked"] = request.POST.get("i", "0" if len(ctx.get("schools") or ()) == 1 else "")
     return ctx
 

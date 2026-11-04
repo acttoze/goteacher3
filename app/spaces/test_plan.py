@@ -13,7 +13,7 @@ from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import new_guest
-from config.logsafe import _TOKEN
+from config.logsafe import _mask
 
 from .merge import open_school
 from .models import Member, PlanRequest, School, Space
@@ -151,7 +151,7 @@ class ApplyTests(Base):
             self.assertEqual(self.client.post("/school-plan", FORM).status_code, 303, left)
 
     def test_submitted_values_not_in_operator_error_log_path(self):
-        self.assertEqual(_TOKEN.sub(r"\1***", "/school-plan/q/SECRETKEY"), "/school-plan/q/***")
+        self.assertEqual(_mask("/school-plan/q/SECRETKEY"), "/school-plan/q/***")
 
 
 class QuoteTests(Base):

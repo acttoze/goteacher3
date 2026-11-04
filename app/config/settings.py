@@ -153,12 +153,16 @@ MEDIA_ROOT = os.environ.get("MEDIA_ROOT", str(REPO_DIR / "media"))
 FILE_UPLOAD_PERMISSIONS = 0o600
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 # 한글 파일 하나 상한(hwp.MAX_UPLOAD와 같음). 파일이 아닌 본문은 Django 기본(2.5MB) 그대로,
-# 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다. 선언 크기 초과는 뷰가 본문 읽기 전에 거부.
-MAX_REQUEST_BYTES = 101 * 1024 * 1024  # 요청 본문 전역 상한(공지 첨부 100MB + 머리 몫). config.bodylimit
-MAX_PHONE_REQUEST_BYTES = 9 * 1024 * 1024  # /m/(M3): 사진 8MB + 머리 몫
+# 파일은 2.5MB를 넘으면 임시 파일로 받아 메모리에 다 올리지 않는다.
 HWP_MAX_UPLOAD = 30 * 1024 * 1024
+# 요청 본문 상한(config.bodylimit). 앞단 Traefik 라우터(ops/compose.yml)와 같은 값·같은 주소를 쓴다.
+MAX_REQUEST_BYTES = 3 * 1024 * 1024  # 일반 POST: 아래 DATA_UPLOAD_MAX_MEMORY_SIZE(2.5MB) + 머리 몫. 붙여넣은 표 HTML 100만 자(인코딩 뒤 1.9MB)도 든다
+MAX_NOTICE_REQUEST_BYTES = 101 * 1024 * 1024  # 공지 쓰기·고치기: 첨부 100MB + 머리 몫
+MAX_HWP_REQUEST_BYTES = HWP_MAX_UPLOAD + 1024 * 1024  # 한글 올리기
+MAX_PHOTO_REQUEST_BYTES = 9 * 1024 * 1024  # 수리·식판·폰 사진: 8MB + 머리 몫
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
-HWP_SPACE_QUOTA = 1024 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
+HWP_SPACE_QUOTA = 500 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
+HWP_FREE_TOTAL_QUOTA = int(os.environ.get("HWP_FREE_TOTAL_QUOTA", 2 * 1024**3))  # 동학년 공간 합계. 무료 공간이 유료 학교 자리까지 쓰지 못하게(hwpfiles.models.storage_room)
 HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 2 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
 HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 5 * 1024**3))  # 서비스 전체(서버 디스크 보호). 미디어 백업 7벌을 감안(한글·공지 첨부·수리·식판 사진 합, SourceFile.used_bytes)
 PARTNER_REVIEW_MIN_DAYS = 14  # N2 후기 자격: 무료 공간은 가입 뒤 이 날수가 지나야

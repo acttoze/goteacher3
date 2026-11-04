@@ -328,7 +328,7 @@ def page(request):
         return _page(request, STALE, 400)
     space, roster, rows = request.space, _roster(request.space), signed["rows"]
     with transaction.atomic():
-        Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 동시에 바꿔도 한 표만 남게
+        Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()  # 둘이 동시에 바꿔도 한 표만 남게
         Attendance.objects.in_space(space).filter(date__in={r["date"] for r in rows}).delete()
         Attendance.objects.bulk_create(Attendance(
             space=space, date=r["date"], name=r["name"], kind=r["kind"], time_text=r["time"], by=request.member,

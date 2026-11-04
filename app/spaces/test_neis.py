@@ -166,6 +166,7 @@ class NeisFailedTests(SimpleTestCase):
         for i, err in enumerate([URLError("x"), HTTPError("u", 503, "busy", {}, None), None]):
             kw = {"return_value": resp(BAD_KEY)} if err is None else {"side_effect": err}
             ymd = f"2026110{i + 2}"
+            cache.delete(neis.FAILS)  # 차단기는 test_o2가 본다. 여기서는 부르는 횟수만
             with self.assertLogs("spaces.neis", "WARNING"), mock.patch.object(neis, "urlopen", **kw) as m:
                 first = neis.schedule("S10", "9010000", ymd, ymd)
                 again = neis.schedule("S10", "9010000", ymd, ymd)  # 1분 실패 캐시에서 와도 실패 표시가 남는다

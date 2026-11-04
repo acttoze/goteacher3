@@ -26,6 +26,7 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
+from .merge import retry_once, vacate
 from .models import (
     INVITE,
     Member,
@@ -51,6 +52,7 @@ JOIN_PER_MIN_SESSION = 5
 SCHOOL_SEATS = 300  # 학교 공간 입장 상한. 큰 학교 교직원(200명 안팎)을 넉넉히 받는다
 LAST_MANAGER = "마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요."
 NEIS_PER_MIN = 20  # 학교 검색(사용자당 분당)
+NEIS_DOWN = "학교 정보를 불러오지 못했어요. 잠시 뒤 다시 찾아 주세요."
 # design/assets/people.js의 사람 색. 들어온 순서대로 돌려 쓴다. (색, 글자를 검게)
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
 # prototype TR.SUPPORT_ROLES·TR.groupRoles. 학년 그룹은 직책 대신 반·전담을 고른다.
@@ -139,7 +141,8 @@ def home(request):
         else:
             schools, total = neis.search_schools(q)
             request.session[HITS] = schools
-            ctx.update(schools=schools, total=total, more=total > len(schools), josa=_josa(q, "으로", "로"))
+            ctx.update(schools=schools, total=total, more=total > len(schools), josa=_josa(q, "으로", "로"),
+                       error=NEIS_DOWN if neis.failed(schools) else "")
     tpl = "spaces/_schools.html" if request.headers.get("HX-Request") else "spaces/start_school.html"
     return render(request, tpl, ctx, status=429 if ctx.get("limited") else 200)
 
@@ -407,16 +410,26 @@ def remove_member(request, key):
     if not ctx["is_creator"] or m.pk == request.member.pk:
         return HttpResponseForbidden()
     label = f"{_cls_label(m.cls)} {m.name}"
-    with transaction.atomic():
-        Space.objects.select_for_update().filter(pk=request.space.pk).first()  # 관리자 둘이 서로 내보낼 때 직렬화
-        if is_last_manager(m):
+    seat_pk = m.pk
+
+    def work():
+        Space.objects.select_for_update(no_key=True).filter(pk=request.space.pk).first()  # 관리자 둘이 서로 내보낼 때 직렬화
+        seat = Member.objects.in_space(request.space).filter(pk=seat_pk).select_related("user").first()
+        if seat is None:  # 그사이 다른 관리자가 내보냈다
+            return None
+        if is_last_manager(seat):
             return HttpResponse(LAST_MANAGER, status=409)
-        user = m.user
+        user = seat.user
         # 내보낸 회원이 만든 모으기는 내보낸 사람(대표)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
-        Collection.objects.in_space(request.space).filter(created_by=m).update(created_by=request.member)
-        m.delete()
+        Collection.objects.in_space(request.space).filter(created_by=seat).update(created_by=request.member)
+        seat.delete()
         if user and is_guest(user) and not Member.objects.filter(user=user).exists():
             user.delete()  # 기기 토큰 CASCADE, 세션은 사용자가 없어 무효
+        return None
+
+    refused = retry_once(work)
+    if refused:
+        return refused
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{request.space.token}/")
     toast = f"{label} 선생님을 내보냈어요. 다시 못 들어오게 하려면 초대 링크를 새로 만드세요."
@@ -437,7 +450,7 @@ def _seat_alert(space, member):
     # 같은 자리·같은 날은 1건만(줄이 없어 유일 제약이 안 걸린다). 부르는 쪽이 공간 행을 잠가 둬 동시 입장도 하나
     Notification.objects.get_or_create(
         space=space, member=creator, kind=Notification.Kind.SEAT, day=timezone.localdate(), text=text,
-        defaults={"link": f"/s/{space.token}/"},
+        defaults={"link": f"/s/{space.token}/", "about": member},
     )
 
 
@@ -471,7 +484,7 @@ def _retired_invite(request, old):
 
 def _lock_invite(request, space):
     """공간 행을 잠그고 다시 읽는다(동시 입장·합치기·재발급과 직렬화). 그사이 합쳐졌거나 링크가 바뀌었으면 None."""
-    fresh = Space.objects.select_for_update().filter(pk=space.pk).first()
+    fresh = Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()
     if fresh is None or fresh.merged_into_id or fresh.invite_token != request.session.get(INVITE):
         return None
     return fresh
@@ -577,7 +590,7 @@ def _welcome_alert(space, seat):
     text = f"{seat.name} 선생님({seat.cls_text})이 들어왔어요"
     Notification.objects.bulk_create(
         Notification(space=space, member=m, kind=Notification.Kind.JOIN, day=timezone.localdate(), text=text,
-                     link=f"/s/{space.token}/school", pushed=True)
+                     link=f"/s/{space.token}/school", pushed=True, about=seat)
         for m in Member.objects.in_space(space).filter(is_manager=True)
     )
 
@@ -722,21 +735,25 @@ def leave(request):
     space, me = request.space, request.member
     if request.POST.get("confirm", "").strip() != space.name:
         return HttpResponseBadRequest(f"{space.word} 이름을 그대로 써 주세요.")
-    user = request.user
-    with transaction.atomic():
-        Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 동시에 나갈 때 마지막 판단을 직렬화
-        if is_last_manager(me):
-            return HttpResponse(LAST_MANAGER, status=409)
-        heir = Member.objects.in_space(space).exclude(pk=me.pk).order_by("joined_at", "pk").first()
-        if heir is None:
-            space.delete()  # 모으기·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)
-        else:
-            if not space.is_school:  # 학교 공간은 비워 둬 관리자가 넘겨받는다(collect.views._owner)
-                Collection.objects.in_space(space).filter(created_by=me).update(created_by=heir)
-            me.delete()
-        gone = is_guest(user) and not Member.objects.filter(user=user).exists()
+    space_pk, seat_pk, user_pk = space.pk, me.pk, request.user.pk
+
+    def work():
+        Space.objects.select_for_update(no_key=True).filter(pk=space_pk).first()  # 둘이 동시에 나갈 때 마지막 판단을 직렬화
+        seat = Member.objects.filter(pk=seat_pk).select_related("space", "user").first()
+        if seat is None:  # 두 번 눌렀다
+            return "", False
+        if is_last_manager(seat):
+            return LAST_MANAGER, False
+        user = seat.user
+        vacate(seat)
+        gone = is_guest(user) and not Member.objects.filter(user_id=user_pk).exists()
         if gone:
             user.delete()
+        return "", gone
+
+    refused, gone = retry_once(work)
+    if refused:
+        return HttpResponse(refused, status=409)
     response = redirect("/")
     if gone:
         logout(request)

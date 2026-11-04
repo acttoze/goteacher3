@@ -41,7 +41,7 @@ class FlowEdges(Base):
         untouched = Space.objects.create(school=other, grade=4, name="4학년")
         Member.objects.create(space=untouched, user=google("o"), name="다른사람", cls="4-1")
         pr = self.request(s)
-        call_command("school_plan", "1", *ON, f"--manager-request={pr.pk}", stdout=StringIO())
+        call_command("school_plan", "1", *ON, f"--manager-request={pr.pk}", "--identity-checked", stdout=StringIO())
         hub = Space.objects.get(school=s, kind="school")
         self.assertEqual(Member.objects.in_space(hub).count(), 3)
         self.assertEqual(list(Member.objects.in_space(hub).filter(is_manager=True).values_list("user", flat=True)), [self.user.pk])

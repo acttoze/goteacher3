@@ -209,7 +209,7 @@ def page(request):
     except PasteError as e:
         return render(request, "today/paste.html", {**ctx, "paste": text[:MAX_TEXT], "error": str(e)}, status=400)
     with transaction.atomic():
-        Space.objects.select_for_update().filter(pk=space.pk).first()  # 둘이 같은 표를 동시에 넣어도 한 벌만
+        Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()  # 둘이 같은 표를 동시에 넣어도 한 벌만
         _mark_new(rows, space, me, ctx["chosen"])
         new = [r for r in rows if not r["dup"]]
         Event.objects.bulk_create(Event(space=space, by=me, date=r["date"], end=r["end"], slot=r["s"] or "", slot_end=r["e"] or "",

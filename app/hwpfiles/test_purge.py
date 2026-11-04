@@ -291,6 +291,7 @@ class PurgeQaTests(PurgeTests):
         live_rf.save()
         n = Notification.objects.create(space=self.sp, member=self.m, row=live.rows.get(), kind="d1",
                                         day=NOW.date(), text="t", link="/x")
+        Notification.objects.filter(pk=n.pk).update(created_at=NOW - DAY)  # 보관 기간 안의 알림
         ev = Event.objects.create(space=self.sp, date=NOW.date(), title="행사")
         d = FormDoc(src="91", slug="qa", category="학교", title="t", desc="d", filename="a.hwp", size=3)
         d.file.save("a.hwp", ContentFile(b"abc"), save=False)

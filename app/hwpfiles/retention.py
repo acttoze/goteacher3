@@ -11,6 +11,7 @@
 - 지난 협력업체 후기(N2): 쓴 지 3년 지난 후기와 3년 지난 조치 이력.
 - 지난 공지(O1): 공지는 있는 동안 보관하고 쓴 사람·관리자가 지우면 함께 지운다. 플랜이 끝나면 지울 수 없으니(읽기 전용) 끝난 날부터 1년 뒤 공지·판·첨부·봄 기록을 지운다.
 - 신청 정보(O1): spaces.PlanRequest. 처리한 날(대기 중이면 접수한 날)부터 1년.
+- 지난 알림(O2): 읽은 것은 90일, 안 읽은 것은 180일 지나면 지운다(만든 때 기준). 이름이 든 입장 알림은 그 회원이 나갈 때 먼저 지워진다(Notification.about).
 - 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
@@ -29,7 +30,7 @@ from django.db import models, transaction
 from django.db.models.signals import post_delete
 from django.utils import timezone
 
-from collect.models import Collection
+from collect.models import Collection, Notification
 from meals.models import MealPhoto, PhotoLink
 from notices.models import Notice
 from partners.models import Review, ReviewAction, Suggestion
@@ -53,6 +54,8 @@ MEMBER_LOG_AGE = timedelta(days=365)
 SUGGESTION_AGE = timedelta(days=365)
 NOTICE_AFTER_PLAN = timedelta(days=365)
 PLAN_REQUEST_AGE = timedelta(days=365)
+READ_BELL_AGE = timedelta(days=90)
+UNREAD_BELL_AGE = timedelta(days=180)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",), "repairs.Repair": ("photo",),
@@ -256,6 +259,11 @@ def purge(now, dry_run=False):
     n["plan_requests"] = old_requests.count()
     if not dry_run:
         old_requests.delete()
+    # 지난 알림(O2)
+    old_bells = Notification.objects.filter(models.Q(read=True, created_at__lt=now - READ_BELL_AGE) | models.Q(created_at__lt=now - UNREAD_BELL_AGE))
+    n["notifications"] = old_bells.count()
+    if not dry_run:
+        old_bells.delete()
     # 나간 회원의 '나' 일정(O1): 쓴 사람(by)이 비면 아무도 못 본다
     orphan_events = Event.objects.filter(scope=ME, by__isnull=True)
     n["my_events"] = orphan_events.count()

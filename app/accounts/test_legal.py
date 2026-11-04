@@ -55,6 +55,8 @@ class O1DocumentTests(TestCase):
             (r.RETENTION, 365, "마지막 제출·수정) 후 1년"),
             (r.MAX_AGE, 3 * 365, "만든 날부터 3년"),
             (GUEST_IDLE, 30, "30일 넘게"),
+            (r.READ_BELL_AGE, 90, "읽은 알림은 90일"),
+            (r.UNREAD_BELL_AGE, 180, "안 읽은 알림은 180일"),
         ):
             self.assertEqual(delta.days, days, phrase)
             self.assertIn(phrase, self.privacy)
@@ -64,6 +66,12 @@ class O1DocumentTests(TestCase):
                      "업체 추천", "학교 플랜 신청", "담당자 이름·직위·연락 메일", "최대 7일", "국외", "웹 푸시", "jsDelivr", "대조",
                      "화면·사진을 열어 본 기록", "그날·이번 주 급식, 식판 사진, 위생·표어, 학교 이름", "시간, 입력한 사람", "쓴 사람 이름·소속", "웹 푸시 구독 정보: 기간을 정해 두지 않고"):
             self.assertIn(word, self.privacy, word)
+
+    def test_merge_and_account_deletion_disclosed(self):
+        from accounts.management.commands.delete_account import GONE_NAME
+        self.assertIn("옛 모으기도 학교 공간 관리자에게 열립니다", self.privacy)
+        self.assertIn(GONE_NAME, self.privacy)
+        self.assertIn("이름이 든 입장 알림도 함께 지웁니다", self.privacy)
 
     def test_no_stale_claims(self):
         for stale in ("접속 기록: 1년", "서비스 안에서 회원 탈퇴를", "브라우저 종류", "접속 기록 보관과", "CSAP"):

@@ -216,7 +216,7 @@ def duties(request):
             error = str(e)
         else:
             with transaction.atomic():
-                Space.objects.select_for_update().filter(pk=space.pk).first()  # 관리자 둘이 동시에 바꿔도 한 표만 남게
+                Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()  # 관리자 둘이 동시에 바꿔도 한 표만 남게
                 Duty.objects.in_space(space).delete()
                 Duty.objects.bulk_create(Duty(space=space, order=i, **r) for i, r in enumerate(rows))
             return redirect(f"/s/{space.token}/school?tab=duty")

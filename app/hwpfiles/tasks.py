@@ -10,7 +10,6 @@ import re
 import time
 import zipfile
 
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
@@ -19,7 +18,7 @@ import hwp
 from hwp.engine import section_names
 
 from . import merge
-from .models import ResultFile, SourceFile, space_quota
+from .models import ResultFile, SourceFile, storage_room
 
 log = logging.getLogger(__name__)
 S = SourceFile.Status
@@ -220,8 +219,7 @@ def fill_result(pk):
         vals = _values(c)
         older = ResultFile.objects.filter(collection=c).exclude(pk=rf.pk)
         freed = older.aggregate(n=models.Sum("stored"))["n"] or 0   # 끝나면 지울 앞 결과
-        room = min(space_quota(rf.space) - SourceFile.used_bytes(rf.space),
-                   settings.HWP_TOTAL_QUOTA - SourceFile.used_bytes()) + freed
+        room = storage_room(rf.space)[0] + freed
         main, out = (_bundle if cm.get("mode") == "cells" else _merged)(rf, base, cm, rows, vals, room)
         size = len(out) + (len(main) if main is not None else 0)
         if size > room:

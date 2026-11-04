@@ -45,7 +45,7 @@
       <p class="small muted" style="margin:0 0 10px">한 장, JPG·PNG, {{ max_mb }}MB까지. 사진 한 장이 설명 열 줄보다 빨라요. 위치 정보는 지우고 저장해요.</p>
       {% if repair.photo %}<img class="rthumb" src="/s/{{ space.token }}/repairs/{{ repair.key }}/photo?v={{ repair.updated_at|date:'U' }}" alt="지금 올라온 사진">
       <label class="chk" style="margin-bottom:10px"><input type="checkbox" name="remove_photo">사진 지우기</label>{% endif %}
-      <div class="fpick"><label class="btn sec sm">사진 고르기<input class="sr" type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" aria-label="사진 고르기" data-names="#photoName"></label><span class="nm" id="photoName" aria-live="polite">고른 사진 없음</span></div>
+      <div class="fpick"><label class="btn sec sm">사진 고르기<input class="sr" type="file" name="photo" data-max-mb="{{ max_mb }}" accept=".jpg,.jpeg,.png,image/jpeg,image/png" aria-label="사진 고르기" data-names="#photoName"></label><span class="nm" id="photoName" aria-live="polite">고른 사진 없음</span></div>
       {% if errors.photo %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.photo }}</p>{% endif %}
       {% if errors %}<p class="small muted" style="margin:8px 0 0">고른 사진은 다시 골라 주세요.</p>{% endif %}
     </div></section>

@@ -158,6 +158,7 @@ class Notification(models.Model):
     text는 제목·마감 시각만(제출 값은 넣지 않는다). link는 앱 안 경로(/c/<링크>/u/<줄 키>).
     SEAT(G3): 기기가 붙은 손님 자리로 다른 브라우저가 들어오면 만든 사람에게. 줄 없음, link는 동학년 화면.
     JOIN(H2): 학교 공간에 새 회원이 들어오면 관리자들에게. 🔔만(pushed=True로 웹 푸시 묶음에서 뺀다).
+    about: SEAT·JOIN 문구에 이름이 든 그 회원. 그 자리가 지워지면 알림도 함께 지운다(어느 길로 나가든).
     NOTICE·CHANGE(I2): 확인 필수 공지 / 실질 변경. notice가 있고 공지가 지워지면 함께 지운다. 확인 필수 알림은 공지·회원당 하나.
     REPAIR·REPAIR_UP(K1): 요청 옴(담당자) / 상태 바뀜(요청자, 안 읽은 건 한 건으로 고친다). repair가 지워지면 함께 지운다.
     VENDOR(K2): 업체 링크 발급·재발급·해제를 관리자 모두에게. 🔔만(pushed=True).
@@ -183,6 +184,7 @@ class Notification(models.Model):
     row = models.ForeignKey(Row, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
     notice = models.ForeignKey("notices.Notice", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     repair = models.ForeignKey("repairs.Repair", on_delete=models.CASCADE, null=True, blank=True, related_name="+")
+    about = models.ForeignKey(Member, on_delete=models.CASCADE, null=True, blank=True, related_name="+")
     kind = models.CharField("종류", max_length=10, choices=Kind.choices)
     day = models.DateField("보낸 날")
     text = models.CharField("문구", max_length=300)

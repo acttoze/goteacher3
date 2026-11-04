@@ -6,7 +6,21 @@
 - `Dockerfile` — 빌드 컨텍스트는 저장소 루트(`.dockerignore`).
 - gunicorn은 gthread 워커 2개·스레드 4개(요청 슬롯 8개, DB 연결 최대 8개, 교체 중 16개). 느린 업로드가 슬롯 하나만 쥐므로 다른 요청이 계속 응답한다.
   gthread에서 `--timeout`(30초)은 워커 생존 신호 제한이라 느린 요청을 끊지 않는다. 대신 멈춘 요청도 끊지 않으므로 앱의 외부 호출에는 자체 제한이 있어야 한다.
-  **업로드 상한 시간은 Traefik이 정한다**: 공용 Traefik은 시간 제한 인자가 없어 기본 `readTimeout` 60초다(로컬 v3.7.5 재현: 60초에 502, 공용 설정은 바꾸지 않는다).
+  `--keep-alive 0`: 앱이 본문을 읽기 전에 응답하면(로그아웃·없는 공간 등) 켜 둔 연결에서는 Traefik이 대부분 502를 준다. 요청마다 닫으면 크게 줄지만 간헐적으로 남는다(앱에서 본문을 읽고 응답해야 없어진다).
+- 본문 버퍼링(라벨만, 공용 Traefik 전역 설정은 그대로): Traefik이 본문을 다 받은 뒤 앱에 넘기므로 느린 본문이 슬롯을 쥐지 못한다.
+  | 라우터 | 대상 | 본문 상한 | 동시 |
+  |---|---|---|---|
+  | `gt-staging` | GET·HEAD. 버퍼링 없음(buffering은 응답도 쌓는다) | — | — |
+  | `gt-staging-body` | 그 밖의 메서드 | 3MB | — |
+  | `gt-staging-up101` | POST `/s/*/board/new`, `/s/*/board/*/edit` | 101MB | 8 |
+  | `gt-staging-up31` | POST `/s/*/hwp/upload` | 31MB | 8 |
+  | `gt-staging-up9` | POST `/s/*/repairs/new`, `/s/*/repairs/*/edit`, `/s/*/meals/*/upload`, `/m/*` | 9MB | 16 |
+
+  상한을 넘으면 Traefik의 413, 동시 건수를 넘으면 429(앱 화면이 아니라 Traefik 글자 응답). 파일을 받는 새 경로를 만들면 여기와 `compose.yml`에 추가한다(빠뜨리면 3MB에서 413).
+  64KB를 넘는 본문은 **Traefik 컨테이너 `/tmp`, 곧 공용 호스트 디스크**에 쌓인다. 파일은 만들자마자 unlink되어 `ls`·`du`에 보이지 않고, 열린 동안만 공간을 쓴다(연결이 끊기면 수십 초 안에, Traefik이 재시작되면 바로 풀린다).
+  인증 전에 받으므로 동시 건수로 최대량을 묶었다: 8×101MB + 8×31MB + 16×9MB = 약 1.2GB(그날 여유 59GB). 업로드 동시 건수가 차도 다른 요청은 영향이 없다. 건수를 올리면 이 합을 다시 계산한다.
+  body 오류 시 공용 Traefik 로그에 라우터 이름만 있는 ERR 한 줄이 남는다(경로·토큰 없음).
+- **업로드 상한 시간은 Traefik이 정한다**: 공용 Traefik은 시간 제한 인자가 없어 기본 `readTimeout` 60초다(로컬 v3.7.5 재현, 공용 설정은 바꾸지 않는다).
   60초 안에 끝나려면 8MB 약 1.1Mbps, 30MB 약 4Mbps, 100MB 약 13.3Mbps가 필요하다.
 - 기반 이미지 4개(python·uv·postgres·redis)는 `@sha256:` 다이제스트로 고정. 갱신: `docker buildx imagetools inspect <이름:태그>`의 Digest로 바꿔 푸시(앱 이미지는 다음 배포에 반영, db·redis는 deploy가 다시 만들지 않으므로 승인 뒤 서버에서 `docker compose up -d db redis`).
 - `.env.example` — 서버 `ops/.env`(chmod 600) 견본. 실제 값은 서버에서 생성하고 저장소·출력에 남기지 않는다.
@@ -58,7 +72,8 @@
 
 감시(G6): crontab 5분마다 `ops/monitor.sh` — Traefik 경유 `/healthz`·worker·db·디스크 여유 20GB·백업 26시간 안·
 최근 5분 500 오류(`config/logsafe.py`: 경로 토큰 가림, 예외 메시지 없이 종류·위치만)·배포 실패·purge 성공 26시간 안·
-Redis 메모리 80% 이하. 문제 목록이 바뀔 때만 `var/alerts.log`와 텔레그램(`ops/notify.sh`)으로 알린다(같은 문제는 6시간마다).
+Redis 메모리 80% 이하·gunicorn 워커 강제 종료(줄 수)·앱 `oom_kill` 증가·`/healthz` 확인 중 만난 502. 접근 로그를 끈 라우터라 사용자가 받은 502 전체는 셀 수 없다.
+문제 목록이 바뀔 때만 `var/alerts.log`와 텔레그램(`ops/notify.sh`)으로 알린다(같은 문제는 6시간마다).
 지금 상태만 보기: `GT_DRY=1 ops/monitor.sh`.
 문제와 별도로 처리할 건수만 알린다: 학교 플랜 신청(대기가 늘었을 때 한 번, `var/plan-pending`), 후기 한 줄 대기(있으면 하루 한 번
 09시 뒤, `var/review-day`). 알림에는 숫자만 나간다. 이름·메일·글은 서버에서 아래 운영 명령으로 본다.
@@ -87,6 +102,9 @@ Redis 메모리 80% 이하. 문제 목록이 바뀔 때만 `var/alerts.log`와 �
 단계 사이에 예외를 잡지 않는다. 한 단계가 실패하면 앞 단계는 지워진 채로 남고 뒤 단계는 그날 돌지 않으며, 종료 코드가 0이 아니라
 성공 표시가 갱신되지 않는다 → 감시가 26시간 뒤 경보. 고아 파일 "못 지움 N개"는 실패로 치지 않는다(`var/purge.log`에서 본다).
 
+로그인 정리(G6): crontab 하루 한 번 03:50 `cleanup_sessions`(purge 뒤·백업 전, 기록은 같은 `var/purge.log`, 건수만) — 만료 세션, 1년 지났거나 비활성 사용자의 기기 토큰,
+회원 자리 없이 30일 넘게 안 들어온 손님. purge와 줄이 달라 서로 막지 않는다. 성공 표시·감시는 없다.
+
 ```
 40 3 * * * cd /home/ubuntu/prod/goteacher/ops && docker compose exec -T goteacher-app python app/manage.py purge >> /home/ubuntu/prod/goteacher/var/purge.log 2>&1 && touch /home/ubuntu/prod/goteacher/var/purge-ok
 ```
@@ -112,9 +130,10 @@ Redis 메모리 80% 이하. 문제 목록이 바뀔 때만 `var/alerts.log`와 �
 - `<번호>`는 화면의 신고 번호(R-…). 까닭·메모에 개인정보를 적지 않는다
 
 도메인 전환 체크리스트(G7). 실행은 승인 뒤, 구버전 처리는 사용자 결정:
-- [ ] **운영 라우터 둘 다 접근 로그 끄기 라벨** — `compose.yml`의 끄기 라벨은 `gt-staging`·`gt-staging-http`에만 있다. 운영 라우터를 새로 만들면
-  HTTPS 라우터와 HTTP(리다이렉트) 라우터 모두에 `traefik.http.routers.<이름>.observability.accesslogs: "false"`를 붙인다. 처리방침이 "요청 주소가 담긴 접속 기록은 남기지 않습니다"이고
+- [ ] **운영 라우터 6개 모두 접근 로그 끄기 라벨** — 라우터가 `gt-staging`·`-body`·`-up101`·`-up31`·`-up9`·`-http` 6개다. 운영용으로 같은 구성을 만들 때 하나도 빠짐없이
+  `traefik.http.routers.<이름>.observability.accesslogs: "false"`를 붙인다. 처리방침이 "요청 주소가 담긴 접속 기록은 남기지 않습니다"이고
   공용 Traefik은 `--accesslog=true`라 빠뜨리면 바로 어긋난다. 공용 Traefik 설정은 바꾸지 않는다.
+- [ ] **운영 라우터에도 같은 버퍼링·동시 건수 미들웨어**(위 표). 업로드 라우터의 priority가 일반 라우터보다 높아야 한다. 두 Host를 함께 받으면 동시 건수의 합으로 디스크 최대량을 다시 계산한다.
 - [ ] **토큰이 경로에 있는 주소**: `/tv/` `/m/` `/v/` `/n/`, 그 밖에 `/s/` `/c/` `/j/` `/school-plan/q/`. 라벨이 빠진 라우터나 리다이렉트를 거치면 전부 로그에 남는다.
 - [ ] 전환 뒤 확인: 운영 주소로 요청을 보내고 `docker logs --since 10m traefik 2>&1 | grep -cE '<운영 라우터>|goteacher\.xyz'`를 본다. 구버전 라우터(`goteacher-xyz`)가 남아 있으면 줄이 잡히므로 라우터 이름으로 구별한다. 내용을 화면에 찍지 않고 건수만 본다.
 - [ ] `traefik:latest`(2026-11-04 v3.7.5). 라우터 라벨은 v3.1 이상 기능이다. 공용 Traefik이 바뀌면 위 확인을 다시 한다.

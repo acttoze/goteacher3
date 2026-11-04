@@ -22,6 +22,15 @@
     how.value = b.dataset.pii;
     htmx.trigger(ta, 'gt-pasted');
   });
+  // 일반 본문 상한을 넘은 붙여넣기: 칸이 말없이 비어 보이지 않게 안내한다.
+  document.body.addEventListener('htmx:responseError', function (e) {
+    if (e.detail.elt !== ta || (e.detail.xhr.status !== 400 && e.detail.xhr.status !== 413)) return;
+    e.stopPropagation();  // 공통 안내(gt.js) 대신 이 칸 아래에
+    var p = document.createElement('p');
+    p.className = 'msg-inline'; p.setAttribute('role', 'alert');
+    p.textContent = '표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.';
+    document.getElementById('pasteOut').replaceChildren(p);
+  });
   document.body.addEventListener('htmx:afterRequest', function (e) {
     if (e.detail.elt === ta) html.value = '';  // HTML은 한 번만 보낸다
   });
@@ -81,15 +90,19 @@
   }
   function send(f) {
     if (!f || busy) return;
+    var tooBig = '파일이 너무 커요. ' + file.dataset.maxMb + 'MB 이하 한글 파일만 올릴 수 있어요.';
+    if (f.size > file.dataset.maxMb * 1048576) { say(tooBig); file.value = ''; return; }
     busy = true;
     say('');
     msg.innerHTML = '<p class="hwp-status">올리는 중이에요…</p>';
     var fd = new FormData();
     fd.append('file', f);
     fetch(drop.dataset.upload, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } })
-      .then(function (r) { return r.text().then(function (h) { return { status: r.status, h: h }; }); })
+      .then(function (r) { return r.text().then(function (h) { return { status: r.status, h: h, page: /text\/html/.test(r.headers.get('Content-Type') || '') }; }); })
       .then(function (r) {
-        if (r.status === 400 || r.status === 413 || r.status === 429) { say(new DOMParser().parseFromString(r.h, 'text/html').body.textContent.trim()); return; }  // 거부 문구(hwpfiles/_reject.html)는 글자로만
+        if (r.status === 413) { say(tooBig); return; }  // 앞단이나 앱의 본문 상한
+        if (r.status === 429 && !r.page) { say('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.'); return; }  // 앞단 동시 건수 상한(글자 응답)
+        if (r.status === 400 || r.status === 429) { say(new DOMParser().parseFromString(r.h, 'text/html').body.textContent.trim()); return; }  // 거부 문구(hwpfiles/_reject.html)는 글자로만
         if (r.status !== 200) { say('올리지 못했어요. 화면을 새로 고친 뒤 다시 올려 주세요.'); return; }
         msg.textContent = '';
         box.innerHTML = r.h;

@@ -242,7 +242,7 @@ class UploadTests(TestCase):
         url = f"/s/{self.a.token}/hwp/upload"
         r = self.client.generic("POST", url, b"x", CONTENT_TYPE="multipart/form-data; boundary=x",
                                 CONTENT_LENGTH=str(40 * 1024 * 1024))
-        self.assert_rejected(r, "30MB 이하")
+        self.assertEqual(r.status_code, 413)
 
     def test_empty_rejected(self):
         self.assert_rejected(self.client.post(f"/s/{self.a.token}/hwp/upload", {}), "골라 주세요")
@@ -326,7 +326,7 @@ class QaEdgeTests(UploadTests):
         url = f"/s/{self.a.token}/hwp/upload"
         r = self.client.generic("POST", url, b"x", CONTENT_TYPE="multipart/form-data; boundary=x",
                                 CONTENT_LENGTH=str(hwp.MAX_UPLOAD + 1024 * 1024 + 1))
-        self.assert_rejected(r, "30MB 이하")
+        self.assertEqual(r.status_code, 413)
 
     # ---- 멈춘 작업: 600초(작업 상한 2배) 경계, 변환 중도 실패로, 완료는 그대로
     def _make(self, status, age):

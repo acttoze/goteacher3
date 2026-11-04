@@ -176,7 +176,7 @@ def new(request):
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         else:
             src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
-    ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src,
+    ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src, hwp_max_mb=settings.HWP_MAX_UPLOAD // (1024 * 1024),
                      srcs=[("hwp", "한글 양식 올리기"), ("paste", "표 붙여넣기"), ("sheet", "직접 입력"),
                            ("preset", "자주 쓰는 양식")],
                      hwp=pick_ctx(sf) if sf else None, hwpf=hwpf,

@@ -30,7 +30,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 import hwp
 from config.ratelimit import TOO_MANY, allow
-from hwpfiles.models import SourceFile, space_quota
+from hwpfiles.models import storage_room
 from hwpfiles.views import _clean_name
 from collect.models import Notification
 from repairs.models import Repair
@@ -47,8 +47,8 @@ MB = 1024 * 1024
 PER_PAGE = 20
 MAX_TITLE, MAX_ITEM, MAX_BODY = 200, 200, 10000
 MAX_FILES, MAX_FILE = 5, 20 * MB
-# 화면 안내를 주는 선언 크기 상한. 전역 상한(settings.MAX_REQUEST_BYTES, 413)보다 1MB 아래라 이 사이는 폼으로 돌아온다
-MAX_REQUEST = settings.MAX_REQUEST_BYTES - MB
+# 화면 안내를 주는 선언 크기 상한. 공지 본문 상한(settings.MAX_NOTICE_REQUEST_BYTES, 413)보다 1MB 아래라 이 사이는 폼으로 돌아온다
+MAX_REQUEST = settings.MAX_NOTICE_REQUEST_BYTES - MB
 UPLOAD_PER_HOUR = 30  # 회원 한 명이 시간당 첨부를 담아 저장하는 횟수(거부된 것도 센다)
 TYPES = {"hwp": "application/x-hwp", "hwpx": "application/hwp+zip", "pdf": "application/pdf"}
 TOO_BIG = f"첨부는 합쳐서 {MAX_FILES * MAX_FILE // MB}MB까지 올릴 수 있어요. 파일을 줄여 다시 올려 주세요. 방금 쓴 내용은 저장되지 않았어요."
@@ -56,6 +56,7 @@ BAD_UPLOAD = "올린 내용을 읽지 못했어요. 파일 이름이 너무 길�
 TOO_MANY_FILES = f"첨부는 공지 하나에 {MAX_FILES}개까지예요."
 QUOTA = "학교 저장 공간이 가득 찼어요. 보관 기간이 지난 파일이 지워진 뒤 다시 올려 주세요."
 TOTAL_QUOTA = "고티처 서비스 저장 공간이 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요."
+FREE_QUOTA = "무료로 쓸 수 있는 저장 공간이 서비스 전체에서 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요."
 MUST_ONLY = "확인 필수는 학교 관리자만 켤 수 있어요."
 AUD_ONLY = "확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요."
 
@@ -174,14 +175,12 @@ def _read_files(uploads):
 
 
 def _quota_error(space, files):
+    """저장 한도 안내 한 줄(공지·수리·식판). 넣는 양이 0이면 넘친 공간도 거부하지 않는다."""
     size = sum(f["size"] for f in files)
     if not size:
         return ""
-    if SourceFile.used_bytes(space) + size > space_quota(space):
-        return QUOTA
-    if SourceFile.used_bytes() + size > settings.HWP_TOTAL_QUOTA:
-        return TOTAL_QUOTA
-    return ""
+    room, why = storage_room(space)
+    return {"Quota": QUOTA, "FreeQuota": FREE_QUOTA, "TotalQuota": TOTAL_QUOTA}[why] if size > room else ""
 
 
 def _uploads(request):
@@ -226,7 +225,7 @@ def _form_page(request, form, status=200, **extra):
     picked = set(form["groups"])
     ctx = _space_ctx(request, page="board", form=form, writable=request.space.school.writable, max_files=MAX_FILES,
                      can_must=request.member.is_manager,
-                     max_mb=MAX_FILE // MB, group_opts=[{"id": g, "label": label, "on": g in picked}
+                     max_mb=MAX_FILE // MB, max_total_mb=MAX_FILES * MAX_FILE // MB, group_opts=[{"id": g, "label": label, "on": g in picked}
                                                         for g, label in Member.Group.choices], **extra)
     return render(request, "notices/form.html", ctx, status=status)
 

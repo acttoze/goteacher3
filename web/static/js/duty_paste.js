@@ -12,6 +12,7 @@
   // 서버 업로드 한도를 넘으면 Django가 400을 준다: 칸이 말없이 비어 보이지 않게 안내한다.
   document.body.addEventListener('htmx:responseError', function (e) {
     if (e.detail.elt !== ta || (e.detail.xhr.status !== 400 && e.detail.xhr.status !== 413)) return;
+    e.stopPropagation();  // 공통 안내(gt.js) 대신 이 칸 아래에
     var p = document.createElement('p');
     p.className = 'field-err'; p.setAttribute('role', 'alert'); p.style.marginTop = '12px';
     p.textContent = '표가 너무 커요. 500줄 안으로 나눠 붙여넣어 주세요.';

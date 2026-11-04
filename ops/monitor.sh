@@ -3,6 +3,7 @@
 #   보는 것: Traefik 경유 /healthz · worker 실행 중 · db healthy · 디스크 여유 · 백업(DB·미디어) 26시간 안
 #            · 최근 5분 500 오류(config/logsafe.py가 남긴 줄 수) · 배포 실패(var/deploy-skip)
 #            · purge 성공 26시간 안(cron이 var/purge-ok를 갱신) · Redis 메모리 80% 이하
+#            · gunicorn 워커 강제 종료(WORKER TIMEOUT·SIGKILL 줄 수, cgroup oom_kill 증가) · healthz 확인의 502
 #   문제 목록이 바뀔 때(생김·풀림)만 알린다. 같은 문제가 이어지면 6시간마다 다시.
 #   문제와 별도로 건수만 알린다: 학교 플랜 신청(늘었을 때 한 번) · 후기 한 줄 대기(있으면 하루 한 번, 09시 뒤).
 #   이름·메일·후기 글은 명령 출력에 있지만 여기서 숫자만 꺼내고 나머지는 버린다.
@@ -22,12 +23,17 @@ problems=()
 add() { problems+=("$1: $2"); }
 
 # 1) 앱: Traefik을 거쳐 본다(라우터·인증서·앱 모두). 교체 중 잠깐 503일 수 있어 3번까지
+# 접근 로그를 끈 라우터라 사용자가 받은 502는 셀 수 없다. 이 확인에서 만난 502만 알린다(원인 쪽은 10번 워커 종료)
 ok=""
+bad_gw=0
 for _ in 1 2 3; do
-  [ "$(curl -s -m 10 --resolve "$host:443:127.0.0.1" "https://$host/healthz" || true)" = ok ] && { ok=1; break; }
+  out=$(curl -s -m 10 -w '\n%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/healthz" || true)
+  [ "${out##*$'\n'}" != 502 ] || bad_gw=$((bad_gw + 1))
+  [ "${out%$'\n'*}" = ok ] && { ok=1; break; }
   sleep 5
 done
 [ -n "$ok" ] || add 앱 "https://$host/healthz 응답 없음"
+[ "$bad_gw" -eq 0 ] || add 502 "healthz 확인 ${bad_gw}번이 502"
 
 # 2) worker·db
 w=$(docker compose ps -q goteacher-worker)
@@ -81,6 +87,16 @@ if [ -n "$ok" ]; then
   fi
 fi
 
+# 10) gunicorn 워커 강제 종료. 줄 수만 센다(로그 내용은 쓰지 않는다)
+n=$(docker compose logs --since 5m --no-log-prefix goteacher-app 2>/dev/null | grep -cE "WORKER TIMEOUT|was sent SIG(KILL|ABRT|SEGV)" || true)
+[ "${n:-0}" -eq 0 ] || add "워커 종료" "최근 5분 ${n}건(WORKER TIMEOUT·강제 종료) — 처리 중이던 요청은 502"
+# 메모리 초과로 죽은 프로세스: 컨테이너의 누적값이라 지난번과 비교한다(상태: 컨테이너 ID 누적값)
+app=$(docker compose ps -q goteacher-app | head -1)
+oom=$(docker exec "$app" sed -n 's/^oom_kill //p' /sys/fs/cgroup/memory.events 2>/dev/null || true)
+read -r oom_app oom_prev < "$var/oom-kill" 2>/dev/null || true
+[ "${oom_app:-}" = "$app" ] || oom_prev=0
+[ "${oom:-0}" -le "${oom_prev:-0}" ] || add "메모리 초과" "앱 프로세스 $((oom - ${oom_prev:-0}))개가 oom_kill"
+
 if [ "${GT_DRY:-0}" = 1 ]; then
   [ ${#problems[@]} -eq 0 ] && echo "문제 없음" || printf '%s\n' "${problems[@]}"
   [ -z "$plan_n" ] || echo "(건수) 플랜 신청 대기 ${plan_n}건"
@@ -91,6 +107,8 @@ fi
 notify() {  # $1 제목, 표준입력 본문 → var/alerts.log + 텔레그램(ops/notify.sh)
   GT_DIR="$dir" "$dir/ops/notify.sh" "$1"
 }
+
+[ -z "$oom" ] || echo "$app $oom" > "$var/oom-kill"
 
 if [ -n "$plan_n" ]; then
   plan_prev=$(cat "$var/plan-pending" 2>/dev/null || true)

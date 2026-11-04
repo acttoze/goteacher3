@@ -114,7 +114,7 @@ def _main_ctx(request, retry=False, **extra):
     fail = neis.failed(rows)
     for c in cells:
         c["need"] = c["today"] and not c["photo"] and bool(c["meal"] or fail)
-    return {"space": space, "cells": cells, "fail": fail, "writable": space.school.writable, "weekend": today.weekday() >= 5,
+    return {"space": space, "cells": cells, "fail": fail, "writable": space.school.writable, "weekend": today.weekday() >= 5, "max_mb": repair_photo.MAX_BYTES // repair_photo.MB,
             "live_v": _today_version(space), "live_until": int(next_midnight().timestamp()),
             "need_today": any(c["need"] for c in cells), "today_done": any(c["today"] and c["photo"] for c in cells), **extra}
 

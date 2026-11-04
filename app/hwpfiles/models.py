@@ -2,7 +2,7 @@
 
 - 공간 소속: space FK, 조회는 SpaceQuerySet.in_space()로만. 주소에는 key만 쓴다(순번 ID 안 씀).
 - 저장 경로는 파일 이름을 쓰지 않고 hwp/<공간 번호>/<key>.<형식> 로 만든다(경로 조작 차단).
-- 상한: 회원당 진행 중 변환 HWP_IN_FLIGHT건, 공간당 저장 HWP_SPACE_QUOTA(학교 공간은 HWP_SCHOOL_QUOTA)·서비스 전체 HWP_TOTAL_QUOTA(원본+변환).
+- 상한: 회원당 진행 중 변환 HWP_IN_FLIGHT건, 저장은 storage_room(공간당 HWP_SPACE_QUOTA, 학교 공간은 HWP_SCHOOL_QUOTA, 동학년 합계 HWP_FREE_TOTAL_QUOTA, 서비스 전체 HWP_TOTAL_QUOTA).
 - MEDIA_URL로 서빙하지 않는다. 내려받기는 회원 확인 뷰로만(E6).
 - 표 위치(E5): 교사가 미리보기에서 눌러 확정한 표 = (table_sec, table_index). report["tables"] 안에 있는 것만 저장한다.
   table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
@@ -89,8 +89,8 @@ class SourceFile(models.Model):
         return self.key
 
     @classmethod
-    def used_bytes(cls, space=None):
-        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진 + M1 식판 사진). space=None 이면 서비스 전체(서버 디스크 보호)."""
+    def used_bytes(cls, space=None, free=False):
+        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진 + M1 식판 사진). space=None 이면 서비스 전체(서버 디스크 보호), free=True면 동학년 공간 합계."""
         from meals.models import MealPhoto
         from notices.models import NoticeFile
         from repairs.models import Repair
@@ -98,6 +98,8 @@ class SourceFile(models.Model):
         total = 0
         for model in (SourceFile, ResultFile, NoticeFile, Repair, MealPhoto):
             qs = model.objects.in_space(space) if space is not None else model.objects.all()
+            if free:
+                qs = qs.filter(**{qs.space_lookup + "__kind": Space.Kind.GRADE})
             total += qs.aggregate(n=models.Sum("stored"))["n"] or 0
         return total
 
@@ -172,6 +174,17 @@ def lock_member(member):
 def space_quota(space):
     """공간 하나의 저장 상한: 학교 공간은 학년 여럿과 교무실이 함께 쓴다(H4)."""
     return settings.HWP_SCHOOL_QUOTA if space.is_school else settings.HWP_SPACE_QUOTA
+
+
+def storage_room(space):
+    """(이 공간에 더 둘 수 있는 바이트, 먼저 막는 한도: Quota·FreeQuota·TotalQuota). 올리기 전에만 부른다: 넘친 공간도 읽기·지우기는 그대로.
+    무료 합계는 동학년 공간만 센다. 플랜을 켜면 동학년이 학교 공간으로 합쳐지고, 플랜이 끝난 학교 공간도 무료 칸을 막지 않는다.
+    잠그지 않는다. 동시 올리기로 넘는 폭은 '동시 요청 수 × 건당 상한'이고, 넘긴 다음 요청부터 막힌다(디스크 경보가 그 위에 있다)."""
+    rooms = [(space_quota(space) - SourceFile.used_bytes(space), "Quota"),
+             (settings.HWP_TOTAL_QUOTA - SourceFile.used_bytes(), "TotalQuota")]
+    if not space.is_school:
+        rooms.append((settings.HWP_FREE_TOTAL_QUOTA - SourceFile.used_bytes(free=True), "FreeQuota"))
+    return min(rooms, key=lambda r: r[0])
 
 
 def in_flight(space, member):

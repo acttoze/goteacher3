@@ -262,7 +262,7 @@ def issue(request):
     if errors:
         return list_page(request, status=400, vendor_form=form, errors=errors)
     with transaction.atomic():
-        Space.objects.select_for_update().get(pk=request.space.pk)  # 동시에 눌러도 살아 있는 계정은 하나
+        Space.objects.select_for_update(no_key=True).get(pk=request.space.pk)  # 동시에 눌러도 살아 있는 계정은 하나
         old = VendorAccount.current(request.space)
         if old:  # 재발급(담당자 교체): 보이는 범위를 이어받는다. 해제한 뒤 새로 발급하면 그 시각부터
             VendorAccount.objects.filter(pk=old.pk).update(revoked_at=timezone.now())
@@ -279,7 +279,7 @@ def issue(request):
 def revoke(request):
     """해제: 끊는 일이라 플랜이 끝난 학교도 받는다(플랜을 다시 켰을 때 살아나지 않게)."""
     with transaction.atomic():
-        Space.objects.select_for_update().get(pk=request.space.pk)
+        Space.objects.select_for_update(no_key=True).get(pk=request.space.pk)
         old = VendorAccount.current(request.space)
         if old:
             VendorAccount.objects.filter(pk=old.pk).update(revoked_at=timezone.now())
