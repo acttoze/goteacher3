@@ -433,7 +433,7 @@ class FlowEdgeTests(QaBase):
         for url in (self.base, f"{self.base}/new", f"{self.base}/{r.key}", f"{self.base}/{r.key}/edit"):
             html = self.teacher.get(url).content.decode()
             for word in ("업체", "티로드", "문자", "휴대폰"):
-                self.assertNotIn(word, html.split("</head>", 1)[-1], f"{url} {word}")
+                self.assertNotIn(word, html.split("</head>", 1)[-1].replace("협력업체", ""), f"{url} {word}")  # 왼쪽 메뉴(N1)는 뺀다
 
 
 class XssAndLengthTests(QaBase):

@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "notices",
     "repairs",
     "meals",
+    "partners",
 ]
 
 MIDDLEWARE = [

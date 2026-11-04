@@ -1,0 +1,92 @@
+{% extends frame %}
+{% load static %}
+{# N1 협력업체 목록. 모습은 design/forms.html의 부품, 동작은 prototype vendorList. #}
+{% block title %}협력업체 · 고티처{% endblock %}
+{% block head %}
+<meta name="description" content="에듀테크·졸업앨범·수학여행·전세버스·체험·용역·인쇄까지, 학교가 함께 일하는 업체를 로그인 없이 찾아보세요.">
+<link rel="canonical" href="{{ canonical }}">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  .tool { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tool .search { flex: 1 1 320px; max-width: 520px; }
+  .tool .select { width: 200px; }
+  .tool .cnt { margin-left: auto; color: var(--muted); white-space: nowrap; }
+  .pgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+  .pcard { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; color: inherit; text-decoration: none; overflow-wrap: anywhere; transition: background-color .15s; }
+  .pcard:hover { background: #fafbfc; }
+  .ptop { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .pcard .ar { color: var(--muted); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pcard h2 { margin: 0; font-size: 18px; line-height: 1.35; }
+  .pcard p { margin: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+  @media (max-width: 1100px) { .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .pgrid { grid-template-columns: minmax(0, 1fr); } .tool .select { flex: 1 1 140px; width: auto; } }
+</style>
+{% include "partners/_ptags_style.html" %}
+<script src="{% static 'js/partners.js' %}" defer></script>
+{% endblock %}
+{% block ptitle %}협력업체{% endblock %}
+{% block ctx %}<span class="ctx">협력업체</span>{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>협력업체</h1>
+    <p class="sub">에듀테크부터 졸업앨범·수학여행·전세버스·체험·용역·인쇄까지, 학교가 함께 일하는 업체를 찾아보세요. 업체가 돈을 내고 순서를 올릴 수 없어요.</p>
+    {% if not can_suggest %}<p class="sub"><a href="{{ login_href }}">좋은 업체를 아시면 로그인한 뒤 추천해 주세요</a></p>{% endif %}
+  </div>
+  {% if can_suggest %}<a class="btn pri" href="/partners/suggest">＋ 업체 추천하기</a>{% endif %}
+</div>
+
+<form class="tool" action="/partners" method="get" role="search"
+      hx-get="/partners" hx-trigger="input changed delay:300ms from:#q, search from:#q, change from:#cat, change from:#area"
+      hx-target="#browse" hx-select="#browse" hx-swap="outerHTML" hx-push-url="true">
+  <label class="search"><span class="sr">업체 이름 찾기</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input class="input" id="q" name="q" type="search" value="{{ q }}" maxlength="40" autocomplete="off" placeholder="업체 이름으로 찾기">
+  </label>
+  <label><span class="sr">분류</span>
+    <select class="select" id="cat" name="cat">
+      <option value="">분류 전체</option>
+      {% for c in cats %}<option{% if c == cat %} selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label><span class="sr">지역</span>
+    <select class="select" id="area" name="area">
+      <option value="">지역 전체</option>
+      {% for a in areas %}<option{% if a == area %} selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+
+<div id="browse">
+  {% if not any_public %}
+  <p class="empty" style="margin-top:16px">아직 등록된 업체가 없어요. 좋은 업체를 추천해 주세요.</p>
+  {% else %}
+  <p class="muted" style="margin:16px 0 0">업체 <b class="num" style="color:var(--ink)">{{ page_obj.paginator.count }}곳</b></p>
+  {% if page_obj.object_list %}
+  <div class="pgrid">
+    {% for p in page_obj.object_list %}
+    <a class="card pcard" href="/partners/{{ p.slug }}">
+      <span class="ptop"><span class="pill">{{ p.cat }}</span><span class="ar">{{ p.area }}</span></span>
+      <h2>{{ p.name }}</h2>
+      <p>{{ p.desc }}</p>
+      {% if p.tag_list %}<span class="ptags">{% for t in p.tag_list %}<span class="pill">{{ t }}</span>{% endfor %}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% if page_obj.has_other_pages %}
+  <nav class="pager" aria-label="쪽 나누기">
+    {% if prev_href %}<a class="btn sec" href="{{ prev_href }}">이전</a>{% endif %}
+    <span class="num">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}쪽</span>
+    {% if next_href %}<a class="btn sec" href="{{ next_href }}">다음</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="empty" style="margin-top:16px">조건에 맞는 업체가 없어요. 분류·지역을 전체로 바꾸거나 다른 이름으로 찾아보세요.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

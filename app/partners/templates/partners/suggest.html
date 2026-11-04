@@ -1,0 +1,55 @@
+{% extends frame %}
+{# N1 업체 추천. 구글 회원만. 운영자 확인을 기다릴 뿐 공개되지 않는다. #}
+{% block title %}업체 추천하기 · 고티처{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  #main > .sform { max-width: 640px; }
+  .sform form { display: flex; flex-direction: column; gap: 16px; }
+  .sform .acts { display: flex; gap: 10px; }
+</style>
+{% endblock %}
+{% block ptitle %}업체 추천하기{% endblock %}
+{% block ctx %}<span class="ctx">협력업체</span>{% endblock %}
+{% block main %}
+<div class="sform">
+  <div class="title"><div class="grow">
+    <h1>업체 추천하기</h1>
+    <p class="sub">운영자가 확인한 뒤 올립니다. 업체가 스스로 등록·광고할 수는 없어요.</p>
+  </div></div>
+  {% if refused %}
+  <p class="notice">업체 추천은 구글로 로그인한 선생님만 할 수 있어요.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a> <a class="btn sec" href="/partners">협력업체로 돌아가기</a></p>
+  {% elif sent %}
+  <p class="notice">추천을 받았어요. 운영자가 확인한 뒤 올립니다.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="/partners">협력업체로 돌아가기</a> <a class="btn sec" href="/partners/suggest">한 곳 더 추천하기</a></p>
+  {% else %}
+  {% if too_many %}<p class="err" role="alert" style="margin-bottom:16px">추천은 하루 5건까지예요. 내일 다시 해 주세요.</p>{% endif %}
+  <form method="post" action="/partners/suggest">
+    {% csrf_token %}
+    <label class="field"><span>업체 이름</span>
+      <input class="input" name="name" value="{{ form.name.value|default:'' }}" maxlength="100" required{% if form.name.errors %} aria-invalid="true"{% endif %}>
+      {% if form.name.errors %}<span class="field-err">업체 이름을 100자 안으로 써 주세요.</span>{% endif %}
+    </label>
+    <label class="field"><span>분류</span>
+      <select class="select" name="cat" required{% if form.cat.errors %} aria-invalid="true"{% endif %}>
+        <option value="">고르세요</option>
+        {% for c in cats %}<option{% if c == form.cat.value %} selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+      {% if form.cat.errors %}<span class="field-err">분류를 골라 주세요.</span>{% endif %}
+    </label>
+    <label class="field"><span>연락처 <span class="hint">전화번호나 누리집 주소</span></span>
+      <input class="input" name="contact" value="{{ form.contact.value|default:'' }}" maxlength="100" required{% if form.contact.errors %} aria-invalid="true"{% endif %}>
+      {% if form.contact.errors %}<span class="field-err">연락처를 100자 안으로 써 주세요.</span>{% endif %}
+    </label>
+    <label class="field"><span>한 줄 <span class="hint">어떤 점이 좋았나요? (안 써도 돼요)</span></span>
+      <input class="input" name="note" value="{{ form.note.value|default:'' }}" maxlength="200"{% if form.note.errors %} aria-invalid="true"{% endif %}>
+      {% if form.note.errors %}<span class="field-err">200자 안으로 써 주세요.</span>{% endif %}
+    </label>
+    <div class="acts"><button class="btn pri" type="submit">추천 보내기</button><a class="btn sec" href="/partners">취소</a></div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -19,6 +19,7 @@ from django.utils.http import urlencode
 from django.views.decorators.http import require_GET, require_safe
 
 from config.ratelimit import allow, client_ip
+from partners.models import Partner
 from spaces.models import Member
 from spaces.views import _josa, _my_space, _space_ctx
 
@@ -39,7 +40,7 @@ def _url(path, **params):
     return f"{path}?{qs}" if qs else path
 
 
-def _frame(request):
+def _frame(request, page="forms"):
     """로그인한 동학년 회원이면 공통 틀 컨텍스트. 공간은 내 동학년만(사용자 기준 조회)."""
     if not request.user.is_authenticated:
         return {"frame": "bare.html"}
@@ -50,7 +51,7 @@ def _frame(request):
     request.member = Member.objects.in_space(space).filter(user=request.user).first()
     if request.member is None:
         return {"frame": "bare.html"}
-    return {"frame": "shell.html", **_space_ctx(request, page="forms")}
+    return {"frame": "shell.html", **_space_ctx(request, page=page)}
 
 
 @require_GET
@@ -108,5 +109,6 @@ def download(request, slug):
 @require_GET
 def sitemap(request):
     docs = FormDoc.objects.only("slug", "created_at")
-    return render(request, "library/sitemap.xml", {"site": settings.SITE_URL, "docs": docs},
+    partners = Partner.objects.filter(is_public=True).only("slug", "created_at")
+    return render(request, "library/sitemap.xml", {"site": settings.SITE_URL, "docs": docs, "partners": partners},
                   content_type="application/xml; charset=utf-8")

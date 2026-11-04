@@ -27,6 +27,7 @@ from django.utils import timezone
 
 from collect.models import Collection
 from meals.models import MealPhoto, PhotoLink
+from partners.models import Suggestion
 from repairs.models import Repair, VendorAccess, VendorAccount
 from spaces.models import Attendance, MemberLog
 
@@ -43,6 +44,7 @@ REPAIR_MAX = timedelta(days=365)
 VENDOR_DAYS = timedelta(days=30)
 MEAL_PHOTO_DAYS = timedelta(days=30)
 MEMBER_LOG_AGE = timedelta(days=365)
+SUGGESTION_AGE = timedelta(days=365)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",), "repairs.Repair": ("photo",),
@@ -222,6 +224,11 @@ def purge(now, dry_run=False):
     n["member_logs"] = old_logs.count()
     if not dry_run:
         old_logs.delete()
+    # 업체 추천(N1): 처리한 것과 1년 지난 것
+    old_suggestions = Suggestion.objects.exclude(status=Suggestion.Status.PENDING) | Suggestion.objects.filter(created_at__lt=now - SUGGESTION_AGE)
+    n["suggestions"] = old_suggestions.count()
+    if not dry_run:
+        old_suggestions.delete()
     # 1) 멈춘 작업 → 실패 + 파일 정리(뒤의 삭제 대상이어도 먼저 상태를 맞춘다)
     stuck = list(stuck_sources(now)) + list(stuck_results(now))
     n["stuck"] = len(stuck)

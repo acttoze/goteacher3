@@ -3,4 +3,6 @@
 <url><loc>{{ site }}/</loc></url>
 <url><loc>{{ site }}/forms</loc></url>
 {% for d in docs %}<url><loc>{{ site }}/forms/{{ d.slug|iriencode }}</loc><lastmod>{{ d.created_at|date:"Y-m-d" }}</lastmod></url>
+{% endfor %}<url><loc>{{ site }}/partners</loc></url>
+{% for p in partners %}<url><loc>{{ site }}/partners/{{ p.slug|iriencode }}</loc><lastmod>{{ p.created_at|date:"Y-m-d" }}</lastmod></url>
 {% endfor %}</urlset>

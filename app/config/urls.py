@@ -11,6 +11,7 @@ from collect import views as collect
 from library import views as library
 from meals import phone, tv
 from notices import views as notices
+from partners import views as partners
 from repairs import vendor
 from spaces import attendance as attendance_page
 from spaces import school as school_page
@@ -104,6 +105,9 @@ urlpatterns = [
     path("forms", library.index),  # G4 양식 자료실(로그인 없이)
     path("forms/<str:slug>", library.index),
     path("forms/<str:slug>/download", library.download),
+    path("partners", partners.index),  # N1 협력업체(로그인 없이)
+    path("partners/suggest", partners.suggest),
+    path("partners/<str:slug>", partners.detail),
     path("sitemap.xml", library.sitemap),
     path("healthz", healthz),
 ]

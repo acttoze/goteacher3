@@ -228,7 +228,7 @@ class PublicTests(Base):
         self.assertEqual(r.status_code, 200)
         self.assertIn("xml", r["Content-Type"])
         self.assertContains(r, "/forms/")
-        self.assertEqual(r.content.decode().count("<url>"), FormDoc.objects.count() + 2)
+        self.assertEqual(r.content.decode().count("<url>"), FormDoc.objects.count() + 3)  # /, /forms, /partners(N1)
 
     def test_landing_links_forms_with_db_count(self):
         r = self.client.get("/")
@@ -302,7 +302,7 @@ class QAEdgeTests(Base):
         r = self.client.get("/forms", {"q": "체험", "ca": "학교"})
         self.assertContains(r, '<link rel="canonical" href="https://t.goteacher.xyz/forms">', html=False)
         locs = [x.split("</loc>")[0] for x in self.client.get("/sitemap.xml").content.decode().split("<loc>")[1:]]
-        self.assertEqual(len(locs), 5)
+        self.assertEqual(len(locs), 6)
         self.assertTrue(all(u.startswith("https://t.goteacher.xyz/") for u in locs), locs)
 
     def test_meta_description_quote_breakout_escaped(self):

@@ -35,8 +35,8 @@ def at(moment):
 
 
 def scrub(res):
-    """바이트 비교용: 요청마다 달라지는 값이 없어야 하므로 아무것도 지우지 않고 본문과 헤더 전부."""
-    headers = sorted((k, v) for k, v in res.headers.items())
+    """바이트 비교용: 요청마다 달라지는 값이 없어야 하므로 본문과 헤더 전부. 시계로 찍히는 Expires(never_cache)만 뺀다."""
+    headers = sorted((k, v) for k, v in res.headers.items() if k != "Expires")
     return res.status_code, headers, res.content
 
 
@@ -114,6 +114,13 @@ class IndistinguishableTests(VendorBase):
         c = self.entered(link)
         self.manager.post(f"{self.vurl}/revoke")
         self.assert_same(link, c)
+
+    def test_clock_tick_between_requests_does_not_matter(self):
+        _, link = self.issued()
+        c = self.entered(link)
+        self.issued()
+        with mock.patch("django.utils.cache.http_date", side_effect=lambda _t, n=iter(range(99)): f"tick {next(n)}"):
+            self.assert_same(link, c)
 
     def test_until_passed(self):
         account, link = self.issued()

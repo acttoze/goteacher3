@@ -1,0 +1,50 @@
+{% extends frame %}
+{# N1 협력업체 상세. 왼쪽 열 소개 아래에 N2 후기가 붙는다. #}
+{% block title %}{{ p.name }} · 협력업체 · 고티처{% endblock %}
+{% block head %}
+<meta name="description" content="{{ p.desc|truncatechars:150 }}">
+<link rel="canonical" href="{{ canonical }}">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  .crumb { margin: 0 0 12px; }
+  .pdetail { overflow-wrap: anywhere; }
+  .pdetail p { margin: 0; }
+  .fact { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px 12px; margin: 0; }
+  .fact dt { color: var(--muted); }
+  .fact dd { margin: 0; }
+  .card-b .ptags { margin-top: 16px; }
+</style>
+{% include "partners/_ptags_style.html" %}
+{% endblock %}
+{% block ptitle %}협력업체{% endblock %}
+{% block ctx %}<span class="ctx">협력업체</span>{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
+{% block main %}
+<p class="crumb"><a href="/partners">협력업체</a> / {{ p.cat }}</p>
+<div class="title pdetail">
+  <div class="grow">
+    <h1>{{ p.name }}</h1>
+    <p class="sub"><span class="pill">{{ p.cat }}</span> {{ p.area }}</p>
+  </div>
+</div>
+<div class="grid pdetail">
+  <section class="s7 card" aria-labelledby="introH">
+    <div class="card-h"><h2 id="introH">소개</h2></div>
+    <div class="card-b">
+      <p>{{ p.desc|linebreaksbr }}</p>
+      {% if p.tag_list %}<div class="ptags">{% for t in p.tag_list %}<span class="pill">{{ t }}</span>{% endfor %}</div>{% endif %}
+    </div>
+  </section>
+  <aside class="s5 card" aria-labelledby="contactH">
+    <div class="card-h"><h2 id="contactH">연락처</h2></div>
+    <div class="card-b">
+      {% if p.phone or p.link %}
+      <dl class="fact">
+        {% if p.phone %}<dt>전화</dt><dd class="num">{{ p.phone }}</dd>{% endif %}
+        {% if p.link %}<dt>누리집</dt><dd><a href="{{ p.link }}" target="_blank" rel="nofollow noopener">{{ p.link }}</a></dd>{% endif %}
+      </dl>
+      {% else %}<p class="muted">등록된 연락처가 없어요.</p>{% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}
