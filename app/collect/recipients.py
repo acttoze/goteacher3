@@ -138,16 +138,16 @@ def audience_text(aud, n):
     names = [GROUPS[g] for g in groups]
     if set(GRADES) <= set(groups):
         names = ["1~6학년"] + [GROUPS[g] for g in groups if g not in GRADES]
-    gl = "전 그룹" if len(groups) == len(GROUPS) else "·".join(names[:3]) + (f" 외 {len(names) - 3}" if len(names) > 3 else "")
+    gl = "전 소속" if len(groups) == len(GROUPS) else "·".join(names[:3]) + (f" 외 {len(names) - 3}" if len(names) > 3 else "")
     if mode == "pergroup":
-        return f"그룹 {n}곳({gl}) · 그룹별 1칸"
+        return f"소속 {n}곳({gl}) · 소속별 1칸"
     return f"{gl} 담임 {n}명 · 반별 1칸" if aud.get("hr") else f"{gl} {n}명 · 사람별 1칸"
 
 
 def audience_where(aud):
     """쪽지 문구의 '…만 채워 주세요'."""
     if aud.get("mode") == "pergroup":
-        return "우리 그룹 칸"
+        return "우리 소속 칸"
     return "우리 반 칸" if aud.get("mode") is None or aud.get("hr") else "내 칸"
 
 

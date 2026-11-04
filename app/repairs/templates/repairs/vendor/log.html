@@ -2,7 +2,7 @@
 {% block title %}업체 접속 기록 · 고티처{% endblock %}
 {% block ptitle %}게시판{% endblock %}
 {% block main %}
-<p class="muted" style="margin-bottom:8px;font-size:15px"><a class="tlink" href="/s/{{ space.token }}/repairs" style="font-weight:600;color:var(--muted)">게시판 · 수리 요청</a> /</p>
+<p class="muted" style="margin-bottom:8px;font-size:15px"><a class="tlink" href="/s/{{ space.token }}/repairs" style="font-weight:600;color:var(--muted)">← 수리 요청</a></p>
 <div class="title"><div class="grow"><h1>업체 접속 기록</h1><p class="sub">최근 30일만 남아요. IP 주소는 저장하지 않아요. 모르는 시각에 접속이 있으면 새 링크를 발급하세요.</p></div></div>
 {% if entries %}<section class="card" style="max-width:800px"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
   <ul class="list">{% for a in entries %}<li style="min-height:48px"><span class="num" style="flex:none;width:110px">{{ a.at|date:"n/j H:i" }}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">{{ a.account.name }} · {{ a.account.contact_name }}</span><span class="muted" style="flex:none;max-width:340px;overflow-wrap:anywhere">{{ a.get_action_display }}{% if a.title %} · {{ a.title }}{% endif %}</span></li>{% endfor %}</ul>

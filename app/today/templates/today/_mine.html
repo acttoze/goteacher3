@@ -1,0 +1,19 @@
+{# 내가 낼 것·확인할 것 + 내가 걷는 것. 학교 공간은 할 일이 있으면 일과 위, 그 밖에는 일과 아래. gap: 위아래 여백 방향. #}
+<div class="grid stretch" style="{{ gap }}:var(--gap)">
+  <section class="card s7" aria-labelledby="todoH">
+    <div class="card-h"><h2 id="todoH">내가 낼 것{% if must_list %} · 확인할 것{% endif %}</h2><span class="n num">{{ n_mine }}</span><span class="r">마감순 · <a class="tlink" href="/s/{{ space.token }}/c/?tab=todo">모두 보기</a></span></div>
+    <ul class="list todo">
+      {% for n in must_list %}<li><div class="grow"><div class="t"><a href="/s/{{ space.token }}/board/{{ n.key }}/">{{ n.title }}</a></div><div class="m">{{ n.by_name }} · 확인 필수 공지</div></div><span class="pill warn">아직 안 봄</span><a class="btn ghost sm" href="/s/{{ space.token }}/board/{{ n.key }}/">확인</a></li>{% endfor %}
+      {% for x in todo %}<li><div class="grow"><div class="t"><a href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">{{ x.c.title }}</a></div><div class="m">{{ x.from }} · {{ x.src }}</div></div><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span><a class="btn ghost sm" href="/c/{{ x.c.link_token }}/u/{{ x.row.key }}">내기</a></li>
+      {% empty %}{% if not must_list %}<li style="display:block;border:0"><p class="empty">오늘 낼 것은 모두 끝났어요.</p></li>{% endif %}{% endfor %}
+    </ul>
+  </section>
+  <section class="card s5" aria-labelledby="sentH">
+    <div class="card-h"><h2 id="sentH">내가 걷는 것</h2><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">모두 보기</a></span></div>
+    <div class="sent">
+      {% for x in sent %}<div><a class="t" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><div class="m">마감 {{ x.due }}</div>
+        <div class="big"><b class="num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</b><span>냈어요</span></div><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div></div>
+      {% empty %}<p class="empty">걷는 중인 모으기가 없어요. <a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p>{% endfor %}
+    </div>
+  </section>
+</div>

@@ -1,14 +1,18 @@
 """O1 학교 플랜 소개·신청·견적서. PG 없음: 신청 → 견적서 인쇄 → 계좌이체·계산서는 사람 → 운영자가 school_plan --on으로 켠다.
 
-신청에는 공간이 없을 수 있어 신청자(user)로 좁혀 찾는다(남의 견적서는 404). 가격·공급자 값은 설정에서만 읽고 없으면 "담당자가 안내드려요".
+신청에는 공간이 없을 수 있어 신청자(user)로 좁혀 찾는다(남의 견적서는 404). 가격·공급자 값은 설정에서만 읽고 없으면 손으로 적을 빈칸으로 둔다.
 학교 값은 내 공간 또는 서버가 받은 NEIS 검색 결과에서만 가져온다(브라우저가 보낸 이름은 믿지 않는다). 받은 값은 로그에 남기지 않는다.
 """
+import hashlib
+from datetime import timedelta
+
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -22,14 +26,17 @@ from .views import HITS, NEIS_PER_MIN, _clean_name, _josa, _my_space
 LOGIN_HREF = "/start?next=/school-plan"
 RENEW_DAYS = 30  # 기한이 이만큼 남으면 다시 신청할 수 있다(만료 안내와 같은 날)
 REQUESTS_PER_HOUR = 5
-ASK = "담당자가 안내드려요"
 ALREADY = "이 학교는 이미 학교 플랜을 쓰고 있어요."
 
 
-def _price():
+def _won(raw):
     """쉼표 넣은 금액. 숫자가 아니거나 비었으면 빈 값(지어내지 않는다)."""
-    raw = settings.SCHOOL_PLAN_PRICE.replace(",", "")
-    return f"{int(raw):,}원" if raw.isdigit() else ""
+    raw = raw.replace(",", "")
+    return f"{int(raw):,}원" if raw.isdecimal() else ""
+
+
+def _price():
+    return _won(settings.SCHOOL_PLAN_PRICE)
 
 
 def _already_on(school):
@@ -83,7 +90,9 @@ def _ctx(request, **extra):
         return ctx
     mine = _my_space(user)
     ctx.update(can_apply=True, my_school=mine.school if mine else None,
-               sent=PlanRequest.objects.filter(user=user).select_related("school").order_by("-created_at")[:3])
+               sent=list(PlanRequest.objects.filter(user=user).select_related("school").order_by("-created_at")[:3]))
+    ctx["pending"] = next((r for r in ctx["sent"] if r.status == PlanRequest.Status.PENDING), None)
+    ctx["sent"] = [r for r in ctx["sent"] if r is not ctx["pending"]]
     if mine and _already_on(mine.school):
         ctx["already"] = ALREADY
     if "values" not in ctx:  # 처음 열 때: 아는 값으로 채운다
@@ -162,8 +171,15 @@ def page(request):
 def quote(request, key):
     """견적서 A4 한 장. 신청한 사람만 연다."""
     req = get_object_or_404(PlanRequest.objects.select_related("school"), key=key, user=request.user)
-    return render(request, "spaces/plan_quote.html", {
-        "r": req, "price": _price() or ASK, "ask": ASK, "supplier_name": settings.SUPPLIER_NAME or ASK,
-        "supplier_biz_no": settings.SUPPLIER_BIZ_NO or ASK, "supplier_address": settings.SUPPLIER_ADDRESS or ASK,
-        "supplier_account": settings.SUPPLIER_ACCOUNT or ASK,
-    })
+    return render(request, "spaces/plan_quote.html", _quote_ctx(req))
+
+
+def _quote_ctx(req):
+    """값이 없는 칸은 빈칸(손으로 적는다). 문서 번호는 주소 토큰을 드러내지 않게 해시 앞자리."""
+    days = settings.QUOTE_VALID_DAYS
+    ctx = {"price": _price(), "vat": settings.SCHOOL_PLAN_VAT, "total": _won(settings.SCHOOL_PLAN_TOTAL),
+           "valid_until": req.created_at + timedelta(days=int(days)) if days.isdecimal() else None,
+           "supplier_name": settings.SUPPLIER_NAME, "supplier_ceo": settings.SUPPLIER_CEO, "supplier_biz_no": settings.SUPPLIER_BIZ_NO,
+           "supplier_address": settings.SUPPLIER_ADDRESS, "supplier_account": settings.SUPPLIER_ACCOUNT}
+    return {**ctx, "r": req, "has_blank": not all(ctx.values()),
+            "doc_no": f"GT-{timezone.localtime(req.created_at):%Y%m%d}-{hashlib.sha256(req.key.encode()).hexdigest()[:6].upper()}"}

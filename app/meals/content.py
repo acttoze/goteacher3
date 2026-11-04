@@ -8,14 +8,14 @@ from datetime import date
 PHOTO = "photo"  # 식판 사진 화면: 규정상 매일 게시라 끌 수 없다
 
 SCREENS = [
-    {"key": "menu", "name": "오늘의 메뉴", "what": "메뉴 · 자율배식 표시 · 알레르기 번호", "src": "NEIS 자동", "sec": 7},
-    {"key": "allergy", "name": "알레르기", "what": "그날 들어간 알레르기 식품만 크게 · 해당 메뉴", "src": "NEIS 자동", "sec": 7},
-    {"key": "cal", "name": "칼로리 · 영양", "what": "칼로리 · 탄수화물 · 단백질 · 지방", "src": "NEIS 자동", "sec": 7},
-    {"key": "origin", "name": "원산지", "what": "학교가 NEIS에 올린 원산지 목록 그대로 · 14개씩 두 장", "src": "NEIS 자동", "sec": 12, "pages": 2},
+    {"key": "menu", "name": "오늘의 메뉴", "what": "메뉴 · 자율배식 표시 · 알레르기 번호", "src": "나이스 자동", "sec": 7},
+    {"key": "allergy", "name": "알레르기", "what": "그날 들어간 알레르기 식품만 크게 · 해당 메뉴", "src": "나이스 자동", "sec": 7},
+    {"key": "cal", "name": "칼로리 · 영양", "what": "칼로리 · 탄수화물 · 단백질 · 지방", "src": "나이스 자동", "sec": 7},
+    {"key": "origin", "name": "원산지", "what": "학교가 나이스에 올린 원산지 목록 그대로 · 14개씩 두 장", "src": "나이스 자동", "sec": 12, "pages": 2},
     {"key": "hygiene", "name": "위생 교육", "what": "손 씻기 · 기침 예절 · 식중독 예방 · 이 닦기 · 급식실 안전이 날마다 돌아가며", "src": "자동 순환", "sec": 7},
     {"key": "eat", "name": "골고루 먹어요", "what": "메뉴 이름으로 나눈 식품군 · 표어가 날마다 돌아가며", "src": "자동 순환", "sec": 7},
     {"key": PHOTO, "name": "오늘의 식사", "what": "그날 식판 사진 (당일 찍은 사진)", "src": "직접 올림", "sec": 7},
-    {"key": "week", "name": "이번 주 메뉴", "what": "월~금 메뉴 · 칼로리", "src": "NEIS 자동", "sec": 12, "pages": 2},
+    {"key": "week", "name": "이번 주 메뉴", "what": "월~금 메뉴 · 칼로리", "src": "나이스 자동", "sec": 12, "pages": 2},
 ]
 SCREEN_KEYS = [s["key"] for s in SCREENS]
 

@@ -37,6 +37,14 @@
     var st = e.detail.xhr.status;
     if (st === 429 || (st === 400 && e.detail.elt.closest('[data-err-swap]'))) { e.detail.shouldSwap = true; e.detail.isError = false; }
   });
+  // 파일 칸: <input type="file" data-names="#id">에서 고른 파일 이름을 #id에 적는다. 안 골랐으면 처음 글자로 돌린다.
+  document.addEventListener('change', function (e) {
+    var i = e.target.closest('input[type=file][data-names]');
+    if (!i) return;
+    var out = document.querySelector(i.dataset.names);
+    if (!out.dataset.none) out.dataset.none = out.textContent;
+    out.textContent = Array.prototype.map.call(i.files, function (f) { return f.name; }).join(', ') || out.dataset.none;
+  });
   // 확인 글자: <input data-must="글자">에 그대로 써야 같은 폼의 제출 단추가 켜진다(동학년 나가기). 서버도 다시 확인한다.
   document.addEventListener('input', function (e) {
     var i = e.target.closest('[data-must]');

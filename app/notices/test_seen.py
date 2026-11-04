@@ -293,7 +293,7 @@ class RealChangeTests(SeenBase):
         self.seen(n, self.as_("quiet"))
         self.edit(n, 장소="체육관", real="on")
         page = self.client.get(f"{self.base}/{n.key}/")
-        self.assertContains(page, "v2 바뀐 부분 확인")
+        self.assertContains(page, "2차 수정 바뀐 부분 확인")
         self.assertContains(page, "0/2")
         self.seen(n, self.as_("m5"))
         self.assertContains(self.client.get(f"{self.base}/{n.key}/"), "1/2")
@@ -325,9 +325,9 @@ class RealChangeTests(SeenBase):
     def test_diff_box_marks_real(self):
         n = self.made()
         self.edit(n, 장소="체육관", real="on")
-        self.assertContains(self.as_("m5").get(f"{self.base}/{n.key}/"), "실질 변경")
+        self.assertContains(self.as_("m5").get(f"{self.base}/{n.key}/"), "내용 바뀜")
         self.edit(n, 준비물="실내화")
-        self.assertNotContains(self.as_("m5").get(f"{self.base}/{n.key}/"), ">실질 변경<")
+        self.assertNotContains(self.as_("m5").get(f"{self.base}/{n.key}/"), ">내용 바뀜<")
 
     def test_edit_form_has_toggle_and_originals(self):
         n = self.made()
@@ -582,7 +582,7 @@ class FollowUpTests(SeenBase):
         self.seen(n, self.as_("m5"))
         self.edit(n, m4, must="on", 장소="체육관")  # real 없이
         self.assertTrue(n.versions.get(v=2).real)
-        self.assertContains(m4.get(f"{self.base}/{n.key}/"), "v2 바뀐 부분 확인")
+        self.assertContains(m4.get(f"{self.base}/{n.key}/"), "2차 수정 바뀐 부분 확인")
         self.edit(n, m4, must="on", title="제목만 바꿈")  # 본문·항목이 아니면 선택
         self.assertFalse(n.versions.get(v=3).real)
         plain = self.made(m4)
@@ -599,7 +599,7 @@ class FollowUpTests(SeenBase):
         self.assertEqual(self.bells(n).get(member=self.m5).kind, "notice")
 
     def test_group_hint_on_form(self):
-        self.assertContains(self.client.get(f"{self.base}/new"), "그룹은 잠금이 아니에요")
+        self.assertContains(self.client.get(f"{self.base}/new"), "소속을 골라도 완전한 비공개는 아니에요")
 
     def test_manager_erases_old_version(self):
         m4 = self.as_("m4")
@@ -611,9 +611,9 @@ class FollowUpTests(SeenBase):
         self.assertEqual(self.client.post(url).status_code, 403)
         self.assertEqual(self.as_("m5").post(url).status_code, 403)
         self.assertEqual(m4.post(f"{self.base}/{n.key}/v/3/erase").status_code, 400)
-        self.assertContains(m4.get(f"{self.base}/{n.key}/?v=1"), "이 판 내용 지우기")
-        self.assertNotContains(m4.get(f"{self.base}/{n.key}/"), "이 판 내용 지우기")
-        self.assertNotContains(self.as_("m5").get(f"{self.base}/{n.key}/?v=1"), "이 판 내용 지우기")
+        self.assertContains(m4.get(f"{self.base}/{n.key}/?v=1"), "이 내용 지우기")
+        self.assertNotContains(m4.get(f"{self.base}/{n.key}/"), "이 내용 지우기")
+        self.assertNotContains(self.as_("m5").get(f"{self.base}/{n.key}/?v=1"), "이 내용 지우기")
         self.assertEqual(m4.post(url).status_code, 303)
         ver = n.versions.get(v=1)
         self.assertEqual((ver.fields, ver.body, ver.erased), ({}, "", True))

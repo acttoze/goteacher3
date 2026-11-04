@@ -90,11 +90,13 @@ class GroupCardTests(Base):
         page = self.teacher.get(f"{self.base}/school")
         self.assertContains(page, "학년분장")
         self.assertContains(page, "업무분장")
-        self.assertEqual(page.context["group_cards"][6]["label"], "교무실")
-        self.assertEqual(len(page.context["group_cards"]), 10)
-        office = [r["m"].name for r in page.context["group_cards"][6]["rows"]]
+        # 사람이 있는 그룹만 카드, 없는 그룹은 이름만 한 줄(33번 3)
+        cards = {c["label"]: c for c in page.context["group_cards"]}
+        self.assertEqual(len(cards) + len(page.context["empty_groups"]), 10)
+        self.assertContains(page, "아직 없는 소속:")
+        office = [r["m"].name for r in cards["교무실"]["rows"]]
         self.assertEqual(office, ["교장선생", "교감선생", "교무교사"])
-        g4 = page.context["group_cards"][3]
+        g4 = cards["4학년"]
         self.assertEqual([r["pos"] for r in g4["rows"]], ["1반", "2반", "전담"])
         self.assertEqual(g4["n"], 3)
 
@@ -103,7 +105,7 @@ class GroupCardTests(Base):
         self.assertContains(page, 'class="who mine"', count=1)
         self.assertContains(page, "(나)", count=1)
         self.assertContains(page, "송민재")
-        self.assertContains(page, "내 그룹·직책 고치기")
+        self.assertContains(page, "내 소속·직책 고치기")
 
     def test_school_menu_only_no_duplicate_teacher_menu(self):
         page = self.teacher.get(f"{self.base}/school")
@@ -216,7 +218,7 @@ class EditMeTests(Base):
         self.expire()
         self.assertEqual(self.teacher.get(f"{self.base}/school/me").status_code, 200)
         self.assertEqual(self.post(group="office", role="교무").status_code, 403)
-        self.assertNotContains(self.teacher.get(f"{self.base}/school"), "내 그룹·직책 고치기")
+        self.assertNotContains(self.teacher.get(f"{self.base}/school"), "내 소속·직책 고치기")
 
 
 class ManagerTests(Base):
@@ -427,7 +429,7 @@ class PairTests(Base):
 
 class ScreenDetailTests(Base):
     def test_tab_counts(self):
-        self.assertContains(self.teacher.get(f"{self.base}/school"), "그룹 10개 · 구성원 3명")
+        self.assertContains(self.teacher.get(f"{self.base}/school"), "소속 10개 · 교직원 3명")
         self.manager.post(f"{self.base}/school/duties", {"paste": TSV})
         self.assertContains(self.teacher.get(f"{self.base}/school?tab=duty"), "부서 2개 · 업무 3개")
 

@@ -39,7 +39,7 @@ from spaces.models import Member
 from spaces.views import _space_ctx
 
 from . import seen as seenlib
-from .models import AUDIENCE, FILE_LIST, FILES, ITEMS, MUST, TITLE, Notice, NoticeFile, NoticeSeen, NoticeVersion, audience_value
+from .models import AUDIENCE, FILE_LIST, FILES, ITEMS, MUST, TITLE, Notice, NoticeFile, NoticeSeen, NoticeVersion, audience_value, version_label
 from .seen import changes as _changes
 
 log = logging.getLogger(__name__)
@@ -73,11 +73,11 @@ def _latest(n):
 
 
 def _note_tail(prev, ver):
-    """쪽지 문구 꼬리: ' (v2 수정: 장소·일시 변경)'. 실질 변경 판일 때만."""
+    """쪽지 문구 꼬리: ' (2차 수정: 장소·일시 변경)'. 실질 변경 판일 때만."""
     if prev is None or prev.erased or not ver.real:
         return ""
     names = [c["name"] for c in _changes(prev.fields, ver.fields)] + (["본문"] if prev.body != ver.body else [])
-    return f" (v{ver.v} 수정: {'·'.join(names)} 변경)"
+    return f" ({ver.label}: {'·'.join(names)} 변경)"
 
 
 def _body_diff(old, new):
@@ -134,7 +134,7 @@ def _read_form(data):
     if len(form["body"]) > MAX_BODY:
         errors["body"] = f"본문은 {MAX_BODY:,}자까지예요."
     if form["aud"] == "groups" and not form["groups"]:
-        errors["aud"] = "받을 그룹을 하나 이상 골라 주세요."
+        errors["aud"] = "받을 소속을 하나 이상 골라 주세요."
     return form, errors
 
 
@@ -374,7 +374,7 @@ def edit(request, key):
 def detail(request, key):
     """상세. ?v=N이면 그 판을 서버가 다시 그린다. 바뀐 상자는 바로 앞 판과 비교."""
     n = _visible(request, key)
-    history = list(n.versions.order_by("-v").values("v", "by", "at", "erased"))
+    history = [{**h, "label": version_label(h["v"])} for h in n.versions.order_by("-v").values("v", "by", "at", "erased")]
     wanted = request.GET.get("v")
     if wanted is None:
         v = history[0]["v"]

@@ -14,15 +14,15 @@
   .sw { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 1px solid #e3e6ea; }
   .sw:first-of-type { border-top: 0; }  /* 앞에 csrf 입력이 있어 first-child가 아님 */
   .sw b { font-size: 16px; }
-  .sw .d { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .sw .d { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
   .toggle.lock input { cursor: not-allowed; }
   .mem { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 60px; border-top: 1px solid #e3e6ea; }
   .mem:first-child { border-top: 0; }
-  .mem .m { font-size: 14px; color: var(--muted); }
+  .mem .m { font-size: var(--fs-small); color: var(--muted); }
   .danger-zone { box-shadow: inset 0 0 0 1px #f0b7b9; background: #fff; } /* taste-skill-ignore: 위험 영역 외곽선 */
   .dev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; border-top: 1px solid #e3e6ea; }
   .dev:first-child { border-top: 0; }
-  .dev .m { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .dev .m { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
   .srow #invite { box-shadow: none; background: var(--surface); }
   .srow #invite .input { background: #fff; }
   @media (max-width: 1100px) { .srow { grid-template-columns: 1fr; gap: 14px; } }

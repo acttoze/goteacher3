@@ -7,6 +7,7 @@
       <div class="stack-y" style="gap:12px">
         <div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="{{ link }}"><button class="btn ink" type="button" data-copy="#lk" data-done="초대 링크를 복사했어요">복사</button></div>
         <p class="small muted">쿨메신저로 보내거나, {% if space.is_school %}교무실에 QR을 붙여 두세요. 링크를 연 선생님은 구글로 로그인하고 소속·직책·이름을 골라요.{% else %}연구실에 QR을 붙여 두세요. 링크를 연 선생님은 반과 이름만 골라요.{% endif %}</p>
+        {% if space.is_school and not space.school.writable %}<p class="notice">기간이 끝나 지금은 새 선생님이 이 링크로 들어올 수 없어요. 링크가 새어 나갔다면 새로 만들어 두세요.</p>{% endif %}
         {% if reissued %}<p class="small" role="status" style="color:var(--positive);font-weight:700">새 링크를 만들었어요. 예전 링크는 닫혔어요.</p>{% endif %}
         {% if is_creator %}<form method="post" action="/s/{{ space.token }}/invite" hx-post="/s/{{ space.token }}/invite" hx-target="#invite" hx-swap="outerHTML"
           hx-confirm="예전 링크는 바로 닫히고, 이미 들어온 선생님은 그대로예요. 새 링크를 만들까요?">{% csrf_token %}<button style="display:inline-flex;align-items:center;min-height:var(--control-h-sm)" class="tlink small" type="submit">링크 새로 만들기</button></form>{% endif %}

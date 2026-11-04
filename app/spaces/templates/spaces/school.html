@@ -9,10 +9,14 @@
   .gcard .card-h .r, .aux { font-size: 15px; color: var(--muted); }
   .rows { list-style: none; margin: 0; padding: 0; }
   .who, .task { margin: 0 -8px; padding: 0 8px; border-radius: var(--radius-in); overflow-wrap: anywhere; }
-  .who { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; }
+  /* 40명이 한 화면에 더 들어가게 네 칸으로 흘린다. 읽는 순서는 세로. */
+  .gcols { columns: 4; column-gap: var(--gap); }
+  .gcols > .gcard { break-inside: avoid; margin-bottom: var(--gap); }
+  .gnone { margin: 0 0 16px; }
+  .who { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; padding-right: 48px; }
   .who .pos { color: var(--muted); }
   .who b, .task b { font-weight: 600; }
-  .who .tlink { margin-left: auto; display: inline-flex; align-items: center; min-height: var(--control-h-sm); padding: 0; font-weight: 600; color: var(--muted); }
+  .who .tlink { position: absolute; top: -2px; right: 8px; display: inline-flex; align-items: center; min-height: var(--control-h-sm); padding: 0; font-weight: 500; color: var(--muted); }
   .who .tlink:hover { color: var(--accent); }
   /* 담당이 길어도 업무 칸이 한 글자 폭으로 눌리지 않게 40%는 남긴다 */
   .task { display: grid; grid-template-columns: minmax(40%, 1fr) minmax(0, max-content); gap: 0 12px; padding-block: 6px; align-items: baseline; }
@@ -26,16 +30,13 @@
   .tab-note { margin-top: 16px; }
   .first { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
   .first p { flex: 1; min-width: 0; }
+  .steps-w { margin-bottom: 20px; padding: 16px var(--pad); }
+  .steps { list-style: none; counter-reset: st; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+  .steps li { counter-increment: st; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+  .steps b::before { content: counter(st) ". "; }
+  .steps span { color: var(--muted); font-size: 15px; }
+  .steps .btn.sec { background: var(--bg); }
   .logs { margin-top: var(--gap); }
-  /* prototype summaryCard()를 한 줄 높이로(리드 결정, 90px 안): 제목·숫자 넷·인쇄. 40명 학교의 그룹 카드가 밀리지 않게. 안내 문구는 인쇄 쪽. */
-  .sum { flex-direction: row; align-items: center; gap: 16px; padding: 10px var(--pad); margin-bottom: 20px; }
-  .sum h2 { margin: 0; flex: none; width: 6.5em; font-size: var(--fs-section); line-height: 1.3; font-weight: 700; letter-spacing: -0.02em; }
-  .sum .btn { flex: none; }
-  .sum-row { flex: 1; min-width: 0; display: flex; gap: 8px 24px; }
-  .sum-k { flex: 1 1 auto; display: grid; grid-template-columns: auto 1fr; gap: 0 8px; align-items: baseline; white-space: nowrap; }
-  .sum-k b { font-size: var(--fs-lead); line-height: 1.3; font-weight: 800; }
-  .sum-k small { font-size: 15px; color: var(--muted); }
-  .sum-k span { grid-column: 1 / -1; grid-row: 2; font-weight: 600; }
   /* prototype school() 오늘 복무 현황 */
   .att { margin-bottom: 20px; }
   .att .card-b { padding-bottom: 16px; }

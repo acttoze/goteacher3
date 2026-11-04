@@ -15,7 +15,7 @@
 
 {% if view == "pick" %}
 <section class="panel" aria-labelledby="pickH">
-  <h2 id="pickH">어느 {% if per == "반" %}반{% elif per == "곳" %}그룹{% else %}분{% endif %} 칸을 채우시나요?</h2>
+  <h2 id="pickH">어느 {% if per == "반" %}반{% elif per == "곳" %}소속{% else %}분{% endif %} 칸을 채우시나요?</h2>
   <p class="lead">가입·로그인 없이 바로 써요. 바쁜 반은 옆 반 선생님이 대신 내도 돼요.</p>
   <ul class="units">{% for u in units %}
     <li><a class="unit{% if u.mine %} mine{% endif %}" href="/c/{{ c.link_token }}/u/{{ u.row.key }}">
@@ -25,7 +25,7 @@
     </a></li>{% endfor %}
   </ul>
   {% include "collect/_recv_outside.html" %}
-  <p class="privacy">{% if per == "곳" %}다른 그룹이 쓴 값과 냈는지는 보이지 않아요.{% else %}다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.{% endif %}</p>
+  <p class="privacy">{% if per == "곳" %}다른 소속이 쓴 값과 냈는지는 보이지 않아요.{% else %}다른 반이 쓴 값은 보이지 않아요. 냈는지만 보여요.{% endif %}</p>
 </section>
 
 {% elif view == "find" %}
@@ -74,7 +74,7 @@
   <div class="row" style="gap:16px"><span class="ok-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
     <div><h2 id="okH">{% if partial %}저장했어요{% else %}제출했어요{% endif %}</h2><p class="muted">{% if owner %}{{ owner.name }} 선생님 {% endif %}합본에 바로 들어갔어요. 이제 {{ n_done }}/{{ n_total }}{{ per }}이에요.</p></div></div>
   <dl class="sent-kv num">
-    <dt>{% if per == "반" %}반{% else %}칸{% endif %}</dt><dd>{% if row.group %}{{ row.unit }} 그룹{% else %}{{ row.place }} {{ row.who }} 선생님{% endif %}</dd>
+    <dt>{% if per == "반" %}반{% else %}칸{% endif %}</dt><dd>{% if row.group %}{{ row.unit }} 소속{% else %}{{ row.place }} {{ row.who }} 선생님{% endif %}</dd>
     {% for line in summary %}{% if c.multi %}<dt>{{ forloop.counter }}줄</dt><dd>{{ line }}</dd>{% else %}{% for name, v in line %}<dt>{{ name }}</dt><dd>{% if v %}{{ v }}{% else %}<span class="dash">—</span>{% endif %}</dd>{% endfor %}{% endif %}{% endfor %}
     <dt>낸 사람</dt><dd>{% if by %}{{ by }}{% if proxy %} (대신 냄){% endif %}{% else %}<span class="dash">—</span>{% endif %}</dd>
     <dt>시각</dt><dd>{{ at|date:"n/j H:i" }}{% if late %} · 마감 뒤에 냈어요{% endif %}</dd>

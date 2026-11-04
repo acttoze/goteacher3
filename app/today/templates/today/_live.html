@@ -8,7 +8,7 @@
       <div class="lbl">{% if space.is_school %}내 일정{% else %}{{ space.label }} 일정{% endif %}</div>
       {% for s in cols %}<div class="{% if s.now %}col-now{% endif %}">{% for x in s.events %}{% include "today/_ev.html" %}{% endfor %}</div>{% endfor %}
       <div class="lbl">학사일정</div>
-      <div class="span4">{% if neis_names %}<span>{{ neis_names|join:" · " }}</span><span class="k">NEIS</span>{% elif neis_fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% else %}<span class="muted">오늘 학사일정이 없어요</span>{% endif %}</div>
+      <div class="span4">{% if neis_names %}<span>{{ neis_names|join:" · " }}</span><span class="k">{% if space.is_school %}나이스{% else %}NEIS{% endif %}</span>{% elif neis_fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% else %}<span class="muted">오늘 학사일정이 없어요</span>{% endif %}</div>
       <div class="lbl">점심 12:20</div>
       <div class="span4 lunch">{% if meal.fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% elif meal %}<b>급식</b><span class="dish">{{ meal.dishes|join:" · " }}</span><span class="k num">{{ meal.kcal }}kcal</span>{% if meal.allergy %}<span class="alg">알레르기 {{ meal.allergy|join:" · " }}</span>{% endif %}{% else %}<span class="muted">오늘 급식 정보가 없어요</span>{% endif %}</div>
       <div class="lbl">시간 미정</div>
@@ -36,9 +36,10 @@
   <section class="card s4" aria-labelledby="feedH">
     <div class="card-h"><h2 id="feedH">{% if space.is_school %}나와 관련된{% else %}{{ space_word }}{% endif %} 바뀐 것</h2><span class="r">어제부터</span></div>
     <ul class="list feed" id="feed">
-      {% for f in feed %}<li class="{% if f.new %}new arrive{% endif %}"><span class="av{% if f.ink %} ink-t{% endif %}" style="background:{{ f.color }}" aria-hidden="true">{{ f.who|slice:":1" }}</span><div class="x"><b>{{ f.who }}</b> 선생님이 {% if f.notice %}공지 <a class="tlink" href="/s/{{ space.token }}/board/{{ f.notice.key }}/">{{ f.notice.title }}</a>{{ f.eul }} 바꿨어요 <span class="muted">· {{ f.summary }}</span>{% else %}{{ f.e.title }}{% if f.changes %} {% for w, a, b in f.changes %}{{ w }} <del>{{ a }}</del> → <b>{{ b }}</b>{% if not forloop.last %}, {% endif %}{% endfor %}{{ f.ro }} 바꿨어요{% else %}{{ f.eul }} 올렸어요 <span class="muted">· {{ f.when_ev }}</span>{% endif %}{% endif %}<span class="when">{{ f.at }}</span></div></li>
+      {% for f in feed %}{% if not space.is_school or forloop.counter <= 4 %}{% include "today/_feed_item.html" %}{% endif %}
       {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 {% if space.is_school %}고른 분들에게{% else %}{{ space_word }} 모두에게{% endif %} 보여요.</p></li>{% endfor %}
     </ul>
+    {% if space.is_school and feed|length > 4 %}<details class="feed-more"><summary class="btn ghost sm">더 보기 <span class="num">{{ feed|length|add:"-4" }}</span></summary><ul class="list feed">{% for f in feed|slice:"4:" %}{% include "today/_feed_item.html" %}{% endfor %}</ul></details>{% endif %}
   </section>
 </div>
 {% if oob %}<div class="pop qpop" id="qpop" hidden hx-swap-oob="true"></div>{% endif %}

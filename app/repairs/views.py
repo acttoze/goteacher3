@@ -200,7 +200,7 @@ def list_page(request, status=200, **extra):
     all_rows = Repair.objects.in_space(request.space)
     counts = all_rows.aggregate(total=Count("pk"), open=Count("pk", filter=~Q(status=Repair.Status.DONE)))
     rows = all_rows.annotate(done=Case(When(status=Repair.Status.DONE, then=1), default=0, output_field=IntegerField())
-                             ).order_by("done", "-created_at", "-pk")
+                             ).order_by("done", "-urgent", "-created_at", "-pk")
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
     desks = _desks(request.space)
     texts = {c: _desk_text(d) for c, d in desks.items()}

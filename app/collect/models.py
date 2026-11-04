@@ -44,6 +44,11 @@ class Collection(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def head_shown(self):
+        """화면·내보내기 머리글. 저장 값 '그룹'은 내부 식별자(submit 판정)라 그대로 두고 소속으로 보여 준다."""
+        return ["소속" if h == "그룹" else h for h in self.unit_head]
+
     def save(self, *args, **kwargs):
         if kwargs.get("update_fields") is not None:
             kwargs["update_fields"] = {*kwargs["update_fields"], "updated_at"}
@@ -115,7 +120,7 @@ class Row(models.Model):
     @property
     def who_text(self):
         """받는 화면 표시: '김서연 선생님', 그룹 칸은 '그룹 누구나'."""
-        return "그룹 누구나" if self.group else f"{self.who or '이름 없음'} 선생님"
+        return "소속 누구나" if self.group else f"{self.who or '이름 없음'} 선생님"
 
     @property
     def place(self):

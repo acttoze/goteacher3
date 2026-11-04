@@ -59,7 +59,7 @@ class Repair(models.Model):
 
     @property
     def status_pill(self):
-        return {self.Status.RECEIVED: "neg", self.Status.DONE: "pos"}.get(self.status, "acc")
+        return {self.Status.RECEIVED: "", self.Status.DONE: "pos"}.get(self.status, "acc")
 
 
 class VendorAccount(models.Model):

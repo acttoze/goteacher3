@@ -19,12 +19,13 @@
   .tbl td.act { width: 1%; white-space: nowrap; }
   .tbl td.act form { display: inline; }
   .tbl td.c-id { max-width: 0; width: 46%; }
-  .tbl td.c-id .sub2, .tbl td.c-id a.ttl { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbl td.c-id .sub2 { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbl td.c-id a.ttl { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding: 0; margin: 6px 0; overflow-wrap: anywhere; }
   .tbl .stack .av { width: 26px; height: 26px; font-size: 12px; }
   .tbl tr.empty-row td { height: auto; padding: 16px 0 0; border-top: 0; }
   .side-b h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
   .side-b .blk + .blk { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--rule); }
-  .side-b .left { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 14px; }
+  .side-b .left { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 10px 0 14px; }
   .side-b .left span { display: flex; align-items: center; gap: 10px; font-size: 15px; }
   .side-b p { font-size: 15px; color: var(--muted); }
   .side-b p b { color: var(--ink); font-weight: 600; }

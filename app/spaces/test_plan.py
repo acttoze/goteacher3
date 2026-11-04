@@ -165,7 +165,7 @@ class QuoteTests(Base):
     def test_without_settings_no_fake_values(self):
         r = self.quote()
         self.assertContains(r, "새솔초등학교")
-        self.assertContains(r, "담당자가 안내드려요")
+        self.assertContains(r, "빈칸은 담당자에게 확인해 손으로 적어 주세요")
         body = r.content.decode()
         self.assertNotRegex(body, r"\d{3}-\d{2}-\d{5}")  # 사업자번호 모양
         self.assertNotRegex(body, r"\d[\d,]*\s*원")  # 금액
@@ -176,12 +176,14 @@ class QuoteTests(Base):
         r = self.quote()
         for word in ("390,000원", "공급사", "BIZ-MARK", "주소표시", "계좌표시"):
             self.assertContains(r, word)
-        self.assertNotContains(r, "담당자가 안내드려요")
+        self.assertContains(r, "빈칸은 담당자에게 확인해")  # 대표자·부가세·합계·유효 기간은 설정이 없어 아직 빈칸
         self.assertContains(self.client.get("/school-plan"), "390,000원")
 
     @override_settings(SCHOOL_PLAN_PRICE="협의")
     def test_price_not_a_number_is_treated_as_unset(self):
-        self.assertContains(self.quote(), "담당자가 안내드려요")
+        r = self.quote()
+        self.assertNotContains(r, "협의")
+        self.assertContains(r, "빈칸은 담당자에게 확인해")
 
     def test_only_requester_opens(self):
         self.apply()

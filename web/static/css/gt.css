@@ -41,7 +41,7 @@
   --fs-lead: 22px;    /* 큰 숫자·강조 줄 */
   --fs-section: 19px; /* 카드 제목 */
   --fs-body: 16px;
-  --fs-small: 14px;
+  --fs-small: 15px;  /* 예외: .av(이니셜)·.ptag(이름표 13px)·인쇄물(pt)은 이 값을 쓰지 않는다 */
 
   /* 셸·격자 */
   --sidebar: 232px;
@@ -151,6 +151,7 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 .btn.sec:hover { background: var(--hover); }
 .btn.ghost { background: transparent; color: var(--ink); }
 .btn.ghost:hover { background: var(--surface); }
+.btn.ghost[disabled] { background: transparent; color: #c4c8cf; }
 .btn.danger { background: transparent; color: var(--negative); box-shadow: inset 0 0 0 1px #f0b7b9; } /* taste-skill-ignore: 위험 행동 외곽선 */
 .btn.danger:hover { background: var(--pill-neg-bg); }
 .btn.sm { height: var(--control-h-sm); padding: 0 16px; font-size: 15px; }
@@ -186,10 +187,10 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 .tabs .c { font-size: var(--fs-small); color: var(--faint); font-weight: 600; }
 
 /* 분할 선택(세그먼트) */
-.seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); }
-.seg button { height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: none; font: 600 15px/1 var(--font); color: var(--muted); cursor: pointer; transition: background-color .15s, color .15s; white-space: nowrap; }
+.seg { display: inline-flex; gap: 4px; padding: 2px; border-radius: 999px; background: var(--surface); }
+.seg button { height: var(--control-h-sm); padding: 0 16px; border: 0; border-radius: 999px; background: none; font: 600 15px/1 var(--font); color: var(--muted); cursor: pointer; transition: background-color .15s, color .15s; white-space: nowrap; }
 .seg button:hover { color: var(--ink); }
-.seg button[aria-pressed="true"] { background: #fff; color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
 
 /* ---------- 입력 ---------- */
 .field { display: flex; flex-direction: column; gap: 8px; }
@@ -245,7 +246,7 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 .dash { color: var(--faint); }
 
 /* ---------- 알약·상태 ---------- */
-.pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font: 600 14px/1 var(--font); white-space: nowrap; flex: none; background: var(--surface); color: #33373e; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; font: 600 15px/1 var(--font); white-space: nowrap; flex: none; background: var(--surface); color: #33373e; }
 .pill.pos { background: var(--pill-pos-bg); color: var(--pill-pos-ink); }
 .pill.neg { background: var(--pill-neg-bg); color: var(--pill-neg-ink); }
 .pill.warn { background: var(--pill-warn-bg); color: var(--pill-warn-ink); box-shadow: inset 0 0 0 1px var(--pill-warn-line); } /* taste-skill-ignore: 주의 알약 테두리 */

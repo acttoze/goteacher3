@@ -30,6 +30,23 @@ def audience_text(value):
     return "·".join(labels.get(g, g) for g in value.split(",") if g)
 
 
+def version_label(v):
+    """화면에 쓰는 판 이름. 첫 판은 '처음 글', 그다음은 'N차 수정'."""
+    return "처음 글" if v == 1 else f"{v}차 수정"
+
+
+GRADE_GROUPS = ("g1", "g2", "g3", "g4", "g5", "g6")
+
+
+def audience_short(value):
+    """목록 칸에 들어가게: 여섯 학년이 다 있으면 '전 학년'으로. 판에 저장하는 audience_text는 그대로 둔다."""
+    groups = [g for g in value.split(",") if g]
+    if value == ALL or not set(GRADE_GROUPS) <= set(groups):
+        return audience_text(value)
+    labels = dict(Member.Group.choices)
+    return "·".join(["전 학년", *(labels.get(g, g) for g in groups if g not in GRADE_GROUPS)])
+
+
 class NoticeQuerySet(SpaceQuerySet):
     def visible_to(self, member):
         """내게 보이는 공지: 대상에 내 그룹이 있거나, 내가 썼거나, 관리자."""
@@ -64,6 +81,10 @@ class Notice(models.Model):
     def audience_text(self):
         return audience_text(self.audience)
 
+    @property
+    def audience_short(self):
+        return audience_short(self.audience)
+
 
 class NoticeVersionQuerySet(SpaceQuerySet):
     space_lookup = "notice__space"
@@ -86,6 +107,10 @@ class NoticeVersion(models.Model):
 
     def __str__(self):
         return f"v{self.v}"
+
+    @property
+    def label(self):
+        return version_label(self.v)
 
 
 class NoticeSeenQuerySet(SpaceQuerySet):

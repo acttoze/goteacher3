@@ -326,7 +326,7 @@ class RenderTests(QaBase):
         n.refresh_from_db()
         self.edit(n, 장소="셋째곳")
         v3 = self.client.get(f"{self.base}/{n.key}/?v=3").content.decode()
-        self.assertIn("v2 → v3", v3)
+        self.assertIn("3차 수정에서 바뀐 부분", v3)
         self.assertIn("<del>둘째곳</del>", v3)
         self.assertNotIn("<del>강당</del>", v3)
         v1 = self.client.get(f"{self.base}/{n.key}/?v=1").content.decode()

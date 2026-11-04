@@ -123,7 +123,7 @@ def _masked(row, mask):
 def _body_ctx(space, rows, get_page, photo_base, readonly):
     """업체 화면과 미리보기가 같은 답을 쓴다. 완료는 뒤로."""
     page = Paginator(_rows(rows).annotate(done=Case(When(status=Repair.Status.DONE, then=1), default=0, output_field=IntegerField()))
-                     .order_by("done", "-created_at", "-pk"), PER_PAGE).get_page(get_page)
+                     .order_by("done", "-urgent", "-created_at", "-pk"), PER_PAGE).get_page(get_page)
     mask = _masker(space)
     page.object_list = [_masked(r, mask) for r in page.object_list]
     return {"reqs": page, "n_open": rows.exclude(status=Repair.Status.DONE).count(), "school_name": space.school.name,

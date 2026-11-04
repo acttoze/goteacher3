@@ -4,7 +4,7 @@
 - 실제 DB 값으로만, 이번 학기(3~8월·9~2월) 범위. 빈 학교는 0·0%(0으로 나누기 없음).
 - 그룹 칸·명부 밖 줄·지운 공지·대상 0명 공지·그룹을 옮긴 사람이 있어도 100%를 넘지 않는다.
 - 합계 쿼리 수는 건수와 무관하다.
-- 전체 회원이 같은 카드를 본다. 공지 제목·사람 이름 없이 합계 숫자만.
+- 전체 회원이 같은 숫자를 본다(요약 한 장). 공지 제목·사람 이름 없이 합계 숫자만. 학교 화면은 단추만(33번 2).
 - 학교 공간에만 있다: 다른 학교·동학년·비회원 404. 만료 학교도 읽기 200.
 - 공지 확인율은 대상 합계 10명 미만이면 숨긴다(요약만의 규칙, 현황 화면은 그대로).
 - 인쇄는 A4 세로 1쪽: 학교 이름·기간·결재란(담당·교감·교장)·"교감 · 교장 결재용"과 숫자 카드, 안내 문구.
@@ -108,11 +108,15 @@ class EmptyTests(MergeBase):
         Member.objects.create(space=self.empty, user=u, name="첫관리자", cls="교무실", group="office", is_manager=True)
         c = Client()
         c.force_login(u)
-        for url in (f"/s/{self.empty.token}/school", f"/s/{self.empty.token}/school/summary"):
-            r = c.get(url)
-            self.assertEqual(r.status_code, 200)
-            for text in ("0건", "진행 중 0건", "0%", "0/0칸", "0건 평균", "1명", "1개 그룹"):
-                self.assertContains(r, text)
+        r = c.get(f"/s/{self.empty.token}/school/summary")
+        self.assertEqual(r.status_code, 200)
+        for text in ("0건", "진행 중 0건", "0%", "0/0칸", "0건 평균", "1명", "1개 소속"):
+            self.assertContains(r, text)
+        # 학교 화면은 건수 0이면 요약 단추도 숨긴다(33번 3)
+        r = c.get(f"/s/{self.empty.token}/school")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "학교 업무 요약")
+        self.assertNotContains(r, "제출 완료율")
 
 
 class CollectTests(SummaryBase):
@@ -270,20 +274,19 @@ class AckThresholdTests(SummaryBase):
     def test_pages_show_dash_and_reason_without_rate(self):
         self.ack(self.notice(audience=",g5,"), self.m5)  # 1명 중 1명: 숫자가 나가면 그 사람 상태가 드러난다
         c = self.as_(self.u5)
-        for url in (self.url, self.print_url):
-            r = c.get(url)
-            self.assertContains(r, "—")
-            self.assertContains(r, self.REASON)
-            self.assertNotContains(r, "건 평균")
-            self.assertNotRegex(r.content.decode(), r"<b[^>]*>\s*100%\s*</b>\s*(<small[^>]*>[^<]*</small>)?\s*<span>확인 필수")
+        r = c.get(self.print_url)
+        self.assertContains(r, "—")
+        self.assertContains(r, self.REASON)
+        self.assertNotContains(r, "건 평균")
+        self.assertNotRegex(r.content.decode(), r"<b[^>]*>\s*100%\s*</b>\s*(<small[^>]*>[^<]*</small>)?\s*<span>확인 필수")
+        self.assertNotContains(c.get(self.url), "확인 필수 공지 확인율")  # 학교 화면에는 숫자가 없다
 
     def test_ten_targets_show_rate(self):
         self.fill_group("g5", 9)
         self.notice(audience=",g5,")
-        for url in (self.url, self.print_url):
-            r = self.as_(self.u5).get(url)
-            self.assertNotContains(r, self.REASON)
-            self.assertContains(r, "1건 평균")
+        r = self.as_(self.u5).get(self.print_url)
+        self.assertNotContains(r, self.REASON)
+        self.assertContains(r, "1건 평균")
 
 
 class MembersTests(SummaryBase):
@@ -319,29 +322,22 @@ class QueryCountTests(SummaryBase):
 
 
 class PageTests(SummaryBase):
-    def card(self, resp):
-        body = resp.content.decode()
-        return body[body.index('aria-labelledby="sumH"'):body.index('aria-labelledby="attH"')]
-
-    def test_same_card_for_everyone_without_names_or_titles(self):
+    def test_school_screen_links_to_summary_without_numbers(self):
+        """33번 2: 학교 화면은 제목 줄 단추만, 숫자는 요약 쪽에(전체 회원이 같은 값)."""
         n = self.notice(by=self.m4)
         self.ack(n, self.m5)
-        boss = self.card(self.as_(self.u4).get(self.url))
-        teacher = self.card(self.as_(self.u5).get(self.url))
-        self.assertEqual(boss, teacher)
-        for secret in (NOTICE_TITLE, "송민재", "정하은", "김도윤", self.school.name, "사학년"):
-            self.assertNotIn(secret, boss)
-        self.assertIn("이번 학기 학교 업무 요약", boss)
-        self.assertIn("고티처로 모은 취합", boss)
-        self.assertNotIn(GUIDE, boss)  # 안내 문구는 인쇄 쪽(카드는 한 줄 높이)
-        self.assertNotIn("티로드", boss)
-        self.assertIn(f'href="{self.print_url}"', boss)
+        for user in (self.u4, self.u5):
+            r = self.as_(user).get(self.url)
+            self.assertContains(r, f'href="{self.print_url}">학교 업무 요약</a>')
+            for hidden in ("고티처로 모은 취합", "제출 완료율", GUIDE, "티로드"):
+                self.assertNotContains(r, hidden)
 
-    def test_card_stays_after_htmx_swap_and_on_duty_tab(self):
+    def test_button_stays_after_htmx_swap_and_on_duty_tab(self):
+        self.notice(by=self.m4)
         c = self.as_(self.u4)
-        self.assertContains(c.get(f"{self.url}?tab=duty"), "이번 학기 학교 업무 요약")
+        self.assertContains(c.get(f"{self.url}?tab=duty"), "학교 업무 요약")
         r = c.post(f"{self.url}/members/{self.m5.key}/manager", {"on": "0"}, HTTP_HX_REQUEST="true")
-        self.assertContains(r, "이번 학기 학교 업무 요약")
+        self.assertContains(r, "학교 업무 요약")
 
     def test_print_page_head_numbers_and_guide(self):
         n = self.notice(by=self.m4)
@@ -358,12 +354,11 @@ class PageTests(SummaryBase):
                 self.assertIn(text, body)
             self.assertIn("no-store", r["Cache-Control"])
 
-    def test_same_numbers_on_card_and_print(self):
+    def test_numbers_on_print(self):
         self.row(self.collection())
-        c = self.as_(self.u4)
-        for r in (c.get(self.url), c.get(self.print_url)):
-            for text in ("3건", "진행 중 1건", "67%", "2/3칸"):
-                self.assertContains(r, text)
+        r = self.as_(self.u4).get(self.print_url)
+        for text in ("3건", "진행 중 1건", "67%", "2/3칸"):
+            self.assertContains(r, text)
 
     def test_other_school_grade_space_and_stranger_404(self):
         stranger = google("stranger", "모르는사람")

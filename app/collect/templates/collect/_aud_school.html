@@ -4,7 +4,7 @@
   hx-params="csrfmiddlewaretoken,aud,aud_hr,aud_groups,aud_pgroups,aud_depts,aud_people">
   <label class="amode"><input type="radio" name="aud" value="all"{% if aud_mode == "all" %} checked{% endif %}><b>전 교직원</b><span>사람마다 한 줄</span></label>
 
-  <label class="amode"><input type="radio" name="aud" value="groups"{% if aud_mode == "groups" %} checked{% endif %}><b>그룹 고르기</b><span>고른 그룹의 사람마다 한 줄</span></label>
+  <label class="amode"><input type="radio" name="aud" value="groups"{% if aud_mode == "groups" %} checked{% endif %}><b>소속 고르기</b><span>고른 소속의 사람마다 한 줄</span></label>
   <div class="apane" data-aud="groups"{% if aud_mode != "groups" %} hidden{% endif %}>
     <div class="gck-row">{% for g in aud_groups %}<label class="gck"><input type="checkbox" name="aud_groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}>{{ g.label }}<span class="num">{{ g.n }}</span></label>{% endfor %}</div>
     <div class="wrap-row" style="margin-top:12px">
@@ -13,10 +13,10 @@
     </div>
   </div>
 
-  <label class="amode"><input type="radio" name="aud" value="pergroup"{% if aud_mode == "pergroup" %} checked{% endif %}><b>그룹별 1칸</b><span>그룹의 의견을 물을 때 · 그룹 누구나</span></label>
+  <label class="amode"><input type="radio" name="aud" value="pergroup"{% if aud_mode == "pergroup" %} checked{% endif %}><b>소속별 1칸</b><span>소속의 의견을 물을 때 · 소속 누구나</span></label>
   <div class="apane" data-aud="pergroup"{% if aud_mode != "pergroup" %} hidden{% endif %}>
     <div class="gck-row">{% for g in aud_groups %}<label class="gck"><input type="checkbox" name="aud_pgroups" value="{{ g.id }}"{% if g.pon %} checked{% endif %}>{{ g.label }}<span class="num">{{ g.n }}</span></label>{% endfor %}</div>
-    <p class="small muted" style="margin-top:10px">그룹 칸은 그 그룹 누구나 쓸 수 있고, 한 명이 내면 제출 완료예요. 내기 전까지는 구성원 모두의 낼 것에 떠요.</p>
+    <p class="small muted" style="margin-top:10px">소속 칸은 그 소속 누구나 쓸 수 있고, 한 명이 내면 제출 완료예요. 내기 전까지는 그 소속 선생님 모두의 낼 것에 떠요.</p>
   </div>
 
   <label class="amode"><input type="radio" name="aud" value="dept"{% if aud_mode == "dept" %} checked{% endif %}><b>부서</b><span>업무분장의 담당자마다 한 줄</span></label>

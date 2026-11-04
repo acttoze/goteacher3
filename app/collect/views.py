@@ -102,7 +102,7 @@ def new(request):
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
         rows = audience_rows(space, aud)
-        no_one = ("받을 사람이나 그룹을 골라 주세요." if space.is_school else
+        no_one = ("받을 사람이나 소속을 골라 주세요." if space.is_school else
                   f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요.")  # prototype #create
         if src == "preset":
             spec = PRESETS.get(request.POST.get("preset", ""))
@@ -195,7 +195,7 @@ def _aud_sum(space, aud):
     """받는 곳 요약 줄(_aud_sum.html)과 받는 사람 칸 머리글·쪽지 문구."""
     rows = audience_rows(space, aud)
     head = audience_head(aud)
-    return {"aud_n": len(rows), "aud_text": audience_text(aud, len(rows)), "aud_head_a": head[0], "aud_head_b": head[1],
+    return {"aud_n": len(rows), "aud_text": audience_text(aud, len(rows)), "aud_head_a": "소속" if head[0] == "그룹" else head[0], "aud_head_b": head[1],
             "aud_where": audience_where(aud), "aud_names": [r["who"] for r in rows] if aud.get("mode") == "people" else [],
             "aud_unmatched": unmatched_count(aud, rows)}
 
@@ -475,7 +475,7 @@ def _due_text(c):
 
 def _where(c):
     head = c.unit_head[:1]
-    return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else "우리 그룹 칸" if head == ["그룹"] else "내 칸"
+    return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else "우리 소속 칸" if head == ["그룹"] else "내 칸"
 
 
 WD = "월화수목금토일"

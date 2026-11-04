@@ -30,7 +30,7 @@ def reachable_q(me):
 
 def scope_choices(me):
     """대상 고르기. 맨 앞이 기본값: 내 그룹, 그룹이 없으면 나."""
-    first = [(me.group, f"{me.get_group_display()}(우리 그룹)")] if me.group else []
+    first = [(me.group, f"{me.get_group_display()}(우리 소속)")] if me.group else []
     return [*first, (ME, "나만"), (ALL, "학교 전체"), *[g for g in Member.Group.choices if g[0] != me.group]]
 
 

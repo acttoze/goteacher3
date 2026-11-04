@@ -5,7 +5,7 @@
 <p class="sum"><b>부서 <span class="num">{{ n_depts }}</span>개, 업무 <span class="num">{{ rows|length }}</span>개</b>를 찾았어요.{% if skipped %} 읽지 못한 줄 <span class="num">{{ skipped }}</span>개는 뺐어요.{% endif %}{% if dropped > 0 %} 다른 칸 <span class="num">{{ dropped }}</span>개는 저장하지 않아요.{% endif %}</p>
 {% if unknown %}<p class="notice" style="margin-bottom:12px">명부에 없는 이름 {{ unknown|length }}명: {{ unknown|join:", " }}. 적힌 글자 그대로 저장하고, 그 선생님이 들어오면 이름으로 이어져요.</p>{% endif %}
 <div class="acts"><button class="btn pri" type="submit">이대로 바꾸기</button>{% if n_now %}<span class="muted">지금 업무분장 {{ n_now }}개는 이 표로 통째로 바뀌어요.</span>{% endif %}</div>
-<table class="tbl"><colgroup><col style="width:20%"><col style="width:40%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th>부서</th><th>업무</th><th>담당</th><th>그룹</th></tr></thead><tbody>
+<table class="tbl"><colgroup><col style="width:20%"><col style="width:40%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th>부서</th><th>업무</th><th>담당</th><th>소속</th></tr></thead><tbody>
   {% for r in rows %}<tr><td>{{ r.dept }}</td><td>{{ r.task }}</td><td>{{ r.who }}</td><td>{{ r.groups }}</td></tr>{% endfor %}
 </tbody></table>
 {% if rows|length > 10 %}<div class="acts"><button class="btn pri" type="submit">이대로 바꾸기</button></div>{% endif %}

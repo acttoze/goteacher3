@@ -36,7 +36,7 @@ def footer_text():
 def sheet(c):
     """[머리글, 줄...] — 글자만. prototype sheetOf."""
     b = _board(c)
-    head = [*(c.unit_head + ["받는 곳", "이름"][len(c.unit_head):])[:2], *(f.name for f in b["fields"])]
+    head = [*(c.head_shown + ["받는 곳", "이름"][len(c.unit_head):])[:2], *(f.name for f in b["fields"])]
     rows = []
     for u in b["units"]:
         r = u["row"]

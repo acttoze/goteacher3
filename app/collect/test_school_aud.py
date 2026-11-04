@@ -95,7 +95,7 @@ class AudienceTests(SchoolBase):
         self.assertEqual(c.unit_head, ["그룹", "작성"])
         self.assertEqual([(r.unit, r.who, r.member_id, r.group) for r in c.rows.all()],
                          [("4학년", "", None, "g4"), ("5학년", "", None, "g5"), ("급식소", "", None, "meal")])
-        self.assertIn("그룹 3곳", c.audience["text"])
+        self.assertIn("소속 3곳", c.audience["text"])
 
     def test_dept_rows_from_duty_each_person_once_order_of_table(self):
         for i, (dept, task, who) in enumerate([("교육과정부", "교육과정", "사일, 부장"), ("방과후돌봄부", "방과후", "오 일"), ("교육과정부", "평가", "사일"),
@@ -219,17 +219,17 @@ class GroupRowTests(SchoolBase):
         Client().post(f"/c/{c.link_token}/u/{row.key}", {"f0": "3", "by": "사이"})
         body = self.login(self.boss).get(f"{self.base}/c/{c.key}/export.csv").content.decode("utf-8-sig")
         self.assertEqual(list(csv.reader(io.StringIO(body))),
-                         [["그룹", "작성", "참가(명)"], ["4학년", "사이", "3"], ["5학년", "", ""],
+                         [["소속", "작성", "참가(명)"], ["4학년", "사이", "3"], ["5학년", "", ""],
                           ["고티처로 모았습니다 · " + settings.SITE_URL.split("//")[1]]])
 
     def test_recv_pick_and_form_say_anyone_in_group(self):
         c = self.make(aud="pergroup", aud_pgroups=["g4"])
         row = c.rows.get()
         pick = Client().get(f"/c/{c.link_token}")
-        self.assertContains(pick, "그룹 누구나")
+        self.assertContains(pick, "소속 누구나")
         self.assertNotContains(pick, "이름 없음")
         form = Client().get(f"/c/{c.link_token}/u/{row.key}")
-        self.assertContains(form, "그룹 누구나")
+        self.assertContains(form, "소속 누구나")
         self.assertNotContains(form, "이 칸 선생님")
         mine = self.login(self.t41).get(f"/c/{c.link_token}")
         self.assertContains(mine, "unit mine")

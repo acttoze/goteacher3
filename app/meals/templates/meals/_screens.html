@@ -15,7 +15,7 @@
       <td><b>{{ s.name }}</b></td>
       <td class="what">{{ s.what }}</td>
       <td><span class="pill{% if s.lock %} acc{% endif %}">{{ s.src }}</span></td>
-      <td class="keep">{% if s.lock %}<span class="pill pos" title="당일 식판 사진은 규정상 매일 게시해야 해서 끌 수 없어요">항상 켜짐</span>{% elif writable %}<button class="btn sec sm" type="submit" name="toggle" value="{{ s.key }}" aria-pressed="{{ s.on|yesno:'true,false' }}" aria-label="{{ s.name }} {{ s.on|yesno:'끄기,켜기' }}">{{ s.on|yesno:"켜짐,꺼짐" }}</button>{% else %}<span class="pill">{{ s.on|yesno:"켜짐,꺼짐" }}</span>{% endif %}</td>
+      <td class="keep">{% if s.lock %}<span class="pill pos" title="당일 식판 사진은 규정상 매일 게시해야 해서 끌 수 없어요">항상 켜짐</span>{% elif writable %}<button class="toggle" type="submit" name="toggle" value="{{ s.key }}" aria-pressed="{{ s.on|yesno:'true,false' }}" aria-label="{{ s.name }} {{ s.on|yesno:'끄기,켜기' }}"><i></i></button><span class="tstate">{{ s.on|yesno:"켜짐,꺼짐" }}</span>{% else %}<span class="pill">{{ s.on|yesno:"켜짐,꺼짐" }}</span>{% endif %}</td>
       {% if writable %}<td class="keep ord"><button class="btn ghost sm" type="submit" name="up" value="{{ s.key }}" aria-label="{{ s.name }} 위로"{% if forloop.first %} disabled{% endif %}>↑</button> <button class="btn ghost sm" type="submit" name="down" value="{{ s.key }}" aria-label="{{ s.name }} 아래로"{% if forloop.counter0 == last %} disabled{% endif %}>↓</button></td>{% endif %}
     </tr>{% endfor %}
   </tbody>

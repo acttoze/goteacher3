@@ -36,13 +36,16 @@ def _order(m):
 
 
 def _group_cards(rows):
-    """그룹마다 카드(비어도 보인다). rows: _roster의 줄."""
-    cards = []
+    """사람이 있는 그룹의 카드, 빈 그룹 이름. rows: _roster의 줄."""
+    cards, empty = [], []
     for g, label in Member.Group.choices:
         mine = sorted((r for r in rows if r["m"].group == g), key=lambda r: _order(r["m"]))
+        if not mine:
+            empty.append(label)
+            continue
         cards.append({"label": label, "n": len(mine),
                       "rows": [{**r, "pos": _cls_label(r["m"].cls) if r["m"].in_grade else r["m"].position} for r in mine]})
-    return cards
+    return cards, empty
 
 
 def _person(text):
@@ -107,7 +110,7 @@ def _school_ctx(request, **extra):
         ctx["dept_cards"] = _dept_cards(space, me)
         ctx["n_tasks"] = sum(len(c["rows"]) for c in ctx["dept_cards"])
     else:
-        ctx["group_cards"] = _group_cards(ctx["rows"])
+        ctx["group_cards"], ctx["empty_groups"] = _group_cards(ctx["rows"])
         if me.is_manager:
             ctx["logs"] = MemberLog.objects.in_space(space).order_by("-at", "-pk")[:LOG_N]
     return ctx

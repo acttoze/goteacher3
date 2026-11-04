@@ -4,7 +4,7 @@
 {% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
 <div class="title" style="margin-bottom:12px">
   <div class="grow"><h1>급식</h1>
-    <p class="sub">메뉴는 NEIS에서 자동으로 와요. 매일 할 일은 <b>식판 사진 한 장</b>이에요.{% if weekend %} 오늘은 주말이라 급식이 없어 다음 주 칸을 보여 드려요.{% endif %}</p></div>
+    <p class="sub">메뉴는 나이스에서 자동으로 와요. 매일 할 일은 <b>식판 사진 한 장</b>이에요.{% if weekend %} 오늘은 주말이라 급식이 없어 다음 주 칸을 보여 드려요.{% endif %}</p></div>
   {% if today_done %}<span class="pill pos">오늘 사진 올림</span>{% elif need_today %}<span class="pill neg">오늘 사진 아직</span>{% endif %}
 </div>
 {% include "meals/_tabs.html" with on="photo" %}

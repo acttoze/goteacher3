@@ -21,6 +21,12 @@
   .plan-hit > span { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .plan-hit b { font-weight: 600; }
   .plan-sent { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .plan-done { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .plan-done b { font-size: var(--fs-lead); }
+  .plan-again > summary { list-style: none; cursor: pointer; }
+  .plan-again > summary::-webkit-details-marker { display: none; }
+  .plan-again[open] > summary { margin-bottom: 14px; }
+  .plan-again form { margin-bottom: 14px; }
 </style>
 {% endblock %}
 {% block ctx %}<span class="ctx">학교 플랜</span>{% endblock %}
@@ -46,10 +52,10 @@
       <section class="card" aria-labelledby="schoolH">
         <div class="card-h"><h2 id="schoolH">학교 플랜 · 학교 전체</h2><span class="pill acc">무료 기능 포함</span></div>
         <div class="card-b"><ul class="plan-list">
-          <li>학교 전체 명부·그룹·업무분장</li>
+          <li>학교 전체 명부·소속·업무분장</li>
           <li>확인 필수 공지, 확인 현황</li>
           <li>학교 일정·주간계획 인쇄</li>
-          <li>복무 공유(유형·시간만, 사유 없음)</li>
+          <li>복무 공유(유형·시간만, 사유는 안 받아요)</li>
           <li>수리 요청, 정보 업체 계정</li>
           <li>학교 업무 요약 한 장(결재용)</li>
           <li>급식 현황판(TV 화면)</li>
@@ -64,6 +70,7 @@
   <section class="card plan-form" aria-labelledby="applyH">
     <div class="card-h"><h2 id="applyH">학교 플랜 신청</h2></div>
     <div class="card-b">
+    {% if pending %}<div class="plan-done"><b>신청했어요</b><span>{{ pending.school.name }} · 입금을 확인하면 학교 공간이 열려요.</span><a class="btn pri" href="/school-plan/q/{{ pending.key }}">견적서 보기</a></div>{% endif %}
     {% if sent %}<ul class="plan-sent">{% for r in sent %}<li>{{ r.school.name }} · {{ r.get_status_display }} · <a href="/school-plan/q/{{ r.key }}">견적서 보기</a></li>{% endfor %}</ul>{% endif %}
     {% if not can_apply %}
       <p>{% if guest %}이름만 들어오신 분은 신청할 수 없어요. 학교 플랜 관리자는 구글 계정이 필요해서, 구글로 이어 주시면 신청할 수 있어요.{% else %}신청은 구글 계정으로 해요. 첫 관리자가 될 선생님이 로그인해 주세요.{% endif %}</p>
@@ -71,6 +78,7 @@
     {% elif already and my_school %}
       <p class="notice" role="status">{{ already }} 기한이 30일 안으로 남으면 여기서 다시 신청할 수 있어요.</p>
     {% else %}
+      {% if pending %}<details class="plan-again"{% if errors or already or limited or q %} open{% endif %}><summary class="btn sec sm">다른 신청 쓰기</summary>{% endif %}
       {% if already %}<p class="notice" role="alert">{{ already }}</p>{% endif %}
       {% if limited %}<p class="err" role="alert">{{ limited }}</p>{% endif %}
       {% if not my_school %}
@@ -100,6 +108,7 @@
         </div>
         <button class="btn pri" type="submit">신청하고 견적서 받기</button>
       </form>
+      {% if pending %}</details>{% endif %}
     {% endif %}
     </div>
   </section>

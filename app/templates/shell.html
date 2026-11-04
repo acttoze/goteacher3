@@ -31,7 +31,7 @@
 </header>
 <div class="pop" id="bellPop" hidden role="dialog" aria-label="알림" style="top:58px;right:220px;width:420px"><p class="pi muted">불러오는 중…</p></div>
 <main class="main narrow" id="main" tabindex="-1" style="outline:none">
-{% if space.is_school and not space.school.writable %}<p class="notice" role="status" style="margin-bottom:20px">학교 플랜 기간이 끝났어요. 새 선생님은 들어올 수 없고, 학교 화면은 읽기만 돼요. 모으기·오늘·일정은 그대로 써요.</p>{% endif %}
+{% if space.is_school and not space.school.writable %}<p class="notice" role="status" style="margin-bottom:20px">학교 플랜 기간이 끝났어요. 새 선생님은 들어올 수 없고, 학교 화면은 읽기만 돼요. 모으기·오늘·일정은 그대로 써요. <a class="tlink acc" href="/school-plan">학교 플랜 연장</a></p>{% endif %}
 {% block main %}{% endblock %}
 </main>
 {% endblock %}

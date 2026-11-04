@@ -513,7 +513,7 @@ class AccessTests(Web):
         page = self.teacher.get(f"{self.base}/school")
         self.assertContains(page, "오늘 복무 현황")
         self.assertContains(page, "최수아")
-        self.assertContains(page, "유형·시간만 보여요, 사유 없음")
+        self.assertContains(page, "유형·시간만 보여요. 사유는 안 받아요")
         self.assertNotContains(page, "나이스 복무현황 붙여넣기")
         self.assertEqual(self.teacher.get(self.url).status_code, 403)
         self.assertEqual(self.teacher.post(f"{self.url}/preview", {"paste": NICE}).status_code, 403)
@@ -594,7 +594,7 @@ class ShownTests(Web):
         for w in ("조퇴", "김도윤", "14:00~", "5학년"):
             self.assertIn(w, html)
         self.assertEqual(page.context["n_attendance"], 1)
-        self.assertLess(html.index("오늘 복무 현황"), html.index("학년분장 · 그룹 현황"))
+        self.assertLess(html.index("오늘 복무 현황"), html.index("학년분장 · 소속 현황"))
 
     def test_card_shows_today_only(self):
         Attendance.objects.create(space=self.hub, date=self.today - timedelta(days=1), name="어제분", kind="연가")
