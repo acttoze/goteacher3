@@ -1,22 +1,25 @@
-{# 주간판 + 이번 주 바뀐 것·마감. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). #}
-<div id="week"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+{# 일정 판(일간·주간·월간) + 바뀐 것·마감. 칸 안 추가·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). #}
+<div id="week" data-mode="{{ mode }}" data-w="{{ w }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
     <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
       <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>모으기 마감</span></span></div>
-    <div class="wk"><div class="wgrid">
+    <div class="wk">{% if mode == "month" %}<div class="mgrid">
+      {% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
+      {% for c in mcells %}<div class="mc{% if c.out %} out{% endif %}{% if c.weekend %} we{% endif %}{% if c.today %} tcol{% endif %}" data-cell data-date="{{ c.date }}" data-slot="" data-when="{{ c.when }}"><div class="md num">{{ c.n }}{% if c.today %} · 오늘{% endif %}</div>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button></div>{% endfor %}
+    </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}
       {% for r in wrows %}
       <div class="lbl">{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}</div>
-      {% for c in r.cells %}<div class="{% if c.items %}cell{% else %}empty-c{% endif %}{% if c.today %} tcol{% endif %}" data-when="{{ c.when }}">{% for x in c.items %}{% if x.kind == "ev" %}<button type="button" class="ev{% if x.mine %} mine{% endif %}{% if x.fresh %} fresh arrive{% endif %}" data-open="#ev-{{ x.e.key }}" aria-haspopup="dialog">{{ x.e.title }}{% for w, a, b in x.changes %}<span class="chg">{{ w }} {{ a }} → {{ b }}</span>{% endfor %}{% if x.meta or x.conf %}<span class="p">{{ x.meta }}{% if x.conf %}{% if x.meta %} · {% endif %}<b class="cf">장소 겹침</b>{% endif %}</span>{% endif %}{% if x.fresh %}<span class="by"><span class="ptag{% if my_ink %} ink-t{% endif %}" style="--who:{{ my_color }}">{{ me.name }} · 방금</span></span>{% endif %}</button>{% elif x.kind == "due" %}<a class="ev due" href="{{ x.href }}"><span class="k">마감</span> {{ x.c.title }} · {{ x.hm }}<span class="p">{{ x.who }}</span></a>{% elif x.kind == "duty" %}<div class="ev duty"><span class="k">복무</span> {{ x.title }}{% if x.time %}<span class="p">{{ x.time }}</span>{% endif %}</div>{% else %}<div class="ev neis">{{ x.name }}<span class="p">나이스</span></div>{% endif %}{% endfor %}</div>{% endfor %}
+      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-when="{{ c.when }}">{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button></div>{% endfor %}
       {% endfor %}
-    </div>
-    {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">이 주 학사일정이 없어요.</p>{% endif %}
+    </div>{% endif %}
+    {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">{{ period_short }} 학사일정이 없어요.</p>{% endif %}
     </div>
     {% for x in dialogs %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>
       {% if x.can_write %}<form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#week" hx-swap="outerHTML">
-        {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="w" value="{{ w }}">
+        {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="w" value="{{ w }}">
         <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
         <div class="db">
           <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.last_by.name|default:"알 수 없음" }}</p>
@@ -37,19 +40,19 @@
 
   <div class="grid" style="margin-top:var(--gap)">
     <section class="card s7" aria-labelledby="chgH">
-      <div class="card-h"><h2 id="chgH">이번 주 바뀐 것</h2><span class="n num">{{ chg|length }}</span><span class="r">누가 바꿨는지 함께</span></div>
+      <div class="card-h"><h2 id="chgH">{{ period }} 바뀐 것</h2><span class="n num">{{ chg|length }}</span><span class="r">누가 바꿨는지 함께</span></div>
       <ul class="list chg-list card-b" id="chg">
         {% for c in chg %}<li><span class="av{% if c.ink %} ink-t{% endif %}" style="background:{{ c.color }}" aria-hidden="true">{{ c.who|slice:":1" }}</span><div class="grow"><div class="t">{{ c.e.title }} {{ c.what }}</div><div class="m"><del>{{ c.a }}</del> → <b class="to">{{ c.b }}</b> · {{ c.who }} · {{ c.at }}</div></div></li>
-        {% empty %}<li class="none"><p class="empty">이 주에 바뀐 일정이 없어요.</p></li>{% endfor %}
+        {% empty %}<li class="none"><p class="empty">{{ period_short }}에 바뀐 일정이 없어요.</p></li>{% endfor %}
       </ul>
     </section>
     <section class="card s5" aria-labelledby="dueH">
-      <div class="card-h"><h2 id="dueH">이번 주 마감</h2><span class="n num">{{ dues|length }}</span><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">모으기로</a></span></div>
+      <div class="card-h"><h2 id="dueH">{{ period }} 마감</h2><span class="n num">{{ dues|length }}</span><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">모으기로</a></span></div>
       <ul class="list due-list card-b" id="due">
         {% for x in dues %}<li><div class="grow"><div class="t"><a href="{{ x.href }}">{{ x.c.title }}</a></div><div class="m">{{ x.meta }}</div></div><span class="d num{% if x.today %} today{% endif %}">{{ x.day }}</span></li>
-        {% empty %}<li class="none"><p class="empty">이 주에 마감인 모으기가 없어요.</p></li>{% endfor %}
+        {% empty %}<li class="none"><p class="empty">{{ period_short }}에 마감인 모으기가 없어요.</p></li>{% endfor %}
       </ul>
     </section>
   </div>
 </div>
-{% if oob %}<p class="sub" id="sub" hx-swap-oob="true">{% include "today/_wsub.html" %}</p>{% include "today/_parsed.html" with error="" p=None %}{% endif %}
+{% if oob %}<p class="sub" id="sub" hx-swap-oob="true">{% include "today/_wsub.html" %}</p>{% endif %}

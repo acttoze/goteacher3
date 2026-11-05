@@ -1,74 +1,21 @@
 {% extends "shell.html" %}{% load static %}
-{% block title %}{% if notice %}공지 고치기{% else %}공지 쓰기{% endif %} · 고티처{% endblock %}
+{% block title %}공지 고치기 · 고티처{% endblock %}
 {% block ptitle %}게시판{% endblock %}
-{% block head %}{% if notice %}<script src="{% static 'js/notice_form.js' %}" defer></script>{% endif %}<style>
-  .nform { display: grid; gap: 16px; }
-  .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
-  /* 받는 곳(모으기 받는 사람과 같은 모양). 그룹 칸은 '그룹 고르기'일 때만 */
-  .amodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-  .amode { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: var(--radius-in); cursor: pointer; }
-  .amode input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; flex: none; }
-  .amode:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-  .apane { display: none; margin-top: 8px; padding: 14px 16px; background: var(--surface); border-radius: var(--radius-in); }
-  .audw:has(input[value="groups"]:checked) .apane { display: block; }
-  .gck-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .gck { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--control); border-radius: 999px; background: var(--bg); cursor: pointer; font-size: 15px; }
-  .gck input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
-  .gck:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-  .msg { color: var(--negative); font-size: 15px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
-  .cur { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
-  .cur .chk { min-height: 40px; overflow-wrap: anywhere; }
-  .ask { display: grid; gap: 14px; }
-  .ask .chk { align-items: flex-start; }
-  .ask .chk input { flex: none; margin-top: 2px; }
-  .ask .chk span span { display: block; font-size: 15px; color: var(--muted); }
-  .fpick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-  .fpick .nm { flex: 1 1 120px; min-width: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
-  .fpick label:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
-</style>{% endblock %}
+{% block head %}<script src="{% static 'js/notice_form.js' %}" defer></script>{% include "notices/_form_style.html" %}{% endblock %}
 {% block main %}
 <p class="small muted" style="margin-bottom:8px"><a class="tlink" href="/s/{{ space.token }}/board" style="font-weight:600;color:var(--muted)">← 게시판</a></p>
 <div class="title">
-  <div class="grow"><h1>{% if notice %}공지 고치기{% else %}공지 쓰기{% endif %}</h1></div>
-  <a class="btn ghost" href="/s/{{ space.token }}/board{% if notice %}/{{ notice.key }}/{% endif %}">취소</a>
-  <button class="btn pri" type="submit" form="noticeForm"{% if not writable %} disabled{% endif %}>{% if notice %}고친 내용 저장{% else %}공지 올리기{% endif %}</button>
+  <div class="grow"><h1>공지 고치기</h1></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/board/{{ notice.key }}/">취소</a>
+  <button class="btn pri" type="submit" form="noticeForm"{% if not writable %} disabled{% endif %}>고친 내용 저장</button>
 </div>
 {% if conflict %}<div class="notice" role="alert" style="margin-bottom:20px">
   <b>{{ conflict.by }} 선생님이 먼저 고쳤어요({{ conflict.v }}차 수정, {{ conflict.at|date:"n/j H:i" }}).</b> 아직 저장하지 않았어요. 아래는 내가 쓴 내용이에요.
   <a class="tlink acc" href="/s/{{ space.token }}/board/{{ notice.key }}/" target="_blank" rel="noopener">최신 내용 보기</a>를 확인하고, 그대로 저장하면 내 내용으로 바뀌어요.{% if conflict_files %} 고른 첨부는 다시 골라 주세요.{% endif %}
 </div>{% endif %}
-<form class="grid" id="noticeForm" data-upload-form method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/board/{% if notice %}{{ notice.key }}/edit{% else %}new{% endif %}">
+<form class="grid" id="noticeForm" data-upload-form method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/board/{{ notice.key }}/edit">
   {% csrf_token %}
-  {% if notice %}<input type="hidden" name="base_v" value="{{ base_v }}">{% endif %}
-  <section class="card s8" style="min-width:0"><div class="card-b nform" style="padding-top:var(--pad)">
-    <label class="field"><span>제목</span><input class="input" name="title" value="{{ form.title }}" maxlength="200" required{% if errors.title %} aria-invalid="true"{% endif %}></label>
-    {% if errors.title %}<p class="msg" role="alert">{{ errors.title }}</p>{% endif %}
-    <div class="items">{% for i in form.items %}<label class="field"><span>{{ i.name }} <span class="hint">비우면 안 보여요</span></span><input class="input" name="{{ i.name }}" value="{{ i.value }}" maxlength="200"{% if notice %} data-orig="{{ i.orig }}"{% endif %}></label>{% endfor %}</div>
-    {% if errors.item %}<p class="msg" role="alert">{{ errors.item }}</p>{% endif %}
-    <label class="field"><span>본문</span><textarea class="textarea" name="body" maxlength="10000"{% if notice %} data-orig-body="{{ orig_body }}"{% endif %}>{{ form.body }}</textarea></label>
-    {% if errors.body %}<p class="msg" role="alert">{{ errors.body }}</p>{% endif %}
-    <p class="small muted" style="margin:0">학생 개인정보(이름·연락처·건강·상담 내용 등)는 공지에 적거나 첨부하지 말아 주세요.</p>
-  </div></section>
-  <div class="s4 stack-y" style="min-width:0">
-  <section class="card"><div class="card-h"><h2>받는 곳</h2></div><div class="card-b audw">
-    <div class="amodes">
-      <label class="amode"><input type="radio" name="aud" value="all"{% if form.aud != "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>전체</b></label>
-      <label class="amode"><input type="radio" name="aud" value="groups"{% if form.aud == "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>소속 고르기</b></label>
-    </div>
-    <div class="apane"><div class="gck-row">{% for g in group_opts %}<label class="gck"><input type="checkbox" name="groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}{% if aud_locked %} disabled{% endif %}>{{ g.label }}</label>{% endfor %}</div></div>
-    {% if errors.aud %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.aud }}</p>{% endif %}
-    <p class="small muted" style="margin:10px 0 0">{% if aud_locked %}확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요. {% endif %}소속을 골라도 완전한 비공개는 아니에요. 민감한 내용은 적지 마세요.</p>
-  </div></section>
-  <section class="card"><div class="card-h"><h2>알림과 확인</h2></div><div class="card-b ask">
-    {% if notice %}<label class="chk"><input type="checkbox" name="real" id="realChk"{% if form.real %} checked{% endif %}><span><b>내용이 바뀌었어요, 본 분께 다시 알리기</b><span>일시·장소·대상·준비물을 바꾸면 켜져요. 켜면 먼저 본 분께만 바뀐 부분을 알리고, 끄면 알리지 않고 저장해요. 확인 필수 공지는 내용을 바꾸면 항상 켜져요.</span></span></label>{% endif %}
-    <label class="chk"><input type="checkbox" name="must"{% if can_must %}{% if form.must %} checked{% endif %}{% else %} disabled{% if notice.must %} checked{% endif %}{% endif %}><span><b>확인 필수</b><span>{% if can_must %}받는 분 모두에게 알리고, '확인했어요'를 눌러야 확인돼요.{% else %}학교 관리자만 켤 수 있어요. 아무나 켜면 알림이 너무 많아져요.{% endif %}</span></span></label>
-  </div></section>
-  <section class="card"><div class="card-h"><h2>첨부</h2></div><div class="card-b">
-    <p class="small muted" style="margin:0 0 10px">한글(.hwp, .hwpx)·PDF, {{ max_files }}개까지, 개당 {{ max_mb }}MB</p>
-    {% if current_files %}<ul class="cur">{% for f in current_files %}<li><label class="chk"><input type="checkbox" name="remove" value="{{ f.key }}"{% if f.removing %} checked{% endif %}>지우기: {{ f.name }}</label></li>{% endfor %}</ul>{% endif %}
-    <div class="fpick"><label class="btn sec sm">파일 고르기<input class="sr" type="file" name="attach" multiple data-max-mb="{{ max_total_mb }}" accept=".hwp,.hwpx,.pdf" aria-label="첨부 파일 고르기" data-names="#attachNames"></label><span class="nm" id="attachNames" aria-live="polite">고른 파일 없음</span></div>
-    {% if errors.files %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.files }}</p>{% endif %}
-  </div></section>
-  </div>
+  <input type="hidden" name="base_v" value="{{ base_v }}">
+  {% include "notices/_form_fields.html" %}
 </form>
 {% endblock %}

@@ -1,6 +1,6 @@
 """M2 급식 TV: /tv/<token> 로그인 없는 학생용 화면. 토큰을 아는 사람에게 **급식 정보만** 보여 준다.
 
-- 회원·명부·공지·복무·일정을 읽지 않는다. 공간 화면용 컨텍스트(week_ctx·_school_ctx·_space_ctx)를 쓰지 않는 이유.
+- 회원·명부·공지·복무·일정을 읽지 않는다. 공간 화면용 컨텍스트(board_ctx·_school_ctx·_space_ctx)를 쓰지 않는 이유.
 - 없는 토큰과 옛 토큰은 같은 404. 빈도 제한은 맞는 토큰은 토큰 단위로, 없는 토큰만 IP로 센다: 학교 전체가 IP 하나(NAT)라, 학생이 /tv/x를 많이 불러도 진짜 TV가 막히면 안 된다.
 - 플랜이 끝난 학교는 학교 이름과 날짜만(학생에게 보이는 화면이라 플랜 이야기를 하지 않는다).
 """
@@ -12,8 +12,10 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET
 
+from config.csp import CSP
 from config.ratelimit import allow, client_ip
 from repairs.views import photo_response
 from spaces import neis
@@ -25,6 +27,7 @@ from .views import WD, _day_or_404, _label, _week
 PER_TOKEN = 300  # 분당. TV 한 대는 5분에 두어 번 부르므로 여러 대여도 넉넉하다
 MISSES_PER_IP = 60  # 분당, 없는 토큰 요청만
 LOOK_AHEAD = 60  # 방학이어도 다음 급식일을 찾는 날 수
+FRAME_CSP = CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")  # 급식 화면 '바로보기'의 같은 출처 iframe만 허용
 
 
 def tv_view(view):
@@ -84,9 +87,12 @@ def _next_meal(school, today, menus):
 
 
 @tv_view
+@xframe_options_sameorigin
 def page(request, row):
-    """화면 틀만. 내용은 data가 준다. 공통 컨텍스트(회원·알림)가 끼지 않게 request 없이 그린다."""
-    return HttpResponse(render_to_string("meals/tv.html", {"base": f"/tv/{row.tv_token}"}))
+    """화면 틀만. 내용은 data가 준다. 공통 컨텍스트(회원·알림)가 끼지 않게 request 없이 그린다. 틀 넣기 허용은 이 문서 하나뿐(사진·data는 그대로 none)."""
+    resp = HttpResponse(render_to_string("meals/tv.html", {"base": f"/tv/{row.tv_token}"}))
+    resp["Content-Security-Policy"] = FRAME_CSP
+    return resp
 
 
 @tv_view

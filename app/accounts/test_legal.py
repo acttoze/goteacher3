@@ -46,7 +46,7 @@ class O1DocumentTests(TestCase):
             (r.REPAIR_DONE, 90, "완료 90일"),
             (r.REPAIR_MAX, 365, "그 밖의 요청은 마지막으로 바뀐 날부터 1년"),
             (r.VENDOR_DAYS, 30, "접속 기록은 30일"),
-            (r.VENDOR_DAYS, 30, "해제되거나 기간이 끝난 뒤 30일"),
+            (r.VENDOR_DAYS, 30, "해제하거나 학교 플랜이 끝난 뒤 30일"),
             (r.MEAL_PHOTO_DAYS, 30, "급식 날짜부터 30일"),
             (r.MEMBER_LOG_AGE, 365, "고친 기록(이력): 1년"),
             (r.SUGGESTION_AGE, 365, "확인 전이면 1년"),

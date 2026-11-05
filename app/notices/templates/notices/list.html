@@ -11,11 +11,12 @@
   .nstat { font-size: 15px; color: var(--muted); }
   .nstat .track { margin-bottom: 4px; }
   .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
-</style>{% endblock %}
+</style>{% if writable %}{% include "notices/_form_style.html" %}{% endif %}{% endblock %}
 {% block main %}
+{% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
 <div class="title">
   <div class="grow"><h1>게시판</h1><p class="sub">공지를 고치면 바뀐 부분만 다시 알려 드려요.</p></div>
-  {% if writable %}<a class="btn pri" href="/s/{{ space.token }}/board/new">공지 쓰기</a>{% endif %}
+  {% if writable %}<button class="btn pri" type="button" data-open="#noticeDlg">공지 쓰기</button>{% endif %}
 </div>
 {% include "notices/_tabs.html" with on="notice" notice_n=notices.paginator.count %}
 {% if notices.paginator.count %}
@@ -39,4 +40,11 @@
 {% else %}
 <p class="empty">아직 올라온 공지가 없어요.{% if writable %} 첫 공지를 써 보세요.{% endif %}</p>
 {% endif %}
+{% if writable %}<div class="scrim" id="noticeDlg"{% if not open_form %} hidden{% endif %}>
+  <form class="dialog wide" id="noticeForm" role="dialog" aria-modal="true" aria-labelledby="noticeDlgH" data-upload-form method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/board/new">{% csrf_token %}
+    <div class="dh"><h2 id="noticeDlgH">공지 쓰기</h2></div>
+    <div class="db"><div class="grid">{% include "notices/_form_fields.html" %}</div></div>
+    <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn pri" type="submit">공지 올리기</button></div>
+  </form>
+</div>{% endif %}
 {% endblock %}

@@ -41,15 +41,14 @@ def scrub(res):
 
 
 class DateBoundaryTests(VendorBase):
-    """사용 기간·플랜은 한국 시각 날짜로 끝난다(UTC로 계산하면 9시간 어긋난다)."""
+    """학교 플랜은 한국 시각 날짜로 끝난다(UTC로 계산하면 9시간 어긋난다)."""
 
     def setUp(self):
         super().setUp()
         self.account, self.link = self.issued()
-        VendorAccount.objects.filter(pk=self.account.pk).update(until="2027-03-31")
-        School.objects.filter(pk=self.school.pk).update(paid_until="2027-12-31")
+        School.objects.filter(pk=self.school.pk).update(paid_until="2027-03-31")
 
-    def test_until_last_second_open_next_second_closed(self):
+    def test_last_second_open_next_second_closed(self):
         c = Client()
         with at(kst(2027, 3, 31, 23, 59, 59)):
             self.assertEqual(c.get(self.link).status_code, 302)
@@ -68,11 +67,6 @@ class DateBoundaryTests(VendorBase):
         with at(utc_same_day):
             self.closed(c.get("/v/"))
 
-    def test_cookie_lives_only_until_midnight_after_last_day(self):
-        with at(kst(2027, 3, 31, 23, 0)):
-            res = Client().get(self.link)
-        self.assertEqual(int(res.cookies[COOKIE]["max-age"]), 3600)
-
     def test_plan_last_day_open_next_day_closed(self):
         School.objects.filter(pk=self.school.pk).update(paid_until="2027-03-15")
         c = Client()
@@ -83,17 +77,8 @@ class DateBoundaryTests(VendorBase):
             self.closed(c.get("/v/"))
             self.closed(Client().get(self.link))
 
-    def test_issue_until_limits(self):
-        with at(kst(2026, 11, 3, 10)):
-            ok = self.issue(until="2026-11-03")
-            self.assertEqual(ok.status_code, 200)
-            self.assertEqual(self.issue(until="2026-11-02").status_code, 400)
-            self.assertEqual(self.issue(until="2027-11-04").status_code, 200)  # 오늘 + 366일
-            self.assertEqual(self.issue(until="2027-11-05").status_code, 400)
-
-
 class IndistinguishableTests(VendorBase):
-    """없는 토큰과 끊긴 토큰(재발급·해제·기간·플랜·무료)은 상태·헤더·본문이 바이트까지 같다."""
+    """없는 토큰과 끊긴 토큰(재발급·해제·플랜·무료)은 상태·헤더·본문이 바이트까지 같다."""
 
     def unknown(self):
         return scrub(Client().get("/v/" + "x" * 43))
@@ -121,12 +106,6 @@ class IndistinguishableTests(VendorBase):
         self.issued()
         with mock.patch("django.utils.cache.http_date", side_effect=lambda _t, n=iter(range(99)): f"tick {next(n)}"):
             self.assert_same(link, c)
-
-    def test_until_passed(self):
-        account, link = self.issued()
-        c = self.entered(link)
-        VendorAccount.objects.filter(pk=account.pk).update(until=timezone.localdate() - timedelta(days=1))
-        self.assert_same(link, c)
 
     def test_plan_expired_and_free(self):
         _, link = self.issued()
@@ -192,7 +171,7 @@ class SwapTests(VendorBase):
     def test_cookie_of_other_school_sees_only_its_own(self):
         far_hub = open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user))
         far_member = Member.objects.in_space(far_hub).get(user=self.far_user)
-        _, token = VendorAccount.issue(far_hub, "먼업체", "먼담당", LATER, far_member)
+        _, token = VendorAccount.issue(far_hub, "먼업체", "먼담당", far_member)
         Repair.objects.create(space=far_hub, by=far_member, by_name="먼사람", cat="info", title="먼학교요청")
         far = Client()
         far.get(f"/v/{token}")
@@ -224,7 +203,7 @@ class SwapTests(VendorBase):
         self.assertEqual(self.info.reply, "가나")
         self.assertEqual(self.c.post(f"/v/r/{self.info.key}/state", {"status": "do\x00ing", "reply": ""}).status_code, 400)
         self.assertEqual(self.issue(name="한빛\x00정보").status_code, 200)
-        self.assertEqual(self.issue(until="nope\x00").status_code, 400)
+        self.assertEqual(self.issue(name="\x00").status_code, 400)
 
 
 class SecretsAtRestTests(VendorBase):
@@ -317,7 +296,7 @@ class ConcurrentIssueTests(TransactionTestCase):
                 c = Client()
                 c.force_login(user)
                 gate.wait(5)
-                res = c.post(f"/s/{hub.token}/repairs/vendor", {"name": "업체", "contact_name": "담당", "until": LATER.isoformat()})
+                res = c.post(f"/s/{hub.token}/repairs/vendor", {"name": "업체", "contact_name": "담당"})
                 results.append((res.status_code, res.content.decode()))
             finally:
                 connections.close_all()

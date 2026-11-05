@@ -13,7 +13,7 @@
   .vseg button { padding: 0 6px; }
   .vpager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
 </style>
-<div class="vend-h"><h1>{{ school_name }}</h1><span>정보 수리 요청 · 진행 중 <b class="num" id="vOpen">{{ n_open }}</b>건</span></div>
+<div class="vend-h"><h1>정보수리방</h1><span>{{ school_name }} · 진행 중 <b class="num" id="vOpen">{{ n_open }}</b>건</span></div>
 {% if reqs.paginator.count %}
 <section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
   <ul class="list">{% for r in reqs %}{% include "repairs/vendor/_row.html" %}{% endfor %}</ul>

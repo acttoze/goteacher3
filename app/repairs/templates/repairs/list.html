@@ -1,6 +1,6 @@
 {% extends "shell.html" %}
-{% block title %}수리 요청 · 고티처{% endblock %}
-{% block ptitle %}게시판{% endblock %}
+{% block title %}{% if is_info %}정보수리방{% else %}수리 요청{% endif %} · 고티처{% endblock %}
+{% block ptitle %}{% if is_info %}정보수리방{% else %}게시판{% endif %}{% endblock %}
 {% block head %}<style>
   .list .m { font-size: 15px; }
   .rrow { display: block; min-width: 0; flex: 1; text-decoration: none; color: inherit; overflow-wrap: anywhere; }
@@ -15,14 +15,17 @@
   .rwho p { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
   .rwho .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; overflow-wrap: anywhere; }
   .pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; }
-</style>{% endblock %}
+</style>{% if writable %}{% include "repairs/_form_style.html" %}{% endif %}{% endblock %}
 {% block main %}
 {% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
+{% if is_info %}{% include "_out_band.html" with kind="it" %}{% endif %}
 <div class="title">
-  <div class="grow"><h1>게시판</h1><p class="sub">고장은 여기 한 곳에 올리세요. 시설(교실·화장실·전기·냉난방)은 행정실이, 정보(PC·전자칠판·네트워크)는 {% if vendor %}계약 업체가{% else %}정보 담당 선생님이{% endif %} 받아요.</p></div>
-  {% if writable %}<a class="btn pri" href="/s/{{ space.token }}/repairs/new">수리 요청</a>{% endif %}
+  {% if is_info %}<div class="grow"><h1>정보수리방</h1><p class="sub">PC·전자칠판·네트워크 고장을 올리세요. {% if vendor %}계약 업체가{% else %}정보 담당 선생님이{% endif %} 받아요. 교실·화장실·전기·냉난방 고장은 <a class="tlink acc" href="/s/{{ space.token }}/repairs">게시판 수리 요청</a>으로 올려 주세요.</p></div>
+  {% else %}<div class="grow"><h1>게시판</h1><p class="sub">교실·화장실·전기·냉난방 고장은 여기에 올리세요. 학교 교직원만 봐요.</p></div>{% endif %}
+  {% if writable %}<button class="btn pri" type="button" data-open="#repairDlg">수리 요청</button>{% endif %}
 </div>
-{% include "notices/_tabs.html" with on="repair" %}
+{% if not is_info %}{% include "notices/_tabs.html" with on="repair" %}
+<p class="rcnt"><a class="tlink acc" href="/s/{{ space.token }}/it">PC·전자칠판·네트워크 고장은 학교 밖 정보수리방으로</a></p>{% endif %}
 <div class="grid">
   <div class="s8" style="min-width:0">
     <p class="rcnt">진행 중 <b class="num">{{ counts.open }}</b>건 · 전체 <b class="num">{{ counts.total }}</b>건</p>
@@ -30,8 +33,8 @@
     <section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
       <ul class="list">{% for r in repairs %}
         <li>
-          <a class="rrow" href="/s/{{ space.token }}/repairs/{{ r.key }}">
-            <span class="head"><span class="pill{% if r.cat == 'info' %} acc{% endif %}">{{ r.get_cat_display }}</span><b class="t">{{ r.title }}</b>{% if r.urgent and not r.is_done %}<span class="pill neg">급함</span>{% endif %}{% if r.photo %}<span class="pill">사진</span>{% endif %}</span>
+          <a class="rrow" href="{{ list_url }}/{{ r.key }}">
+            <span class="head"><span class="pill{% if is_info %} acc{% endif %}">{{ r.get_cat_display }}</span><b class="t">{{ r.title }}</b>{% if r.urgent and not r.is_done %}<span class="pill neg">급함</span>{% endif %}{% if r.photo %}<span class="pill">사진</span>{% endif %}</span>
             <span class="m" style="display:block">{% if r.place %}{{ r.place }} · {% endif %}{{ r.by_name }} · {{ r.created_at|date:"n/j H:i" }}</span>
             {% if r.reply %}<span class="rreply">↳ {{ r.reply }}</span>{% endif %}
           </a>
@@ -51,11 +54,18 @@
   </div>
   <aside class="s4" style="min-width:0">
     <section class="card"><div class="card-h"><h2>누가 받나요</h2></div><div class="card-b rwho">
-      <div><div class="row"><span class="pill">시설</span><b>{{ desk_facility }}</b></div><p>학교 교직원만 봐요.</p></div>
-      <div><div class="row"><span class="pill acc">정보</span><b>{{ desk_info }}</b></div><p>{% if vendor %}업체는 정보 요청만, 선생님 이름 대신 위치만 봐요.{% else %}정보 담당 선생님이 받습니다.{% endif %}</p></div>
+      {% if is_info %}<div><div class="row"><span class="pill acc">정보</span><b>{{ desk }}</b></div><p>{% if vendor %}업체는 정보 요청만, 선생님 이름 대신 위치만 봐요.{% else %}정보 담당 선생님이 받습니다.{% endif %}</p></div>
+      {% else %}<div><div class="row"><span class="pill">시설</span><b>{{ desk }}</b></div><p>학교 교직원만 봐요.</p></div>{% endif %}
       {% if no_handler and me.is_manager and writable %}<p style="margin:0">수리 담당자를 지정해 주세요. <a class="tlink acc" href="/s/{{ space.token }}/school">학교 화면</a> 명부에서 선생님을 누르면 돼요.</p>{% endif %}
     </div></section>
     {% if can_vendor %}<div style="margin-top:18px">{% include "repairs/vendor/_card.html" %}</div>{% endif %}
   </aside>
 </div>
+{% if writable %}<div class="scrim" id="repairDlg"{% if not open_form %} hidden{% endif %}>
+  <form class="dialog wide rcard" id="repairForm" role="dialog" aria-modal="true" aria-labelledby="repairDlgH" data-upload-form method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/repairs/new">{% csrf_token %}
+    <div class="dh"><h2 id="repairDlgH">{% if is_info %}정보 수리 요청{% else %}수리 요청{% endif %}</h2></div>
+    <div class="db"><div class="grid">{% include "repairs/_form_fields.html" with errors=form_errors %}</div></div>
+    <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn pri" type="submit">요청하기</button></div>
+  </form>
+</div>{% endif %}
 {% endblock %}

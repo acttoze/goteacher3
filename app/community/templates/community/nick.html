@@ -1,0 +1,31 @@
+{% extends frame %}
+{# 닉네임 입장과 바꾸기. 입장 화면은 닉네임 없는 회원이 어느 커뮤니티 주소로 와도 받는다. #}
+{% block title %}커뮤니티 닉네임 · 고티처{% endblock %}
+{% block head %}{% include "community/_head.html" %}{% endblock %}
+{% block ptitle %}커뮤니티{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="community" %}{% endblock %}
+{% block main %}
+{% include "_out_band.html" with kind="community" %}
+<div class="title"><div class="grow">
+  <h1>{% if profile %}닉네임 바꾸기{% else %}커뮤니티 닉네임 정하기{% endif %}</h1>
+  <p class="sub">여기서는 이름·학교 대신 닉네임으로만 보여요. 전국 선생님과 편하게 이야기하세요. 학생 개인정보와 특정인을 알아볼 수 있는 내용, 비방은 적지 말아 주세요.</p>
+</div></div>
+<section class="card nickbox"><div class="card-b" style="padding-top:var(--pad)">
+  {% if blocked %}
+  <p style="margin:0">지금 닉네임은 <b>{{ profile.nickname }}</b>이에요. 운영자가 글쓰기를 막은 계정은 닉네임을 바꿀 수 없어요.</p>
+  <p style="margin:16px 0 0"><a class="btn sec" href="/community">커뮤니티로</a></p>
+  {% elif profile and ready_at %}
+  <p style="margin:0">지금 닉네임은 <b>{{ profile.nickname }}</b>이에요. 닉네임은 하루에 한 번 바꿀 수 있어서 <span class="num">{{ ready_at|date:"n/j H:i" }}</span> 뒤에 다시 바꿀 수 있어요.</p>
+  {% if error %}<p class="msg" role="alert" style="margin-top:12px">{{ error }}</p>{% endif %}
+  <p style="margin:16px 0 0"><a class="btn sec" href="/community">커뮤니티로</a></p>
+  {% else %}
+  <form method="post" action="/community/nick" class="stack-y" style="display:grid;gap:16px">{% csrf_token %}
+    <label class="field"><span>닉네임 <span class="hint">{{ nick_min }}~{{ nick_max }}자, 한글·영문·숫자, 다른 선생님과 겹치지 않게</span></span>
+      <input class="input" name="nickname" value="{% if value %}{{ value }}{% elif profile %}{{ profile.nickname }}{% endif %}" maxlength="{{ nick_max }}" required autocomplete="off" autofocus{% if error %} aria-invalid="true"{% endif %}></label>
+    {% if error %}<p class="msg" role="alert">{{ error }}</p>{% endif %}
+    <p class="muted small" style="margin:0">정한 닉네임은 하루에 한 번 바꿀 수 있어요.</p>
+    <div><button class="btn pri" type="submit">{% if profile %}바꾸기{% else %}이 닉네임으로 들어가기{% endif %}</button>{% if profile %} <a class="btn ghost" href="/community">취소</a>{% endif %}</div>
+  </form>
+  {% endif %}
+</div></section>
+{% endblock %}

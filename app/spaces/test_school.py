@@ -312,9 +312,14 @@ class MenuTests(JoinBase):
 
     def test_top_and_side_are_school_based(self):
         page = self.client.get(f"{self.base}/today")
-        self.assertContains(page, "우리 학교")
+        self.assertContains(page, '<p class="group">교내</p>')  # Q8 교내/교외 묶음. 정보수리방은 학교 공간에만
+        self.assertContains(page, '<p class="group">교외</p>')
+        self.assertContains(page, f'href="{self.base}/it"')
         self.assertContains(page, "학교 공간 · 3명")
-        self.assertContains(page, 'aria-label="학교"')
+        for url, on in ((f"{self.base}/it", f'href="{self.base}/it" aria-current="page"'), (f"{self.base}/repairs", f'href="{self.base}/board" aria-current="page"')):
+            self.assertContains(self.client.get(url), on)
+        self.assertContains(self.client.get(f"{self.base}/it"), "학교 밖 공간")
+        self.assertNotContains(self.client.get(f"{self.base}/repairs"), "학교 밖 공간")
 
 
 class ExpiryTests(JoinBase):
@@ -446,7 +451,7 @@ class WordingTests(JoinBase):
         c.force_login(self.far_user)
         base = f"/s/{self.far.token}"
         self.assertContains(c.get(f"{base}/today"), "동학년 바뀐 것")
-        self.assertContains(c.get(f"{base}/schedule"), "동학년 일정에 올리기")
+        self.assertContains(c.get(f"{base}/schedule"), '<i class="sw-grade"></i>동학년')
         self.assertContains(c.get(f"{base}/settings?a=space"), "동학년에서 나가기")
         self.assertContains(c.get(f"{base}/c/{self.far_c.key}/"), "동학년 화면으로")
         self.assertContains(c.get(f"{base}/c/new"), "동학년 1반")

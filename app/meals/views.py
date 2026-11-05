@@ -290,7 +290,7 @@ def _screens_page(request, toast=""):
     on = [x for x in items if x["on"]]
     ctx = {"space": space, "screens": items, "n_on": len(on), "loop": sum(x["sec"] * x.get("pages", 1) for x in on), "last": len(items) - 1,
            "writable": space.school.writable, "hygiene": content.hygiene_of(today), "slogan": content.slogan_of(today), "toast": toast,
-           "tv_url": tv_url, "tv_qr": segno.make(tv_url, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)}
+           "tv_url": tv_url, "tv_path": f"/tv/{row.tv_token}", "tv_qr": segno.make(tv_url, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)}
     if request.headers.get("HX-Request"):
         return render(request, "meals/_screens.html", ctx)
     return render(request, "meals/screens.html", _space_ctx(request, page="meals", **ctx))

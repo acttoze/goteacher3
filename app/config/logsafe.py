@@ -10,7 +10,7 @@ import logging
 import re
 import traceback
 
-_BEFORE_SECRET = {"s", "c", "j", "n", "v", "m", "q", "u", "r", "f", "e", "tv", "board", "bell", "repairs", "members", "hwp", "out"}
+_BEFORE_SECRET = {"s", "c", "j", "n", "v", "m", "q", "u", "r", "f", "e", "tv", "board", "bell", "repairs", "it", "members", "hwp", "out", "community"}
 _SEGMENT = re.compile(r"/([^/\s]*)")
 
 

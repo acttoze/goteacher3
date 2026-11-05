@@ -59,6 +59,7 @@ TOTAL_QUOTA = "고티처 서비스 저장 공간이 가득 찼어요. 잠시 뒤
 FREE_QUOTA = "무료로 쓸 수 있는 저장 공간이 서비스 전체에서 가득 찼어요. 잠시 뒤 다시 올려 주세요. 계속되면 운영자에게 알려 주세요."
 MUST_ONLY = "확인 필수는 학교 관리자만 켤 수 있어요."
 AUD_ONLY = "확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요."
+TOAST = "notice_toast"  # 세션: 목록으로 옮긴 뒤 한 번 띄울 저장 결과
 
 
 def _visible(request, key):
@@ -221,21 +222,26 @@ def _must(request, current=False):
     return None if asked and not current else current
 
 
-def _form_page(request, form, status=200, **extra):
+def _form_ctx(request, form):
+    """입력 칸 조각(_form_fields.html)이 쓰는 값. 쓰기 대화상자와 고치기 화면이 같다."""
     picked = set(form["groups"])
-    ctx = _space_ctx(request, page="board", form=form, writable=request.space.school.writable, max_files=MAX_FILES,
-                     can_must=request.member.is_manager,
-                     max_mb=MAX_FILE // MB, max_total_mb=MAX_FILES * MAX_FILE // MB, group_opts=[{"id": g, "label": label, "on": g in picked}
-                                                        for g, label in Member.Group.choices], **extra)
-    return render(request, "notices/form.html", ctx, status=status)
+    return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
+            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB,
+            "group_opts": [{"id": g, "label": label, "on": g in picked} for g, label in Member.Group.choices]}
+
+
+def _form_page(request, form, status=200, **extra):
+    """고치기 화면. 새 공지는 목록 위 대화상자(_list_page)."""
+    return render(request, "notices/form.html", _space_ctx(request, page="board", **_form_ctx(request, form), **extra), status=status)
+
+
+def _blank_form():
+    return {"title": "", "body": "", "aud": "all", "groups": [], "items": [{"name": k, "value": ""} for k in ITEMS]}
 
 
 # ---------------------------------------------------------------- 화면
-@never_cache
-@require_GET
-@school_required
-def index(request):
-    """목록. 판 번호는 한 쿼리로 함께 가져온다(건수와 무관)."""
+def _list_page(request, form=None, status=200, **extra):
+    """목록. 판 번호는 한 쿼리로 함께 가져온다(건수와 무관). 쓰기 대화상자가 함께 그려지고, open_form이면 열린 채로."""
     rows = (Notice.objects.in_space(request.space).visible_to(request.member)
             .annotate(v=Max("versions__v")).order_by("-updated_at", "-pk"))
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
@@ -247,9 +253,16 @@ def index(request):
     for n in shown:
         n.stat = stats.get(n.pk)
         n.todo = n.must and n.pk not in acked and n.by_id != me.pk and seenlib.in_audience(n, me)
-    repair_n = Repair.objects.in_space(request.space).exclude(status=Repair.Status.DONE).count()
+    repair_n = Repair.objects.in_space(request.space).filter(cat=Repair.Cat.FACILITY).exclude(status=Repair.Status.DONE).count()
     return render(request, "notices/list.html", _space_ctx(request, page="board", notices=page, repair_n=repair_n,
-                                                           writable=request.space.school.writable))
+                                                           **_form_ctx(request, form or _blank_form()), **extra), status=status)
+
+
+@never_cache
+@require_GET
+@school_required
+def index(request):
+    return _list_page(request, toast=request.session.pop(TOAST, ""))
 
 
 @never_cache
@@ -258,11 +271,10 @@ def index(request):
 @school_write_required
 @_body_guard
 def new(request):
-    if request.method == "GET" or request.upload_error:
-        blank = {"title": "", "body": "", "aud": "all", "groups": [], "items": [{"name": k, "value": ""} for k in ITEMS]}
-        if request.upload_error:
-            return _form_page(request, blank, status=400, errors={"files": request.upload_error})
-        return _form_page(request, blank)
+    if request.upload_error:
+        return _list_page(request, status=400, open_form=True, errors={"files": request.upload_error})
+    if request.method == "GET":
+        return _list_page(request, open_form=True)
     must = _must(request)
     if must is None:
         return HttpResponseForbidden(MUST_ONLY)
@@ -271,7 +283,7 @@ def new(request):
     if error:
         errors["files"] = error
     if errors:
-        return _form_page(request, form, status=status, errors=errors)
+        return _list_page(request, form, status=status, open_form=True, errors=errors)
     me = request.member
     with transaction.atomic():
         n = Notice.objects.create(space=request.space, title=form["title"], by=me, by_name=me.name, group=me.group, must=must,
@@ -280,7 +292,8 @@ def new(request):
         _add_version(n, form, me.name)
         if must:
             seenlib.bells_for_save(request.space, n, me)
-    return redirect(f"/s/{request.space.token}/board/{n.key}/")
+    request.session[TOAST] = "공지를 올렸어요."
+    return redirect(f"/s/{request.space.token}/board")
 
 
 def _edit_form(n):

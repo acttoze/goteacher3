@@ -1,0 +1,25 @@
+<style>
+  .nform { display: grid; gap: 16px; }
+  .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 20px; }
+  /* 받는 곳(모으기 받는 사람과 같은 모양). 그룹 칸은 '그룹 고르기'일 때만 */
+  .amodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .amode { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--line); border-radius: var(--radius-in); cursor: pointer; }
+  .amode input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; flex: none; }
+  .amode:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .apane { display: none; margin-top: 8px; padding: 14px 16px; background: var(--surface); border-radius: var(--radius-in); }
+  .audw:has(input[value="groups"]:checked) .apane { display: block; }
+  .gck-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .gck { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--control); border-radius: 999px; background: var(--bg); cursor: pointer; font-size: 15px; }
+  .gck input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  .gck:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .msg { color: var(--negative); font-size: 15px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
+  .cur { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+  .cur .chk { min-height: 40px; overflow-wrap: anywhere; }
+  .ask { display: grid; gap: 14px; }
+  .ask .chk { align-items: flex-start; }
+  .ask .chk input { flex: none; margin-top: 2px; }
+  .ask .chk span span { display: block; font-size: 15px; color: var(--muted); }
+  .fpick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .fpick .nm { flex: 1 1 120px; min-width: 0; font-size: 15px; color: var(--muted); overflow-wrap: anywhere; }
+  .fpick label:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+</style>

@@ -1,11 +1,12 @@
-"""R1 일정 화면 — 모습은 design/schedule.html, 동작은 prototype/assets/app.js cal()(주간)·한 줄 입력·openEvent.
+"""R1 일정 화면(주간 보기) — 모습은 design/schedule.html, 동작은 prototype/assets/app.js cal()(주간)·openEvent.
+일간·월간과 칸 안 추가는 test_schedule_modes.
 
 불변식
 - 공간 격리: 일정·모으기 마감은 request.space 안의 것만. 다른 공간 주소·다른 공간 일정 key는 404.
-- 쓰기(한 줄 입력·고치기·지우기)는 G1 뷰를 그대로 쓰고(view=week면 주간판을 돌려줌) POST + CSRF. 캐시 금지.
+- 쓰기(칸 안 추가·고치기·지우기)는 G1 뷰를 그대로 쓰고(view=week면 일정 판을 돌려줌) POST + CSRF. 캐시 금지.
 - 일정 제목·장소는 이스케이프(XSS). 인라인 스크립트 없음(CSP).
 - NEIS 학사일정이 비거나 실패하면 정직하게 알린다. NEIS는 테스트에서 목.
-- R1에서 빼는 것: 인쇄(R2)·블록 끌기(R3)·월간(design에 없음).
+- 빼는 것: 블록 끌기(R3).
 """
 import re
 from datetime import date, datetime, timedelta
@@ -211,28 +212,7 @@ class ScheduleTests(TestCase):
         self.assertNotIn("<img src=x", html)
         self.assertIn("&lt;script&gt;", html)
 
-    # ---------- 한 줄 입력 ----------
-    def test_preview_parsed_line(self):
-        r = self.post("/parse", {"line": "10/29 3블록 과학실 학예회 리허설"})
-        self.assertEqual(r.status_code, 200)
-        html = r.content.decode()
-        self.assertIn('id="parsed"', html)
-        self.assertIn("10/29(목)", html)
-        self.assertIn("3블록", html)
-        self.assertIn("과학실", html)
-        self.assertIn("이번 주 목요일 · 3블록 칸에 놓여요", html)
-        self.assertIn("학예회 리허설", html)
-        empty = self.post("/parse", {"line": ""}).content.decode()
-        self.assertIn("아무 순서로 써도", empty)
-
-    def test_preview_other_week_and_conflict(self):
-        self.ev(by=self.m2, title="안전교육", date=MON + timedelta(days=3), slot="b3", place="과학실")
-        html = self.post("/parse", {"line": "10/29 3블록 과학실 리허설"}).content.decode()
-        self.assertIn("겹쳐요", html)
-        self.assertIn("안전교육", html)
-        html = self.post("/parse", {"line": "11/12 강당 발표회"}).content.decode()
-        self.assertIn("11/12(목) 주에 놓여요", html)
-
+    # ---------- 일정 올리기(칸 없이 불러도 파서 결과로 놓인다) ----------
     def test_add_returns_week(self):
         r = self.post("/events", {"line": "10/29 3블록 과학실 학예회 리허설"})
         self.assertEqual(r.status_code, 200)
@@ -249,12 +229,6 @@ class ScheduleTests(TestCase):
                              headers={"HX-Request": "true"})
         self.assertContains(r, "발표회")
         self.assertContains(r, "11월 2일 ~ 6일")
-
-    def test_add_error_goes_to_parsed(self):
-        r = self.post("/events", {"line": "내일"})
-        self.assertEqual(r["HX-Retarget"], "#parsed")
-        self.assertContains(r, "일정 이름도 함께")
-        self.assertFalse(Event.objects.exists())
 
     def test_add_without_htmx_redirects_to_schedule(self):
         r = self.client.post(self.turl("/events"), {"view": "week", "w": MON.isoformat(), "line": "10/27 회의"})

@@ -25,6 +25,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
 
 from accounts.models import GUEST_PREFIX, is_guest
+from accounts.models import is_google_member as _can_suggest
 from collect.paste import clean_text
 from config.ratelimit import allow
 from library.views import _frame, _url
@@ -50,10 +51,6 @@ _SEP = r"[\s().\-–—/~_·・ㆍ‧•]{0,3}"
 PHONE = re.compile(rf"(?<!\d)(?:(?:01[016789]|02|0[3-6][1-5]|070|080|050\d){_SEP}\d{{3,4}}{_SEP}\d{{4}}|1[5-9]\d\d[\s.\-–—/~_·・ㆍ‧•]{{1,3}}\d{{4}})(?!\d)")
 NAME_REFUSED = "한 줄에 사람 이름이나 학교 이름이 들어 있어요. 빼고 써 주세요."
 SHOWN = Q(is_hidden=False)
-
-
-def _can_suggest(user):
-    return user.is_authenticated and not is_guest(user)
 
 
 def _in_area(area):
@@ -147,6 +144,8 @@ def detail(request, slug):
         "badge_rows": [{"name": BADGES[i], "n": n, "pct": n * 100 // top} for i, n in enumerate(counts)],
         "review_count": page_obj.paginator.count, "page_obj": page_obj, "mine": mine,
         "write_href": review_path if request.user.is_authenticated else _login_href(review_path),
+        "can_suggest": _can_suggest(request.user),
+        "login_href": ("/auth/google/login?" + urlencode({"next": f"/partners/{partner.slug}"})) if request.user.is_authenticated else _login_href(f"/partners/{partner.slug}"),
         "saved": request.user.is_authenticated and "saved" in request.GET,
         "deleted": request.user.is_authenticated and "deleted" in request.GET,
     })

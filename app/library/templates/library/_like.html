@@ -1,0 +1,13 @@
+{# Q9 양식 추천 칸. 회원은 켜고 끄는 단추, 그 밖에는 수와 안내. htmx 응답은 목록의 수도 함께 바꾼다(oob). #}
+<div class="flike" id="likeBox">
+  {% if like.can %}
+  <form method="post" action="/forms/{{ shown.slug }}/like" hx-post="/forms/{{ shown.slug }}/like" hx-target="#likeBox" hx-swap="outerHTML">{% csrf_token %}
+    <button class="btn sec" type="submit" aria-pressed="{% if like.on %}true{% else %}false{% endif %}">{% if like.on %}추천했어요{% else %}추천하기{% endif %} <span class="num">{{ like.n }}</span></button>
+  </form>
+  {% if error %}<p class="muted" role="alert">{{ error }}</p>{% endif %}
+  {% else %}
+  <p><b>추천 <span class="num">{{ like.n }}</span></b></p>
+  <p class="muted">추천은 고티처 회원만 할 수 있어요. <a href="{{ like.login }}">구글로 로그인</a></p>
+  {% endif %}
+</div>
+{% if oob %}<span id="lk-{{ shown.slug }}" hx-swap-oob="true">추천 {{ like.n }}</span>{% endif %}

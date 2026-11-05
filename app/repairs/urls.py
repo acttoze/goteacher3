@@ -4,9 +4,12 @@ from django.urls import path
 from . import vendor, views
 
 urlpatterns = [
+    path("it", views.it_index),  # 정보수리방(정보 요청만). 쓰기·처리는 아래 repairs/ 주소를 함께 쓴다
+    path("it/<str:key>", views.it_detail),
     path("repairs", views.index),
     path("repairs/new", views.new),
     path("repairs/vendor", vendor.issue),  # K2 업체 계정(아래 <key>보다 앞에)
+    path("repairs/vendor/link", vendor.link),
     path("repairs/vendor/revoke", vendor.revoke),
     path("repairs/vendor/log", vendor.access_log),
     path("repairs/vendor/preview", vendor.preview),

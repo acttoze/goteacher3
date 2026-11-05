@@ -16,9 +16,20 @@
 
   // 대화상자(design .scrim): <button data-open="#id">로 열고, [data-close]·바깥·Esc로 닫는다.
   var opener;
-  function closeDlg(d) { d.hidden = true; if (opener && document.contains(opener)) opener.focus(); }
+  function closeDlg(d) {
+    d.querySelectorAll('[data-link-out]').forEach(function (i) { i.value = ''; });  // 링크 원문을 화면에 남기지 않는다
+    d.hidden = true; if (opener && document.contains(opener)) opener.focus();
+  }
   document.addEventListener('keydown', function (e) {
     var d = document.querySelector('.scrim:not([hidden])');
+    if (e.key === 'Tab' && d) {  // 대화상자 안에서만 돈다
+      var all = [].filter.call(d.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type=hidden]),select,textarea'), function (x) { return x.offsetParent !== null || x.classList.contains('sr'); });
+      var first = all[0], last = all[all.length - 1];
+      if (!d.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      return;
+    }
     if (e.key === 'Escape' && d) closeDlg(d);
     else if (e.key === 'Escape' && closePops()) document.getElementById('bellBtn').focus();
   });
@@ -57,7 +68,7 @@
     toast('파일이 너무 커요. ' + over.dataset.maxMb + 'MB까지 올릴 수 있어요. 줄여서 다시 올려 주세요.');
   }, true);
   // 일반 폼(data-upload-form)을 fetch로 보낸다. 앞단의 413·429는 앱 화면이 아닌 글자라 일반 POST면 화면 전체가 그 글자로 바뀌고 쓴 내용·고른 파일이 사라진다.
-  // 413·429 글자·연결 실패는 폼을 그대로 두고 안내, 리디렉트는 그 주소로, 앱이 준 HTML(폼 오류 등)은 화면을 교체. 스크립트가 없으면 일반 POST 그대로.
+  // 413·429 글자·연결 실패는 폼을 그대로 두고 안내, 앱이 준 HTML(폼 오류, 리디렉트한 화면)은 화면을 교체. 스크립트가 없으면 일반 POST 그대로.
   document.addEventListener('submit', function (e) {
     var form = e.target;
     if (!form.matches('[data-upload-form]') || e.defaultPrevented) return;
@@ -79,8 +90,8 @@
         var r = x.r, page = /text\/html/.test(r.headers.get('Content-Type') || '');
         if (r.status === 413) return stay(multi ? '파일이 너무 커요. 크기를 줄여 다시 올려 주세요.' : '내용이 너무 커요. 줄여서 다시 보내 주세요.');
         if (r.status === 429 && !page) return stay('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
-        if (r.redirected) { location.assign(r.url); return; }
         if (!page) return stay('처리하지 못했어요. 잠시 뒤 다시 해 주세요.');
+        if (r.redirected) history.replaceState(null, '', r.url);  // 다시 받지 않고 이 응답을 그린다(한 번 띄울 저장 결과가 이 응답에 들어 있다)
         document.open(); document.write(x.h); document.close();
         window.scrollTo(0, 0);
       })
@@ -110,6 +121,9 @@
     if (t) { toast(t.dataset.toastNow); t.removeAttribute('data-toast-now'); }
   }
   toastNow();
+  // 서버가 대화상자를 연 채 그렸으면(입력 오류, /board/new) 오류 칸이나 첫 칸에 포커스.
+  var openDlg = document.querySelector('.scrim:not([hidden])');
+  if (openDlg) { var firstIn = openDlg.querySelector('[aria-invalid=true],input:not([type=hidden]),button'); if (firstIn) firstIn.focus(); }
   document.addEventListener('htmx:afterSwap', function () {
     toastNow();
     var b = document.querySelector('[data-autocopy]');
@@ -245,6 +259,26 @@
         ? navigator.clipboard.write([new ClipboardItem({ 'text/html': blob('html', 'text/html'), 'text/plain': blob('tsv', 'text/plain') })]).catch(plain)
         : plain();
       w.then(ok, bad);
+      return;
+    }
+
+    // 비밀 링크 복사: <button data-link-copy="POST 주소" data-dlg="#대화상자" data-done="알림">. 누를 때만 서버에서 받는다(화면에 원문을 두지 않고, 서버가 누가 받았는지 남긴다).
+    // 응답을 기다리면 사용자 동작이 끊기는 브라우저가 있어 누른 순간 ClipboardItem을 만들고 값은 Promise로 채운다.
+    // 클립보드가 안 되면 원문을 알림으로 띄우지 않고, 대화상자 안 읽기 전용 칸에 선택해 두어 직접 복사하게 한다(닫으면 지운다).
+    var lc = e.target.closest('[data-link-copy]');
+    if (lc) {
+      var link = fetch(lc.dataset.linkCopy, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrf() } })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); });
+      var showLink = function () {
+        link.then(function (t) {
+          var dlg = document.querySelector(lc.dataset.dlg), out = dlg.querySelector('[data-link-out]');
+          out.value = t; opener = lc; dlg.hidden = false; out.focus(); out.select();
+        }, function () { toast('링크를 받지 못했어요. 화면을 새로 고친 뒤 다시 눌러 주세요.'); });
+      };
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        navigator.clipboard.write([new ClipboardItem({ 'text/plain': link.then(function (t) { return new Blob([t], { type: 'text/plain' }); }) })])
+          .then(function () { toast(lc.dataset.done); }, showLink);
+      } else showLink();
       return;
     }
 

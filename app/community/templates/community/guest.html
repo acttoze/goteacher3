@@ -1,0 +1,10 @@
+{% extends frame %}
+{% block title %}커뮤니티 · 고티처{% endblock %}
+{% block head %}{% include "community/_head.html" %}{% endblock %}
+{% block ptitle %}커뮤니티{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="community" %}{% endblock %}
+{% block main %}
+{% include "_out_band.html" with kind="community" %}
+<div class="title"><div class="grow"><h1>커뮤니티</h1><p class="sub">구글로 이으면 쓸 수 있어요. 지금 쓰는 자리와 모으기는 그대로예요.</p></div></div>
+<a class="btn pri" href="{{ login_href }}">구글로 잇기</a>
+{% endblock %}

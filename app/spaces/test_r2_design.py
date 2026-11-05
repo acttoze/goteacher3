@@ -3,6 +3,7 @@
 - 동학년 공간은 문구·순서가 그대로다(NEIS 표시, 일과 먼저, 더 보기 없음).
 - 견적서는 값이 없으면 빈칸이고 지어낸 값이 없다. 값이 있으면 채운다.
 """
+import re
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -102,7 +103,7 @@ class RepairTests(Base):
         old = Repair.objects.create(space=self.hub, cat="info", title="급한것", urgent=True, by=self.t, by_name="담임쌤")
         Repair.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=3))
         Repair.objects.create(space=self.hub, cat="info", title="새것", by=self.t, by_name="담임쌤")
-        body = login(self.boss.user).get(f"{self.base}/repairs").content.decode()
+        body = login(self.boss.user).get(f"{self.base}/it").content.decode()
         self.assertLess(body.index("급한것"), body.index("새것"))
         self.assertEqual(Repair(status=Repair.Status.RECEIVED).status_pill, "")
 
@@ -119,7 +120,7 @@ class NoticeTests(Base):
         c = login(self.t.user)
         for path in ("/board", f"/board/{n.key}/", f"/board/{n.key}/?v=1"):
             body = c.get(self.base + path).content.decode()
-            main = body[body.index("<main"):]
+            main = re.sub(r'(?:value|href|action)="[^"]*"', "", body[body.index("<main"):])  # 토큰 글자에 우연히 든 낱말 제외
             for word in ("v2", "판 기록", "예전 판", "최신 판", "실질 변경"):
                 self.assertNotIn(word, main, (path, word))
         body = c.get(f"{self.base}/board/{n.key}/").content.decode()

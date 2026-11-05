@@ -5,6 +5,7 @@
 - 파일은 default storage(MEDIA_ROOT 볼륨)의 forms/<src>.<형식>. MEDIA_URL로 서빙하지 않고 내려받기 뷰로만 준다.
 - 조회·내려받기 수는 단순히 센다(봇 User-Agent·HEAD는 빼고).
 """
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 
@@ -52,3 +53,14 @@ class FormDoc(models.Model):
     @property
     def kb(self):
         return max(1, round(self.size / 1024))
+
+
+class FormLike(models.Model):
+    """Q9 양식 추천: 양식마다 구글 회원 1표(누르면 켜고 끔). 수는 저장하지 않고 센다. 계정을 지우면 함께 지운다."""
+
+    form = models.ForeignKey(FormDoc, on_delete=models.CASCADE, related_name="likes")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["form", "user"], name="one_like_per_form")]

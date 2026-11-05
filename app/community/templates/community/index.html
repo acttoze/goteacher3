@@ -1,0 +1,50 @@
+{% extends frame %}
+{# Q10 커뮤니티 목록. 글쓰기는 게시판처럼 목록 위 대화상자. 쓴 사람은 닉네임만. #}
+{% block title %}커뮤니티 · 고티처{% endblock %}
+{% block head %}{% include "community/_head.html" %}{% endblock %}
+{% block ptitle %}커뮤니티{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="community" %}{% endblock %}
+{% block main %}
+{% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
+{% include "_out_band.html" with kind="community" %}
+{% if blocked %}{% include "community/_blocked.html" %}{% endif %}
+<div class="title">
+  <div class="grow"><h1>커뮤니티</h1><p class="sub">전국 선생님과 닉네임으로 이야기해요. 내 닉네임은 <b>{{ profile.nickname }}</b>{% if not blocked %} · <a class="tlink acc" href="/community/nick">바꾸기</a>{% endif %}</p></div>
+  {% if not blocked %}<button class="btn pri" type="button" data-open="#postDlg">글쓰기</button>{% endif %}
+</div>
+{% if hidden_posts or hidden_comments %}<section class="card" style="margin-bottom:18px" aria-labelledby="hidH">
+  <div class="card-h"><h2 id="hidH">운영자가 내린 내 글·댓글</h2></div>
+  <div class="card-b" style="display:grid;gap:12px">
+    <p class="small muted" style="margin:0">다른 선생님에게는 보이지 않아요. 내린 날부터 90일이 지나면 지워져요. 그 전에 직접 지울 수 있어요.</p>
+    {% for p in hidden_posts %}<form class="hidrow" method="post" action="/community/{{ p.key }}/delete">{% csrf_token %}<span class="t">글: {{ p.title|truncatechars:60 }}</span><button class="btn sec sm" type="submit">이 글 지우기</button></form>{% endfor %}
+    {% for c in hidden_comments %}<form class="hidrow" method="post" action="/community/c/{{ c.key }}/delete">{% csrf_token %}<span class="t">댓글: {{ c.body|truncatechars:60 }}</span><button class="btn sec sm" type="submit">이 댓글 지우기</button></form>{% endfor %}
+  </div>
+</section>{% endif %}
+{% if posts.paginator.count %}
+<section class="card"><div class="card-b" style="padding-top:8px;padding-bottom:8px">
+  <ul class="list plist">{% for p in posts %}
+    <li><a class="prow" href="/community/{{ p.key }}"><span class="t">{{ p.title }}</span><span class="m">{{ p.by }} · <span class="num">{{ p.created_at|date:"n/j H:i" }}</span> · 댓글 <span class="num">{{ p.n_comments }}</span></span></a></li>{% endfor %}
+  </ul>
+</div></section>
+{% if posts.has_other_pages %}<nav class="pager" aria-label="쪽 넘기기">
+  {% if posts.has_previous %}<a class="btn sec sm" href="/community?page={{ posts.previous_page_number }}">이전</a>{% endif %}
+  <span class="num">{{ posts.number }} / {{ posts.paginator.num_pages }}쪽</span>
+  {% if posts.has_next %}<a class="btn sec sm" href="/community?page={{ posts.next_page_number }}">다음</a>{% endif %}
+</nav>{% endif %}
+{% else %}
+<p class="empty">아직 올라온 글이 없어요. 첫 글을 써 보세요.</p>
+{% endif %}
+{% if not blocked %}<div class="scrim" id="postDlg"{% if not open_form %} hidden{% endif %}>
+  <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="postDlgH" method="post" action="/community/new">{% csrf_token %}
+    <div class="dh"><h2 id="postDlgH">글쓰기</h2></div>
+    <div class="db">
+      <label class="field"><span>제목</span><input class="input" name="title" value="{{ form.title }}" maxlength="{{ title_max }}" required{% if errors.title %} aria-invalid="true"{% endif %}></label>
+      {% if errors.title %}<p class="msg" role="alert">{{ errors.title }}</p>{% endif %}
+      <label class="field"><span>본문</span><textarea class="textarea" name="body" rows="8" maxlength="{{ body_max }}" required{% if errors.body %} aria-invalid="true"{% endif %}>{{ form.body }}</textarea></label>
+      {% if errors.body %}<p class="msg" role="alert">{{ errors.body }}</p>{% endif %}
+      <p class="small muted" style="margin:0">닉네임 <b>{{ profile.nickname }}</b>으로 올라가요. 학생 개인정보와 특정인을 알아볼 수 있는 내용, 비방은 적지 말아 주세요.</p>
+    </div>
+    <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn pri" type="submit">올리기</button></div>
+  </form>
+</div>{% endif %}
+{% endblock %}

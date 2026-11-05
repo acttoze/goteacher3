@@ -276,7 +276,7 @@ class AccessTests(QaBase):
         n = self.made()
         self.school.paid_until = timezone.localdate() - timedelta(days=1)
         self.school.save(update_fields=["paid_until"])
-        self.assertContains(self.client.get(f"{self.base}/new"), "disabled")
+        self.assertNotContains(self.client.get(f"{self.base}/new"), "noticeDlg")  # 쓰기 대화상자 없음
         self.assertEqual(self.write(attach=[up("x.pdf")]).status_code, 403)
         self.assertEqual(self.edit(n, attach=[up("x.pdf")]).status_code, 403)
         self.assertEqual(NoticeFile.objects.count(), 0)

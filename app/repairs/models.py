@@ -1,18 +1,23 @@
-"""K1 수리 요청(prototype repairTab·TR.seedRepairs). 교내 한 곳, 시설·정보. 조회는 SpaceQuerySet.in_space()로만.
+"""K1 수리 요청(prototype repairTab·TR.seedRepairs). 시설은 게시판, 정보는 정보수리방(/it). 조회는 SpaceQuerySet.in_space()로만.
 
 - by: 고치기·지우기 권한의 근거(나가면 비고, 관리자만 지운다). by_name: 요청 때의 표시 값.
 - photo: 서버가 재인코딩한 JPEG만(repairs.photo). 경로에 올린 이름을 쓰지 않고, 내려받기는 회원 확인 뷰로만.
   저장량(stored)은 한글 파일·공지 첨부와 같은 한도(SourceFile.used_bytes), 행이 지워지면 파일도 지운다(hwpfiles.retention).
 - 보관: 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진을 지운다(hwpfiles.retention, 사진에 교실 모습이 찍힌다).
 """
+import hashlib
+import hmac
 import secrets
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 from accounts.models import hash_token
-from spaces.models import Space, SpaceQuerySet, new_token
+from spaces.models import Member, Space, SpaceQuerySet, new_token
 
 
 def _photo_path(instance, filename):
@@ -65,19 +70,25 @@ class Repair(models.Model):
 class VendorAccount(models.Model):
     """K2 업체 계정: 학교마다 살아 있는 계정 1개(재발급은 옛 행을 해제하고 새 행). User·Member·세션을 만들지 않는다.
 
-    - 원문 링크 토큰은 저장하지 않는다. 기기 쿠키는 토큰에서 한 방향으로 만들어(cookie_value) 한 링크로 여러 PC가 들어와도
-      같은 값이고, 재발급하면 함께 끊긴다. DB가 새어도 token_hash·cookie_hash로는 링크도 쿠키도 만들 수 없다.
+    - 원문 링크 토큰은 저장하지 않는다. 토큰 = HMAC(SECRET_KEY, "vendor-link:" + nonce)라 담당자가 복사 단추를 누를 때 다시 만들어 주고,
+      DB가 새어도(nonce·token_hash·cookie_hash) SECRET_KEY 없이는 링크도 쿠키도 만들 수 없다. 기기 쿠키는 토큰에서 한 방향으로 만들어
+      (cookie_value) 한 링크로 여러 PC가 들어와도 같은 값이고, 재발급하면 함께 끊긴다.
+      nonce 없는 옛 계정과, SECRET_KEY가 바뀌어 token_hash와 안 맞는 계정은 link_token()이 ""라 카드가 새 링크 발급을 안내한다.
+      (SECRET_KEY를 바꾸면 이미 나간 링크는 입장 때 token_hash와 맞아 계속 들어오지만 복사는 안 된다. ops/README: 해제·재발급한다.)
+    - link_seen_by: 복사 단추로 링크를 받은 회원. 담당에서 빠지면 needs_reissue가 켜진다. 자리를 지우면 M2M 줄도 사라지므로
+      나가기 전에 reissue_advised로 옮겨 둔다(아래 신호). 재발급은 새 행이라 둘 다 비어서 시작한다.
+    - 끊는 수단은 접근 끊기·재발급·학교 플랜 만료뿐이다(사용 기간 없음).
     - visible_from: 업체에 보이는 요청의 시작. 첫 발급·해제 뒤 새 발급은 그 시각, 재발급(담당자 교체)은 이어받는다.
       plan_cut: 플랜 재개가 해제한 계정. 다음 발급은 이어받는다(처리 중이던 요청이 사라져 보이지 않게). 담당자가 직접 끊으면 그 시각부터.
       요청의 생성 시각으로 본다(옛 요청을 나중에 정보로 바꿔도 안 보인다).
-    - 담당자 이름이 들어 있어 해제·기간 만료 30일 뒤 행을 지운다(hwpfiles.retention).
+    - 담당자 이름이 들어 있어 해제 30일 뒤, 또는 학교 플랜이 끝나고 30일 뒤 행을 지운다(hwpfiles.retention).
     """
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="vendor_accounts")
     name = models.CharField("업체 이름", max_length=100)
     contact_name = models.CharField("담당자 이름", max_length=40)
-    until = models.DateField("사용 기간 끝")
     visible_from = models.DateTimeField("이 시각 뒤 요청만 보임", default=timezone.now)
+    nonce = models.CharField("링크를 다시 만드는 값", max_length=64, blank=True)
     token_hash = models.CharField(max_length=64, unique=True)
     cookie_hash = models.CharField(max_length=64, unique=True)
     invited_by = models.ForeignKey("spaces.Member", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
@@ -85,6 +96,8 @@ class VendorAccount(models.Model):
     revoked_at = models.DateTimeField(null=True, blank=True)
     plan_cut = models.BooleanField("플랜이 끊겨 해제함", default=False)
     last_seen_at = models.DateTimeField(null=True, blank=True)
+    link_seen_by = models.ManyToManyField("spaces.Member", blank=True, related_name="+", verbose_name="링크를 복사한 회원")
+    reissue_advised = models.BooleanField("링크를 아는 회원이 나감", default=False)
 
     objects = SpaceQuerySet.as_manager()
 
@@ -98,17 +111,27 @@ class VendorAccount(models.Model):
     def cookie_value(token):
         return hash_token(f"vendor-cookie:{token}")
 
+    @staticmethod
+    def _token(nonce):
+        return hmac.new(settings.SECRET_KEY.encode(), f"vendor-link:{nonce}".encode(), hashlib.sha256).hexdigest()
+
     @classmethod
-    def issue(cls, space, name, contact_name, until, by, visible_from=None):
-        """(계정, 링크 토큰 원문). 원문은 여기서 한 번만 나온다."""
-        token = secrets.token_urlsafe(32)
-        return cls.objects.create(space=space, name=name, contact_name=contact_name, until=until, invited_by=by,
+    def issue(cls, space, name, contact_name, by, visible_from=None):
+        """(계정, 링크 토큰 원문)."""
+        nonce = secrets.token_urlsafe(32)
+        token = cls._token(nonce)
+        return cls.objects.create(space=space, name=name, contact_name=contact_name, invited_by=by, nonce=nonce,
                                   visible_from=visible_from or timezone.now(),
                                   token_hash=hash_token(token), cookie_hash=hash_token(cls.cookie_value(token))), token
 
+    def link_token(self):
+        """지금 유효한 링크 토큰. 다시 만들 수 없으면(옛 계정·SECRET_KEY 바뀜) ""."""
+        token = self._token(self.nonce) if self.nonce else ""
+        return token if token and hash_token(token) == self.token_hash else ""
+
     @classmethod
     def current(cls, space):
-        """해제하지 않은 계정(기간이 지났어도 담당자가 다시 발급하도록 보여 준다) 또는 None."""
+        """해제하지 않은 계정 또는 None."""
         return cls.objects.in_space(space).filter(revoked_at__isnull=True).select_related("invited_by", "space__school").first()
 
     @classmethod
@@ -122,19 +145,22 @@ class VendorAccount(models.Model):
         return Repair.objects.in_space(self.space).filter(cat=Repair.Cat.INFO, created_at__gte=self.visible_from)
 
     @property
-    def issuer_gone(self):
-        """링크를 받아 본 선생님이 더는 담당이 아니다(나갔거나 담당에서 빠짐): 재발급을 권한다."""
+    def needs_reissue(self):
+        """링크를 아는 선생님(발급자·복사한 사람)이 나갔거나 담당·관리자에서 빠졌다: 재발급을 권한다."""
         m = self.invited_by
-        return m is None or not (m.can_repair or m.is_manager)
-
-    @property
-    def in_period(self):
-        return self.revoked_at is None and self.until >= timezone.localdate()
+        return (self.reissue_advised or m is None or not (m.can_repair or m.is_manager)
+                or self.link_seen_by.filter(can_repair=False, is_manager=False).exists())
 
     @property
     def is_open(self):
-        """업체가 지금 들어올 수 있나: 해제 안 됨 + 사용 기간 안 + 학교 플랜 살아 있음."""
-        return self.in_period and self.space.is_school and self.space.school.writable
+        """업체가 지금 들어올 수 있나: 해제 안 됨 + 학교 플랜 살아 있음."""
+        return self.revoked_at is None and self.space.is_school and self.space.school.writable
+
+
+@receiver(pre_delete, sender=Member)
+def _link_holder_left(sender, instance, **kwargs):
+    """링크를 복사한 회원의 자리가 지워진다(나가기·내보내기·계정 삭제). M2M 줄과 함께 사라지기 전에 표시를 남긴다."""
+    VendorAccount.objects.filter(space_id=instance.space_id, revoked_at__isnull=True, link_seen_by=instance).update(reissue_advised=True)
 
 
 class VendorAccessQuerySet(SpaceQuerySet):

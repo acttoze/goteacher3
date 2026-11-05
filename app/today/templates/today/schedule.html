@@ -4,20 +4,12 @@
 {% block head %}
 <script src="{% static 'js/schedule.js' %}" defer></script>
 <style>
-  /* design/schedule.html — 이번 주 일정 중 내가 챙길 것과 바뀐 것은? 주간판 12열, 아래 줄 7/5. */
-  .add { display: grid; grid-auto-flow: column; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: center; margin-bottom: 12px; }
-  .add .input { height: 52px; font-size: 18px; padding-left: 46px; border-radius: 999px; }
-  .add .search svg { left: 16px; }
-  .parsed { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; min-height: 40px; margin: 0 0 20px 18px; font-size: 15px; color: var(--muted); }
-  .parsed b { color: var(--ink); font-weight: 700; }
-  .parsed .miss { color: var(--faint); font-weight: 500; }
-  .parsed .to { margin-left: auto; color: var(--accent-ink); font-weight: 600; }
-  .parsed .warn { flex-basis: 100%; color: var(--pill-warn-ink); background: var(--pill-warn-bg); border-radius: 8px; padding: 8px 10px; }
-  .parsed .err { color: var(--negative); font-weight: 600; }
-
+  /* design/schedule.html — 일정 중 내가 챙길 것과 바뀐 것은? 판 12열, 아래 줄 7/5. */
+  #week { overflow-anchor: none; } /* htmx가 새 판을 옛 판 앞에 넣는 순간 브라우저가 옛 판을 따라 스크롤하지 않게 */
   .wk { padding: 0 var(--pad) var(--pad); }
   .wk .note { margin: 10px 0 0; font-size: var(--fs-small); color: var(--muted); }
   .wgrid { display: grid; grid-template-columns: 116px repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .wgrid.one { grid-template-columns: 116px minmax(0, 1fr); }
   .wgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px; min-width: 0; min-height: 64px; position: relative; }
   .wgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--muted); font-weight: 600; min-height: 0; }
   .wgrid > .lbl span { display: block; font-weight: 400; color: var(--faint); white-space: nowrap; }
@@ -45,6 +37,29 @@
   .ev .by { position: absolute; top: -9px; right: 6px; }
   .ev.fresh { padding-top: 16px; }
 
+  /* 칸 안 추가(Q2): 빈 줄 단추는 평소 은은하게, 호버·포커스에 ＋ */
+  .cell-add { display: block; width: 100%; height: 40px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: transparent; font: 600 18px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+  .cell-add:hover, .cell-add:focus-visible { background: var(--hover); border-color: var(--control); color: var(--ink); }
+  .cell-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  [data-cell] { cursor: pointer; }
+  [data-cell].adding { cursor: auto; }
+  [data-cell].adding .cell-add { display: none; }
+  .cell-card { display: grid; gap: 6px; }
+  .cell-card .input, .cell-card .select { height: var(--control-h-sm); padding: 0 10px; }
+  .cell-err { margin: 0; font-size: var(--fs-small); color: var(--negative); font-weight: 600; overflow-wrap: anywhere; }
+  .cell-err:empty { display: none; }
+
+  /* 월간(Q3): 일~토 달력(prototype). 긴 제목은 줄을 바꾼다 */
+  .mgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .mgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 6px 8px; min-width: 0; }
+  .mgrid > div:nth-child(7n + 1) { border-left: 0; }
+  .mgrid > .mh { border-top: 0; padding: 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); text-align: center; }
+  .mh.we, .mc.we .md { color: var(--muted); }
+  .md { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .mc.tcol .md { color: var(--accent); }
+  .mc.out .md { color: var(--faint); font-weight: 500; }
+  .mc .ev { padding: 6px 8px; margin-bottom: 4px; }
+
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-small); color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .legend i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
@@ -54,7 +69,7 @@
   .sw-due { box-shadow: inset 0 0 0 2px var(--accent); } /* taste-skill-ignore: 범례 견본 */
 
   /* 공백 없는 긴 제목이 카드를 넘지 않게 */
-  .ev, .chg-list .t, .chg-list .m, .due-list .t, .dh h2, .parsed b { overflow-wrap: anywhere; min-width: 0; }
+  .ev, .chg-list .t, .chg-list .m, .due-list .t, .dh h2 { overflow-wrap: anywhere; min-width: 0; }
   .chg-list .grow, .due-list .grow { min-width: 0; }
   .due-list a { max-width: 100%; }
 
@@ -77,24 +92,18 @@
     <h1>{{ heading }}</h1>
     <p class="sub" id="sub">{% include "today/_wsub.html" %}</p>
   </div>
-  <form class="seg" role="group" aria-label="주 바꾸기" method="get" action="/s/{{ space.token }}/schedule">
-    <button name="w" value="{{ prev_w }}" aria-label="앞 주">지난주</button><button name="w" value="{{ this_w }}" aria-pressed="{% if is_this %}true{% else %}false{% endif %}">이번 주</button><button name="w" value="{{ next_w }}" aria-label="뒤 주">다음 주</button>
+  <form class="seg" role="group" aria-label="보기 바꾸기" method="get" action="/s/{{ space.token }}/schedule">
+    <input type="hidden" name="w" value="{{ focus }}"><button name="mode" value="day" aria-pressed="{% if mode == "day" %}true{% else %}false{% endif %}">일간</button><button name="mode" value="week" aria-pressed="{% if mode == "week" %}true{% else %}false{% endif %}">주간</button><button name="mode" value="month" aria-pressed="{% if mode == "month" %}true{% else %}false{% endif %}">월간</button>
   </form>
-  {% if space.is_school %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ w }}">표 붙여넣기</a>
-  <a class="btn sec" href="/s/{{ space.token }}/schedule/print?view=week&amp;d={{ w }}">인쇄</a>{% endif %}
+  <form class="seg" role="group" aria-label="기간 옮기기" method="get" action="/s/{{ space.token }}/schedule">
+    <input type="hidden" name="mode" value="{{ mode }}"><button name="w" value="{{ prev_w }}">{{ nav_words.0 }}</button><button name="w" value="{{ this_w }}" aria-pressed="{% if is_this %}true{% else %}false{% endif %}">{{ nav_words.1 }}</button><button name="w" value="{{ next_w }}">{{ nav_words.2 }}</button>
+  </form>
+  {% if space.is_school %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ paste_w }}">표 붙여넣기</a>
+  <a class="btn sec" href="/s/{{ space.token }}/schedule/print?view={{ print_view }}&amp;d={{ w }}">인쇄</a>{% endif %}
 </div>
 
-<form class="add" id="addForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">
-  {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="w" value="{{ w }}">
-  <label class="search"><span class="sr">한 줄로 일정 쓰기</span>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-    <input class="input" id="line" name="line" maxlength="200" spellcheck="false" placeholder="한 줄로 쓰기 (예: 목요일 방과후 4-1 교실 학년협의)" aria-describedby="parsed"
-      hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms" hx-target="#parsed" hx-swap="outerHTML">
-  </label>
-  {% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}
-  <button class="btn pri lg" type="submit">{% if space.is_school %}일정 올리기{% else %}{{ space_word }} 일정에 올리기{% endif %}</button>
-</form>
-{% include "today/_parsed.html" with oob=False %}
+{# 칸 안 추가 카드. schedule.js가 눌린 칸에 복제해 넣고 mode·w·date·slot을 채운다. #}
+<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="date"><input type="hidden" name="slot"><label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter"></label>{% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}<p class="cell-err" id="cellErr" role="alert"></p></form></template>
 
 {% include "today/_week.html" %}
 {% endblock %}

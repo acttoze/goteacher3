@@ -1,0 +1,6 @@
+{# 교외 가로 메뉴: 셸 없는 공개 화면(양식·협력업체)과 공간 없는 회원의 커뮤니티에서만 쓴다. 정보수리방은 학교 공간 전용이라 없다. #}
+<nav class="out-nav" aria-label="교외 메뉴">
+  <a href="/forms"{% if on == "forms" %} aria-current="page"{% endif %}>양식 자료실</a>
+  <a href="/partners"{% if on == "partners" %} aria-current="page"{% endif %}>협력업체</a>
+  <a href="/community"{% if on == "community" %} aria-current="page"{% endif %}>커뮤니티</a>
+</nav>

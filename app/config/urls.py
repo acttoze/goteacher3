@@ -1,13 +1,16 @@
 import os
 
+from django.conf import settings
 from django.http import HttpResponse
 from django.urls import include, path
+from django.views.decorators.http import require_safe
 from django.views.generic import TemplateView
 
 from accounts import device
 from accounts import views as accounts
 from collect import bell, export, lists, push, submit
 from collect import views as collect
+from community import views as community
 from library import views as library
 from meals import phone, tv
 from notices import views as notices
@@ -28,6 +31,15 @@ def healthz(request):
     if os.path.exists(DRAIN_FILE):
         return HttpResponse("draining", content_type="text/plain", status=503)
     return HttpResponse("ok", content_type="text/plain")
+
+
+ROBOTS_OFF = ("/s/", "/c/", "/v/", "/tv/", "/m/", "/n/", "/j/", "/community")  # 교내·받는 사람·비밀 링크·회원 전용
+
+
+@require_safe
+def robots(request):
+    lines = ["User-agent: *", "Allow: /", *(f"Disallow: {p}" for p in ROBOTS_OFF), f"Sitemap: {settings.SITE_URL}/sitemap.xml"]
+    return HttpResponse("\n".join(lines) + "\n", content_type="text/plain; charset=utf-8")
 
 
 urlpatterns = [
@@ -106,6 +118,7 @@ urlpatterns = [
     path("forms", library.index),  # G4 양식 자료실(로그인 없이)
     path("forms/<str:slug>", library.index),
     path("forms/<str:slug>/download", library.download),
+    path("forms/<str:slug>/like", library.like),  # Q9 양식 추천
     path("partners", partners.index),  # N1 협력업체(로그인 없이)
     path("partners/suggest", partners.suggest),
     path("partners/<str:slug>", partners.detail),
@@ -113,6 +126,16 @@ urlpatterns = [
     path("partners/<str:slug>/review/delete", partners.review_delete),
     path("school-plan", school_plan.page),  # O1 소개는 로그인 없이, 신청은 구글 회원
     path("school-plan/q/<str:key>", school_plan.quote),
+    path("community", community.index),  # Q10 커뮤니티(구글 회원, 전국 하나)
+    path("community/nick", community.nick),
+    path("community/new", community.new),
+    path("community/c/<str:key>/delete", community.comment_delete),
+    path("community/c/<str:key>/report", community.comment_report),
+    path("community/<str:key>", community.detail),
+    path("community/<str:key>/comment", community.comment),
+    path("community/<str:key>/delete", community.post_delete),
+    path("community/<str:key>/report", community.post_report),
     path("sitemap.xml", library.sitemap),
+    path("robots.txt", robots),
     path("healthz", healthz),
 ]

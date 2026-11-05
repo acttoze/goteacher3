@@ -749,7 +749,7 @@ class ResumeTests(TestCase):
         self.m = Member.objects.create(space=g, user=google("m"), name="관리", cls="4-1")
         self.hub = open_school(self.s, timezone.localdate() + timedelta(days=30), manager=self.m)
         self.s.refresh_from_db()
-        self.acct, _ = VendorAccount.issue(self.hub, "업체", "담당", timezone.localdate() + timedelta(days=30), self.m)
+        self.acct, _ = VendorAccount.issue(self.hub, "업체", "담당", self.m)
 
     def run_cmd(self):
         out = StringIO()
@@ -784,7 +784,7 @@ class ResumeTests(TestCase):
 class UploadGuardMarkupTests(TestCase):
     def test_file_inputs_carry_limit(self):
         root = Path(settings.BASE_DIR)
-        for path in ("notices/templates/notices/form.html", "repairs/templates/repairs/form.html", "meals/templates/meals/_main.html",
+        for path in ("notices/templates/notices/_form_fields.html", "repairs/templates/repairs/_form_fields.html", "meals/templates/meals/_main.html",
                      "collect/templates/collect/new.html"):
             text = (root / path).read_text()
             self.assertRegex(text, r'type="file"[^>]*data-max-mb=', path)

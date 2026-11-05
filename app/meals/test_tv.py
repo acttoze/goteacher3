@@ -405,3 +405,30 @@ class CacheTests(SimpleTestCase):
         a = neis._cache_key("mealServiceDietInfo", neis._meal_params("A", "1", "20261102", "20261106"))
         self.assertNotEqual(a, neis._cache_key("mealServiceDietInfo", neis._meal_params("A", "2", "20261102", "20261106")))
         self.assertNotEqual(a, neis._cache_key("mealServiceDietInfo", neis._meal_params("A", "1", "20261103", "20270102")))
+
+
+class FrameTests(TvBase):
+    """Q7: /tv/<token> 문서만 같은 출처 iframe 허용. 나머지는 그대로 none."""
+
+    def test_tv_page_allows_same_origin_frame_only(self):
+        r = self.anon.get(self.url)
+        self.assertEqual(r["X-Frame-Options"], "SAMEORIGIN")
+        self.assertIn("frame-ancestors 'self'", r["Content-Security-Policy"])
+        self.assertNotIn("frame-ancestors 'none'", r["Content-Security-Policy"])
+        self.assertNotIn("frame-ancestors *", r["Content-Security-Policy"])
+
+    def test_everything_else_stays_none(self):
+        data = self.anon.get(f"{self.url}/data")
+        self.assertEqual(data["X-Frame-Options"], "DENY")
+        self.assertIn("frame-ancestors 'none'", data["Content-Security-Policy"])
+        for url in ("/", "/start", f"{self.base}/screens", "/tv/없는토큰"):
+            r = self.writer.get(url)
+            self.assertEqual(r["X-Frame-Options"], "DENY", url)
+            self.assertIn("frame-ancestors 'none'", r["Content-Security-Policy"], url)
+
+    def test_button_above_tv_card_and_script_loaded(self):
+        html = self.writer.get(f"{self.base}/screens").content.decode()
+        self.assertLess(html.index("data-tv-open"), html.index("<h2>TV 주소</h2>"))
+        self.assertIn(f'href="{self.url}"', html)
+        self.assertIn("js/meals.js", html)
+        self.assertIn("<b>F</b> 키", html)

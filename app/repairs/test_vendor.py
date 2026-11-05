@@ -50,17 +50,18 @@ class VendorBase(Base):
         self.facility = self.make(cat="facility", title=MARK_FACILITY)
         Repair.objects.filter(pk=self.facility.pk).update(by_name=MARK_NAME)
         self.vurl = f"{self.base}/vendor"
+        self.it = f"/s/{self.hub.token}/it"
 
     def issue(self, client=None, **data):
-        form = {"name": "한빛정보", "contact_name": "강업체", "until": LATER.isoformat(), **data}
+        form = {"name": "한빛정보", "contact_name": "강업체", **data}
         return (client or self.manager).post(self.vurl, form)
 
     def issued(self, keep_visible=False, **data):
         """발급하고 (계정, 링크 경로)를 돌려준다. 앞서 만든 표본 요청이 보이도록 visible_from을 당긴다(발급 시각 규칙은 VisibleFromTests)."""
         res = self.issue(**data)
         self.assertEqual(res.status_code, 200)
-        link = re.search(r"https?://[^\"<\s]*(/v/[\w-]{40,})", res.content.decode()).group(1)
         account = VendorAccount.objects.in_space(self.hub).get(revoked_at__isnull=True)
+        link = f"/v/{account.link_token()}"  # 복사 기록을 남기지 않고 만든다. 복사 단추는 LinkCopyTests
         if not keep_visible:
             VendorAccount.objects.filter(pk=account.pk).update(visible_from=timezone.now() - timedelta(days=1))
             account.refresh_from_db()
@@ -91,7 +92,7 @@ class EntryTests(VendorBase):
         self.assertTrue(ck["httponly"])
         self.assertEqual(ck["samesite"], "Lax")
         self.assertEqual(ck["path"], "/v/")
-        self.assertEqual(int(ck["max-age"]), 86400 * 30)  # 사용 기간은 100일 뒤지만 쿠키는 30일
+        self.assertEqual(int(ck["max-age"]), 86400 * 30)
         self.assertNotIn(link.split("/")[-1], ck.value)
 
     @override_settings(SITE_URL="https://t.goteacher.xyz")
@@ -125,12 +126,10 @@ class EntryTests(VendorBase):
                      headers={"Origin": "http://testserver"})
         self.assertEqual(res.status_code, 303)
 
-    def test_cookie_refreshed_on_open_and_capped_by_until(self):
-        account, link = self.issued()
+    def test_cookie_refreshed_on_open(self):
+        _, link = self.issued()
         c = self.entered(link)
         self.assertEqual(int(c.get("/v/").cookies[COOKIE]["max-age"]), 86400 * 30)
-        VendorAccount.objects.filter(pk=account.pk).update(until=timezone.localdate() + timedelta(days=3))
-        self.assertLessEqual(int(c.get("/v/").cookies[COOKIE]["max-age"]), 86400 * 4)
 
     def test_leave_clears_cookie_only_on_this_browser(self):
         _, link = self.issued()
@@ -211,18 +210,6 @@ class CutTests(VendorBase):
         self.closed(Client().get(link))
         self.assertEqual(VendorAccount.objects.in_space(self.hub).filter(revoked_at__isnull=True).count(), 0)
 
-    def test_until_passed_cuts(self):
-        account, link = self.issued()
-        c = self.entered(link)
-        VendorAccount.objects.filter(pk=account.pk).update(until=timezone.localdate() - timedelta(days=1))
-        self.closed(c.get("/v/"))
-        self.closed(Client().get(link))
-
-    def test_until_today_still_open(self):
-        account, link = self.issued()
-        VendorAccount.objects.filter(pk=account.pk).update(until=timezone.localdate())
-        self.assertContains(self.entered(link).get("/v/"), MARK_TITLE)
-
     def test_plan_expired_cuts_everything(self):
         _, link = self.issued()
         c = self.entered(link)
@@ -245,9 +232,9 @@ class CutTests(VendorBase):
     def test_one_live_account_per_school_in_db(self):
         account, _ = self.issued()
         with self.assertRaises(IntegrityError), transaction.atomic():
-            VendorAccount.objects.create(space=self.hub, name="둘째", contact_name="", until=LATER, token_hash="a" * 64, cookie_hash="b" * 64)
+            VendorAccount.objects.create(space=self.hub, name="둘째", contact_name="", token_hash="a" * 64, cookie_hash="b" * 64)
         VendorAccount.objects.filter(pk=account.pk).update(revoked_at=timezone.now())
-        VendorAccount.objects.create(space=self.hub, name="둘째", contact_name="", until=LATER, token_hash="a" * 64, cookie_hash="b" * 64)
+        VendorAccount.objects.create(space=self.hub, name="둘째", contact_name="", token_hash="a" * 64, cookie_hash="b" * 64)
 
 
 class ScreenTests(VendorBase):
@@ -408,15 +395,10 @@ class VisibleFromTests(VendorBase):
         third, _ = self.issued(keep_visible=True)
         self.assertGreater(third.visible_from, first.visible_from)
 
-    def test_expired_but_not_revoked_reissue_inherits(self):
-        first, _ = self.issued(keep_visible=True)
-        VendorAccount.objects.filter(pk=first.pk).update(until=timezone.localdate() - timedelta(days=1))
-        self.assertEqual(self.issued(keep_visible=True)[0].visible_from, first.visible_from)
-
     def test_card_says_only_after_this_time(self):
-        self.assertContains(self.manager.get(self.base), "링크를 만든 시각 뒤에 올라온")
+        self.assertContains(self.manager.get(self.it), "링크를 만든 시각 뒤에 올라온")
         self.issued(keep_visible=True)
-        self.assertContains(self.manager.get(self.base), "이 시각 뒤에 올라온 요청만 보여요")
+        self.assertContains(self.manager.get(self.it), "이 시각 뒤에 올라온 정보 수리 요청만 보여요")
 
 
 class BellAndCountTests(VendorBase):
@@ -553,7 +535,7 @@ class MixTests(VendorBase):
     def test_plain_member_with_vendor_cookie_gets_no_manager_rights(self):
         c = self.entered()
         c.force_login(self.u4b)
-        self.assertEqual(c.post(self.vurl, {"name": "x", "contact_name": "y", "until": LATER.isoformat()}).status_code, 403)
+        self.assertEqual(c.post(self.vurl, {"name": "x", "contact_name": "y"}).status_code, 403)
         self.assertEqual(c.post(f"{self.vurl}/revoke").status_code, 403)
         self.assertEqual(c.get(f"{self.vurl}/log").status_code, 403)
         self.assertEqual(c.post(f"{self.base}/{self.info.key}/state", {"status": "done", "reply": ""}).status_code, 403)
@@ -597,9 +579,7 @@ class ManageTests(VendorBase):
         self.assertEqual(res.status_code, 404)
 
     def test_form_errors(self):
-        for bad in ({"name": ""}, {"contact_name": ""}, {"until": ""}, {"until": "nope"}, {"until": "2020-01-01"},
-                    {"name": "가" * 101}, {"contact_name": "가" * 41},
-                    {"until": (timezone.localdate() + timedelta(days=367)).isoformat()}):
+        for bad in ({"name": ""}, {"contact_name": ""}, {"name": "가" * 101}, {"contact_name": "가" * 41}):
             self.assertEqual(self.issue(**bad).status_code, 400, bad)
         self.assertFalse(VendorAccount.objects.exists())
 
@@ -636,7 +616,7 @@ class ManageTests(VendorBase):
         _, link = self.issued()
         self.entered(link).get("/v/")
         far_hub = open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user))
-        far = VendorAccount.objects.create(space=far_hub, name="먼업체", contact_name="먼담당자", until=LATER, token_hash="a" * 64, cookie_hash="b" * 64)
+        far = VendorAccount.objects.create(space=far_hub, name="먼업체", contact_name="먼담당자", token_hash="a" * 64, cookie_hash="b" * 64)
         VendorAccess.objects.create(account=far, action="view")
         old = VendorAccess.objects.create(account=VendorAccount.objects.in_space(self.hub).get(), action="state")
         VendorAccess.objects.filter(pk=old.pk).update(at=timezone.now() - timedelta(days=31))
@@ -646,18 +626,23 @@ class ManageTests(VendorBase):
         self.assertContains(page, "링크로 들어옴")
         self.assertNotContains(page, "먼담당자")
 
-    def test_card_shows_account_without_link(self):
+    def test_card_shows_account_and_copy_button_to_manager_only(self):
         account, link = self.issued()
-        page = self.manager.get(self.base)
+        page = self.manager.get(self.it)
         self.assertContains(page, "정보 업체 계정")
         self.assertContains(page, "한빛정보")
         self.assertContains(page, "강업체")
+        self.assertContains(page, "data-link-copy")
         self.assertNotContains(page, link)
+        self.assertContains(page, "업체가 바뀌면 접근 끊기 뒤 새로 발급하세요(새 링크 발급은 담당자 교체용으로, 지금까지의 요청을 이어서 봐요).")
+        for c, url in ((self.teacher, self.it), (self.teacher, self.base), (self.manager, self.base)):
+            self.assertNotContains(c.get(url), "data-link-copy")
 
     def test_issue_response_updates_whole_list(self):
         """발급 직후 '누가 받나요'·부제목도 바뀐다(목록 화면 전체를 돌려주고 htmx가 #main을 바꾼다)."""
         res = self.issue()
-        self.assertContains(res, "/v/")
+        self.assertContains(res, "data-link-copy")
+        self.assertNotContains(res, "/v/")
         self.assertContains(res, 'id="main"')
         self.assertContains(res, "계약 업체가 받아요")
         self.assertContains(res, "한빛정보 (계약 업체)")
@@ -691,34 +676,36 @@ class ManageTests(VendorBase):
     def test_reissue_hint_when_issuer_no_longer_handler(self):
         self.set_handler(self.m4b)
         self.issue(self.teacher)
-        hint = "발급한 선생님이 담당에서 빠졌어요"
-        self.assertNotContains(self.manager.get(self.base), hint)
+        hint = "링크를 아는 선생님이 담당에서 빠졌어요. 새 링크를 발급하길 권해요."
+        self.assertNotContains(self.manager.get(self.it), hint)
         Member.objects.filter(pk=self.m4b.pk).update(can_repair=False)
-        self.assertContains(self.manager.get(self.base), hint)
+        self.assertContains(self.manager.get(self.it), hint)
         Member.objects.filter(pk=self.m5.pk).update(can_repair=True)
-        self.assertNotContains(self.as_(self.u5).get(self.base), hint)  # 담당자에게는 안 보이고 관리자에게만
+        self.assertContains(self.as_(self.u5).get(self.it), hint)  # 재발급할 수 있는 담당자에게도
 
 
 class RequesterSideTests(VendorBase):
     def test_form_warning_names_vendor(self):
-        self.assertNotContains(self.teacher.get(f"{self.base}/new"), "외부 업체")
+        self.assertNotContains(self.teacher.get(self.it), "외부 업체")
         self.issued()
-        page = self.teacher.get(f"{self.base}/new")
+        page = self.teacher.get(self.it)
         self.assertContains(page, "외부 업체(한빛정보)가 볼 수 있어요")
         self.assertContains(page, "학생 이름·개인정보는 적지 마세요")
 
     def test_list_and_detail_show_vendor_as_info_desk(self):
         self.issued()
-        page = self.teacher.get(self.base)
+        page = self.teacher.get(self.it)
         self.assertContains(page, "한빛정보 (계약 업체)")
-        self.assertContains(self.teacher.get(f"{self.base}/{self.info.key}"), "한빛정보 (계약 업체)")
+        self.assertNotContains(self.teacher.get(self.base), "한빛정보")
+        self.assertContains(self.teacher.get(f"{self.it}/{self.info.key}"), "한빛정보 (계약 업체)")
         self.assertNotContains(self.teacher.get(f"{self.base}/{self.facility.key}"), "한빛정보")
 
     def test_vendor_gone_returns_to_teacher_desk(self):
         account, _ = self.issued()
-        VendorAccount.objects.filter(pk=account.pk).update(until=timezone.localdate() - timedelta(days=1))
-        self.assertNotContains(self.teacher.get(self.base), "한빛정보")
-        self.assertNotContains(self.teacher.get(f"{self.base}/new"), "외부 업체")
+        VendorAccount.objects.filter(pk=account.pk).update(revoked_at=timezone.now())
+        page = self.teacher.get(self.it)
+        self.assertNotContains(page, "한빛정보")
+        self.assertNotContains(page, "외부 업체")
 
     def test_plan_expired_vendor_not_shown_as_desk(self):
         self.issued()
@@ -762,14 +749,13 @@ class RetentionTests(VendorBase):
 
     def test_gone_accounts_purged_after_30_days(self):
         gone, _ = self.issued()
+        recent, _ = self.issued()
         live, _ = self.issued()
-        ended = VendorAccount.objects.create(space=open_school(self.far_school, LATER, Member.objects.get(space__school=self.far_school, user=self.far_user)), name="끝남", contact_name="",
-                                             until=timezone.localdate() - timedelta(days=31), token_hash="a" * 64, cookie_hash="b" * 64)
         VendorAccount.objects.filter(pk=gone.pk).update(revoked_at=timezone.now() - timedelta(days=31))
-        self.assertEqual(purge(timezone.now(), dry_run=True)["vendor_accounts"], 2)
+        VendorAccount.objects.filter(pk=live.pk).update(created_at=timezone.now() - timedelta(days=900))  # 오래됐어도 해제 전이면 그대로
+        self.assertEqual(purge(timezone.now(), dry_run=True)["vendor_accounts"], 1)
         purge(timezone.now())
-        self.assertEqual(list(VendorAccount.objects.values_list("pk", flat=True)), [live.pk])
-        self.assertFalse(VendorAccount.objects.filter(pk=ended.pk).exists())
+        self.assertCountEqual(VendorAccount.objects.values_list("pk", flat=True), [recent.pk, live.pk])
 
     def test_member_log_purged_after_a_year(self):
         old = MemberLog.objects.create(space=self.hub, by="a", name="b", before="c", after="d")

@@ -1,11 +1,11 @@
 """K1 수리 요청(prototype board 수리 탭·repairNew·repairView): 요청·목록·상세·처리, 사진, 담당자 지정.
+시설은 교내 게시판 수리 탭(/repairs), 정보는 학교 밖 정보수리방(/it). 같은 표·같은 처리를 쓰고 목록과 돌아가기만 나뉜다.
 
 권한은 Member.can_repair·is_manager·by로만. Member.group은 본인이 고치는 값이라 '누가 받나요'를 나눌 때만 쓴다
 (이미 지정된 담당자 안에서 행정실 그룹이면 시설, 나머지는 정보). 행정실로 옮긴다고 담당이 되거나 이름이 뜨지 않는다.
 K2 업체 화면·발급은 repairs.vendor. 업체가 있어도 🔔은 교내 담당자가 받는다(업체에는 문자·알림이 없다).
 """
 import logging
-from datetime import timedelta
 
 from django.core.files.base import ContentFile
 from django.core.paginator import Paginator
@@ -36,7 +36,14 @@ MAX_TITLE, MAX_PLACE, MAX_NOTE, MAX_REPLY = 200, 100, 1000, 500
 UPLOAD_PER_HOUR = 30
 DESK_NAMES = 3  # 담당 칸에 보이는 이름 수
 TOAST = "repair_toast"  # 세션: 목록으로 옮긴 뒤 한 번 띄울 저장 결과
-VENDOR_MAX_DAYS = timedelta(days=366)  # 업체 사용 기간은 한 번에 1년까지(계약이 이어지면 다시 발급)
+
+
+def _list_url(space, cat):
+    return f"/s/{space.token}/{'it' if cat == Repair.Cat.INFO else 'repairs'}"
+
+
+def _detail_url(space, r):
+    return f"{_list_url(space, r.cat)}/{r.key}"
 
 
 def _vendor(space):
@@ -95,7 +102,7 @@ def _ring_desk(space, r, actor):
     _, people = _desks(space)[r.cat]
     return len(Notification.objects.bulk_create(
         Notification(space=space, member=m, repair=r, kind=Notification.Kind.REPAIR, day=timezone.localdate(),
-                     text=_bell_text(r), link=f"/s/{space.token}/repairs/{r.key}")
+                     text=_bell_text(r), link=_detail_url(space, r))
         for m in people if m.pk != actor.pk))
 
 
@@ -104,7 +111,7 @@ def _ring_up(space, r, member_id, text):
     mine = Notification.objects.in_space(space).filter(repair=r, member_id=member_id, kind=Notification.Kind.REPAIR_UP, read=False)
     if not mine.update(text=text[:300], pushed=False, created_at=timezone.now()):
         Notification.objects.create(space=space, member_id=member_id, repair=r, kind=Notification.Kind.REPAIR_UP,
-                                    day=timezone.localdate(), text=text[:300], link=f"/s/{space.token}/repairs/{r.key}")
+                                    day=timezone.localdate(), text=text[:300], link=_detail_url(space, r))
 
 
 def change_state(space, key, status, reply, actor=None, rows=None):
@@ -187,39 +194,47 @@ def _drop_after_commit(storage, name):
     transaction.on_commit(run)
 
 
-def _form_page(request, form, status=200, **extra):
-    ctx = _space_ctx(request, page="board", form=form, writable=request.space.school.writable, vendor=_vendor(request.space),
-                     desks={c: "·".join(m.name for m in d[1][:DESK_NAMES]) for c, d in _desks(request.space).items()},
-                     max_mb=photo.MAX_BYTES // photo.MB, **extra)
+def _form_ctx(space):
+    """입력 칸 조각(_form_fields.html)이 쓰는 값."""
+    return {"desks": {c: "·".join(m.name for m in d[1][:DESK_NAMES]) for c, d in _desks(space).items()}, "max_mb": photo.MAX_BYTES // photo.MB}
+
+
+def _form_page(request, r, form, status=200, **extra):
+    """고치기 화면. 새 요청은 목록 위 대화상자(list_page)."""
+    ctx = _space_ctx(request, page="it" if r.cat == Repair.Cat.INFO else "board", form=form, repair=r, list_url=_list_url(request.space, r.cat), writable=request.space.school.writable,
+                     vendor=_vendor(request.space), **_form_ctx(request.space), **extra)
     return render(request, "repairs/form.html", ctx, status=status)
 
 
 # ---------------------------------------------------------------- 화면
-def list_page(request, status=200, **extra):
-    """목록: 완료는 뒤로. 담당 칸은 분류별로 한 번만 구해 줄마다 붙인다(건수와 무관). 업체 발급·해제도 이 화면을 그대로 돌려준다."""
-    all_rows = Repair.objects.in_space(request.space)
+def list_page(request, cat, status=200, form=None, **extra):
+    """시설(게시판 수리 탭)·정보(정보수리방) 목록: 완료는 뒤로. 담당 칸은 한 번만 구해 줄마다 붙인다(건수와 무관).
+    업체 카드와 발급·해제는 정보 쪽에만. 쓰기 대화상자가 함께 그려지고, open_form이면 열린 채로."""
+    space, me = request.space, request.member
+    is_info = cat == Repair.Cat.INFO
+    all_rows = Repair.objects.in_space(space).filter(cat=cat)
     counts = all_rows.aggregate(total=Count("pk"), open=Count("pk", filter=~Q(status=Repair.Status.DONE)))
     rows = all_rows.annotate(done=Case(When(status=Repair.Status.DONE, then=1), default=0, output_field=IntegerField())
                              ).order_by("done", "-urgent", "-created_at", "-pk")
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
-    desks = _desks(request.space)
-    texts = {c: _desk_text(d) for c, d in desks.items()}
-    account = VendorAccount.current(request.space)
+    desks = _desks(space)
+    desk = _desk_text(desks[cat])
+    account = VendorAccount.current(space) if is_info else None
     vendor = account if account and account.is_open else None
-    if vendor:
-        texts[Repair.Cat.INFO] = _vendor_desk(vendor)
     shown = list(page.object_list)
     page.object_list = shown
     for r in shown:  # 업체가 못 보는 옛 정보 요청은 교내 담당 그대로
-        r.desk = _desk_text(desks[r.cat]) if r.cat == Repair.Cat.INFO and not _vendor_sees(vendor, r) else texts[r.cat]
-    ctx = _space_ctx(request, page="board", repairs=page, counts=counts, writable=request.space.school.writable,
-                     desk_facility=texts[Repair.Cat.FACILITY], desk_info=texts[Repair.Cat.INFO],
-                     no_handler=desks[Repair.Cat.FACILITY][0] == "관리자", vendor=vendor,
-                     can_vendor=_can_handle(request.member), account=account,
-                     account_until_text=account.until.isoformat() if account else "",
-                     until_max=timezone.localdate() + VENDOR_MAX_DAYS,
-                     repair_n=counts["open"],
-                     notice_n=Notice.objects.in_space(request.space).visible_to(request.member).count(), **extra)
+        r.desk = _vendor_desk(vendor) if _vendor_sees(vendor, r) else desk
+    can_vendor = is_info and _can_handle(me)
+    if is_info:  # 링크 원문은 복사 단추의 POST로만(vendor.link). 여기서는 복사할 수 있는지만
+        extra.update(account=account, can_vendor=can_vendor, can_copy=bool(can_vendor and vendor and vendor.link_token()))
+    else:
+        extra.update(notice_n=Notice.objects.in_space(space).visible_to(me).count())
+    ctx = _space_ctx(request, page="it" if is_info else "board", repairs=page, counts=counts, is_info=is_info, cat=cat, list_url=_list_url(space, cat),
+                     writable=space.school.writable, desk=_vendor_desk(vendor) if vendor else desk,
+                     no_handler=desks[cat][0] == "관리자", vendor=vendor, repair_n=counts["open"],
+                     form=form or {"cat": cat, "place": _default_place(me), "title": "", "note": "", "urgent": False},
+                     **_form_ctx(space), **extra)
     return render(request, "repairs/list.html", ctx, status=status)
 
 
@@ -227,7 +242,14 @@ def list_page(request, status=200, **extra):
 @require_GET
 @school_required
 def index(request):
-    return list_page(request, toast=request.session.pop(TOAST, ""))
+    return list_page(request, Repair.Cat.FACILITY, toast=request.session.pop(TOAST, ""))
+
+
+@never_cache
+@require_GET
+@school_required
+def it_index(request):
+    return list_page(request, Repair.Cat.INFO, toast=request.session.pop(TOAST, ""))
 
 
 @never_cache
@@ -235,15 +257,17 @@ def index(request):
 @school_required
 @school_write_required
 def new(request):
+    """GET은 대화상자가 열린 시설 목록. POST의 분류는 대화상자가 든 페이지가 정하고 여기서 값을 본다. 오류면 그 목록을 연 채로."""
     me = request.member
     if request.method == "GET":
-        return _form_page(request, {"cat": Repair.Cat.FACILITY, "place": _default_place(me), "title": "", "note": "", "urgent": False})
+        return list_page(request, Repair.Cat.FACILITY, open_form=True)
     form, errors = _read_form(request.POST)
     data, error, status = _read_photo(request)
     if error:
         errors["photo"] = error
     if errors:
-        return _form_page(request, form, status=status, errors=errors)
+        cat = Repair.Cat.INFO if form["cat"] == Repair.Cat.INFO else Repair.Cat.FACILITY
+        return list_page(request, cat, status=status, form=form, form_errors=errors, open_form=True)
     r = Repair(space=request.space, by=me, by_name=me.name, **form)
     with transaction.atomic():
         if data:
@@ -251,14 +275,14 @@ def new(request):
         r.save()
         rung = _ring_desk(request.space, r, me)
     request.session[TOAST] = "접수했어요. 담당 선생님 🔔에 떴어요." if rung else "접수했어요."
-    return redirect(f"/s/{request.space.token}/repairs")
+    return redirect(_list_url(request.space, r.cat))
 
 
 def _detail_ctx(request, r, **extra):
     me, writable = request.member, request.space.school.writable
     vendor = _vendor(request.space)
     sees = _vendor_sees(vendor, r)
-    return {"space": request.space, "r": r, "writable": writable, "statuses": Repair.Status.choices, "vendor_sees": sees,
+    return {"space": request.space, "r": r, "list_url": _list_url(request.space, r.cat), "writable": writable, "statuses": Repair.Status.choices, "vendor_sees": sees,
             "desk": _vendor_desk(vendor) if sees else _desk_text(_desks(request.space)[r.cat]),
             "can_handle": writable and _can_handle(me), "can_edit": writable and _can_edit(me, r),
             "can_delete": _can_delete(me, r), **extra}
@@ -270,6 +294,15 @@ def _detail_ctx(request, r, **extra):
 def detail(request, key):
     r = get_in_space_or_404(Repair, request, key=key)
     return render(request, "repairs/detail.html", _space_ctx(request, page="board", **_detail_ctx(request, r)))
+
+
+@never_cache
+@require_GET
+@school_required
+def it_detail(request, key):
+    """정보 요청 상세의 정보수리방 주소(🔔·목록). 시설 요청은 여기 없다."""
+    r = get_in_space_or_404(Repair, request, key=key, cat=Repair.Cat.INFO)
+    return render(request, "repairs/detail.html", _space_ctx(request, page="it", **_detail_ctx(request, r)))
 
 
 @never_cache
@@ -287,7 +320,7 @@ def state(request, key):
     r = change_state(request.space, key, status, reply, actor=request.member)
     if request.headers.get("HX-Request"):
         return render(request, "repairs/_detail.html", _detail_ctx(request, r, toast=f"{r.get_status_display()}(으)로 저장했어요."))
-    resp = redirect(f"/s/{request.space.token}/repairs/{r.key}")
+    resp = redirect(_detail_url(request.space, r))
     resp.status_code = 303
     return resp
 
@@ -302,13 +335,13 @@ def edit(request, key):
     if not _can_edit(request.member, r):
         return HttpResponseForbidden()
     if request.method == "GET":
-        return _form_page(request, {k: getattr(r, k) for k in ("cat", "place", "title", "note", "urgent")}, repair=r)
+        return _form_page(request, r, {k: getattr(r, k) for k in ("cat", "place", "title", "note", "urgent")})
     form, errors = _read_form(request.POST)
     data, error, status = _read_photo(request)
     if error:
         errors["photo"] = error
     if errors:
-        return _form_page(request, form, status=status, errors=errors, repair=r)
+        return _form_page(request, r, form, status=status, errors=errors)
     with transaction.atomic():
         r = get_object_or_404(Repair.objects.in_space(request.space).select_for_update(), key=key)
         if not _can_edit(request.member, r):
@@ -329,7 +362,8 @@ def edit(request, key):
         if moved:  # 분류를 고치면 받는 곳이 바뀐다: 옛 담당자의 안 읽은 🔔은 거두고 새 담당자에게
             bells.filter(read=False).delete()
             _ring_desk(request.space, r, request.member)
-    return redirect(f"/s/{request.space.token}/repairs/{r.key}")
+            Notification.objects.in_space(request.space).filter(repair=r).update(link=_detail_url(request.space, r))  # 남은 🔔도 새 주소로
+    return redirect(_detail_url(request.space, r))
 
 
 @never_cache
@@ -341,7 +375,7 @@ def delete(request, key):
     if not _can_delete(request.member, r):
         return HttpResponseForbidden()
     r.delete()  # 🔔 CASCADE, 사진 파일은 커밋 뒤 hwpfiles.retention
-    return redirect(f"/s/{request.space.token}/repairs")
+    return redirect(_list_url(request.space, r.cat))
 
 
 @never_cache
@@ -358,7 +392,7 @@ def delete_photo(request, key):
             _drop_after_commit(r.photo.storage, r.photo.name)
             r.photo, r.stored = "", 0
             r.save(update_fields=["photo", "stored", "updated_at"])
-    resp = redirect(f"/s/{request.space.token}/repairs/{r.key}")
+    resp = redirect(_detail_url(request.space, r))
     resp.status_code = 303
     return resp
 

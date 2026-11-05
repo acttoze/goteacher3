@@ -24,6 +24,7 @@
   60초 안에 끝나려면 8MB 약 1.1Mbps, 30MB 약 4Mbps, 100MB 약 13.3Mbps가 필요하다.
 - 기반 이미지 4개(python·uv·postgres·redis)는 `@sha256:` 다이제스트로 고정. 갱신: `docker buildx imagetools inspect <이름:태그>`의 Digest로 바꿔 푸시(앱 이미지는 다음 배포에 반영, db·redis는 deploy가 다시 만들지 않으므로 승인 뒤 서버에서 `docker compose up -d db redis`).
 - `.env.example` — 서버 `ops/.env`(chmod 600) 견본. 실제 값은 서버에서 생성하고 저장소·출력에 남기지 않는다.
+- `SECRET_KEY`를 바꾸면 학교마다 정보 업체 계정을 해제·재발급한다. 업체 링크가 HMAC(SECRET_KEY)로 만들어져 복사가 안 되고, 유출이 원인이면 옛 링크가 그대로 살아 있다(입장은 DB의 해시로 확인한다).
 
 배포(B2, 자동): main 푸시 → GitHub Actions `ci`(ruff·테스트, 작업 이름 `test`) → 서버 crontab이 1분마다
 `ops/deploy.sh` 실행. origin/main의 체크 `test`가 success일 때만 reset → build → migrate → up.

@@ -1,5 +1,5 @@
-{% extends "shell.html" %}
+{% extends "shell.html" %}{% load static %}
 {% block title %}TV 화면 · 고티처{% endblock %}
 {% block ptitle %}급식{% endblock %}
-{% block head %}{% include "meals/_style.html" %}{% endblock %}
+{% block head %}<script src="{% static 'js/meals.js' %}" defer></script>{% include "meals/_style.html" %}{% endblock %}
 {% block main %}{% include "meals/_screens.html" %}{% endblock %}

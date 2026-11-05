@@ -3,6 +3,7 @@
 - 지운다: 회원 자리(남은 사람이 없는 동학년은 공간째), 기기 토큰, 웹 푸시 구독, 세션, 대기 중인 플랜 신청, 그 사람의 복무 줄, 계정.
 - 이름을 바꾼다: 공지·공지 판·수리 요청·식판 사진·업체 추천의 쓴 사람 표시를 '나간 선생님'으로.
 - 이름을 지운다: 아직 안 낸 모으기 줄(줄 자리는 남고 이름만 빈다. 화면·합본·독촉 문구에 나오지 않는다).
+- 커뮤니티: 닉네임(프로필)과 양식 추천은 CASCADE로 지운다. 글·댓글은 남고 작성 계정 연결만 끊겨(SET_NULL) 화면에 '나간 선생님'으로 나온다. 낸 신고는 신고자 연결만 끊긴다.
 - 남긴다(처리방침 2항의 기간대로): 후기(자리·계정 연결만 끊긴다), 이미 낸 값의 이름, 업무분장표, 명부 고친 기록, 처리한 플랜 신청.
 - 수리 제목·메모에 직접 쓴 이름은 고치지 않고 건수만 안내한다(그 글을 쓴 사람의 내용이다).
 - 마지막 관리자면 거부한다. 자리를 지우므로 합치지 않은 동학년에서 같은 반·이름으로 들어와도 옛 자리의 대표 권한은 이어지지 않는다.
@@ -16,6 +17,7 @@ from django.db.models import Q
 
 from accounts.models import DeviceToken
 from collect.models import PushSubscription, Row
+from community.models import Comment, Post
 from meals.models import MealPhoto
 from notices.models import Notice, NoticeVersion
 from partners.models import Review, Suggestion
@@ -87,7 +89,8 @@ class Command(BaseCommand):
                 raise CommandError("이 계정은 마지막 관리자입니다. 학교에서 다른 관리자를 세운 뒤 다시 해 주세요.")
             counts = {"회원 자리": len(seats), "지운 공간": 0, "기기 토큰": DeviceToken.objects.filter(user=user).count(),
                       "푸시 구독": PushSubscription.objects.filter(member__in=seats).count(),
-                      "후기 연결 끊음": Review.objects.filter(Q(author_user=user) | Q(member__in=seats)).count()}
+                      "후기 연결 끊음": Review.objects.filter(Q(author_user=user) | Q(member__in=seats)).count(),
+                      "커뮤니티 글·댓글 연결 끊음": Post.objects.filter(author=user).count() + Comment.objects.filter(author=user).count()}
             sessions = _sessions_of(user_pk)
             counts["세션"] = len(sessions)
             counts["typed"] = sum(

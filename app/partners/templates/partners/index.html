@@ -29,14 +29,15 @@
 <script src="{% static 'js/partners.js' %}" defer></script>
 {% endblock %}
 {% block ptitle %}협력업체{% endblock %}
-{% block ctx %}<span class="ctx">협력업체</span>{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="partners" %}{% endblock %}
 {% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
 {% block main %}
+{% include "_out_band.html" with kind="open" %}
 <div class="title">
   <div class="grow">
     <h1>협력업체</h1>
     <p class="sub">에듀테크부터 졸업앨범·수학여행·전세버스·체험·용역·인쇄까지, 학교가 함께 일하는 업체를 찾아보세요. 업체가 돈을 내고 순서를 올릴 수 없어요.</p>
-    {% if not can_suggest %}<p class="sub"><a href="{{ login_href }}">좋은 업체를 아시면 로그인한 뒤 추천해 주세요</a></p>{% endif %}
+    {% if not can_suggest %}<p class="sub">추천은 고티처 회원만 할 수 있어요. <a href="{{ login_href }}">좋은 업체를 아시면 로그인한 뒤 추천해 주세요</a></p>{% endif %}
   </div>
   {% if can_suggest %}<a class="btn pri" href="/partners/suggest">＋ 업체 추천하기</a>{% endif %}
 </div>

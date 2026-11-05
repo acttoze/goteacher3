@@ -1,0 +1,10 @@
+{% extends frame %}
+{% block title %}커뮤니티 · 고티처{% endblock %}
+{% block head %}{% include "community/_head.html" %}{% endblock %}
+{% block ptitle %}커뮤니티{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="community" %}{% endblock %}
+{% block main %}
+{% include "_out_band.html" with kind="community" %}
+<div class="title"><div class="grow"><h1>커뮤니티</h1><p class="sub">동학년이나 학교 공간에 들어오면 쓸 수 있어요.</p></div></div>
+<a class="btn pri" href="/start">공간 들어가기</a>
+{% endblock %}

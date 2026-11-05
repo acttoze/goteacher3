@@ -1,0 +1,27 @@
+{# 수리 요청 입력 칸. 고치기는 분류를 바꿀 수 있고(radio), 쓰기 대화상자는 페이지가 분류를 정한다(hidden, 서버가 값을 다시 본다). #}
+  <section class="card s8" style="min-width:0"><div class="card-b rform" style="padding-top:var(--pad)">
+    {% if repair %}<div class="amodes" role="radiogroup" aria-label="분류">
+      <label class="amode"><input type="radio" name="cat" value="facility"{% if form.cat != "info" %} checked{% endif %}><b>시설</b> <span class="small muted">교실·화장실·전기·냉난방</span></label>
+      <label class="amode"><input type="radio" name="cat" value="info"{% if form.cat == "info" %} checked{% endif %}><b>정보</b> <span class="small muted">PC·전자칠판·네트워크</span></label>
+    </div>{% else %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+    {% if errors.cat %}<p class="msg" role="alert">{{ errors.cat }}</p>{% endif %}
+    <label class="field"><span>위치</span><input class="input" name="place" value="{{ form.place }}" maxlength="100"></label>
+    {% if errors.place %}<p class="msg" role="alert">{{ errors.place }}</p>{% endif %}
+    <label class="field"><span>무엇이 안 되나요</span><input class="input" name="title" value="{{ form.title }}" maxlength="200" required placeholder="예: 교실 뒷문이 잘 안 닫혀요"{% if errors.title %} aria-invalid="true"{% endif %}></label>
+    {% if errors.title %}<p class="msg" role="alert">{{ errors.title }}</p>{% endif %}
+    <label class="field"><span>메모 <span class="hint">언제 오면 좋은지 등 (선택)</span></span><input class="input" name="note" value="{{ form.note }}" maxlength="1000" placeholder="예: 2블록 수업 중 말고"></label>
+    {% if errors.note %}<p class="msg" role="alert">{{ errors.note }}</p>{% endif %}
+    <label class="chk"><input type="checkbox" name="urgent"{% if form.urgent %} checked{% endif %}>급함 — 오늘 수업에 지장</label>
+  </div></section>
+  <div class="s4 stack-y" style="min-width:0">
+    <section class="card"><div class="card-h"><h2>사진 <span class="hint small muted" style="font-weight:400">(선택)</span></h2></div><div class="card-b">
+      <p class="small muted" style="margin:0 0 10px">한 장, JPG·PNG, {{ max_mb }}MB까지. 사진 한 장이 설명 열 줄보다 빨라요. 위치 정보는 지우고 저장해요.</p>
+      {% if repair.photo %}<img class="rthumb" src="/s/{{ space.token }}/repairs/{{ repair.key }}/photo?v={{ repair.updated_at|date:'U' }}" alt="지금 올라온 사진">
+      <label class="chk" style="margin-bottom:10px"><input type="checkbox" name="remove_photo">사진 지우기</label>{% endif %}
+      <div class="fpick"><label class="btn sec sm">사진 고르기<input class="sr" type="file" name="photo" data-max-mb="{{ max_mb }}" accept=".jpg,.jpeg,.png,image/jpeg,image/png" aria-label="사진 고르기" data-names="#photoName"></label><span class="nm" id="photoName" aria-live="polite">고른 사진 없음</span></div>
+      {% if errors.photo %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.photo }}</p>{% endif %}
+      {% if errors %}<p class="small muted" style="margin:8px 0 0">고른 사진은 다시 골라 주세요.</p>{% endif %}
+    </div></section>
+    {% if repair or cat == "info" %}<div class="for-info notice" role="note">{% if vendor %}<b>이 요청은 외부 업체({{ vendor.name }})가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요.</b>{% else %}<b>정보 담당 선생님이 받습니다.</b> {{ desks.info }} 선생님께 알림이 가요. 학생 이름·개인정보는 적지 마세요.{% endif %}</div>{% endif %}
+    {% if repair or cat == "facility" %}<p class="for-facility small muted" style="margin:0">{{ desks.facility }} 선생님께 알림이 가요. 학교 밖 사람은 볼 수 없어요. 학생 이름·개인정보는 적지 마세요.</p>{% endif %}
+  </div>

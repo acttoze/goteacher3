@@ -7,11 +7,13 @@
   그 모으기로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
 - 지난 복무(J1): 그날로부터 7일 지난 spaces.Attendance.
 - 지난 수리 요청(K1): 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진(사진에 교실 모습이 찍힌다). 플랜이 끝나 처리할 수 없게 된 요청도 지워진다.
+- 업체 계정(K2): 해제 30일 뒤, 또는 해제하지 않았어도 학교 플랜이 끝나고 30일 뒤(School.paid_until) 행. 접속 기록은 30일.
 - 지난 식판 사진(M1): 급식 날짜로부터 30일 지난 행·사진. 끝난 폰 QR 토큰(M3).
 - 지난 협력업체 후기(N2): 쓴 지 3년 지난 후기와 3년 지난 조치 이력.
 - 지난 공지(O1): 공지는 있는 동안 보관하고 쓴 사람·관리자가 지우면 함께 지운다. 플랜이 끝나면 지울 수 없으니(읽기 전용) 끝난 날부터 1년 뒤 공지·판·첨부·봄 기록을 지운다.
 - 신청 정보(O1): spaces.PlanRequest. 처리한 날(대기 중이면 접수한 날)부터 1년.
 - 지난 알림(O2): 읽은 것은 90일, 안 읽은 것은 180일 지나면 지운다(만든 때 기준). 이름이 든 입장 알림은 그 회원이 나갈 때 먼저 지워진다(Notification.about).
+- 커뮤니티 신고(Q10): 신고한 지 1년. 글·댓글은 쓴 사람이 지우기 전까지 두되, 운영자가 내린 것은 내린 뒤 90일이면 지운다.
 - 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
 - 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
@@ -31,6 +33,7 @@ from django.db.models.signals import post_delete
 from django.utils import timezone
 
 from collect.models import Collection, Notification
+from community.models import Comment, Post, Report, remove
 from meals.models import MealPhoto, PhotoLink
 from notices.models import Notice
 from partners.models import Review, ReviewAction, Suggestion
@@ -52,6 +55,8 @@ VENDOR_DAYS = timedelta(days=30)
 MEAL_PHOTO_DAYS = timedelta(days=30)
 MEMBER_LOG_AGE = timedelta(days=365)
 SUGGESTION_AGE = timedelta(days=365)
+COMMUNITY_REPORT_AGE = timedelta(days=365)
+COMMUNITY_HIDDEN_AGE = timedelta(days=90)
 NOTICE_AFTER_PLAN = timedelta(days=365)
 PLAN_REQUEST_AGE = timedelta(days=365)
 READ_BELL_AGE = timedelta(days=90)
@@ -223,10 +228,10 @@ def purge(now, dry_run=False):
     n["photo_links"] = old_links.count()
     if not dry_run:
         old_links.delete()
-    # 업체 접속 기록·해제되거나 기간이 지난 업체 계정(담당자 이름): 30일
+    # 업체 접속 기록·해제된 업체 계정(담당자 이름): 30일. 해제하지 않아도 플랜이 끝나고 30일이면(재개하면 paid_until이 밀려 빠진다)
     cut = now - VENDOR_DAYS
     old_access = VendorAccess.objects.filter(at__lt=cut)
-    gone = VendorAccount.objects.filter(models.Q(revoked_at__lt=cut) | models.Q(until__lt=timezone.localdate(cut)))
+    gone = VendorAccount.objects.filter(models.Q(revoked_at__lt=cut) | models.Q(space__school__paid_until__lt=timezone.localdate(now) - VENDOR_DAYS))
     n["vendor_access"], n["vendor_accounts"] = old_access.count(), gone.count()
     if not dry_run:
         old_access.delete()
@@ -247,6 +252,16 @@ def purge(now, dry_run=False):
     if not dry_run:
         old_reviews.delete()
         old_actions.delete()
+    # 커뮤니티 신고(Q10)
+    old_reports = Report.objects.filter(created_at__lt=now - COMMUNITY_REPORT_AGE)
+    n["community_reports"] = old_reports.count()
+    if not dry_run:
+        old_reports.delete()
+    # 운영자가 내린 글·댓글(90일)
+    hidden_posts, hidden_comments = Post.objects.filter(hidden_at__lt=now - COMMUNITY_HIDDEN_AGE), Comment.objects.filter(hidden_at__lt=now - COMMUNITY_HIDDEN_AGE)
+    n["community_hidden"] = hidden_posts.count() + hidden_comments.count()
+    if not dry_run:
+        remove(hidden_posts, hidden_comments)
     # 플랜이 끝나고 1년 지난 공지(O1). 첨부 파일은 post_delete가 커밋 뒤에 지운다
     old_notices = Notice.objects.filter(space__school__paid_until__lt=timezone.localdate(now) - NOTICE_AFTER_PLAN)
     n["notices"] = old_notices.count()

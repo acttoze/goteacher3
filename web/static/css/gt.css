@@ -81,9 +81,9 @@ img, svg { display: block; }
 .wrap-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ---------- 셸: 사이드바 232 + 상단 64, 같은 바탕, 1px 선 ---------- */
-.side { position: fixed; inset: 0 auto 0 0; width: var(--sidebar); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 0 14px 16px; background: var(--bg); z-index: 20; }
+.side { position: fixed; inset: 0 auto 0 0; width: var(--sidebar); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 0 14px 16px; background: var(--bg); z-index: 20; overflow-y: auto; }
 .brand { height: var(--topbar); display: flex; align-items: center; gap: 10px; padding: 0 8px; font-weight: 800; font-size: 21px; letter-spacing: -0.03em; text-decoration: none; flex: none; }
-.nav { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.nav { display: flex; flex-direction: column; gap: 2px; margin-top: 0; flex: none; }
 .nav a { display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 10px; border-radius: 10px; text-decoration: none; font-weight: 500; color: #2b2f36; transition: background-color .15s; }
 .nav a:hover { background: var(--surface); }
 .nav a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
@@ -91,7 +91,9 @@ img, svg { display: block; }
 .nav svg { width: 20px; height: 20px; flex: none; color: var(--muted); }
 .nav .cnt { margin-left: auto; font-size: var(--fs-small); font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-radius: 999px; padding: 1px 9px; }
 .nav a[aria-current] .cnt { background: #fff; }
-.group { margin: 24px 10px 6px; font-size: var(--fs-small); color: var(--muted); font-weight: 600; }
+.group { margin: 14px 10px 4px; font-size: var(--fs-small); color: var(--muted); font-weight: 600; }
+.nav .group:first-child { margin-top: 4px; }
+.nav.sub { margin-top: 10px; }
 .me { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; text-decoration: none; transition: background-color .15s; }
 .me:hover { background: var(--surface); }
 .me b { display: block; font-size: 15px; }
@@ -127,6 +129,12 @@ img, svg { display: block; }
 .bare-top { height: var(--topbar); display: flex; align-items: center; gap: 12px; padding: 0 var(--gutter); border-bottom: 1px solid var(--line); }
 .bare-top .brand { padding: 0; height: auto; }
 .bare-top .ctx { color: var(--muted); font-size: var(--fs-body); }
+/* 비로그인 교외 메뉴(양식·협력업체·커뮤니티) */
+.out-nav { display: flex; align-items: center; gap: 4px; margin-left: 12px; }
+.out-nav a { display: inline-flex; align-items: center; height: var(--control-h-sm); padding: 0 12px; border-radius: 10px; text-decoration: none; font-weight: 500; color: #2b2f36; white-space: nowrap; transition: background-color .15s; }
+.out-nav a:hover { background: var(--surface); }
+.out-nav a[aria-current] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+.out-band { margin: 0 0 20px; }
 .bare-top .end { margin-left: auto; font-size: var(--fs-small); color: var(--muted); display: flex; align-items: center; gap: 10px; }
 .bare { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
 
@@ -320,6 +328,9 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 .dialog .dh h2 { font-size: 21px; letter-spacing: -0.02em; }
 .dialog .db { padding: 8px 24px 8px; display: flex; flex-direction: column; gap: 16px; }
 .dialog .df { padding: 16px 24px 22px; display: flex; justify-content: flex-end; gap: 10px; }
+/* 두 단 입력 폼: 머리·단추는 고정, 칸만 스크롤(저장 단추가 항상 보인다) */
+.dialog.wide { width: min(1040px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+.dialog.wide .db { flex: 1; min-height: 0; overflow: auto; }
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); background: var(--ink); color: #fff; padding: 14px 20px; border-radius: 14px;
   font: 600 16px/1.4 var(--font); max-width: min(560px, calc(100vw - 32px)); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80;
   box-shadow: 0 10px 30px rgba(13, 13, 13, .18); } /* taste-skill-ignore: 떠 있는 알림 */

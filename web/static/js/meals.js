@@ -18,7 +18,7 @@
     if (e.target.matches('.mup input[type=file]') && e.target.files.length) e.target.form.requestSubmit();
   });
   document.addEventListener('dragover', function (e) {
-    e.preventDefault();  // 칸 밖에 놓아도 브라우저가 파일을 열지 않게(이 스크립트는 입력 화면에만 있다)
+    e.preventDefault();  // 칸 밖에 놓아도 브라우저가 파일을 열지 않게(이 스크립트는 급식 입력·TV 화면에만 있다)
     var d = dayOf(e.target);
     if (d) d.classList.add('over');
     else e.dataTransfer.dropEffect = 'none';
@@ -42,6 +42,30 @@
     if (!form) { if (document.querySelector('.mup')) say('오늘은 칸이 없어요. 올릴 날짜 칸에 끌어다 놓아 주세요.'); return; }
     e.preventDefault();
     send(form, f);
+  });
+  // TV 바로보기: 이 클릭에서 같은 출처 iframe을 전체 화면으로. 끝나면 iframe을 지운다. 못 쓰는 브라우저는 링크대로 새 탭(htmx 교체에도 동작하게 위임).
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-tv-open]');
+    if (!a || !document.fullscreenEnabled) return;
+    e.preventDefault();
+    var f = document.createElement('iframe');
+    f.src = a.getAttribute('href');
+    f.title = '급식 TV 화면';
+    f.setAttribute('allow', 'fullscreen');
+    f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:70';
+    document.body.appendChild(f);
+    function ended() {
+      if (document.fullscreenElement) return;
+      document.removeEventListener('fullscreenchange', ended);
+      f.remove();
+      if (document.contains(a)) a.focus();
+    }
+    document.addEventListener('fullscreenchange', ended);
+    f.requestFullscreen().catch(function () {
+      document.removeEventListener('fullscreenchange', ended);
+      f.remove();
+      window.open(a.href, '_blank', 'noopener');
+    });
   });
   // 폴링([data-poll]) 실패는 알리지 않는다: 사용자가 누른 일이 아니고, 다음 폴링이 다시 본다
   document.body.addEventListener('htmx:responseError', function (e) {

@@ -21,12 +21,11 @@ from spaces.models import Attendance
 
 from .models import ALL, Event, reachable_q
 from .parse import SLOTS, event_type, slot_text
-from .schedule import _d, _label, this_monday
+from .schedule import MONTH_DOW, _d, _label, month_grid, this_monday
 
 SYM = {"event": "◆", "work": "■", "meet": "▲", "duty": "○"}
 ROWS = [{"k": "", "label": "전일", "time": "시간 미정"},
         *[{"k": s["k"], "label": s["label"], "time": f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"])} for s in SLOTS]]
-MONTH_DOW = "일월화수목금토"
 DENSE_LINES = 30  # 블록 줄마다 가장 긴 칸의 줄 수를 더해 이보다 많으면(한 쪽이 찰 만큼) 글자를 줄인다
 LONG_LINES, WEEK_CHARS = 14, 15  # 한 칸이 이 줄 수를 넘으면(쪽의 절반쯤) 블록 줄을 쪽 사이에서 나눈다(통째로 옮기면 앞 쪽이 빈다), 주간 칸 한 줄 글자 수
 # 월중 격자의 치수. print.html의 .mo와 같은 값이어야 한다. 넘치면 쪽이 늘어나므로 넉넉히 적게 잡는다.
@@ -109,9 +108,7 @@ def month_cells(items, budget):
 def _month(request, d):
     first = d.replace(day=1)
     n_days = monthrange(first.year, first.month)[1]
-    lead = (first.weekday() + 1) % 7  # 일요일 시작
-    n_weeks = ceil((lead + n_days) / 7)
-    start = first - timedelta(days=lead)
+    start, n_weeks = month_grid(first)
     last = start + timedelta(days=n_weeks * 7 - 1)
     budget = int(((GRID_MM - DOW_MM) / n_weeks - DATE_MM) / LINE_MM)
 

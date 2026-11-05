@@ -189,12 +189,14 @@ class FlowTests(Base):
         self.assertNotContains(self.teacher.get(f"{self.base}/new"), 'value="기타/지원"')
 
     def test_warning_text(self):
-        page = self.teacher.get(f"{self.base}/new")
+        it = f"/s/{self.hub.token}/it"
+        page = self.teacher.get(it)
         self.assertContains(page, "정보 담당 선생님이 받습니다")
         self.assertContains(page, "학생 이름·개인정보는 적지 마세요")
         self.assertNotContains(page, "외부 업체가 볼 수 있어요")
-        VendorAccount.issue(self.hub, "한빛정보", "강업체", UNTIL, self.m4)
-        page = self.teacher.get(f"{self.base}/new")
+        VendorAccount.issue(self.hub, "한빛정보", "강업체", self.m4)
+        self.assertNotContains(self.teacher.get(f"{self.base}/new"), "외부 업체")  # 시설 쓰기에는 업체 안내가 없다
+        page = self.teacher.get(it)
         self.assertContains(page, "이 요청은 외부 업체(한빛정보)가 볼 수 있어요. 이름 대신 위치만 보이고, 학생 이름·개인정보는 적지 마세요")
 
 
@@ -221,7 +223,7 @@ class ScanBombTests(TestCase):
 class ListTests(Base):
     def test_counts_order_and_columns(self):
         self.make(title="끝난 것", status=Repair.Status.DONE, reply="패킹 교체")
-        new = self.make(title="급한 것", cat="info", urgent=True)
+        new = self.make(title="급한 것", urgent=True)
         page = self.teacher.get(self.base)
         self.assertContains(page, "진행 중 <b class=\"num\">1</b>건 · 전체 <b class=\"num\">2</b>건", html=False)
         html = page.content.decode()
@@ -235,12 +237,15 @@ class ListTests(Base):
         self.make(urgent=True, status=Repair.Status.DONE)
         self.assertNotContains(self.teacher.get(self.base), ">급함<")
 
-    def test_everyone_sees_both_categories(self):
+    def test_everyone_sees_each_category_in_its_room(self):
         self.make(title="시설건")
         self.make(title="정보건", cat="info")
         page = self.other.get(self.base)
         self.assertContains(page, "시설건")
+        self.assertNotContains(page, "정보건")
+        page = self.other.get(f"/s/{self.hub.token}/it")
         self.assertContains(page, "정보건")
+        self.assertNotContains(page, "시설건")
 
     def test_who_receives_card_is_designated_not_group(self):
         Member.objects.filter(pk=self.m5.pk).update(group="admin")  # 그룹만 옮긴 사람

@@ -160,11 +160,11 @@ class VendorAfterResumeTests(TestCase):
         self.m.refresh_from_db()
         self.client.force_login(self.m.user)
         self.from_ = timezone.now() - timedelta(days=20)
-        VendorAccount.issue(self.hub, "업체", "담당", timezone.localdate() + timedelta(days=30), self.m, visible_from=self.from_)
+        VendorAccount.issue(self.hub, "업체", "담당", self.m, visible_from=self.from_)
 
     def issue(self):
         r = self.client.post(f"/s/{self.hub.token}/repairs/vendor", {
-            "name": "새 업체", "contact_name": "새 담당", "until": f"{timezone.localdate() + timedelta(days=30):%Y-%m-%d}"})
+            "name": "새 업체", "contact_name": "새 담당"})
         self.assertEqual(r.status_code, 200)
         return VendorAccount.current(self.hub)
 

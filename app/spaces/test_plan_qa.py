@@ -322,7 +322,7 @@ class HeadTests(Base):
         c = Collection.objects.create(space=hub, created_by=me, title="걷기", source="sheet", unit_head=["이름"])
         row = Row.objects.create(collection=c, pos=0, unit="가", who="가", member=me)
         tv = MealSettings.objects.create(space=hub)
-        account, vendor_token = VendorAccount.issue(hub, "업체", "담당", UNTIL, me)
+        account, vendor_token = VendorAccount.issue(hub, "업체", "담당", me)
         _, phone_token = PhotoLink.issue(hub, timezone.localdate(), me)
         urls = (f"/m/{phone_token}", f"/c/{c.link_token}", f"/c/{c.link_token}/u/{row.key}", f"/tv/{tv.tv_token}", f"/tv/{tv.tv_token}/data",
                 f"/v/{vendor_token}", f"/j/{hub.invite_token}", f"/n/{c.key}")

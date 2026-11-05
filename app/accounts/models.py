@@ -17,6 +17,11 @@ def is_guest(user):
     return getattr(user, "username", "").startswith(GUEST_PREFIX)
 
 
+def is_google_member(user):
+    """고티처 회원(구글 로그인). 손님·비로그인은 아니다. 업체 추천·양식 추천·커뮤니티가 같은 기준을 쓴다."""
+    return user.is_authenticated and not is_guest(user)
+
+
 def new_guest(name):
     from django.contrib.auth import get_user_model
 

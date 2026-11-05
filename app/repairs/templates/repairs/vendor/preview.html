@@ -1,8 +1,8 @@
 {% extends "shell.html" %}
 {% block title %}업체 화면 미리보기 · 고티처{% endblock %}
-{% block ptitle %}게시판{% endblock %}
+{% block ptitle %}정보수리방{% endblock %}
 {% block main %}
-<p class="muted" style="margin-bottom:8px;font-size:15px"><a class="tlink" href="/s/{{ space.token }}/repairs" style="font-weight:600;color:var(--muted)">← 수리 요청</a></p>
+<p class="muted" style="margin-bottom:8px;font-size:15px"><a class="tlink" href="/s/{{ space.token }}/it" style="font-weight:600;color:var(--muted)">← 정보수리방</a></p>
 <p class="notice" style="margin:0 0 20px">업체{% if account %}({{ account.name }}){% endif %}가 보는 화면이에요. 미리보기에서는 바꿀 수 없어요.</p>
 {% include "repairs/vendor/_body.html" %}
 {% endblock %}

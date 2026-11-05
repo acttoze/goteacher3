@@ -1,0 +1,52 @@
+{% extends frame %}
+{# Q10 글 상세·댓글. 내 것은 지우기, 남의 것은 신고. #}
+{% block title %}커뮤니티 · 고티처{% endblock %}
+{% block head %}{% include "community/_head.html" %}{% endblock %}
+{% block ptitle %}커뮤니티{% endblock %}
+{% block ctx %}{% include "_out_nav.html" with on="community" %}{% endblock %}
+{% block main %}
+{% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
+{% include "_out_band.html" with kind="community" %}
+{% if blocked %}{% include "community/_blocked.html" %}{% endif %}
+<p class="small muted" style="margin-bottom:8px"><a class="tlink" href="/community" style="font-weight:600;color:var(--muted)">← 커뮤니티</a></p>
+{% if report_error %}<p class="msg" role="alert" style="margin-bottom:12px">{{ report_error }}</p>{% endif %}
+<article class="card">
+  <div class="card-b" style="padding-top:var(--pad)">
+    <h1 style="overflow-wrap:anywhere">{{ p.title }}</h1>
+    <span class="cby">{{ p.by }} · <span class="num">{{ p.created_at|date:"n/j H:i" }}</span></span>
+    <p class="ctext" style="margin-top:16px">{{ p.body|linebreaksbr }}</p>
+    <div class="cacts">
+      {% if mine %}<details><summary class="btn ghost sm">지우기</summary>
+        <form method="post" action="/community/{{ p.key }}/delete">{% csrf_token %}<span>지우면 댓글도 함께 사라져요.</span><button class="btn sec sm" type="submit">이 글 지우기</button></form>
+      </details>
+      {% elif reported %}<span class="pill">신고했어요</span>
+      {% elif not blocked %}{% with action="/community/"|add:p.key|add:"/report" %}{% include "community/_report.html" %}{% endwith %}{% endif %}
+    </div>
+  </div>
+</article>
+<section class="card" style="margin-top:18px" aria-labelledby="cH">
+  <div class="card-h"><h2 id="cH">댓글</h2><span class="n">{{ comments|length }}</span></div>
+  <div class="card-b">
+    {% for c in comments %}
+    <div class="cmt">
+      <p class="ctext">{{ c.body|linebreaksbr }}</p>
+      <span class="cby">{{ c.by }} · <span class="num">{{ c.created_at|date:"n/j H:i" }}</span></span>
+      <div class="cacts">
+        {% if c.mine %}<details><summary class="btn ghost sm">지우기</summary>
+          <form method="post" action="/community/c/{{ c.key }}/delete">{% csrf_token %}<button class="btn sec sm" type="submit">이 댓글 지우기</button></form>
+        </details>
+        {% elif c.reported %}<span class="pill">신고했어요</span>
+        {% elif not blocked %}{% with action="/community/c/"|add:c.key|add:"/report" %}{% include "community/_report.html" %}{% endwith %}{% endif %}
+      </div>
+    </div>
+    {% empty %}<p class="muted" style="margin:0">아직 댓글이 없어요.</p>
+    {% endfor %}
+    {% if not blocked %}<form method="post" action="/community/{{ p.key }}/comment" style="display:grid;gap:10px;margin-top:18px">{% csrf_token %}
+      <label class="field"><span>댓글 쓰기 <span class="hint">{{ comment_max }}자까지</span></span><textarea class="textarea" name="body" rows="3" maxlength="{{ comment_max }}" required{% if comment_error %} aria-invalid="true"{% endif %}>{{ comment_text }}</textarea></label>
+      {% if comment_error %}<p class="msg" role="alert">{{ comment_error }}</p>{% endif %}
+      <p class="small muted" style="margin:0">학생 개인정보와 특정인을 알아볼 수 있는 내용, 비방은 적지 말아 주세요.</p>
+      <div><button class="btn pri" type="submit">댓글 올리기</button></div>
+    </form>{% endif %}
+  </div>
+</section>
+{% endblock %}
