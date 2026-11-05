@@ -6,6 +6,7 @@
 <aside class="side" aria-label="고티처 메뉴">
   <a class="brand" href="/s/{{ space.token }}/today" aria-label="고티처 오늘로">{% include "_mark.html" %}<span class="wm">고티처</span></a>
   <nav class="nav" aria-label="주 메뉴">
+    <div class="nav-in">
     <p class="group">교내</p>
     <a href="/s/{{ space.token }}/today"{% if page == "today" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 2"/></svg><span>오늘</span></a>
     <a href="/s/{{ space.token }}/c/"{% if page == "collect" or page == "list" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>모으기</span></a>
@@ -14,6 +15,8 @@
     <a href="/s/{{ space.token }}/school"{% if page == "school" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20h18M5 20V9l7-5 7 5v11"/><path d="M10 20v-5h4v5"/></svg><span>학교</span></a>
     {% if me.is_manager or me.can_meal %}<a href="/s/{{ space.token }}/meals"{% if page == "meals" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v18M4 3v5a3 3 0 0 0 6 0V3"/><path d="M17 21v-7M17 14c-2 0-3-2-3-5.500S15.500 3 17 3z"/></svg><span>급식</span></a>{% endif %}{% endif %}
     {% if not space.is_school %}<a href="/s/{{ space.token }}/"{% if page == "grade" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 6.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.5 2 3 4.2"/></svg><span>선생님 {{ rows|length }}명</span></a>{% endif %}
+    </div>
+    <hr class="nav-div">
     <p class="group">교외</p>
     <a href="/forms"{% if page == "forms" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><span>양식 자료실</span></a>
     <a href="/partners"{% if page == "partners" %} aria-current="page"{% endif %}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9l1.500-5h13L20 9"/><path d="M4 9a2.700 2.700 0 0 0 5.300 0 2.700 2.700 0 0 0 5.400 0A2.700 2.700 0 0 0 20 9"/><path d="M5.500 12v8h13v-8M10 20v-4.500h4V20"/></svg><span>협력업체</span></a>
