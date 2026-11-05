@@ -1,4 +1,4 @@
-"""F1 채우기: 모으기 제출 값 → 칸 매핑으로 병합 → hwp.fill(+행 추가) → 올린 형식 + hwpx → 재검증 → 결과 파일.
+"""F1 채우기: 취합 제출 값 → 칸 매핑으로 병합 → hwp.fill(+행 추가) → 올린 형식 + hwpx → 재검증 → 결과 파일.
 
 불변식
 - 반·이름(명부 값)은 표 줄이 있으면 늘 채우고, 낸 값은 있는 칸만. 단위 칸은 '3' → '3명'.
@@ -301,7 +301,7 @@ class FillTaskTests(TestCase):
         other = Client()
         other.force_login(self.ub)
         self.assertEqual(other.post(self.url(c)).status_code, 404)                 # 남의 공간 주소
-        self.assertEqual(other.post(self.url(c, self.b)).status_code, 404)         # 내 공간 주소로 남의 모으기
+        self.assertEqual(other.post(self.url(c, self.b)).status_code, 404)         # 내 공간 주소로 남의 취합
         self.assertEqual(other.get(f"/s/{self.b.token}/hwp/out/{rf.key}/hwpx").status_code, 404)
         self.assertEqual(other.get(f"/s/{self.a.token}/hwp/out/{rf.key}/hwpx").status_code, 404)
         self.assertNotEqual(Client().get(f"/s/{self.a.token}/hwp/out/{rf.key}/hwpx").status_code, 200)
@@ -319,9 +319,9 @@ class FillTaskTests(TestCase):
     def test_in_flight_limit(self):
         sf, c = self.make(table_doc(CLASS_TABLE))
         _sf2, c2 = self.make(table_doc(CLASS_TABLE), name="둘.hwpx")
-        for _ in range(2):   # 진행 중 2건(어느 모으기든 회원 몫으로 센다)
+        for _ in range(2):   # 진행 중 2건(어느 취합든 회원 몫으로 센다)
             ResultFile.objects.create(space=self.a, source=sf, collection=c, created_by=self.ma, fmt="hwpx")
-        self.assertEqual(self.client.post(self.url(c)).status_code, 200)    # 그 모으기는 진행 중: 상태만
+        self.assertEqual(self.client.post(self.url(c)).status_code, 200)    # 그 취합은 진행 중: 상태만
         r = self.client.post(self.url(c2))
         self.assertEqual(r.status_code, 429)
         self.assertContains(r, "앞서 맡긴 한글 작업", status_code=429)

@@ -6,7 +6,7 @@
 - 내려받기는 FileResponse(Content-Disposition RFC 5987). 수를 세므로 캐시에 두지 않게 한다(private, no-cache).
 - 조회·내려받기 수는 봇 User-Agent·HEAD를 빼고 F()+1만 한다(단순하게).
 - Q9 추천은 구글 회원만(accounts.is_google_member, 업체 추천과 같은 기준). 양식마다 1표, 누르면 켜고 끈다. 비회원에게는 단추 대신 안내와 로그인 링크.
-- 디자인의 '이 양식으로 모으기'·쪽 수·표 칸·첫 쪽 미리보기는 한글 양식 모으기(E5~F)와 표 분석이 붙을 때 넣는다.
+- 디자인의 '이 양식으로 취합하기'·쪽 수·표 칸·첫 쪽 미리보기는 한글 양식 취합(E5~F)과 표 분석이 붙을 때 넣는다.
 """
 import re
 from urllib.parse import quote

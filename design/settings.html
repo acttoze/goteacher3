@@ -75,7 +75,7 @@
 <div class="scrim" id="leave" hidden>
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="lvH">
     <div class="dh"><h2 id="lvH">새솔초 4학년에서 나갈까요?</h2></div>
-    <div class="db"><p>나가면 동학년 모으기·일정이 「오늘」에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.</p>
+    <div class="db"><p>나가면 동학년 취합·일정이 「오늘」에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.</p>
       <label class="field"><span>확인하려면 「새솔초 4학년」을 써 주세요</span><input class="input" id="lvIn" autocomplete="off"></label></div>
     <div class="df"><button class="btn sec" type="button" id="lvNo">그대로 두기</button><button class="btn danger" type="button" id="lvYes" disabled>나가기</button></div>
   </div>
@@ -107,7 +107,7 @@
   function vMe() {
     return row('이름', '동학년 화면·합본·활동 기록에 이 이름으로 보여요.',
       '<div class="panel pad"><label class="field"><span class="sr">이름</span><input class="input" id="nm" value="' + esc(S.name) + '" style="max-width:280px"></label></div>') +
-      row('반', '모으기에서 내 칸을 정할 때 써요. 학년이 바뀌면 3월에 다시 골라요.',
+      row('반', '취합에서 내 칸을 정할 때 써요. 학년이 바뀌면 3월에 다시 골라요.',
       '<div class="panel pad"><div class="picks" id="cls">' + ['4-1', '4-2', '4-3', '4-4', '4-5', '4-전담'].map(function (c) { var l = c.split('-')[1]; return '<button class="pick" type="button" data-c="' + c + '" aria-pressed="' + (c === S.cls) + '">' + (l === '전담' ? '전담' : l + '반') + '</button>'; }).join('') + '</div></div>') +
       row('얼굴 색', '동학년 화면에서 내 커서·이름표에 쓰는 색이에요. 다섯 명이 겹치지 않게 정해져 있어요.',
       '<div class="panel pad"><div class="row">' + U.av(S.name, 'xl') + '<div><b>' + esc(S.name) + '</b><div class="small muted">청록 · 바꿀 수 없어요</div></div></div></div>');
@@ -137,7 +137,7 @@
         '<div class="panel pad"><div class="joined"><label class="sr" for="lk">초대 링크</label><input class="input" id="lk" readonly value="' + G.space.invite + '"><button class="btn ink" type="button" id="cp">복사</button></div>' +
         '<div><button class="btn sec sm" type="button" id="regen">링크 새로 만들기</button></div></div>') +
       row('동학년에서 나가기', '전근·학년 이동 때 써요. 동학년은 다른 선생님들에게 그대로 남아요.',
-        '<div class="panel pad danger-zone"><p>나가면 이 동학년의 모으기·일정이 내 「오늘」에서 사라져요. 내가 낸 칸은 합본에 남아요.</p><div><button class="btn danger" type="button" id="out">새솔초 4학년에서 나가기</button></div></div>');
+        '<div class="panel pad danger-zone"><p>나가면 이 동학년의 취합·일정이 내 「오늘」에서 사라져요. 내가 낸 칸은 합본에 남아요.</p><div><button class="btn danger" type="button" id="out">새솔초 4학년에서 나가기</button></div></div>');
   }
   function vDevice() {
     return row('로그인 기억', '같은 PC에서는 1년 동안 다시 로그인하지 않아요. 공용 PC라면 쓰고 나서 로그아웃하세요.',

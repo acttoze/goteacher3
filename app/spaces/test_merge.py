@@ -28,7 +28,7 @@ UNTIL = date(2027, 2, 28)
 
 def fill(space, member, tag):
     """공간 하나에 FK 모델을 한 건씩. 파일은 실제로 저장한다(합친 뒤 내려받기 확인)."""
-    c = Collection.objects.create(space=space, created_by=member, title=f"{tag} 모으기", source="sheet",
+    c = Collection.objects.create(space=space, created_by=member, title=f"{tag} 취합", source="sheet",
                                   unit_head=["학년반", "담임"])
     f = Field.objects.create(collection=c, pos=0, name="인원", kind="number")
     row = Row.objects.create(collection=c, pos=0, unit=member.cls, who=member.name, member=member)
@@ -366,7 +366,7 @@ class ForwardingTests(MergeBase):
         r = anon.post(f"/c/{self.c4.link_token}/u/{self.r4.key}", {"f0": "7", "by": "대리"})
         self.assertLess(r.status_code, 400)
         self.assertEqual(Cell.objects.get(row=self.r4).value, "7")
-        self.assertContains(self.client.get(f"{self.new}/c/{self.c4.key}/"), "사학년 모으기")
+        self.assertContains(self.client.get(f"{self.new}/c/{self.c4.key}/"), "사학년 취합")
         self.assertEqual(self.client.get(f"{self.new}/c/{self.c4.key}/copy").status_code, 200)
 
     def test_hwp_downloads_keep_working_old_and_new(self):
@@ -593,7 +593,7 @@ class SettingsLabelTests(MergeBase):
         r = self.space_tab(self.u4)
         self.assertNotContains(r, "먼저 들어온 선생님이 넘겨받아요")
         self.assertNotContains(r, "학년 대표")
-        self.assertContains(r, "내가 만든 모으기는 관리자가 넘겨받아요")
+        self.assertContains(r, "내가 만든 취합은 관리자가 넘겨받아요")
 
     def test_grade_space_labels_stay(self):
         self.client.force_login(self.far_user)

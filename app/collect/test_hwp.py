@@ -1,4 +1,4 @@
-"""E6 칸 확인(한글 양식): 고른 표 → 자동 라벨 다듬기·켜고 끄기·합계 줄 빼기·반/이름 열 배정 → 모으기.
+"""E6 칸 확인(한글 양식): 고른 표 → 자동 라벨 다듬기·켜고 끄기·합계 줄 빼기·반/이름 열 배정 → 취합.
 
 불변식
 - 칸 확인 부분 화면·만들기는 회원·같은 공간·변환 끝나고 표를 고른 파일만. 다른 공간 파일 키는 404.
@@ -7,7 +7,7 @@
 - 칸 매핑은 줄(Row.key)마다 [Field.pos 또는 unit·who, 행, 열, 단위] — hwp.fill 에 그대로 넣을 수 있다.
   표 줄이 모자라면 r=None(F1 행 추가). 합계 줄은 늘 빠진다.
 - 학생 정보 칸은 기본으로 꺼지고, 켜서 보내면 서버가 거부한다(C7과 같은 규칙).
-- 만든 모으기는 C5 제출·C6 합본이 그대로 동작한다(Field만 쓰므로).
+- 만든 취합은 C5 제출·C6 합본이 그대로 동작한다(Field만 쓰므로).
 """
 import shutil
 import tempfile
@@ -321,7 +321,7 @@ class HwpFieldsTests(TestCase):
         sf = self.picked()
         self.assertEqual(self.create(sf).status_code, 302)
         r = self.create(sf)
-        self.assertContains(r, "이미 모으기를 만들었어요", status_code=400)
+        self.assertContains(r, "이미 취합을 만들었어요", status_code=400)
         self.assertEqual(Collection.objects.count(), 1)
 
     def test_no_roster_class(self):
@@ -337,7 +337,7 @@ class HwpFieldsTests(TestCase):
         self.assertContains(r, 'value="참가 인원"', status_code=400)
         self.assertContains(r, 'id="hwpCheck"', status_code=400)
 
-    # ---- 제출·합본(C5·C6)이 한글 양식 모으기에서도
+    # ---- 제출·합본(C5·C6)이 한글 양식 취합에서도
     def test_submit_and_board_work(self):
         sf = self.picked()
         self.create(sf)

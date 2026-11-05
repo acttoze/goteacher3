@@ -1,4 +1,4 @@
-"""모으기: Collection ├ Field(입력 칸) ├ Row(받는 사람 줄) ─ Cell(줄×칸 값).
+"""취합: Collection ├ Field(입력 칸) ├ Row(받는 사람 줄) ─ Cell(줄×칸 값).
 
 공간 격리: Collection은 space FK, 나머지는 collection을 거쳐 SpaceQuerySet.in_space()로만 조회한다.
 주소에는 key(공간 안 화면)·link_token(받는 사람 링크)만 쓴다. 순번 ID는 쓰지 않는다.
@@ -56,7 +56,7 @@ class Collection(models.Model):
 
 
 def get_by_link_or_404(link_token):
-    """받는 사람 링크(인증 없음)로 모으기를 찾는다. 공간 소속 확인은 하지 않는 유일한 경로."""
+    """받는 사람 링크(인증 없음)로 취합을 찾는다. 공간 소속 확인은 하지 않는 유일한 경로."""
     return get_object_or_404(Collection, link_token=link_token)
 
 
@@ -135,7 +135,7 @@ class CellQuerySet(SpaceQuerySet):
 class Cell(models.Model):
     """줄×칸 값 하나. by = 내는 사람(대리 제출이면 실제로 낸 사람, 비워도 됨), at = 마지막으로 낸 시각.
 
-    field는 row와 같은 모으기의 칸이어야 한다(만드는 쪽에서 collection.fields로만 고른다).
+    field는 row와 같은 취합의 칸이어야 한다(만드는 쪽에서 collection.fields로만 고른다).
     """
 
     row = models.ForeignKey(Row, on_delete=models.CASCADE, related_name="cells")

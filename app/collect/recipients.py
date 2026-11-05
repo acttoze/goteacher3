@@ -185,7 +185,7 @@ def make_rows(collection, rows):
 
 
 def pick_row(collection, key):
-    """링크로 들어온 사람이 고른 줄. 이 모으기의 줄만(다른 모으기 줄 키면 404). 대신 내기 허용이라 누구나 고를 수 있다."""
+    """링크로 들어온 사람이 고른 줄. 이 취합의 줄만(다른 취합 줄 키면 404). 대신 내기 허용이라 누구나 고를 수 있다."""
     return get_object_or_404(Row, collection=collection, key=key)
 
 

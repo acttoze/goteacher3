@@ -11,7 +11,7 @@
   확정은 회원·같은 공간·완료된 파일·report["tables"] 안의 표 위치일 때만 저장한다.
 - 한글 파일로 받기(F1): 합본 화면에서 POST → 채우기 작업을 큐 'hwp'에 넣고 부분 화면이 2초마다 상태를 본다.
   끝나면 내려받기 링크(올린 형식 + hwpx). 회원·같은 공간만, 캐시 금지, 파일 이름은 RFC 5987(Django FileResponse).
-  회원당 진행 중 한글 작업(변환 + 채우기) HWP_IN_FLIGHT건. 같은 모으기 작업이 진행 중이면 새로 만들지 않는다.
+  회원당 진행 중 한글 작업(변환 + 채우기) HWP_IN_FLIGHT건. 같은 취합 작업이 진행 중이면 새로 만들지 않는다.
 - 미리보기·글자 줄이기(F2): 합본 화면이 채운 hwpx와 원본 hwpx를 rhwp로 그려 쪽 수를 비교한다(브라우저, result.js).
   합본 쪽이 늘면 '글자 줄이기'가 shrink=n(pt, 0..hwp.MAX_SHRINK)을 POST → 채운 칸만 n pt 작게 다시 채운다(큐).
   쪽 수는 서버에 보내지 않는다(서버는 크기 값만 받고 범위를 다시 본다). 다시 만들기는 고른 크기를 이어 간다.
@@ -207,7 +207,7 @@ BAD_SHRINK = "글자 크기를 그만큼 줄일 수 없어요. 화면을 새로 
 
 
 def result_ctx(space, c):
-    """합본 화면의 '한글 파일로 받기' 줄 값. 한글 양식으로 만든 모으기(칸 매핑 있음)가 아니면 None."""
+    """합본 화면의 '한글 파일로 받기' 줄 값. 한글 양식으로 만든 취합(칸 매핑 있음)이 아니면 None."""
     sf = SourceFile.objects.in_space(space).filter(collection=c, status=SourceFile.Status.DONE).first()
     if sf is None or not sf.cellmap:
         return None
@@ -242,7 +242,7 @@ def result(request, c):
     if room <= 0:
         return _result_part(request, ctx, reject_text(why, request.space), status=400)
     sf = ctx["src"]
-    with transaction.atomic():  # 회원 잠금 안에서 세고 만든다(동시 요청으로 상한·같은 모으기 중복 우회 막기)
+    with transaction.atomic():  # 회원 잠금 안에서 세고 만든다(동시 요청으로 상한·같은 취합 중복 우회 막기)
         lock_member(request.member)
         busy = ResultFile.objects.in_space(request.space).filter(
             collection=c, status__in=[ResultFile.Status.PENDING, ResultFile.Status.FILLING]).first()

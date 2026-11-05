@@ -125,7 +125,7 @@ class RecipientTests(TestCase):
         cb = Collection.objects.create(space=self.b, title="옆", source="sheet")
         rb = Row.objects.create(collection=cb, pos=0, unit="5-1", who="옆학년", member=self.mb)
         with self.assertRaises(Http404):
-            pick_row(c, rb.key)  # 다른 공간 모으기의 줄 키
+            pick_row(c, rb.key)  # 다른 공간 취합의 줄 키
         with self.assertRaises(Http404):
             pick_row(cb, c.rows.first().key)  # 반대 방향
         for bad in ("", "nope", c.link_token, c.key):  # 토큰을 바꿔 끼워도
@@ -148,7 +148,7 @@ class RecipientTests(TestCase):
         c1 = self.post(src="sheet", title="x", col_name_0="a", outside="on")
         c2 = self.post(src="preset", preset="training", outside="on")
         r1, r2 = add_outside_row(c1, "가"), add_outside_row(c1, "나")
-        r3 = add_outside_row(c2, "가")  # 다른 모으기의 같은 이름은 별개 줄
+        r3 = add_outside_row(c2, "가")  # 다른 취합의 같은 이름은 별개 줄
         self.assertEqual((r1.pos, r2.pos, r3.pos), (3, 4, 4))
         self.assertNotEqual(r1.pk, r3.pk)
         self.assertEqual(r3.collection_id, c2.pk)

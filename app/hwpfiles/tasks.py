@@ -202,7 +202,7 @@ def _fail_result(rf, error, problems=()):
 
 
 def fill_result(pk):
-    """모으기 제출 값 → 원본 표. 대기 중인 것만 맡는다. 검증을 통과한 결과만 파일로 남긴다."""
+    """취합 제출 값 → 원본 표. 대기 중인 것만 맡는다. 검증을 통과한 결과만 파일로 남긴다."""
     if not ResultFile.objects.filter(pk=pk, status=R.PENDING).update(status=R.FILLING):
         return
     rf = ResultFile.objects.select_related("source", "collection").get(pk=pk)
@@ -239,7 +239,7 @@ def fill_result(pk):
         raise RuntimeError(f"hwp fill failed ({type(e).__name__})") from None
     rf.status, rf.done_at, rf.stored = R.DONE, timezone.now(), size
     rf.save(update_fields=["file", "hwpx", "status", "done_at", "stored", "conflicts", "added", "left_out", "copies", "dropped"])
-    for old in older.exclude(status__in=[R.PENDING, R.FILLING]):  # 모으기마다 마지막 결과 하나만
+    for old in older.exclude(status__in=[R.PENDING, R.FILLING]):  # 취합마다 마지막 결과 하나만
         old.drop_files()
         old.delete()
     log.info("hwp fill done result=%s ms=%d", rf.pk, int((time.monotonic() - t0) * 1000))

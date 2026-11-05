@@ -1,11 +1,11 @@
-"""D6 모으기 목록(내가 걷는 것·내가 낼 것·지난 것)과 다시 걷기. 모습은 design/collect.html.
+"""D6 취합 목록(내가 걷는 것·내가 낼 것·지난 것)과 다시 걷기. 모습은 design/collect.html.
 
 - 내가 걷는 것: 내가 만든 것 중 잠기지 않고 마감 전(design status open·done).
 - 지난 것: 내가 만든 것 중 잠갔거나 마감이 지난 것(design status past).
-- 내가 낼 것: 남이 만든 잠기지 않은 모으기에서 내 줄이 아직 안 낸 것(prototype updateDots: !c.mine && mineRow && !done).
+- 내가 낼 것: 남이 만든 잠기지 않은 취합에서 내 줄이 아직 안 낸 것(prototype updateDots: !c.mine && mineRow && !done).
   내 줄 = Row.member가 나, 또는 명부 밖 줄(member 없음) 이름이 내 이름(prototype TR.rowMine).
   학교 공간은 Row.member와 내 그룹의 그룹 칸만. 이름 글자로는 판정하지 않는다(H4 보안 검토).
-- 학교 전체(H4, 학교 공간 관리자만): 이 학교의 모든 모으기. 관리자 첫 화면은 다른 선생님처럼 내 것.
+- 학교 전체(H4, 학교 공간 관리자만): 이 학교의 모든 취합. 관리자 첫 화면은 다른 선생님처럼 내 것.
 - 다시 걷기: prototype·design에 없음. 리드 지시대로 칸·설정만 옮기고 줄은 지금 명부로 다시 만든다.
 낸 것 판정은 받는 사람 화면과 같은 submit._units를 쓴다. 조회는 모두 in_space()를 거친다.
 """
@@ -30,7 +30,7 @@ from .submit import _head, _units, unit_rows
 from .views import _board, _due_text, _owner
 
 TABS = [("sent", "내가 걷는 것"), ("todo", "내가 낼 것"), ("past", "지난 것")]
-NOUN = {"sent": "모으기", "todo": "낼 것", "past": "지난 모으기", "all": "모으기"}
+NOUN = {"sent": "취합", "todo": "낼 것", "past": "지난 취합", "all": "취합"}
 
 
 def _past(c, now):
@@ -104,7 +104,7 @@ def _ctx(request, error=None):
     for c in mine:
         sets["past" if _past(c, now) else "sent"].append(_sent_item(c, now, colors))
     everyone = Collection.objects.in_space(request.space).filter(Q(title__icontains=q) | Q(created_by__name__icontains=q))
-    if tab == "all":  # 학교 전체: 볼 때만 계산한다(모으기마다 줄 수를 세므로)
+    if tab == "all":  # 학교 전체: 볼 때만 계산한다(취합마다 줄 수를 세므로)
         def by(c):
             return c.created_by.name if c.created_by else "나간 선생님"
         sets["all"] = [{**_sent_item(c, now, colors), "past": _past(c, now), "by": by(c), "find": f"{c.title} {by(c)}"}
@@ -138,7 +138,7 @@ def _roster_mode(c):
 @require_POST
 @owner_view(Collection)
 def again(request, src):
-    """다시 걷기: 칸·설정을 옮긴 새 모으기. 제출 값·마감·잠금은 비우고, 줄은 지금 명부로 만든다(학교 공간은 고른 범위 그대로)."""
+    """다시 걷기: 칸·설정을 옮긴 새 취합. 제출 값·마감·잠금은 비우고, 줄은 지금 명부로 만든다(학교 공간은 고른 범위 그대로)."""
     if not _owner(request, src):
         return HttpResponseForbidden("다시 걷기는 만든 선생님만 할 수 있어요.")
     aud = {k: v for k, v in src.audience.items() if k not in ("text", "unmatched")}

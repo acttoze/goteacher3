@@ -124,10 +124,10 @@
   </ul>
 </section>
 <section class="card" aria-labelledby="wideH" style="margin-bottom:var(--gap)">
-  <div class="card-h"><h2 id="wideH">학교 전체 · 진행 중인 모으기</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
+  <div class="card-h"><h2 id="wideH">학교 전체 · 진행 중인 취합</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
   <ul class="list wide">
     {% for x in school_wide %}<li><div class="t">{% if x.href %}<a href="{{ x.href }}">{{ x.title }}</a>{% else %}{{ x.title }}{% endif %}</div><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div><span class="cnt num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</span></li>
-    {% empty %}<li class="none"><p class="empty">진행 중인 모으기가 없어요.</p></li>{% endfor %}
+    {% empty %}<li class="none"><p class="empty">진행 중인 취합이 없어요.</p></li>{% endfor %}
   </ul>
 </section>
 <section class="card" aria-labelledby="wideNH" style="margin-bottom:var(--gap)">

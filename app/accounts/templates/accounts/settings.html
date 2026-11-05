@@ -58,14 +58,14 @@
   <div>{% include "spaces/_invite.html" %}</div></section>{% endif %}
 <section class="srow"><div class="lab"><h2>{{ space_word }}에서 나가기</h2><p>전근·학년 이동 때 써요.{% if rows|length > 1 %} {% if space.is_school %}학교 공간은{% else %}동학년은{% endif %} 다른 선생님들에게 그대로 남아요.{% endif %}</p></div>
   <div class="panel pad danger-zone">
-    {% if rows|length > 1 %}<p>나가면 이 {{ space_word }}의 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 남아요.{% if space.is_school %} 내가 만든 모으기는 관리자가 넘겨받아요.{% elif is_creator %} 학년 대표와 내가 만든 모으기는 다음으로 먼저 들어온 선생님이 넘겨받아요.{% else %} 내가 만든 모으기는 학년 대표가 넘겨받아요.{% endif %}</p>
-    {% else %}<p>마지막 선생님이라 나가면 이 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 모으기가 모두 지워져요. 되돌릴 수 없어요.</p>{% endif %}
+    {% if rows|length > 1 %}<p>나가면 이 {{ space_word }}의 취합이 내 화면에서 사라져요. 내가 낸 칸은 합본에 남아요.{% if space.is_school %} 내가 만든 취합은 관리자가 넘겨받아요.{% elif is_creator %} 학년 대표와 내가 만든 취합은 다음으로 먼저 들어온 선생님이 넘겨받아요.{% else %} 내가 만든 취합은 학년 대표가 넘겨받아요.{% endif %}</p>
+    {% else %}<p>마지막 선생님이라 나가면 이 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 취합이 모두 지워져요. 되돌릴 수 없어요.</p>{% endif %}
     <div>{% if last_manager %}<p class="small muted">마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요.</p>{% else %}<button class="btn danger" type="button" data-open="#leaveDlg">{{ space.name }}에서 나가기</button>{% endif %}</div></div></section>
 <div class="scrim" id="leaveDlg" hidden>
   <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="lvH" method="post" action="/s/{{ space.token }}/settings/leave">
     {% csrf_token %}
     <div class="dh"><h2 id="lvH">{{ space.name }}에서 나갈까요?</h2></div>
-    <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 모으기가 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 모으기가 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
+    <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 취합이 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 취합이 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
       {% if my_reviews %}<p>협력업체 후기는 나간 뒤에도 익명으로 남고, 나간 뒤에는 고치거나 지울 수 없어요(운영자에게 메일). 지우려면 지금 지워 주세요.</p>
       {% for r in my_reviews %}<p class="df" style="justify-content:space-between;align-items:center"><span>{{ r.partner.name }}{% if r.is_hidden %} · 운영자가 내렸어요{% endif %}</span>{% if not r.is_hidden %}<button class="btn sec sm" type="button" hx-post="/partners/{{ r.partner.slug }}/review/delete" hx-vals='{"back":"settings"}' hx-confirm="{{ r.partner.name }} 후기를 지울까요? 되돌릴 수 없어요.">내 후기 지우기</button>{% endif %}</p>
       {% endfor %}{% endif %}

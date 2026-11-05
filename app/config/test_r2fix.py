@@ -61,7 +61,7 @@ class GoneNameOnRowsTests(TestCase):
         self.g = Space.objects.create(school=school(), grade=4, name="4")
         self.gone = Member.objects.create(space=self.g, user=google("gone"), name="김나감", cls="4-1")
         self.stay = Member.objects.create(space=self.g, user=google("stay"), name="박남음", cls="4-2")
-        self.c = Collection.objects.create(space=self.g, created_by=self.stay, title="모으기", source="sheet")
+        self.c = Collection.objects.create(space=self.g, created_by=self.stay, title="취합", source="sheet")
         self.f = Field.objects.create(collection=self.c, pos=0, name="값", kind="text")
 
     def row(self, pos, **kw):
@@ -148,7 +148,7 @@ class GoneNameOnRowsTests(TestCase):
         from accounts.management.commands.delete_account import Command
         self.assertIn("안 낸", Command.help)
         from django.test import Client
-        self.assertIn("아직 내지 않은 모으기 줄의 이름은 지웁니다", Client().get("/privacy").content.decode())
+        self.assertIn("아직 내지 않은 취합 줄의 이름은 지웁니다", Client().get("/privacy").content.decode())
 
 
 class VendorAfterResumeTests(TestCase):

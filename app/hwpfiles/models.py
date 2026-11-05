@@ -6,7 +6,7 @@
 - MEDIA_URL로 서빙하지 않는다. 내려받기는 회원 확인 뷰로만(E6).
 - 표 위치(E5): 교사가 미리보기에서 눌러 확정한 표 = (table_sec, table_index). report["tables"] 안에 있는 것만 저장한다.
   table_sec 은 구역 순번(hwp.tables 의 sec), table_index 는 구역 안 문서 순서(중첩 포함, hwp.schema 의 index).
-  칸 매핑(E6): 칸 확인으로 만든 모으기(collection, 파일 하나에 하나)와 cellmap(collect/hwpform.cellmap — 줄마다
+  칸 매핑(E6): 칸 확인으로 만든 취합(collection, 파일 하나에 하나)과 cellmap(collect/hwpform.cellmap — 줄마다
   [Field.pos 또는 unit·who, 행, 열, 단위]). F1 채우기가 이것만으로 hwp.fill 값을 만든다.
 - 보관 기간 자동 삭제·행이 지워질 때 파일 삭제는 retention.py(관리 명령 purge, E3).
 - report["tables"]: hwp.tables 결과(표 구역·순서·행·열·칸 수·후보 순위, 글자 없음). 미리보기(E4)가 쓴다.
@@ -78,7 +78,7 @@ class SourceFile(models.Model):
     table_sec = models.PositiveSmallIntegerField("고른 표 구역 순번", null=True, blank=True)
     table_index = models.PositiveIntegerField("고른 표 순서(구역 안, 중첩 포함)", null=True, blank=True)
     collection = models.OneToOneField("collect.Collection", on_delete=models.SET_NULL, null=True, blank=True,
-                                      related_name="source_file", verbose_name="이 파일로 만든 모으기")
+                                      related_name="source_file", verbose_name="이 파일로 만든 취합")
     cellmap = models.JSONField("칸 매핑(E6)", default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     converted_at = models.DateTimeField(null=True, blank=True)
@@ -212,13 +212,13 @@ def _result_path(instance, filename):
 
 
 class ResultFile(models.Model):
-    """F1 채운 결과(27번 4-1 SourceFile → ResultFile). 모으기의 제출 값을 원본 표에 넣은 파일.
+    """F1 채운 결과(27번 4-1 SourceFile → ResultFile). 취합의 제출 값을 원본 표에 넣은 파일.
 
     - file: 올린 형식(hwp.output_format — 기본은 올린 형식, GT_HWP_OUTPUT=hwpx 면 hwpx). hwpx면 비우고 hwpx 하나만.
     - hwpx: 늘 만든다. bundle(신청서형: 머리글 없는 표)이면 둘 다 선생님마다 한 부씩 담은 zip.
     - 검증(hwp.fill 의 재파싱·zip_ok, hwp.to_hwp 되읽기, 작업의 값 대조)을 통과한 것만 저장한다. 실패하면 파일 없음.
     - conflicts·problems 에는 표 주소 [행, 열](0부터)만. 값·이름은 넣지 않는다.
-    - 모으기마다 마지막으로 끝난 결과 하나만 남긴다(새로 끝나면 앞의 파일을 지움).
+    - 취합마다 마지막으로 끝난 결과 하나만 남긴다(새로 끝나면 앞의 파일을 지움).
     """
 
     class Status(models.TextChoices):

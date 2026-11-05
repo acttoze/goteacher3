@@ -3,11 +3,11 @@
 불변식
 - 받는 링크 새로 만들기는 만든 사람만. 다른 회원 403, 다른 공간 404, GET 405, CSRF 필요.
   새로 만들면 옛 링크(줄 화면 포함)는 404, 새 링크로 낸다. 카드·쪽지 문구·마감 안내·🔔 알림도 새 링크.
-- 받는 사람 화면(/c/… 전부)과 모으기 만들기 화면은 Cache-Control: no-store.
+- 받는 사람 화면(/c/… 전부)과 취합 만들기 화면은 Cache-Control: no-store.
 - 같은 IP가 같은 링크로 분당 120번 넘게 내면 429와 안내 문구, 값은 저장하지 않는다. 다른 IP·다른 링크는 따로 센다.
   오류 난 제출(400)은 세지 않는다(한 학교가 IP 하나를 같이 쓴다).
 - 명부 밖 줄 만들기도 같은 IP·링크로 시간당 60번까지.
-- 만든 사람이 없는 모으기(내보낸 회원의 것)는 동학년을 만든 사람(가장 먼저 들어온 회원)이 관리한다.
+- 만든 사람이 없는 취합(내보낸 회원의 것)은 동학년을 만든 사람(가장 먼저 들어온 회원)이 관리한다.
 """
 from unittest import mock
 from django.contrib.auth import get_user_model
@@ -189,13 +189,13 @@ class SubmitRateTests(G3Base):
 
 
 class OrphanCollectionTests(G3Base):
-    """내보낸 구글 회원이 만든 모으기: 동학년을 만든 사람이 넘겨받는다(점검표 내보내기 권한 낮음 1)."""
+    """내보낸 구글 회원이 만든 취합: 동학년을 만든 사람이 넘겨받는다(점검표 내보내기 권한 낮음 1)."""
 
     def detail(self, client, c):
         return client.get(f"/s/{self.a.token}/c/{c.key}/")
 
     def test_removed_creator_hands_over_to_space_creator(self):
-        c = Collection.objects.create(space=self.a, created_by=self.m2, title="박 선생님 모으기", source="sheet",
+        c = Collection.objects.create(space=self.a, created_by=self.m2, title="박 선생님 취합", source="sheet",
                                       unit_head=["학년반", "담임"])
         self.client.force_login(self.ua)
         self.assertNotContains(self.detail(self.client, c), "링크 새로 만들기")
@@ -214,7 +214,7 @@ class OrphanCollectionTests(G3Base):
         self.assertEqual(c2.post(f"/s/{self.a.token}/c/{c.key}/link").status_code, 403)
         self.client.force_login(self.ua)
         self.assertEqual(self.client.post(f"/s/{self.a.token}/c/{c.key}/link").status_code, 302)
-        # 다른 공간의 주인 없는 모으기는 404(공간 격리)
+        # 다른 공간의 주인 없는 취합은 404(공간 격리)
         orphan_b = Collection.objects.create(space=self.b, created_by=None, title="옆", source="sheet",
                                              unit_head=["학년반", "담임"])
         self.assertEqual(self.client.post(f"/s/{self.a.token}/c/{orphan_b.key}/link").status_code, 404)

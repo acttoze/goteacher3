@@ -2,8 +2,8 @@
 
 불변식
 - 인증 없이 열고 낸다. 인증 없는 폼도 CSRF 토큰을 요구한다.
-- Cell은 낼 때만 생긴다(빈 칸 사전 생성 없음). Cell의 칸·줄은 같은 모으기 소속이어야 한다(서버 검사).
-- 다른 모으기의 줄 키·잘못된 링크 토큰은 404. 마감(closed_at)되면 낼 수 없다.
+- Cell은 낼 때만 생긴다(빈 칸 사전 생성 없음). Cell의 칸·줄은 같은 취합 소속이어야 한다(서버 검사).
+- 다른 취합의 줄 키·잘못된 링크 토큰은 404. 마감(closed_at)되면 낼 수 없다.
 - 받는 사람은 다른 줄의 값을 보지 못한다(냈는지만). 이 브라우저가 낸 줄만 고칠 때 값을 미리 채운다.
 """
 from datetime import timedelta
@@ -39,7 +39,7 @@ class SubmitTests(TestCase):
         cls.f_memo = Field.objects.create(collection=cls.c, pos=2, name="비고", kind="text")
         cls.r1 = Row.objects.create(collection=cls.c, pos=0, unit="4-1", who="김가람", member=cls.owner)
         cls.r2 = Row.objects.create(collection=cls.c, pos=1, unit="4-2", who="박서준", member=cls.m2)
-        # 다른 공간의 모으기
+        # 다른 공간의 취합
         cls.other = make(cls.b, title="옆 학년")
         cls.of = Field.objects.create(collection=cls.other, pos=0, name="참가(명)", kind="number")
         cls.orow = Row.objects.create(collection=cls.other, pos=0, unit="5-1", who="옆학년")
@@ -227,7 +227,7 @@ class MultiSubmitTests(TestCase):
         cls.fs = [Field.objects.create(collection=cls.c, pos=i, name=n, kind=k) for i, (n, k) in enumerate(names)]
         cls.r1 = Row.objects.create(collection=cls.c, pos=0, unit="4-1", who="김가람")
         cls.r2 = Row.objects.create(collection=cls.c, pos=1, unit="4-2", who="박서준")
-        other = make(cls.a, title="다른 모으기", multi=True)
+        other = make(cls.a, title="다른 취합", multi=True)
         cls.orow = Row.objects.create(collection=other, pos=0, unit="4-1", who="김가람")
 
     def url(self):
@@ -368,7 +368,7 @@ class QAEdgeTests(TestCase):
         for tok in (self.c.key, self.a.token, self.r.key):
             self.assertEqual(self.client.get(f"/c/{tok}").status_code, 404, tok)
         self.assertEqual(self.client.post(f"/c/{self.c.key}/u/{self.r.key}", {"f0": "1"}).status_code, 404)
-        # 줄 키 자리에 모으기 링크를 넣어도 404
+        # 줄 키 자리에 취합 링크를 넣어도 404
         self.assertEqual(self.client.get(f"/c/{self.c.link_token}/u/{self.c.link_token}").status_code, 404)
         self.assertFalse(Cell.objects.exists())
 

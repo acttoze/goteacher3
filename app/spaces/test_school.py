@@ -565,9 +565,9 @@ class ExpiredEntryTests(JoinBase):
         self.assertEqual(self.teacher.post(f"{self.base}/settings/me", {"name": "바꾼이름"}).status_code, 302)
         self.m5.refresh_from_db()
         self.assertEqual(self.m5.name, "바꾼이름")
-        r = self.teacher.post(f"{self.base}/c/new", {"src": "paste", "title": "만료 뒤 모으기", "paste": "이름\t연락처\n가\t나\n"})
+        r = self.teacher.post(f"{self.base}/c/new", {"src": "paste", "title": "만료 뒤 취합", "paste": "이름\t연락처\n가\t나\n"})
         self.assertLess(r.status_code, 400)
-        self.assertTrue(self.hub.collections.filter(title="만료 뒤 모으기").exists())
+        self.assertTrue(self.hub.collections.filter(title="만료 뒤 취합").exists())
 
     def test_manager_still_reissues_invite(self):
         old = self.hub.invite_token

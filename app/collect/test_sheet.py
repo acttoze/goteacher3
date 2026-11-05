@@ -1,4 +1,4 @@
-"""C3 새로 모으기 — 직접 입력(시트)·자주 쓰는 양식 2종. 결과는 prototype collectNew(sheet)·TR.preset과 같아야 한다.
+"""C3 새 취합 — 직접 입력(시트)·자주 쓰는 양식 2종. 결과는 prototype collectNew(sheet)·TR.preset과 같아야 한다.
 
 받는 사람 줄은 동학년 명부로 만든다(C4, test_recipients.py).
 """

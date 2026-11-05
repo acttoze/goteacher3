@@ -93,7 +93,7 @@
   function done() {
     var lab = slots.filter(function (x) { return x.cls === S.cls; })[0].label;
     m.innerHTML = '<div class="done-h"><span class="ck">' + U.icon('check', 28) + '</span><h1 class="inv-h" tabindex="-1">들어왔어요, ' + esc(S.name) + ' 선생님</h1></div>' +
-      '<p class="by">' + esc(G.space.name) + ' 동학년 · ' + esc(lab) + ' · 이제 동학년 모으기와 일정이 「오늘」에 떠요.</p>' +
+      '<p class="by">' + esc(G.space.name) + ' 동학년 · ' + esc(lab) + ' · 이제 동학년 취합과 일정이 「오늘」에 떠요.</p>' +
       '<section class="card form" aria-labelledby="whoH"><h2 id="whoH">함께 쓰는 선생님 ' + (G.members.length + 1) + '명</h2>' +
       '<div class="wrap-row"><span class="stack">' + G.members.map(function (x) { return U.av(x.name); }).join('') + '<span class="av" style="background:#6b7280">' + esc(S.name.charAt(0)) + '</span></span>' +
       '<span class="muted">' + G.members.map(function (x) { return x.name; }).join(' · ') + ' · ' + esc(S.name) + '</span></div>' +

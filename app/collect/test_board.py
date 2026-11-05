@@ -67,7 +67,7 @@ class BoardTests(TestCase):
     def test_other_space_404(self):
         for tail in ("", "live"):
             self.assertEqual(self.client.get(self.url(self.other, tail=tail)).status_code, 404)
-            # 내 공간 토큰 + 다른 공간의 모으기 키
+            # 내 공간 토큰 + 다른 공간의 취합 키
             self.assertEqual(self.client.get(self.url(self.other, self.a, tail)).status_code, 404)
         self.client.force_login(self.ub)
         for tail in ("", "live"):
@@ -184,7 +184,7 @@ class BoardEdgeTests(BoardTests):
         self.assertNotContains(r, "학예회", status_code=r.status_code)
 
     def test_swapped_tokens_404(self):
-        # 받는 링크 토큰을 모으기 키 자리에, 모으기 키를 공간 토큰 자리에
+        # 받는 링크 토큰을 취합 키 자리에, 취합 키를 공간 토큰 자리에
         for tail in ("", "live"):
             self.assertEqual(self.client.get(f"/s/{self.a.token}/c/{self.c.link_token}/{tail}").status_code, 404)
             self.assertEqual(self.client.get(f"/s/{self.c.key}/c/{self.c.key}/{tail}").status_code, 404)

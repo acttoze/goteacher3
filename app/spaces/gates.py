@@ -28,7 +28,7 @@ def manager_required(view):
 
 def school_write_required(view):
     """학교판 전용 기능의 쓰기: 학교 공간 플랜이 끝났으면(기한 지남 또는 plan=free) 거부, 읽기는 그대로. 동학년 공간은 통과.
-    안내 한 줄은 shell.html. 모으기·오늘·일정·설정에는 걸지 않는다(리드 결정: 기존 회원은 계속 쓴다)."""
+    안내 한 줄은 shell.html. 취합·오늘·일정·설정에는 걸지 않는다(리드 결정: 기존 회원은 계속 쓴다)."""
     @wraps(view)
     def inner(request, *args, **kwargs):
         write = request.method not in ("GET", "HEAD", "OPTIONS")

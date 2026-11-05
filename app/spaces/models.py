@@ -60,7 +60,7 @@ class School(models.Model):
 
     @property
     def writable(self):
-        """학교판 기능을 쓸 수 있나. plan=free이거나 결제 기한이 지나면 읽기만(리드 결정: 모으기는 계속)."""
+        """학교판 기능을 쓸 수 있나. plan=free이거나 결제 기한이 지나면 읽기만(리드 결정: 취합은 계속)."""
         if self.plan != self.Plan.SCHOOL:
             return False
         return self.paid_until is None or self.paid_until >= timezone.localdate()
@@ -203,7 +203,7 @@ def lead_member(space):
 
 
 def leads(space, member):
-    """대표 권한(초대 재발급·내보내기·주인 없는 모으기): 동학년은 대표 한 명, 학교 공간은 관리자 전원."""
+    """대표 권한(초대 재발급·내보내기·주인 없는 취합): 동학년은 대표 한 명, 학교 공간은 관리자 전원."""
     if space.is_school:
         return member.is_manager
     lead = lead_member(space)

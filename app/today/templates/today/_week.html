@@ -2,7 +2,7 @@
 <div id="week" data-mode="{{ mode }}" data-w="{{ w }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
     <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
-      <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>모으기 마감</span></span></div>
+      <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>취합 마감</span></span></div>
     <div class="wk">{% if mode == "month" %}<div class="mgrid">
       {% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
       {% for c in mcells %}<div class="mc{% if c.out %} out{% endif %}{% if c.weekend %} we{% endif %}{% if c.today %} tcol{% endif %}" data-cell data-date="{{ c.date }}" data-slot="" data-when="{{ c.when }}"><div class="md num">{{ c.n }}{% if c.today %} · 오늘{% endif %}</div>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button></div>{% endfor %}
@@ -47,10 +47,10 @@
       </ul>
     </section>
     <section class="card s5" aria-labelledby="dueH">
-      <div class="card-h"><h2 id="dueH">{{ period }} 마감</h2><span class="n num">{{ dues|length }}</span><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">모으기로</a></span></div>
+      <div class="card-h"><h2 id="dueH">{{ period }} 마감</h2><span class="n num">{{ dues|length }}</span><span class="r"><a class="tlink" href="/s/{{ space.token }}/c/">취합으로</a></span></div>
       <ul class="list due-list card-b" id="due">
         {% for x in dues %}<li><div class="grow"><div class="t"><a href="{{ x.href }}">{{ x.c.title }}</a></div><div class="m">{{ x.meta }}</div></div><span class="d num{% if x.today %} today{% endif %}">{{ x.day }}</span></li>
-        {% empty %}<li class="none"><p class="empty">{{ period_short }}에 마감인 모으기가 없어요.</p></li>{% endfor %}
+        {% empty %}<li class="none"><p class="empty">{{ period_short }}에 마감인 취합이 없어요.</p></li>{% endfor %}
       </ul>
     </section>
   </div>

@@ -182,7 +182,7 @@ class WriterlessScopeTests(Base):
 
 
 class QueryCountTests(Base):
-    """일정·모으기가 늘어도 쿼리 수는 그대로."""
+    """일정·취합이 늘어도 쿼리 수는 그대로."""
 
     def count(self, path):
         c = self.as_(self.t51)

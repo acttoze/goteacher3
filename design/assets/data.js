@@ -1,5 +1,5 @@
 // 고티처 디자인 샘플 데이터 — 모든 화면이 같은 하루(2026-10-26 월, 11:05)를 보여 주도록 한 곳에 둔다.
-// 모두 가상의 학교·인물이다. 실제 서비스에서는 NEIS·모으기 데이터로 바뀐다.
+// 모두 가상의 학교·인물이다. 실제 서비스에서는 NEIS·취합 데이터로 바뀐다.
 // 합계·개수는 여기서 손으로 적지 않고 아래 계산부에서 행으로부터 만든다.
 window.GT = {
   product: '고티처',
@@ -94,7 +94,7 @@ window.GT = {
     { id: 't4', title: '개인정보 보호 연수 이수 확인', from: '차민호 · 정보부', due: '11/6(금)', dueIso: '2026-11-06', kind: '확인', form: '', fields: 1 }
   ],
 
-  // 모으기(내가 보낸 것 + 지난 것). rows의 v는 fields 순서. 비어 있으면 null
+  // 취합(내가 보낸 것 + 지난 것). rows의 v는 fields 순서. 비어 있으면 null
   collections: [
     {
       id: 'c1', title: '학예회 반별 참가 인원', status: 'open', source: 'hwp',
@@ -180,7 +180,7 @@ window.GT = {
     });
   });
   var c1 = g.collections[0];
-  console.assert(c1.done === 3 && c1.total === 5, '모으기 c1 집계 불일치');
+  console.assert(c1.done === 3 && c1.total === 5, '취합 c1 집계 불일치');
   console.assert(c1.sums[0] === 72 && c1.sums[1] === 3, 'c1 합계 불일치');
   var n = 0; Object.keys(g.formCount).forEach(function (k) { n += g.formCount[k]; });
   g.formTotal = n;

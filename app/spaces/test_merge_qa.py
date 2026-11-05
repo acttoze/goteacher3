@@ -31,7 +31,7 @@ class IsolationQa(MergeBase):
         self.far_client.force_login(self.far_user)
 
     def test_row_key_of_other_collection_in_same_school_space_is_404(self):
-        """합치면 두 모으기가 같은 공간이 된다. 링크와 줄 키를 바꿔 끼워도 열리지 않아야 한다."""
+        """합치면 두 취합이 같은 공간이 된다. 링크와 줄 키를 바꿔 끼워도 열리지 않아야 한다."""
         anon = Client()
         path = f"/c/{self.c4.link_token}/u/{self.r5.key}"
         self.assertEqual(anon.get(path).status_code, 404)

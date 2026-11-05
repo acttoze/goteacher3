@@ -1,8 +1,8 @@
 """E3 보관 기간 자동 삭제(purge). 시각은 NOW 로 고정한다.
 
 불변식
-- 마감·잠근 때·만든 때가 모두 1년 넘게 지난 모으기는 통째로(칸·줄·제출 값·결과) 지우고, 그 모으기로 만든 올린 파일도.
-- 모으기에 안 쓴 올린 파일은 24시간 뒤 지운다. 멈춘 작업(600초)은 실패 + 파일 정리.
+- 마감·잠근 때·만든 때가 모두 1년 넘게 지난 취합은 통째로(칸·줄·제출 값·결과) 지우고, 그 취합으로 만든 올린 파일도.
+- 취합에 안 쓴 올린 파일은 24시간 뒤 지운다. 멈춘 작업(600초)은 실패 + 파일 정리.
 - 행이 지워지면 디스크 파일도(커밋 뒤). 되돌린 삭제는 파일을 남긴다. 고아 파일(1시간 넘은 것)은 지운다.
 - stored 는 디스크 실제 크기에 맞춘다. 출력은 건수만(제목·이름·값 없음). --dry-run 은 아무것도 지우지 않는다.
 """
@@ -81,7 +81,7 @@ class PurgeTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             return retention.purge(NOW, **kw)
 
-    # ---- 지난 모으기
+    # ---- 지난 취합
     def test_expired_collection_goes_with_values_and_files(self):
         old = self.coll(NOW - 500 * DAY, due=NOW - 366 * DAY)
         sf = self.source(NOW - 500 * DAY, old)
@@ -200,8 +200,8 @@ class PurgeTests(TestCase):
             call_command("purge", "--dry-run", stdout=out)
         text = out.getvalue()
         self.assertIn("(지우지 않음)", text)
-        self.assertIn("지난 모으기 1건", text)
-        self.assertIn("올린 파일 3건", text)    # 지난 모으기 것 1 + 안 쓴 것 2(멈춘 것 포함)
+        self.assertIn("지난 취합 1건", text)
+        self.assertIn("올린 파일 3건", text)    # 지난 취합 것 1 + 안 쓴 것 2(멈춘 것 포함)
         self.assertIn("멈춘 작업 1건", text)
         self.assertNotIn(SECRET, text)
         self.assertNotIn("김가람", text)

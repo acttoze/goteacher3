@@ -192,7 +192,7 @@ def _split_below(row, a):
 
 def html_to_tsv(html, too_big=TOO_BIG):
     """클립보드 HTML에서 가장 큰 표를 머리글 한 줄 + 자료 줄의 TSV로. 표가 없으면 ''. 너무 크면 PasteError(too_big).
-    칸 글자는 MAX_CELL + 1자까지 둔다. 읽는 쪽이 200자를 넘었는지 알아 자르거나(모으기·업무분장) 못 읽은 줄로 센다(일정)."""
+    칸 글자는 MAX_CELL + 1자까지 둔다. 읽는 쪽이 200자를 넘었는지 알아 자르거나(취합·업무분장) 못 읽은 줄로 센다(일정)."""
     if len(html) > MAX_HTML:
         raise PasteError(too_big)
     p = _Tables()

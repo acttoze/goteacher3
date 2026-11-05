@@ -60,7 +60,7 @@ class SummaryBase(MergeBase):
         p.start()
         self.addCleanup(p.stop)
         super().setUp()
-        self.hub = open_school(self.school, UNTIL, self.m4)  # m4 관리자(g4), m4b(g4), m5(g5). 모으기 2건, 2칸 모두 냄
+        self.hub = open_school(self.school, UNTIL, self.m4)  # m4 관리자(g4), m4b(g4), m5(g5). 취합 2건, 2칸 모두 냄
         for m in (self.m4, self.m4b, self.m5):
             m.refresh_from_db()
         self.url = f"/s/{self.hub.token}/school"
@@ -75,7 +75,7 @@ class SummaryBase(MergeBase):
         return c
 
     def collection(self, **kw):
-        return Collection.objects.create(space=self.hub, title="모으기", source="sheet", **kw)
+        return Collection.objects.create(space=self.hub, title="취합", source="sheet", **kw)
 
     def row(self, c, filled=False, **kw):
         kw.setdefault("unit", "칸")
@@ -329,7 +329,7 @@ class PageTests(SummaryBase):
         for user in (self.u4, self.u5):
             r = self.as_(user).get(self.url)
             self.assertContains(r, f'href="{self.print_url}">학교 업무 요약</a>')
-            for hidden in ("고티처로 모은 취합", "제출 완료율", GUIDE, "티로드"):
+            for hidden in ("고티처로 한 취합", "제출 완료율", GUIDE, "티로드"):
                 self.assertNotContains(r, hidden)
 
     def test_button_stays_after_htmx_swap_and_on_duty_tab(self):
@@ -348,7 +348,7 @@ class PageTests(SummaryBase):
             body = r.content.decode()
             for secret in (NOTICE_TITLE, "송민재", "정하은", "김도윤", "사학년", "티로드"):
                 self.assertNotIn(secret, body)
-            for text in ("A4 portrait", "고티처로 모은 취합", "제출 완료율", "확인 필수 공지 확인율", "함께 쓰는 교직원", GUIDE,
+            for text in ("A4 portrait", "고티처로 한 취합", "제출 완료율", "확인 필수 공지 확인율", "함께 쓰는 교직원", GUIDE,
                          'id="printBtn"', "js/print.js", self.school.name, "2026년 9월 ~ 2027년 2월", "교감 · 교장 결재용",
                          "<th>담당</th><th>교감</th><th>교장</th>"):
                 self.assertIn(text, body)

@@ -354,7 +354,7 @@ def _space_ctx(request, **extra):
     ctx.update(my_color=mine["color"], my_ink=mine["ink"], my_label=mine["label"])
     ctx["is_creator"] = leads(space, me)
     ctx["last_manager"] = is_last_manager(me)
-    if ctx["is_creator"]:  # 내보내기 확인창: 그 선생님이 만든 모으기는 만든 사람이 넘겨받는다(remove_member)
+    if ctx["is_creator"]:  # 내보내기 확인창: 그 선생님이 만든 취합은 만든 사람이 넘겨받는다(remove_member)
         made = dict(Collection.objects.in_space(space).filter(created_by__isnull=False)
                     .values_list("created_by").annotate(n=Count("pk")))
         for r in ctx["rows"]:
@@ -402,7 +402,7 @@ def new_invite(request):
 def remove_member(request, key):
     """회원 내보내기(대표만, 나는 못 내보냄, 마지막 관리자도 못 내보냄). 손님이면 그 User를 지워 기기 토큰·세션도 끊는다.
 
-    낸 값은 남는다(줄은 member가 비고 합본에 그대로). 다음 모으기 명부에서 빠진다.
+    낸 값은 남는다(줄은 member가 비고 합본에 그대로). 다음 취합 명부에서 빠진다.
     구글 회원은 이 동학년 자리만 빠지고 계정·로그인은 그대로(다른 동학년을 만들 수 있게).
     """
     m = get_in_space_or_404(Member, request, key=key)
@@ -420,7 +420,7 @@ def remove_member(request, key):
         if is_last_manager(seat):
             return HttpResponse(LAST_MANAGER, status=409)
         user = seat.user
-        # 내보낸 회원이 만든 모으기는 내보낸 사람(대표)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
+        # 내보낸 회원이 만든 취합은 내보낸 사람(대표)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
         Collection.objects.in_space(request.space).filter(created_by=seat).update(created_by=request.member)
         seat.delete()
         if user and is_guest(user) and not Member.objects.filter(user=user).exists():
@@ -688,7 +688,7 @@ def update_me(request):
     """설정 > 내 정보: 이름·반(design #me, 바꾸면 바로 저장). 둘 중 보낸 것만 바꾼다(이름 칸·반 단추가 따로 보낸다).
 
     같은 반·같은 이름 선생님이 이미 있으면 거부한다(초대 입장은 반·이름으로 같은 사람을 찾는다).
-    이미 만든 모으기의 줄은 그대로고, 다음 모으기 명부부터 바뀐다.
+    이미 만든 취합의 줄은 그대로고, 다음 취합 명부부터 바뀐다.
     """
     me = request.member
     name = _clean_name(request.POST["name"]) if "name" in request.POST else me.name
@@ -727,7 +727,7 @@ def update_me(request):
 def leave(request):
     """동학년 나가기(design #space). 동학년 이름을 써야 나간다.
 
-    내가 만든 모으기는 남은 선생님 중 가장 먼저 들어온 분이 넘겨받는다(그분이 새 학년 대표, _roster의 creator).
+    내가 만든 취합은 남은 선생님 중 가장 먼저 들어온 분이 넘겨받는다(그분이 새 학년 대표, _roster의 creator).
     학교 공간은 관리자가 넘겨받고(입장 순서로 넘기지 않음), 마지막 관리자는 나갈 수 없다.
     내가 낸 칸은 합본에 남는다(줄의 member만 빈다). 마지막 한 명이면 동학년을 지운다(같은 학년을 새로 만들 수 있게).
     손님은 다른 소속이 없으므로 계정도 지우고(기기 토큰 CASCADE) 로그아웃한다. 구글 회원은 첫 화면으로.

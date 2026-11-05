@@ -44,14 +44,14 @@ VALUE_MAX = 1000
 NA = "해당 없음"  # 연수 이수(prototype matrixForm) 체크
 ASK = {Field.Kind.NUMBER: "숫자로 써 주세요. 없으면 0이에요.", Field.Kind.SELECT: "골라 주세요.", Field.Kind.DATE: "골라 주세요."}
 SUBMIT_PER_MIN = 120  # 같은 IP·같은 링크로 낸 횟수(한 학교가 IP 하나를 같이 쓴다). 오류 난 제출은 세지 않는다
-OUTSIDE_PER_HOUR = 60  # 같은 IP·같은 링크로 명부 밖 줄 만들기(모으기당 60줄 상한과 함께)
+OUTSIDE_PER_HOUR = 60  # 같은 IP·같은 링크로 명부 밖 줄 만들기(취합당 60줄 상한과 함께)
 FIND_PER_HOUR = 300  # 같은 IP·같은 링크로 이름 찾기(학교 하나가 IP 하나: 전 교직원이 한 번씩 + 여유, 명단 긁어내기는 막는다)
 NOT_FOUND = "이름을 찾지 못했어요."
 UNIT_RE = re.compile(r"^(.*?)\s*\(([^()]{1,6})\)$")  # '참가(명)' → 참가 / 명
 
 
 def link_view(view):
-    """링크 토큰으로 모으기를 찾는다. 없는 링크·다른 모으기 줄이면 design의 '링크를 찾을 수 없어요'(404)."""
+    """링크 토큰으로 취합을 찾는다. 없는 링크·다른 취합 줄이면 design의 '링크를 찾을 수 없어요'(404)."""
 
     @wraps(view)
     def inner(request, link_token, **kw):
@@ -84,9 +84,9 @@ def _touch(request):
 
 
 def save_cell(row, field, value, by):
-    """줄×칸 값 하나를 넣거나 바꾼다. 칸과 줄이 같은 모으기여야 한다(DB는 막지 않는다)."""
+    """줄×칸 값 하나를 넣거나 바꾼다. 칸과 줄이 같은 취합여야 한다(DB는 막지 않는다)."""
     if row.collection_id != field.collection_id:
-        raise ValueError("칸과 줄의 모으기가 다릅니다.")
+        raise ValueError("칸과 줄의 취합이 다릅니다.")
     Cell.objects.update_or_create(row=row, field=field, defaults={"value": value, "by": by})
 
 
@@ -140,7 +140,7 @@ def _group(c, row):
 
 
 def unit_rows(cs):
-    """여러 모으기의 _units 재료를 쿼리 한 번으로: {모으기 pk: 줄들}."""
+    """여러 취합의 _units 재료를 쿼리 한 번으로: {취합 pk: 줄들}."""
     by_pk = {c.pk: [] for c in cs}
     for r in Row.objects.filter(collection__in=list(by_pk)).annotate(n=Count("cells"), last=Max("cells__at")).order_by("pos", "id"):
         by_pk[r.collection_id].append(r)
@@ -289,7 +289,7 @@ def outside(request, c):
     except OutsideClosed:
         ctx = _pick_ctx(c)
         return _page(request, {**ctx, "view": "closed" if c.closed_at else ctx["view"],
-                               "outside_error": "이 모으기는 명부 밖 이름을 더 받지 않아요."}, status=403)
+                               "outside_error": "이 취합은 명부 밖 이름을 더 받지 않아요."}, status=403)
     except ValueError:
         return _page(request, {**_pick_ctx(c), "outside_error": "이름을 써 주세요."}, status=400)
     request.session[SESSION_BY] = row.who

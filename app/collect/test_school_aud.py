@@ -1,4 +1,4 @@
-"""H4 학교 공간 모으기: 받는 사람 범위 5가지, 접근 제한, 목록, 한글 줄 맞춤, 저장 한도, 200줄 합본."""
+"""H4 학교 공간 취합: 받는 사람 범위 5가지, 접근 제한, 목록, 한글 줄 맞춤, 저장 한도, 200줄 합본."""
 import csv
 import io
 import shutil
@@ -243,7 +243,7 @@ class GroupRowTests(SchoolBase):
         self.assertEqual(list(c.rows.values_list("group", flat=True)), ["g4", "g4"])
 
     def test_group_text_is_view_range_not_permission(self):
-        """그룹을 바꿔도 다른 그룹 모으기 합본은 열리지 않는다(보기 범위에만)."""
+        """그룹을 바꿔도 다른 그룹 취합 합본은 열리지 않는다(보기 범위에만)."""
         c = self.make(aud="pergroup", aud_pgroups=["g5"])
         Member.objects.filter(pk=self.t41.pk).update(group="g5")
         self.assertEqual(self.login(self.t41).get(f"{self.base}/c/{c.key}/").status_code, 404)

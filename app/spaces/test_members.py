@@ -201,7 +201,7 @@ class NeisSearchLimitTests(InviteBase):
 
 
 class RemoveDialogHandoverTests(InviteBase):
-    """내보내기 확인창: 그 선생님이 만든 모으기 수(서버가 셈)를 N>0일 때만 알린다. 다른 공간 것은 세지 않는다."""
+    """내보내기 확인창: 그 선생님이 만든 취합 수(서버가 셈)를 N>0일 때만 알린다. 다른 공간 것은 세지 않는다."""
 
     def setUp(self):
         super().setUp()
@@ -219,7 +219,7 @@ class RemoveDialogHandoverTests(InviteBase):
         outsider = Member.objects.create(space=self.other, name="남", cls="5-1")
         Collection.objects.create(space=self.other, title="남의 것", source="paste", created_by=outsider)
         r = self.client.get(f"/s/{self.space.token}/members")
-        self.assertContains(r, "이 선생님이 만든 모으기 2개는 내가 넘겨받아요", count=1)
+        self.assertContains(r, "이 선생님이 만든 취합 2개는 내가 넘겨받아요", count=1)
 
     def test_not_shown_to_non_creator(self):
         Collection.objects.create(space=self.space, title="가", source="paste", created_by=self.guest)

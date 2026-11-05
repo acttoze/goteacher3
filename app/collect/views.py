@@ -1,4 +1,4 @@
-"""C2·C3 새로 모으기 — 표 붙여넣기·직접 입력·자주 쓰는 양식. 동작은 prototype collectNew, 모습은 design/collect-new.html.
+"""C2·C3 새 취합 — 표 붙여넣기·직접 입력·자주 쓰는 양식. 동작은 prototype collectNew, 모습은 design/collect-new.html.
 C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 5초 폴링). 동작은 prototype collectDetail, 모습은 design/collect-detail.html.
 
 붙여넣은 HTML은 미리보기 요청에서 한 번 TSV로 바꿔 돌려줄 뿐 저장·렌더하지 않는다(paste.py).
@@ -133,7 +133,7 @@ def new(request):
                                  audience=stored_audience(aud, rows))
                 return redirect(f"/s/{space.token}/c/{c.key}/")
         elif src == "hwp":
-            # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 모으기를 만든다(hwpform).
+            # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 취합을 만든다(hwpform).
             sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64].replace("\x00", "")).first()
             if sf is not None and not can_open(request, sf.created_by_id):
                 sf = None
@@ -151,7 +151,7 @@ def new(request):
                 if hwpf["error"]:
                     errors["hwp"] = hwpf["error"]
                 elif sf.collection_id:
-                    errors["hwp"] = ("이 한글 파일로는 이미 모으기를 만들었어요. 같은 양식으로 또 걷으려면 그 모으기에서 "
+                    errors["hwp"] = ("이 한글 파일로는 이미 취합을 만들었어요. 같은 양식으로 또 걷으려면 그 취합에서 "
                                      "「다시 걷기」를 쓰거나 파일을 다시 올려 주세요.")
                 elif not rows:
                     errors["aud"] = no_one
@@ -159,7 +159,7 @@ def new(request):
                     c = _create_hwp(request, title, sf, hwpf, aud, rows)
                     if c is not None:
                         return redirect(f"/s/{space.token}/c/{c.key}/")
-                    errors["hwp"] = "다른 창에서 이 파일로 모으기를 먼저 만들었어요. 모으기 목록을 확인해 주세요."
+                    errors["hwp"] = "다른 창에서 이 파일로 취합을 먼저 만들었어요. 취합 목록을 확인해 주세요."
         elif src == "paste":
             text, how = request.POST.get("paste", ""), request.POST.get("pii", "")
             p, error = _read(text, how)
@@ -573,10 +573,10 @@ def relink(request, c):
 @require_POST
 @owner_view(Collection)
 def delete(request, c):
-    """모으기 지우기(처리방침 3항 '요청자가 지우면 파기', 만든 사람만). 칸·줄·제출 값·알림·결과 파일은 CASCADE.
+    """취합 지우기(처리방침 3항 '요청자가 지우면 파기', 만든 사람만). 칸·줄·제출 값·알림·결과 파일은 CASCADE.
     올린 한글 파일(SourceFile)은 SET_NULL이라 E3 purge처럼 따로 지운다. 디스크 파일은 E3 post_delete가 커밋 뒤 지운다."""
     if not _owner(request, c):
-        return HttpResponseForbidden("모으기는 만든 선생님만 지울 수 있어요.")
+        return HttpResponseForbidden("취합은 만든 선생님만 지울 수 있어요.")
     with transaction.atomic():
         SourceFile.objects.in_space(request.space).filter(collection=c).delete()
         c.delete()

@@ -1,4 +1,4 @@
-"""A6 개인정보처리방침·이용약관 게시본, B6 동학년 화면의 새로 모으기 링크."""
+"""A6 개인정보처리방침·이용약관 게시본, B6 동학년 화면의 새 취합 링크."""
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -69,7 +69,7 @@ class O1DocumentTests(TestCase):
 
     def test_merge_and_account_deletion_disclosed(self):
         from accounts.management.commands.delete_account import GONE_NAME
-        self.assertIn("옛 모으기도 학교 공간 관리자에게 열립니다", self.privacy)
+        self.assertIn("옛 취합도 학교 공간 관리자에게 열립니다", self.privacy)
         self.assertIn(GONE_NAME, self.privacy)
         self.assertIn("이름이 든 입장 알림도 함께 지웁니다", self.privacy)
 
@@ -97,4 +97,4 @@ class GradeNewCollectLinkTests(TestCase):
         self.client.force_login(u)
         r = self.client.get(f"/s/{space.token}/")
         self.assertContains(r, f'href="/s/{space.token}/c/new"')
-        self.assertContains(r, "새로 모으기")
+        self.assertContains(r, "새 취합")

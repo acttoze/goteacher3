@@ -265,7 +265,7 @@ def load_qa(name):
 
 
 class QaHoldoutTests(SimpleTestCase):
-    """QA 판정용 표 10개(fixtures/paste_qa/): 기존 픽스처에 쓰지 않은 보관소 hwpx의 모으기 양식 표를
+    """QA 판정용 표 10개(fixtures/paste_qa/): 기존 픽스처에 쓰지 않은 보관소 hwpx의 취합 양식 표를
     make_paste_fixtures.py와 같은 방식(한글 클립보드 HTML 흉내, 이름은 ○○○, 16줄까지)으로 만든 것.
     기준(사람이 보기에 맞음): 머리글이 사람이 읽는 열 이름과 같고(빠짐·중복·자료가 섞인 열 없음),
     내용이 이미 적힌 열은 미리 채움·빈 열은 입력 칸, 줄 수는 빈 줄·합계 줄을 뺀 자료 줄 수.
@@ -357,7 +357,7 @@ def load_qa2(name):
 
 
 class QaHoldout2Tests(SimpleTestCase):
-    """과적합 확인용 표 10개(fixtures/paste_qa2/): fixtures/paste·paste_qa와 다른 보관소 hwpx의 모으기형 표.
+    """과적합 확인용 표 10개(fixtures/paste_qa2/): fixtures/paste·paste_qa와 다른 보관소 hwpx의 취합형 표.
     만드는 방식·판정 기준은 QaHoldoutTests와 같다(머리글·받는 사람 칸·입력 칸·줄 수). 형식 추정 오류는 따로 적는다.
     머리글이 빈 왼쪽 위 칸은 '1번째 칸'이 맞다(원본도 비어 있음).
     r05·r10 구조 expectedFailure는 리드 결정으로 둔다: 구조 규칙을 더 덧대면 다른 표가 깨질 위험이 커서(빈 열 오른쪽 채워진 열, 반복 머리글 줄).

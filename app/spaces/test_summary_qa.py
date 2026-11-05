@@ -44,7 +44,7 @@ class QaBase(MergeBase):
         return [Member.objects.create(space=self.hub, name=f"{tag}{group}{i}", cls="", group=group) for i in range(n)]
 
     def collection(self, created=None, **kw):
-        c = Collection.objects.create(space=self.hub, title="모으기", source=kw.pop("source", "sheet"), **kw)
+        c = Collection.objects.create(space=self.hub, title="취합", source=kw.pop("source", "sheet"), **kw)
         if created:
             Collection.objects.filter(pk=c.pk).update(created_at=created)
         return c
@@ -98,7 +98,7 @@ class SemesterBoundaryFigures(QaBase):
 
 
 class SameAsBoard(QaBase):
-    """합계는 모으기 화면(_head)의 칸을 모은 값이어야 한다. need를 미리 세는 길과 줄마다 세는 길이 어긋나면 여기서 잡힌다."""
+    """합계는 취합 화면(_head)의 칸을 모은 값이어야 한다. need를 미리 세는 길과 줄마다 세는 길이 어긋나면 여기서 잡힌다."""
 
     def cell(self, row, field):
         Cell.objects.create(row=row, field=field, value="1", by="누구")

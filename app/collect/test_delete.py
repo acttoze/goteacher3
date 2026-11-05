@@ -1,4 +1,4 @@
-"""모으기 지우기(개인정보처리방침 3항 "요청자가 지우거나 … 파기"). 합본 화면 아래 '이 모으기 지우기'.
+"""취합 지우기(개인정보처리방침 3항 "요청자가 지우거나 … 파기"). 합본 화면 아래 '이 취합 지우기'.
 
 불변식
 - 만든 사람만(마감 바꾸기·잠그기와 같은 규칙). 다른 회원 403, 다른 공간 404, GET 405, CSRF 필요.
@@ -57,7 +57,7 @@ class DeleteTests(TestCase):
         self.assertRedirects(r, f"/s/{self.a.token}/c/", fetch_redirect_response=False)
         self.assertTrue(self.gone())
         for model in (Field, Row, Cell, Notification, SourceFile, ResultFile):
-            self.assertEqual(model.objects.count(), 0, model.__name__)  # 옆 학년 모으기에는 칸·줄이 없다
+            self.assertEqual(model.objects.count(), 0, model.__name__)  # 옆 학년 취합에는 칸·줄이 없다
         self.assertEqual(Client().get(link).status_code, 404)
         self.assertEqual(self.client.get(self.url(tail="")).status_code, 404)
         self.assertNotContains(self.client.get(f"/s/{self.a.token}/c/"), "학예회 참가 인원")
@@ -65,7 +65,7 @@ class DeleteTests(TestCase):
 
     def test_owner_sees_button_and_dialog(self):
         body = self.client.get(self.url(tail="")).content.decode()
-        self.assertIn("이 모으기 지우기", body)
+        self.assertIn("이 취합 지우기", body)
         self.assertIn("받은 값·올린 한글 파일·결과 파일이 모두 지워지고 되돌릴 수 없어요. 백업에는 7일 동안 남아요.", body)
         self.assertIn(f'action="{self.url()}"', body)
 
@@ -74,7 +74,7 @@ class DeleteTests(TestCase):
         c2.force_login(self.u2)
         self.assertEqual(c2.post(self.url()).status_code, 403)
         self.assertFalse(self.gone())
-        self.assertNotIn("이 모으기 지우기", c2.get(self.url(tail="")).content.decode())
+        self.assertNotIn("이 취합 지우기", c2.get(self.url(tail="")).content.decode())
 
     def test_other_space_404(self):
         c2 = Client()

@@ -84,7 +84,7 @@ def export_csv(request, c):
     if c.footer_on:
         w.writerow([footer_text()])
     r = HttpResponse("﻿" + buf.getvalue(), content_type="text/csv; charset=utf-8")
-    name = BAD_NAME.sub("_", c.title).strip() or "모으기"
+    name = BAD_NAME.sub("_", c.title).strip() or "취합"
     r["Content-Disposition"] = content_disposition_header(True, f"{name}_합본.csv")
     r["X-Content-Type-Options"] = "nosniff"
     return r

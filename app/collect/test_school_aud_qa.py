@@ -42,7 +42,7 @@ class ListQa(SchoolBase):
 
 class ExpiredAndMergedQa(SchoolBase):
     def test_expired_school_still_collects_with_range(self):
-        """리드 결정: 만료돼도 기존 회원의 모으기는 계속."""
+        """리드 결정: 만료돼도 기존 회원의 취합은 계속."""
         School.objects.filter(pk=self.school.pk).update(paid_until=date(2020, 1, 1))
         c = self.make(who=self.t41, aud="all")
         self.assertEqual(c.rows.count(), len(self.roster))

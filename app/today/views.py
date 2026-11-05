@@ -172,7 +172,7 @@ def _live_ctx(request, now):
 
 
 def _school_wide(request, now):
-    """학교 전체 토글: 진행 중인 모으기의 제목·마감·진행 수만(prototype schoolWideHtml, 마감순). 받는 링크와 명단은 싣지 않는다.
+    """학교 전체 토글: 진행 중인 취합의 제목·마감·진행 수만(prototype schoolWideHtml, 마감순). 받는 링크와 명단은 싣지 않는다.
     상세 링크는 열 수 있는 사람(만든 사람·관리자)에게만."""
     cs = list(Collection.objects.in_space(request.space).filter(closed_at__isnull=True).filter(Q(due__isnull=True) | Q(due__gt=now))
               .select_related("space__school", "created_by"))

@@ -159,7 +159,7 @@ class OpenDefectTests(Base):
         self.assertEqual(d["skipped"], 1)
 
     def test_d7_big_html_message_is_about_this_screen(self):
-        """1MB 넘는 HTML의 안내가 모으기 문구('받는 사람 500줄, 칸 40개')로 나온다."""
+        """1MB 넘는 HTML의 안내가 취합 문구('받는 사람 500줄, 칸 40개')로 나온다."""
         big = "<table>" + "<tr><td>10/28</td><td>x</td></tr>" * 40000 + "</table>"
         out = self.as_(self.t41).post(f"{self.base}/schedule/paste/preview", {"html": big, "w": "2026-10-26"}).content.decode()
         self.assertIn("500줄", out)

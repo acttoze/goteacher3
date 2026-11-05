@@ -199,7 +199,7 @@ class QuotaTests(TestCase):
         u = google("t")
         Member.objects.create(space=self.g1, user=u, name="교사", cls="4-1")
         self.client.force_login(u)
-        c = Collection.objects.create(space=self.g1, title="모으기", source="sheet")
+        c = Collection.objects.create(space=self.g1, title="취합", source="sheet")
         with override_settings(HWP_SPACE_QUOTA=1, HWP_FREE_TOTAL_QUOTA=1):
             self.assertEqual(self.client.get(f"/s/{self.g1.token}/c/{c.key}/").status_code, 200)
             self.assertEqual(self.client.post(f"/s/{self.g1.token}/c/{c.key}/delete").status_code, 302)

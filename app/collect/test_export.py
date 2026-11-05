@@ -203,7 +203,7 @@ class ExportTests(TestCase):
     def test_other_space_404(self):
         for tail in ("export.csv", "copy"):
             self.assertEqual(self.client.get(self.url(tail, self.other)).status_code, 404, tail)  # 남의 공간
-            self.assertEqual(self.client.get(self.url(tail, self.other, space=self.a)).status_code, 404, tail)  # 내 공간 주소 + 남의 모으기
+            self.assertEqual(self.client.get(self.url(tail, self.other, space=self.a)).status_code, 404, tail)  # 내 공간 주소 + 남의 취합
         self.assertEqual(self.client.post(self.url("footer", self.other, space=self.a)).status_code, 404)
         self.other.refresh_from_db()
         self.assertTrue(self.other.footer_on)
@@ -242,7 +242,7 @@ class ExportTests(TestCase):
         self.assertEqual(self.rows_of(self.client.get(self.url("export.csv")))[2][3], "1-2 반 합동, 50%")
 
     def test_filename_specials(self):
-        for title, want in [('a\\b:c*d?"e<f>|g\nh\ti', "a_b_c_d__e_f__g_h_i_합본.csv"), ("   ", "모으기_합본.csv"),
+        for title, want in [('a\\b:c*d?"e<f>|g\nh\ti', "a_b_c_d__e_f__g_h_i_합본.csv"), ("   ", "취합_합본.csv"),
                             ("2학기 체험학습 (안)", "2학기 체험학습 (안)_합본.csv")]:
             Collection.objects.filter(pk=self.c.pk).update(title=title)
             cd = self.client.get(self.url("export.csv"))["Content-Disposition"]

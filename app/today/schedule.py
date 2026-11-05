@@ -1,6 +1,6 @@
 """일정(일간·주간·월간, Q3). 모습은 design/schedule.html, 동작은 prototype/assets/app.js cal().
 
-- 일간·주간: 날 × 블록 4칸 + 시간 미정. 월간: 일~토 달력(prototype). 칸마다 동학년 일정(Event), NEIS 학사일정(시간 미정), 복무(학교), 모으기 마감(마감 시각의 블록).
+- 일간·주간: 날 × 블록 4칸 + 시간 미정. 월간: 일~토 달력(prototype). 칸마다 동학년 일정(Event), NEIS 학사일정(시간 미정), 복무(학교), 취합 마감(마감 시각의 블록).
 - 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
 - 칸 안 추가·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 지금 모드·지금 날짜의 판(_week.html)을 돌려준다.
 - 바뀐 것·마감 목록: 보고 있는 날·주·달의 것만.
@@ -171,7 +171,7 @@ def board_ctx(request, mode, raw):
         for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).order_by("pk"):
             cells[(a.date, "")].append({"kind": "duty", "title": a.title, "time": a.time_text})
 
-    # 모으기 마감(첫날 0시 ~ 끝날 다음 날 0시)
+    # 취합 마감(첫날 0시 ~ 끝날 다음 날 0시)
     tz = timezone.get_current_timezone()
     start = datetime.combine(first, time(0), tzinfo=tz)
     cs = (Collection.objects.in_space(space).filter(due__gte=start, due__lt=datetime.combine(last + timedelta(days=1), time(0), tzinfo=tz))

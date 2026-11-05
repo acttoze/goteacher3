@@ -4,7 +4,7 @@
 {% block ctx %}<span class="ctx">{{ space.name }}</span>{% endblock %}
 {% block main %}
 <div class="done-h"><span class="ck"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><h1 class="inv-h">들어왔어요, {{ me.name }} 선생님</h1></div>
-<p class="by">{% if space.is_school %}{{ space.name }} · {{ my_label }} · 모으기가 오면 여기서 같이 채워요.{% else %}{{ space.name }} 동학년 · {{ my_label }} · 동학년 모으기가 생기면 여기서 같이 채워요.{% endif %}</p>
+<p class="by">{% if space.is_school %}{{ space.name }} · {{ my_label }} · 취합이 오면 여기서 같이 채워요.{% else %}{{ space.name }} 동학년 · {{ my_label }} · 동학년 취합이 생기면 여기서 같이 채워요.{% endif %}</p>
 <section class="card form" aria-labelledby="whoH"><h2 id="whoH">함께 쓰는 선생님 {{ rows|length }}명</h2>
   <div class="wrap-row"><span class="stack">{% for r in rows|slice:":12" %}<span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}" title="{{ r.m.name }}">{{ r.m.name|slice:":1" }}</span>{% endfor %}</span>
     <span class="muted">{% for r in rows|slice:":12" %}{{ r.m.name }}{% if not forloop.last %} · {% endif %}{% endfor %}{% if rows|length > 12 %} 외{% endif %}</span></div>

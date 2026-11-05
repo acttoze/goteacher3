@@ -261,7 +261,7 @@ class ScreenTests(VendorBase):
 
     def test_school_data_not_on_screen(self):
         page = self.c.get("/v/").content.decode()
-        for word in (f"/s/{self.hub.token}", "일정", "명부", "모으기"):
+        for word in (f"/s/{self.hub.token}", "일정", "명부", "취합"):
             self.assertNotIn(word, page, word)
         self.assertNotIn("sessionid", self.c.cookies)
 

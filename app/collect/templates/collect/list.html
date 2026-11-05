@@ -1,6 +1,6 @@
 {% extends "shell.html" %}
-{% block title %}모으기 · 고티처{% endblock %}
-{% block ptitle %}모으기{% endblock %}
+{% block title %}취합 · 고티처{% endblock %}
+{% block ptitle %}취합{% endblock %}
 {% block head %}
 <style>
   /* design/collect.html — 내가 걷는 것은 얼마나 걷혔고, 내가 낼 것은 무엇이 남았나? 표 s8 + 곁 s4. */
@@ -35,20 +35,20 @@
 {% block main %}
 <div class="title">
   <div class="grow">
-    <h1>모으기</h1>
+    <h1>취합</h1>
     <p class="sub">걷는 중 <b class="num">{{ n_open }}건</b> · 낼 것 <b class="num">{{ n_todo }}건</b>{% if first_todo %}, 가장 급한 건 <b>{{ first_todo.c.title }} {{ first_todo.due }}</b>{% endif %}</p>
   </div>
-  <a class="btn pri" href="/s/{{ space.token }}/c/new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>새로 모으기</a>
+  <a class="btn pri" href="/s/{{ space.token }}/c/new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>새 취합</a>
 </div>
 {% if error %}<p class="empty" role="alert" style="margin-bottom:16px">{{ error }}</p>{% endif %}
 
-<nav class="tabs" id="tabs" aria-label="모으기 보기">
+<nav class="tabs" id="tabs" aria-label="취합 보기">
   {% for k, label, n in tabs %}<a href="?tab={{ k }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if k == tab %} aria-current="page"{% endif %}>{{ label }} <span class="c num">{{ n }}</span></a>{% endfor %}
 </nav>
 
 <div class="grid">
   <section class="s8" aria-labelledby="listH">
-    <h2 class="sr" id="listH">모으기 목록</h2>
+    <h2 class="sr" id="listH">취합 목록</h2>
     <form class="bar" method="get" role="search" hx-get="/s/{{ space.token }}/c/" hx-trigger="input changed delay:250ms from:#q, search from:#q" hx-target="#list" hx-select="#list" hx-select-oob="#tabs,#count" hx-swap="outerHTML" hx-replace-url="true">
       <input type="hidden" name="tab" value="{{ tab }}">
       <label class="search"><span class="sr">제목·보낸 사람으로 찾기</span>
@@ -77,7 +77,7 @@
             <td class="act r">{% if tab != "all" or x.c.created_by_id == me.pk %}<form method="post" action="/s/{{ space.token }}/c/{{ x.c.key }}/again">{% csrf_token %}<button class="btn ghost sm" type="submit" title="칸·받는 사람은 그대로, 낸 값·마감은 비우고 새로 걷어요">다시 걷기</button></form>{% endif %}</td>
           </tr>
         {% endif %}{% empty %}
-          <tr class="empty-row"><td colspan="{% if tab == 'todo' %}3{% else %}6{% endif %}"><p class="empty">{% if q %}「{{ q }}」에 맞는 {{ noun }}이 없어요. 검색어를 지우면 모두 보여요.{% elif tab == "todo" %}낼 것이 없어요.{% elif tab == "sent" %}걷는 중인 모으기가 없어요. 「새로 모으기」에서 표를 붙여넣으면 바로 만들어져요.{% else %}아직 {{ noun }}이 없어요.{% endif %}</p></td></tr>
+          <tr class="empty-row"><td colspan="{% if tab == 'todo' %}3{% else %}6{% endif %}"><p class="empty">{% if q %}「{{ q }}」에 맞는 {{ noun }}이 없어요. 검색어를 지우면 모두 보여요.{% elif tab == "todo" %}낼 것이 없어요.{% elif tab == "sent" %}걷는 중인 취합이 없어요. 「새 취합」에서 표를 붙여넣으면 바로 만들어져요.{% else %}아직 {{ noun }}이 없어요.{% endif %}</p></td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -101,8 +101,8 @@
       </div>
       {% endif %}
       {% if not side and not all_done %}
-      <div class="blk"><p>걷는 중인 모으기가 없어요. 지난 것의 「다시 걷기」를 누르면 칸은 그대로 두고 새로 걷어요.</p>
-        <p style="margin-top:10px"><a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p></div>
+      <div class="blk"><p>걷는 중인 취합이 없어요. 지난 것의 「다시 걷기」를 누르면 칸은 그대로 두고 새로 걷어요.</p>
+        <p style="margin-top:10px"><a class="tlink acc" href="/s/{{ space.token }}/c/new">새 취합</a></p></div>
       {% endif %}
     </div>
   </aside>

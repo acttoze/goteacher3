@@ -13,7 +13,7 @@
     <div class="sent">
       {% for x in sent %}<div><a class="t" href="/s/{{ space.token }}/c/{{ x.c.key }}/">{{ x.c.title }}</a><div class="m">마감 {{ x.due }}</div>
         <div class="big"><b class="num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</b><span>냈어요</span></div><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div></div>
-      {% empty %}<p class="empty">걷는 중인 모으기가 없어요. <a class="tlink acc" href="/s/{{ space.token }}/c/new">새로 모으기</a></p>{% endfor %}
+      {% empty %}<p class="empty">걷는 중인 취합이 없어요. <a class="tlink acc" href="/s/{{ space.token }}/c/new">새 취합</a></p>{% endfor %}
     </div>
   </section>
 </div>

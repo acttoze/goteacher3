@@ -6,7 +6,7 @@
   (초대 입장은 반·이름으로 같은 사람을 찾으므로 겹치면 남의 자리로 들어가게 된다).
 - 알림: 묶음 시각 3개 안내 + 이 PC 브라우저 알림 켜기·끄기(VAPID 키가 있을 때만).
 - 동학년: 선생님 목록, 초대 링크·QR(새로 만들기는 만든 사람만), 회원 내보내기는 동학년 화면으로.
-- 나가기: 동학년 이름을 써야 나간다. 내가 만든 모으기는 남은 선생님 중 가장 먼저 들어온 분(새 학년 대표)이 넘겨받는다.
+- 나가기: 동학년 이름을 써야 나간다. 내가 만든 취합은 남은 선생님 중 가장 먼저 들어온 분(새 학년 대표)이 넘겨받는다.
   마지막 한 명이 나가면 동학년을 지운다(같은 학년을 새로 만들 수 있게). 손님은 계정도 지우고 로그아웃.
 - 이 PC 스위치는 실제 상태를 따른다(기기 쿠키 없으면 꺼짐).
 """
@@ -214,7 +214,7 @@ class LeaveTests(SettingsBase):
         c = Client()
         c.force_login(self.guest)
         c.cookies[DEVICE_COOKIE] = DeviceToken.issue(self.guest)
-        mine = Collection.objects.create(space=self.space, created_by=self.g, title="손님 모으기", source="sheet")
+        mine = Collection.objects.create(space=self.space, created_by=self.g, title="손님 취합", source="sheet")
         r = self.leave(c)
         self.assertEqual((r.status_code, r["Location"]), (302, "/"))
         self.assertEqual(r.cookies[DEVICE_COOKIE].value, "")
@@ -225,7 +225,7 @@ class LeaveTests(SettingsBase):
         self.assertEqual(c.get(self.url).status_code, 302)  # 로그아웃
 
     def test_creator_leaves_next_member_takes_over(self):
-        mine = Collection.objects.create(space=self.space, created_by=self.me, title="대표 모으기", source="sheet")
+        mine = Collection.objects.create(space=self.space, created_by=self.me, title="대표 취합", source="sheet")
         r = self.leave()
         self.assertEqual((r.status_code, r["Location"]), (302, "/"))
         self.assertTrue(Space.objects.filter(pk=self.space.pk).exists())
@@ -250,7 +250,7 @@ class LeaveTests(SettingsBase):
 
 
 class QaSettingsEdgeTests(SettingsBase):
-    """QA 추가: 반·이름을 바꾼 뒤 모으기 줄·명부·초대 재진입, 나가기 경계."""
+    """QA 추가: 반·이름을 바꾼 뒤 취합 줄·명부·초대 재진입, 나가기 경계."""
 
     def test_class_change_keeps_existing_row_and_moves_next_roster(self):
         from collect.lists import _mine_q
@@ -269,7 +269,7 @@ class QaSettingsEdgeTests(SettingsBase):
         self.assertTrue(Row.objects.filter(_mine_q(self.g)).filter(pk=row.pk).exists())  # 내가 낼 것에 남는다
         self.assertEqual(g.get(f"/c/{c.link_token}/u/{row.key}").status_code, 200)  # 받는 사람 화면
         units = [(x["unit"], x["who"]) for x in roster_rows(self.space, "class")]
-        self.assertIn(("4-3", "정하은"), units)  # 다음 모으기 명부는 새 반
+        self.assertIn(("4-3", "정하은"), units)  # 다음 취합 명부는 새 반
         self.assertNotIn(("4-2", "정하은"), units)
 
     def test_guest_reenters_with_new_class_as_same_person(self):

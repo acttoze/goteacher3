@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>새로 모으기 · 고티처</title>
+<title>새 취합 · 고티처</title>
 <link rel="stylesheet" href="assets/gt.css">
 <style>
   /*
-    새로 모으기 — 질문: 무엇을, 누구에게서 받나?
+    새 취합 — 질문: 무엇을, 누구에게서 받나?
     캔버스 1150: 왼쪽 span 8(758.7) + 24 + 오른쪽 span 4(367.3, 붙어 따라옴) = 1150.
   */
   .title .sub { max-width: 60ch; }
@@ -125,7 +125,7 @@
 <main class="main">
   <div class="title">
     <div class="grow">
-      <h1>새로 모으기</h1>
+      <h1>새 취합</h1>
       <p class="sub">받을 칸만 정하면 돼요. 반·담임 칸은 동학년 명부로 미리 채워지고, 마감은 만든 뒤 합본 화면에서 정해요.</p>
     </div>
     <a class="btn ghost" href="collect.html">취소</a>
@@ -236,7 +236,7 @@
 <script>
 (function () {
   var G = window.GT, U = window.GTU, $ = U.$, $$ = U.$$, esc = U.esc;
-  GTShell.mount({ crumb: [['모으기', 'collect.html'], ['새로 모으기']], phoneTitle: '새로 모으기' });
+  GTShell.mount({ crumb: [['취합', 'collect.html'], ['새 취합']], phoneTitle: '새 취합' });
 
   var LINK = 'goteacher.xyz/c/5RW8';
   var TYPES = { number: '숫자', text: '글자', select: '고르기', date: '날짜' };
@@ -368,7 +368,7 @@
   }
   $('#create').onclick = function () {
     if (!check()) return;
-    U.copy($('#msg').textContent, '「' + S.title.trim() + '」 모으기를 만들고 쪽지 문구를 복사했어요. 이제 마감을 정하세요.');
+    U.copy($('#msg').textContent, '「' + S.title.trim() + '」 취합을 만들고 쪽지 문구를 복사했어요. 이제 마감을 정하세요.');
     setTimeout(function () { location.href = 'collect-detail.html'; }, 1600);
   };
 

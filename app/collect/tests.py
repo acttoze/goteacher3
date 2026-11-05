@@ -1,4 +1,4 @@
-"""C1 모으기 모델 불변식: 공간 격리(Collection·Row·Cell), 링크 토큰, 삭제 범위, 칸 하나에 값 하나."""
+"""C1 취합 모델 불변식: 공간 격리(Collection·Row·Cell), 링크 토큰, 삭제 범위, 칸 하나에 값 하나."""
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse

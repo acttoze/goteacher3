@@ -1,10 +1,10 @@
-"""E3 보관 기간 자동 삭제(개인정보처리방침 3항: 모으기 제출 값·올린 파일·결과 파일은 요청자가 지우거나
+"""E3 보관 기간 자동 삭제(개인정보처리방침 3항: 취합 제출 값·올린 파일·결과 파일은 요청자가 지우거나
 마감 후 1년이 지나면 파기, 백업은 7일 뒤 함께 지워짐). 관리 명령 purge 가 하루 한 번 부른다.
 
-- 지난 모으기: 마감·잠근 때·만든 때·마지막 제출(Cell.at)·마지막 수정(updated_at, 다시 열기 포함) 중 가장 늦은 때부터
-  1년(마감 없는 모으기는 활동 기준만). 활동과 상관없이 만든 뒤 3년이면 지운다(마감을 먼 앞날로 둔 경우의 상한).
-  모으기 자체를 지운다(칸·줄·제출 값·알림·결과 파일이 CASCADE로 함께). 제목에도 이름이 들어갈 수 있어서다.
-  그 모으기로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
+- 지난 취합: 마감·잠근 때·만든 때·마지막 제출(Cell.at)·마지막 수정(updated_at, 다시 열기 포함) 중 가장 늦은 때부터
+  1년(마감 없는 취합은 활동 기준만). 활동과 상관없이 만든 뒤 3년이면 지운다(마감을 먼 앞날로 둔 경우의 상한).
+  취합 자체를 지운다(칸·줄·제출 값·알림·결과 파일이 CASCADE로 함께). 제목에도 이름이 들어갈 수 있어서다.
+  그 취합으로 만든 올린 파일(SourceFile, SET_NULL)도 같이 지운다.
 - 지난 복무(J1): 그날로부터 7일 지난 spaces.Attendance.
 - 지난 수리 요청(K1): 완료 90일 뒤, 끝나지 않은 요청도 마지막 변경 1년 뒤 행·사진(사진에 교실 모습이 찍힌다). 플랜이 끝나 처리할 수 없게 된 요청도 지워진다.
 - 업체 계정(K2): 해제 30일 뒤, 또는 해제하지 않았어도 학교 플랜이 끝나고 30일 뒤(School.paid_until) 행. 접속 기록은 30일.
@@ -15,7 +15,7 @@
 - 지난 알림(O2): 읽은 것은 90일, 안 읽은 것은 180일 지나면 지운다(만든 때 기준). 이름이 든 입장 알림은 그 회원이 나갈 때 먼저 지워진다(Notification.about).
 - 커뮤니티 신고(Q10): 신고한 지 1년. 글·댓글은 쓴 사람이 지우기 전까지 두되, 운영자가 내린 것은 내린 뒤 90일이면 지운다.
 - 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
-- 안 쓴 올린 파일: 모으기에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
+- 안 쓴 올린 파일: 취합에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
 - 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto.
   공지 첨부는 따로 기간을 두지 않고 공지와 함께 지운다(쓴 사람·관리자가 지울 때, 플랜이 끝나고 1년 뒤).
@@ -92,7 +92,7 @@ def connect():
 
 # ---------------------------------------------------------------- purge
 def expired_collections(now):
-    """마감·잠근 때·만든 때·마지막 제출·마지막 수정이 모두 1년 전보다 이전인 모으기, 또는 만든 지 3년 넘은 모으기."""
+    """마감·잠근 때·만든 때·마지막 제출·마지막 수정이 모두 1년 전보다 이전인 취합, 또는 만든 지 3년 넘은 취합."""
     cut = now - RETENTION
     Q = models.Q
     quiet = (Q(created_at__lt=cut, updated_at__lt=cut)
@@ -290,7 +290,7 @@ def purge(now, dry_run=False):
     if not dry_run:
         for x in stuck:
             x.discard("Timeout")
-    # 2) 지난 모으기와 그 모으기로 만든 올린 파일
+    # 2) 지난 취합과 그 취합으로 만든 올린 파일
     old = expired_collections(now)
     n["collections"] = old.count()
     n["sources"] = SourceFile.objects.filter(collection__in=old).count()
@@ -299,7 +299,7 @@ def purge(now, dry_run=False):
             ids = list(old.values_list("pk", flat=True))
             SourceFile.objects.filter(collection_id__in=ids).delete()  # 결과 파일 CASCADE
             Collection.objects.filter(pk__in=ids).delete()
-    # 3) 모으기에 안 쓴 올린 파일(24시간)
+    # 3) 취합에 안 쓴 올린 파일(24시간)
     unused = unused_sources(now)
     n["sources"] += unused.count()
     if not dry_run:

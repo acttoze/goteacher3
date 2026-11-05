@@ -1,4 +1,4 @@
-"""C2 새로 모으기(표 붙여넣기) 화면: 공간 격리, 만들기 결과(Collection·Field·Row, Cell 없음), htmx 미리보기."""
+"""C2 새 취합(표 붙여넣기) 화면: 공간 격리, 만들기 결과(Collection·Field·Row, Cell 없음), htmx 미리보기."""
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -57,7 +57,7 @@ class NewCollectionTests(TestCase):
     # ---- 화면
     def test_get_form(self):
         r = self.client.get(self.url())
-        self.assertContains(r, "새로 모으기")
+        self.assertContains(r, "새 취합")
         self.assertContains(r, "[고티처]")
         self.assertContains(r, 'name="paste"')
         self.assertNotContains(r, "티로드")

@@ -45,7 +45,7 @@ class HtmlTableShapes(SimpleTestCase):
         d = read_html(table(head, "<tr><td rowspan=2>교무부</td><td>기획</td><td>학사</td><td>가</td></tr>",
                             "<tr><td>교육과정</td><td>평가</td><td>나</td></tr>"))
         self.assertEqual(d["rows"], [{"dept": "교무부", "task": "학사", "who": "가"}, {"dept": "교무부", "task": "평가", "who": "나"}])
-        # 아래 칸이 병합 없이 갈라지면 2줄 머리글로 읽힌다(모으기와 같은 규칙). 틀린 값을 넣지 않고 오류로 알린다
+        # 아래 칸이 병합 없이 갈라지면 2줄 머리글로 읽힌다(취합과 같은 규칙). 틀린 값을 넣지 않고 오류로 알린다
         with self.assertRaises(PasteError):
             read_html(table(head, "<tr><td>교무부</td><td>기획</td><td>학사</td><td>가</td></tr>"))
 

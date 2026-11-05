@@ -1,5 +1,5 @@
 // 고티처 서비스 워커(G2): 웹 푸시 묶음 알림만 띄운다. 요청 가로채기·캐시는 하지 않는다.
-// 서버가 보내는 것은 {title, body, url} — 모으기 제목·건수만.
+// 서버가 보내는 것은 {title, body, url} — 취합 제목·건수만.
 self.addEventListener('install', function () { self.skipWaiting(); });
 
 self.addEventListener('push', function (e) {

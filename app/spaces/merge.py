@@ -26,7 +26,7 @@ def _fks_to(model):
 def _one_seat_per_user(school, hub):
     """한 사용자가 여러 자리면(손님을 구글에 이으면 생긴다) 하나로. 학교 공간 자리, 먼저 들어온 자리 순으로 남긴다.
 
-    지울 자리를 가리키는 값(만든 모으기·줄·알림 등)은 남기는 자리로 옮긴다. 돌려주는 값: {지운 자리 pk: 남긴 자리 pk}.
+    지울 자리를 가리키는 값(만든 취합·줄·알림 등)은 남기는 자리로 옮긴다. 돌려주는 값: {지운 자리 pk: 남긴 자리 pk}.
     """
     seats = Member.objects.filter(space__school=school, user__isnull=False).order_by("joined_at", "pk")
     keep, gone = {}, {}
@@ -120,12 +120,12 @@ def remove_manager(member):
 
 def vacate(seat):
     """자리 하나 비우기(나가기·계정 삭제). 부르는 쪽이 공간 행을 잠갔다. 남은 사람이 없으면 공간까지 지우고 True.
-    동학년에서 그가 만든 모으기는 가장 먼저 들어온 분이 넘겨받고(그분이 새 대표, lead_member), 학교 공간은 비워 둬 관리자가 넘겨받는다(collect.views._owner).
+    동학년에서 그가 만든 취합은 가장 먼저 들어온 분이 넘겨받고(그분이 새 대표, lead_member), 학교 공간은 비워 둬 관리자가 넘겨받는다(collect.views._owner).
     자리를 지우므로 같은 반·이름으로 다시 들어와도 옛 자리의 대표 권한은 이어지지 않는다."""
     space = seat.space
     heir = Member.objects.in_space(space).exclude(pk=seat.pk).order_by("joined_at", "pk").first()
     if heir is None:
-        space.delete()  # 모으기·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)
+        space.delete()  # 취합·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)
         return True
     if not space.is_school:
         Collection.objects.in_space(space).filter(created_by=seat).update(created_by=heir)

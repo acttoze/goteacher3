@@ -274,7 +274,7 @@ class GradeWordsUnchangedQa(MergeBase):
     def test_last_member_leave_text_keeps_josa(self):
         html = self.settings_html(self.far_user, self.far)
         self.assertNotIn("동학년와", html)
-        self.assertIn("이 동학년과 모으기가 모두 지워져요", html)
+        self.assertIn("이 동학년과 취합이 모두 지워져요", html)
 
     def test_leave_text_is_the_same_as_before(self):
         html = self.settings_html(self.u4, self.g4)

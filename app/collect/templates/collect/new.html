@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% load static %}
-{% block title %}새로 모으기 · 고티처{% endblock %}
-{% block ptitle %}새로 모으기{% endblock %}
+{% block title %}새 취합 · 고티처{% endblock %}
+{% block ptitle %}새 취합{% endblock %}
 {% block head %}
 <script src="{% static 'js/collect_new.js' %}" defer></script>
 <meta name="htmx-config" content='{"includeIndicatorStyles": false}'>
@@ -100,7 +100,7 @@
 {% block main %}
 <div class="title">
   <div class="grow">
-    <h1>새로 모으기</h1>
+    <h1>새 취합</h1>
     <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 학교 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감은 만든 뒤 정해요.</p>
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>

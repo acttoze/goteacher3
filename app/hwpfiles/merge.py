@@ -1,4 +1,4 @@
-"""F1 병합: 모으기의 제출 값(Cell) + 칸 매핑(SourceFile.cellmap, E6) → hwp.fill 에 넣을 {(행, 열): 글자}.
+"""F1 병합: 취합의 제출 값(Cell) + 칸 매핑(SourceFile.cellmap, E6) → hwp.fill 에 넣을 {(행, 열): 글자}.
 
 Django 모델을 직접 읽지 않는다(줄은 unit·who·key 속성만, 값은 {Field.pos: 글자}). 그래서 단위 테스트가 쉽다.
 
@@ -62,7 +62,7 @@ def _put(plan, rc, v):
 
 
 def plan(cellmap, rows, vals_by_key):
-    """rows: 모으기의 줄(Row, 명부 순서), vals_by_key: {Row.key: {Field.pos: 값}}."""
+    """rows: 취합의 줄(Row, 명부 순서), vals_by_key: {Row.key: {Field.pos: 값}}."""
     p = Plan()
     lines = {ln["row"]: ln for ln in cellmap.get("lines", [])}
     if cellmap.get("mode") == "cells":

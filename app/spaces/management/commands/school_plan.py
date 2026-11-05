@@ -108,7 +108,7 @@ class Command(BaseCommand):
         if old_links:
             self.stdout.write(f"옛 업체 링크 {old_links}개를 해제했습니다. 다시 쓰려면 학교에서 재발급해야 합니다. TV 주소는 그대로입니다.")
         counts = {
-            "회원": hub.members.count(), "모으기": hub.collections.count(), "일정": hub.events.count(),
+            "회원": hub.members.count(), "취합": hub.collections.count(), "일정": hub.events.count(),
             "알림": hub.notifications.count(), "푸시 구독": hub.push_subscriptions.count(),
             "한글 파일": hub.hwp_files.count(), "한글 결과": hub.hwp_results.count(),
         }
