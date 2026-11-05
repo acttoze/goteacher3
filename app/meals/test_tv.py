@@ -428,7 +428,8 @@ class FrameTests(TvBase):
 
     def test_button_above_tv_card_and_script_loaded(self):
         html = self.writer.get(f"{self.base}/screens").content.decode()
-        self.assertLess(html.index("data-tv-open"), html.index("<h2>TV 주소</h2>"))
+        self.assertLess(html.index("data-tv-open"), html.index("<b>← →</b> 키"))
+        self.assertLess(html.index("<b>← →</b> 키"), html.index("<h2>TV 주소</h2>"))
         self.assertIn(f'href="{self.url}"', html)
         self.assertIn("js/meals.js", html)
         self.assertIn("<b>F</b> 키", html)

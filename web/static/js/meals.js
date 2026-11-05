@@ -53,6 +53,8 @@
     f.title = '급식 TV 화면';
     f.setAttribute('allow', 'fullscreen');
     f.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#000;z-index:70';
+    // 좌우 키는 TV 화면(tv.js)이 받으므로 포커스를 iframe 안으로 넘긴다
+    f.addEventListener('load', function () { f.contentWindow.focus(); });
     document.body.appendChild(f);
     function ended() {
       if (document.fullscreenElement) return;
