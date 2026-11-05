@@ -1,6 +1,6 @@
 """간이 '오늘'의 동학년 일정(27번 4-1 Event). 공간 격리는 SpaceQuerySet.in_space()로만 조회한다.
 
-slot·slot_end: 블록(b1·b2·b3·pm). 비면 시간 미정(전일). 한 줄 입력의 '오전'(1~2블록)처럼 범위가 있어
+slot·slot_end: 블록(b1·b2·b3·pm). 비면 종일. 한 줄 입력의 '오전'(1~2블록)처럼 범위가 있어
 장소 충돌(TR.conflicts)을 보려면 끝 블록이 필요하다.
 by: 동학년은 마지막으로 쓴 사람(올린 사람, 바꾸면 바꾼 사람). 학교 공간은 올린 사람 그대로, 바꾼 사람은 changed_by에
 (관리자가 고쳐도 쓴 사람의 권한과 '나' 일정이 넘어가지 않게). changed_from: 마지막 변경 [[무엇, 전, 후], …], 새로 올린 것은 비움.
@@ -29,9 +29,8 @@ def reachable_q(me):
 
 
 def scope_choices(me):
-    """대상 고르기. 맨 앞이 기본값: 내 그룹, 그룹이 없으면 나."""
-    first = [(me.group, f"{me.get_group_display()}(우리 소속)")] if me.group else []
-    return [*first, (ME, "나만"), (ALL, "학교 전체"), *[g for g in Member.Group.choices if g[0] != me.group]]
+    """대상 고르기. 맨 앞이 기본값: 학교 전체."""
+    return [(ALL, "학교 전체"), (ME, "개인(나만)"), *Member.Group.choices]
 
 
 class Event(models.Model):

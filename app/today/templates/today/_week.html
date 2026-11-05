@@ -4,14 +4,17 @@
     <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
       <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>취합 마감</span></span></div>
     <div class="wk">{% if mode == "month" %}<div class="mgrid">
-      {% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
-      {% for c in mcells %}<div class="mc{% if c.out %} out{% endif %}{% if c.weekend %} we{% endif %}{% if c.today %} tcol{% endif %}" data-cell data-date="{{ c.date }}" data-slot="" data-when="{{ c.when }}"><div class="md num">{{ c.n }}{% if c.today %} · 오늘{% endif %}</div>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button></div>{% endfor %}
+      <div class="mh ml-h"></div>{% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
+      {% for wk in mweeks %}<div class="ml-h mdh-l"></div>{% for f in wk.heads %}<div class="mdh{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
+      {% for r in wk.rows %}<div class="ml" data-ch="{{ r.ch }}">{{ r.label }}</div>
+      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}" data-ch="{{ r.ch }}"{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
+      {% endfor %}{% endfor %}
     </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}
       {% for r in wrows %}
-      <div class="lbl">{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}</div>
-      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-when="{{ c.when }}">{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button></div>{% endfor %}
+      <div class="lbl"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}>{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}{% if r.note %}<span>{{ r.note }}</span>{% endif %}</div>
+      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %}{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
       {% endfor %}
     </div>{% endif %}
     {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">{{ period_short }} 학사일정이 없어요.</p>{% endif %}
@@ -27,7 +30,7 @@
           {% if x.conf %}<p class="notice" role="alert">{{ x.conf }}</p>{% endif %}
           <div class="grid" style="gap:12px">
             <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
-            <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">시간 미정</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
+            <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">종일</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
             <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
             {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
           </div>

@@ -11,7 +11,7 @@
       <div class="span4">{% if neis_names %}<span>{{ neis_names|join:" · " }}</span><span class="k">{% if space.is_school %}나이스{% else %}NEIS{% endif %}</span>{% elif neis_fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% else %}<span class="muted">오늘 학사일정이 없어요</span>{% endif %}</div>
       <div class="lbl">점심 12:20</div>
       <div class="span4 lunch">{% if meal.fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% elif meal %}<b>급식</b><span class="dish">{{ meal.dishes|join:" · " }}</span><span class="k num">{{ meal.kcal }}kcal</span>{% if meal.allergy %}<span class="alg">알레르기 {{ meal.allergy|join:" · " }}</span>{% endif %}{% else %}<span class="muted">오늘 급식 정보가 없어요</span>{% endif %}</div>
-      <div class="lbl">시간 미정</div>
+      <div class="lbl">종일</div>
       <div class="untimed">{% for x in untimed %}<div>{% include "today/_ev.html" %}</div>{% empty %}<span class="muted">블록 없이 올린 일정이 여기 모여요</span>{% endfor %}</div>
     </div><!-- /dgrid --></div>
     {% for x in events %}
@@ -23,7 +23,7 @@
           <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.last_by.name|default:"알 수 없음" }}</p>
           <div class="grid" style="gap:12px">
             <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
-            <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">시간 미정</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
+            <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">종일</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
             <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
             {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
           </div>

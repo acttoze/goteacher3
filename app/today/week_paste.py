@@ -108,7 +108,7 @@ def _read_date(raw, mon):
 
 
 def _read_slot(raw, mon):
-    """시간 칸 → (시작 블록, 끝 블록). 못 읽으면 전일."""
+    """시간 칸 → (시작 블록, 끝 블록). 못 읽으면 종일."""
     p = parse(_tidy_time(raw), mon)
     return p["s"], p["e"]
 

@@ -49,16 +49,32 @@
   .cell-err { margin: 0; font-size: var(--fs-small); color: var(--negative); font-weight: 600; overflow-wrap: anywhere; }
   .cell-err:empty { display: none; }
 
-  /* 월간(Q3): 일~토 달력(prototype). 긴 제목은 줄을 바꾼다 */
-  .mgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .mgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 6px 8px; min-width: 0; }
-  .mgrid > div:nth-child(7n + 1) { border-left: 0; }
-  .mgrid > .mh { border-top: 0; padding: 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); text-align: center; }
-  .mh.we, .mc.we .md { color: var(--muted); }
-  .md { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-  .mc.tcol .md { color: var(--accent); }
-  .mc.out .md { color: var(--faint); font-weight: 500; }
+  /* 월간: 일~토 달력(prototype), 주마다 날짜 줄 + 채널 줄. 빈 칸은 낮게, 긴 제목은 줄을 바꾼다 */
+  .mgrid { display: grid; grid-template-columns: 56px repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .mgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 2px 4px; min-width: 0; min-height: 26px; }
+  .mgrid > .mh { border-top: 0; min-height: 0; padding: 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); text-align: center; }
+  .mgrid > .ml-h, .mgrid > .ml { border-left: 0; }
+  .mgrid > .ml { padding: 2px 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); line-height: 22px; }
+  .mgrid > .mdh, .mgrid > .mdh-l { border-top-color: var(--control); background: var(--surface); padding: 2px 8px; min-height: 0; }
+  .mgrid > .mdh.tcol { background: var(--accent-soft); }
+  .mh.we, .mdh.we .md { color: var(--muted); }
+  .md { font-size: 16px; font-weight: 700; }
+  .mdh.tcol .md { color: var(--accent); }
+  .mdh.out .md { color: var(--faint); font-weight: 500; }
   .mc .ev { padding: 6px 8px; margin-bottom: 4px; }
+  .mc .cell-add { height: 22px; border-color: transparent; font-size: 16px; }
+  .mc .cell-add:hover, .mc .cell-add:focus-visible { border-color: var(--control); }
+
+  /* 채널·그룹 필터(schedule.js): 제목 줄의 아이콘 단추 + 아래로 여는 체크 목록 */
+  .f-off { display: none !important; }
+  .flt { position: relative; flex: none; }
+  .flt-btn { position: relative; width: var(--control-h); padding: 0; }
+  .flt-btn.on { background: var(--accent-soft); color: var(--accent-ink); }
+  .flt-btn.on::after { content: ""; position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .flt-pop { top: calc(100% + 6px); right: 0; min-width: 180px; }
+  .flt-pop label { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: 8px; font-size: 16px; cursor: pointer; white-space: nowrap; }
+  .flt-pop label:hover { background: var(--surface); }
+  .flt-pop input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-small); color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -98,12 +114,16 @@
   <form class="seg" role="group" aria-label="기간 옮기기" method="get" action="/s/{{ space.token }}/schedule">
     <input type="hidden" name="mode" value="{{ mode }}"><button name="w" value="{{ prev_w }}">{{ nav_words.0 }}</button><button name="w" value="{{ this_w }}" aria-pressed="{% if is_this %}true{% else %}false{% endif %}">{{ nav_words.1 }}</button><button name="w" value="{{ next_w }}">{{ nav_words.2 }}</button>
   </form>
+  <div class="flt"><button type="button" class="btn sec flt-btn" aria-label="채널 필터" title="채널 필터" aria-expanded="false" aria-controls="fltCh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></button>
+    <div class="pop flt-pop" id="fltCh" role="group" aria-label="보일 채널" hidden>{% for ch in filter_channels %}<label><input type="checkbox" data-flt="ch" value="{{ ch.k }}" checked>{{ ch.label }}</label>{% endfor %}</div></div>
+  {% if filter_groups %}<div class="flt"><button type="button" class="btn sec flt-btn" aria-label="그룹 필터" title="그룹 필터" aria-expanded="false" aria-controls="fltGrp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 20v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
+    <div class="pop flt-pop" id="fltGrp" role="group" aria-label="보일 소속" hidden>{% for v, t in filter_groups %}<label><input type="checkbox" data-flt="grp" value="{{ v }}" checked>{{ t }}</label>{% endfor %}</div></div>{% endif %}
   {% if space.is_school %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ paste_w }}">표 붙여넣기</a>
   <a class="btn sec" href="/s/{{ space.token }}/schedule/print?view={{ print_view }}&amp;d={{ w }}">인쇄</a>{% endif %}
 </div>
 
-{# 칸 안 추가 카드. schedule.js가 눌린 칸에 복제해 넣고 mode·w·date·slot을 채운다. #}
-<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="date"><input type="hidden" name="slot"><label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter"></label>{% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}<p class="cell-err" id="cellErr" role="alert"></p></form></template>
+{# 칸 안 추가 카드. schedule.js가 눌린 칸에 복제해 넣고 mode·w·date·slot·scope를 채운다. #}
+<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="date"><input type="hidden" name="slot">{% if space.is_school %}<input type="hidden" name="scope">{% endif %}<label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter"{% if space.is_school %} data-ph-all="학교 전체 · 제목 쓰고 Enter" data-ph-me="나만 보기 · 제목 쓰고 Enter"{% endif %}></label><p class="cell-err" id="cellErr" role="alert"></p></form></template>
 
 {% include "today/_week.html" %}
 {% endblock %}

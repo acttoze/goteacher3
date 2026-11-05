@@ -215,7 +215,12 @@
   function hideQ() { var q = document.getElementById('qpop'); if (q) q.hidden = true; }
   document.addEventListener('htmx:afterRequest', function (e) {
     var f = e.detail.elt;
-    if (f && f.id === 'quickForm' && e.detail.successful && !e.detail.xhr.getResponseHeader('HX-Retarget')) { f.reset(); f.querySelector('input[name=line]').focus(); }
+    if (f && f.id === 'quickForm' && e.detail.successful && !e.detail.xhr.getResponseHeader('HX-Retarget')) {
+      var scope = f.elements.scope, kept = scope && scope.value;  // 고른 볼 사람은 다음 줄에도 그대로
+      f.reset();
+      if (scope) scope.value = kept;
+      f.querySelector('input[name=line]').focus();
+    }
   });
   document.addEventListener('keydown', function (e) {
     var q = document.getElementById('quick');

@@ -37,9 +37,9 @@ def block_of_time(hhmm):
 
 
 def slot_text(s, e=None, time=None):
-    """TR.slotText: 블록 표기. 없으면 '시간 미정', 1~3블록을 다 쓰면 '종일'."""
+    """TR.slotText: 블록 표기. 없으면 '종일', 1~3블록을 다 쓰면 '종일'."""
     if not s:
-        return time or "시간 미정"
+        return time or "종일"
     e = e or s
     if slot_idx(s) == 0 and slot_idx(e) >= 2:
         return "종일"

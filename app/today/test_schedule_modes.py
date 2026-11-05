@@ -89,11 +89,14 @@ class CellAddTests(Base):
         for i in range(6):
             Event.objects.create(space=self.a, by=self.me, date=MON + timedelta(days=1), slot="b1", title=f"꽉 찬 일 {i}")
         html = self.client.get(self.url(), {"mode": "week"}).content.decode()
-        self.assertEqual(html.count('class="cell-add"'), 25)  # 5일 × (블록 4 + 시간 미정)
-        self.assertIn('aria-label="10/27(화) 1블록에 일정 추가"', html)
-        self.assertIn('aria-label="10/27(화) 시간 미정에 일정 추가"', html)
+        self.assertEqual(html.count('class="cell-add"'), 5)  # 5일 × 일정 줄(취합 줄에는 없다)
+        self.assertIn('aria-label="10/27(화) 동학년에 일정 추가"', html)
+        day = self.client.get(self.url(), {"mode": "day", "w": "2026-10-27"}).content.decode()
+        self.assertEqual(day.count('class="cell-add"'), 5)  # 종일 + 블록 4
+        self.assertIn('aria-label="10/27(화) 1블록에 일정 추가"', day)
+        self.assertIn('aria-label="10/27(화) 종일에 일정 추가"', day)
         # 꽉 찬 칸에서도 단추는 일정 뒤에 있다
-        cell = html[html.index('data-date="2026-10-27" data-slot="b1"'):]
+        cell = html[html.index('data-date="2026-10-27" data-slot=""'):]
         cell = cell[:cell.index('data-date="2026-10-28"')]
         self.assertLess(cell.rindex("꽉 찬 일 5"), cell.index('class="cell-add"'))
         self.assertRegex(html, r'<button type="button" class="cell-add" aria-label=')
@@ -117,10 +120,12 @@ class CellAddTests(Base):
         self.add("10/28~10/30 독서 기간")
         self.assertIsNone(Event.objects.get().end)
 
-    def test_untimed_cell(self):
+    def test_cell_without_slot_keeps_parsed_block(self):
         self.add("2블록 회의", slot="")
         e = Event.objects.get()
-        self.assertEqual((e.slot, e.slot_end), ("", ""))
+        self.assertEqual((e.slot, e.slot_end), ("b2", "b2"))
+        self.add("그냥 회의", slot="")
+        self.assertEqual(Event.objects.get(title="그냥 회의").slot, "")
 
     def test_conflict_notice_kept(self):
         Event.objects.create(space=self.a, by=self.me, date=date(2026, 10, 27), slot="b1", place="과학실", title="안전교육")
@@ -210,7 +215,7 @@ class ModeTests(Base):
         self.assertEqual("".join(heads), "일월화수목금토")
         self.assertIn('data-date="2026-09-27" data-slot=""', html)
         self.assertIn('data-date="2026-10-31" data-slot=""', html)
-        self.assertIn('aria-label="10/31(토)에 일정 추가"', html)
+        self.assertIn('aria-label="10/31(토) 동학년에 일정 추가"', html)
         self.assertIn("토요 행사", html)
         self.assertIn("공백없는아주아주아주긴제목" * 3, html)  # 자르지 않는다
         self.assertEqual([*self.sched.call_args[0][2:]], ["20260927", "20261031"])
@@ -388,12 +393,11 @@ class SchoolCardTests(TestCase):
         self.m = Member.objects.create(space=self.hub, user=self.u, name="사일", cls="4-1", group="g4")
         self.client.force_login(self.u)
 
-    def test_card_has_scope_select_with_my_group_first(self):
+    def test_card_scope_is_hidden_and_filled_from_cell(self):
         html = self.client.get(f"/s/{self.hub.token}/schedule").content.decode()
         tpl = html[html.index('<template id="cellTpl">'):html.index("</template>")]
-        self.assertIn('name="scope"', tpl)
-        first = re.search(r'<option value="([^"]+)"', tpl).group(1)
-        self.assertEqual(first, "g4")
+        self.assertIn('<input type="hidden" name="scope">', tpl)
+        self.assertNotIn("<select", tpl)
 
     def test_scope_saved(self):
         r = self.client.post(f"/s/{self.hub.token}/today/events",

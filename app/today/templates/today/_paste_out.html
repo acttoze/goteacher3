@@ -2,10 +2,10 @@
 {% if tsv %}<textarea id="tsvOut" hidden>{{ tsv }}</textarea>{% endif %}
 {% if error %}<p class="field-err" role="alert" style="margin-top:12px">{{ error }}</p>
 {% elif rows %}
-<p class="sum"><b>일정 <span class="num">{{ n_new }}</span>건</b>을 찾았어요.{% if n_allday %} 시간 없는 <span class="num">{{ n_allday }}</span>건은 전일로 들어가요.{% endif %}{% if n_dup %} 이미 있는 <span class="num">{{ n_dup }}</span>건은 건너뛰어요.{% endif %}{% if skipped %} 읽지 못한 줄 <span class="num">{{ skipped }}</span>개는 뺐어요.{% endif %}</p>
+<p class="sum"><b>일정 <span class="num">{{ n_new }}</span>건</b>을 찾았어요.{% if n_allday %} 시간 없는 <span class="num">{{ n_allday }}</span>건은 종일로 들어가요.{% endif %}{% if n_dup %} 이미 있는 <span class="num">{{ n_dup }}</span>건은 건너뛰어요.{% endif %}{% if skipped %} 읽지 못한 줄 <span class="num">{{ skipped }}</span>개는 뺐어요.{% endif %}</p>
 <div class="acts">{% if n_new %}<button class="btn pri" type="submit">{{ n_new }}건 넣기</button>{% else %}<span class="muted">새로 넣을 일정이 없어요.</span>{% endif %}</div>
 <table class="tbl"><colgroup><col style="width:18%"><col style="width:12%"><col style="width:40%"><col style="width:14%"><col style="width:16%"></colgroup><thead><tr><th>날짜</th><th>시간</th><th>제목(원문 그대로)</th><th>장소</th><th>등록</th></tr></thead><tbody>
-  {% for r in rows %}<tr{% if r.dup %} class="dup"{% endif %}><td>{{ r.dates }}</td><td>{% if r.slot %}{{ r.slot }}{% else %}<span class="pill">전일</span>{% endif %}</td><td>{{ r.title }}{% if r.dup %}<span class="sub2">이미 있음</span>{% endif %}</td><td>{{ r.place }}</td><td>{{ me.name }}{% if r.who %}<span class="sub2">담당 {{ r.who }}</span>{% endif %}</td></tr>{% endfor %}
+  {% for r in rows %}<tr{% if r.dup %} class="dup"{% endif %}><td>{{ r.dates }}</td><td>{% if r.slot %}{{ r.slot }}{% else %}<span class="pill">종일</span>{% endif %}</td><td>{{ r.title }}{% if r.dup %}<span class="sub2">이미 있음</span>{% endif %}</td><td>{{ r.place }}</td><td>{{ me.name }}{% if r.who %}<span class="sub2">담당 {{ r.who }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table>
 {% if n_new and rows|length > 10 %}<div class="acts"><button class="btn pri" type="submit">{{ n_new }}건 넣기</button></div>{% endif %}
 {% endif %}

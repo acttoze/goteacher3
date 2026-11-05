@@ -24,7 +24,7 @@ from .parse import SLOTS, event_type, slot_text
 from .schedule import MONTH_DOW, _d, _label, month_grid, this_monday
 
 SYM = {"event": "◆", "work": "■", "meet": "▲", "duty": "○"}
-ROWS = [{"k": "", "label": "전일", "time": "시간 미정"},
+ROWS = [{"k": "", "label": "종일", "time": ""},
         *[{"k": s["k"], "label": s["label"], "time": f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"])} for s in SLOTS]]
 DENSE_LINES = 30  # 블록 줄마다 가장 긴 칸의 줄 수를 더해 이보다 많으면(한 쪽이 찰 만큼) 글자를 줄인다
 LONG_LINES, WEEK_CHARS = 14, 15  # 한 칸이 이 줄 수를 넘으면(쪽의 절반쯤) 블록 줄을 쪽 사이에서 나눈다(통째로 옮기면 앞 쪽이 빈다), 주간 칸 한 줄 글자 수

@@ -131,7 +131,7 @@ class ScheduleTests(TestCase):
     def test_week_board(self):
         mine = self.ev(title="4-2 수업공개", slot="b2", place="4-2 교실")
         self.ev(by=self.m2, title="과학실 안전교육", date=MON + timedelta(days=3), slot="b3", place="과학실")
-        self.ev(title="학예회 소품 확인", date=MON)  # 시간 미정
+        self.ev(title="학예회 소품 확인", date=MON)  # 종일
         self.ev(title="지난주 일", date=MON - timedelta(days=3))
         r = self.client.get(self.url())
         self.assertEqual(r.status_code, 200)
@@ -141,8 +141,7 @@ class ScheduleTests(TestCase):
         for d in ("10/26", "10/27", "10/28", "10/29", "10/30"):
             self.assertIn(d, html)
         self.assertIn("금 · 오늘", html)
-        for s in ("1블록", "2블록", "3블록", "방과후", "시간 미정"):
-            self.assertIn(s, html)
+        self.assertEqual(re.findall(r'<div class="lbl"[^>]*>([^<]+)', html), ["동학년", "취합"])  # 줄은 채널, 동학년은 둘(test_schedule_channels)
         self.assertIn(f'data-open="#ev-{mine.key}"', html)
         self.assertRegex(html, r'class="ev mine[^"]*" data-open="#ev-' + mine.key)
         self.assertIn("과학실 · 김도윤", html)
@@ -154,7 +153,7 @@ class ScheduleTests(TestCase):
         e = self.ev(title="독서 기간", date=MON - timedelta(days=2), end=MON + timedelta(days=1))
         html = self.client.get(self.url()).content.decode()
         self.assertEqual(html.count(f'data-open="#ev-{e.key}"'), 2)  # 월·화
-        self.assertIn('data-when="10/27(화) · 시간 미정"><button', html)
+        self.assertIn('data-when="10/27(화) · 동학년"><button', html)
 
     def test_neis_in_board(self):
         html = self.client.get(self.url()).content.decode()

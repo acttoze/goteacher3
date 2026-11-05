@@ -1,7 +1,7 @@
 """G1 QA 보강 — 구현 테스트(test_today.py)에 없던 경계만 더한다.
 
-- 장소 충돌(TR.conflicts): 기간 일정끼리·블록 범위 경계·시간 미정 제외·비슷한 이름 장소.
-- 고치기(prototype setWhen): 블록 → 시간 미정도 '바뀐 것', 기간은 '기간'으로·끝 날짜도 같이 옮김,
+- 장소 충돌(TR.conflicts): 기간 일정끼리·블록 범위 경계·종일 제외·비슷한 이름 장소.
+- 고치기(prototype setWhen): 블록 → 종일도 '바뀐 것', 기간은 '기간'으로·끝 날짜도 같이 옮김,
   바뀐 것이 없으면 쓴 사람을 바꾸지 않음, 형식은 맞지만 없는 날짜는 400.
 - NEIS: 목이 아닌 실제 실패(네트워크 오류)에도 화면이 뜨고 빈 칸 문구가 나온다.
 - 낼 것·걷는 것: D6 목록(collect.lists)과 같은 판정(제목 집합·건수).
@@ -85,10 +85,10 @@ class ConflictTests(Base):
         self.assertNotIn("겹쳐요", self.preview("오늘 3블록 시청각실 협의"))
 
     def test_untimed_and_similar_place_do_not_conflict(self):
-        self.ev(by=self.m2, title="종일 행사", place="과학실")  # 시간 미정
+        self.ev(by=self.m2, title="종일 행사", place="과학실")  # 종일
         self.ev(by=self.m2, title="실험", slot="b2", slot_end="b2", place="과학실1")
         self.assertNotIn("겹쳐요", self.preview("오늘 2블록 과학실 정리"))
-        self.assertNotIn("겹쳐요", self.preview("오늘 과학실 정리"))  # 새 일정이 시간 미정
+        self.assertNotIn("겹쳐요", self.preview("오늘 과학실 정리"))  # 새 일정이 종일
 
 
 class EditRuleTests(Base):
@@ -104,7 +104,7 @@ class EditRuleTests(Base):
         self.post(e, date="2026-10-30", slot="", place="")
         e.refresh_from_db()
         self.assertEqual((e.slot, e.slot_end), ("", ""))
-        self.assertEqual(e.changed_from, [["시간", "1블록", "시간 미정"]])
+        self.assertEqual(e.changed_from, [["시간", "1블록", "종일"]])
 
     def test_range_moves_end_and_says_period(self):
         e = self.ev(date=TODAY, end=TODAY + timedelta(2), title="상담주간")

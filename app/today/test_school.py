@@ -178,7 +178,7 @@ class WriterlessScopeTests(Base):
         html = self.as_(self.boss).get(f"{self.base}/schedule").content.decode()
         block = html[html.index(f'id="ev-{ownerless.key}"'):]
         block = block[block.index('name="scope"'):]
-        self.assertIn('value="me">나만', block[:block.index("</select>")])
+        self.assertIn('value="me">개인(나만)', block[:block.index("</select>")])
 
 
 class QueryCountTests(Base):

@@ -19,7 +19,7 @@
   <a class="btn ghost" href="/s/{{ space.token }}/schedule?w={{ w }}">일정으로</a></div>
 <form class="card" method="post" action="/s/{{ space.token }}/schedule/paste"><div class="card-b" style="padding-top:var(--pad)">
   {% csrf_token %}<input type="hidden" name="w" value="{{ w }}"><input type="hidden" name="html" id="dutyHtml" value="">
-  <p class="muted" style="margin-bottom:12px">시간 칸이 비면 전일로 들어가요. 날짜가 빈 줄은 위 날짜를 따라가고, 10/28~30처럼 쓰면 기간 일정이 돼요. 한 번에 500줄까지 넣을 수 있어요.</p>
+  <p class="muted" style="margin-bottom:12px">시간 칸이 비면 종일로 들어가요. 날짜가 빈 줄은 위 날짜를 따라가고, 10/28~30처럼 쓰면 기간 일정이 돼요. 한 번에 500줄까지 넣을 수 있어요.</p>
   <label class="field"><span class="sr">주간계획 표</span><textarea class="textarea" id="dutyPaste" name="paste" spellcheck="false" placeholder="날짜&#9;시간&#9;내용&#9;장소&#9;담당"
     hx-post="/s/{{ space.token }}/schedule/paste/preview" hx-trigger="input changed delay:400ms, gt-pasted" hx-target="#dutyOut" hx-sync="this:replace"{% if error %} aria-invalid="true"{% endif %}>{{ paste }}</textarea></label>
   <label class="scope"><span>볼 사람</span><select class="select" name="scope" hx-post="/s/{{ space.token }}/schedule/paste/preview" hx-trigger="change" hx-target="#dutyOut">{% for v, t in choices %}<option value="{{ v }}"{% if v == chosen %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>

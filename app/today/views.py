@@ -1,6 +1,6 @@
 """G1 간이 '오늘'. 모습은 design/today.html, 동작은 prototype/assets/app.js today()·한 줄 입력(TR.parse·TR.conflicts).
 
-- 오늘 일과: 블록(prototype 기본 시간표) × 동학년 일정, NEIS 학사일정·점심(메뉴·알레르기·칼로리), 시간 미정.
+- 오늘 일과: 블록(prototype 기본 시간표) × 동학년 일정, NEIS 학사일정·점심(메뉴·알레르기·칼로리), 종일.
 - 동학년 바뀐 것: 어제부터 올리거나 바꾼 일정(오늘 이후 것만), 누가 무엇을 바꿨는지.
 - 내가 낼 것·내가 걷는 것: collect.lists의 판정을 그대로 쓴다. 학교 공간은 확인 필수 안 본 공지도 함께(notices.seen, I2).
 - 학교 공간(H5): 일정 대상(models.scope), 고치기·지우기는 쓴 사람과 관리자만, 나에게 온 것 / 학교 전체 토글.
@@ -108,7 +108,7 @@ def _ev_item(e, me, today):
             slot_text(e.slot, e.slot_end) if e.slot and e.slot_end and e.slot_end != e.slot else "",
             e.place, e.target, e.scope_label if me.space.is_school else "", e.by.name if e.by else ""]
     return {"e": e, "mine": e.by_id == me.pk, "meta": " · ".join(x for x in meta if x), "can_write": e.writable_by(me),
-            "slot_label": slot_text(e.slot, e.slot_end) if e.slot else "시간 미정", "dates": _dates(e.date, e.end)}
+            "slot_label": slot_text(e.slot, e.slot_end) if e.slot else "종일", "dates": _dates(e.date, e.end)}
 
 
 def _feed(space, me, now, colors):
@@ -127,7 +127,7 @@ def _feed(space, me, now, colors):
         out.append({"e": e, "who": who.name if who else "누군가", "color": color, "ink": ink, "changes": changes,
                     "ro": _josa(changes[-1][2], "으로", "로") if changes else "",
                     "eul": _josa(e.title, "을", "를"),
-                    "when_ev": _dates(e.date, e.end) + " " + (slot_text(e.slot, e.slot_end) if e.slot else "시간 미정"),
+                    "when_ev": _dates(e.date, e.end) + " " + (slot_text(e.slot, e.slot_end) if e.slot else "종일"),
                     "at": f"{day} {at:%H:%M}", "new": (now - e.updated_at) < timedelta(minutes=1), "ts": e.updated_at})
     if space.is_school:  # 실질 변경된 공지(대상이고 앞 판을 본 사람에게만)
         for x in notice_seen.change_feed(space, me, since):
@@ -260,7 +260,7 @@ def _read_cell(request):
 
 
 def _read_scope(request):
-    """한 줄 입력의 볼 사람. 동학년은 언제나 모두, 학교 공간은 고른 값(없거나 틀리면 내 그룹, 그룹이 없으면 나)."""
+    """볼 사람. 칸 추가는 add가 먼저 값을 확인하므로 대체값은 한 줄 입력에만 쓰인다. 동학년은 언제나 모두, 학교 공간은 고른 값(없거나 틀리면 내 그룹, 그룹이 없으면 나)."""
     me = request.member
     if not request.space.is_school:
         return ALL
@@ -270,6 +270,11 @@ def _read_scope(request):
 
 def _scope_ok(raw):
     return raw in (ALL, ME, *Member.Group.values)
+
+
+def _scope_toast(e):
+    """저장 알림에 붙는 공개 범위."""
+    return "나만 보여요" if e.scope == ME else f"{e.scope_label}에 보여요"
 
 
 def _conf_text(p, conf, me):
@@ -298,11 +303,13 @@ def preview(request):
 @require_POST
 def add(request):
     week = request.POST.get("view") == "week"
-    cell = week and "date" in request.POST  # 일정 칸 안 추가: 날짜·블록은 칸이 이긴다
+    cell = week and "date" in request.POST  # 일정 칸 안 추가: 날짜는 칸이 이기고, 블록은 칸에 있을 때만 이긴다
     if cell:
         cell_date, cell_slot = _read_cell(request)
         if cell_date is None:
             return HttpResponseBadRequest("칸의 날짜·블록을 다시 확인해 주세요.")
+        if request.space.is_school and not _scope_ok(request.POST.get("scope")):  # 칸은 줄이 볼 사람을 정한다. 대체값으로 넓히지 않는다
+            return HttpResponseBadRequest("볼 사람을 다시 확인해 주세요.")
     p, error = _read_line(request)
     if p is None:
         r = render(request, "today/_cell_err.html" if week else "today/_qpop.html",
@@ -310,7 +317,9 @@ def add(request):
         r["HX-Retarget"], r["HX-Reswap"] = "#cellErr" if week else "#qpop", "outerHTML"
         return r
     if cell:
-        p.update(date=cell_date, end=None, s=cell_slot or None, e=cell_slot or None)
+        p.update(date=cell_date, end=None)
+        if cell_slot:
+            p.update(s=cell_slot, e=cell_slot)
     conf = _conflicts(request.space, p["date"], p["end"], p["s"], p["e"], p["place"])
     e = Event.objects.create(space=request.space, by=request.member, date=p["date"], end=p["end"],
                              slot=p["s"] or "", slot_end=p["e"] or "", title=p["title"],
@@ -319,7 +328,9 @@ def add(request):
         r = redirect(schedule.back_url(request) if week else f"/s/{request.space.token}/today")
         r.status_code = 303
         return r
-    toast = f"{_dates(e.date, e.end)} {slot_text(e.slot, e.slot_end) if e.slot else '시간 미정'} 「{e.title}」 올렸어요"
+    toast = f"{_dates(e.date, e.end)} {slot_text(e.slot, e.slot_end) if e.slot else '종일'} 「{e.title}」 올렸어요"
+    if request.space.is_school:
+        toast += " · " + _scope_toast(e)
     if conf:
         toast += " · " + _conf_text(p, conf, request.member)
     return _live(request, toast)
@@ -352,11 +363,12 @@ def edit(request, key):
     if d is None or slot not in ["", *SLOT_KEYS] or len(place) > PLACE_MAX or not _scope_ok(scope):
         return HttpResponseBadRequest("날짜·블록·장소를 다시 확인해 주세요. 날짜는 달력에서 골라 주세요.")
     b_dates, b_slot, b_place = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else None, e.place
+    b_blocks = (e.slot, e.slot_end)  # 1~3블록도 표기가 '종일'이라 글자로는 블록 없음과 나눌 수 없다
     e.date, e.end = d, end
     if slot != e.slot:
         e.slot, e.slot_end = slot, slot
     e.place = place
-    a_dates, a_slot = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else "시간 미정"
+    a_dates, a_slot = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else "종일"
     parts = []
     if b_dates != a_dates:
         parts.append(["기간" if e.end else "날짜", b_dates, a_dates])
@@ -364,7 +376,7 @@ def edit(request, key):
         parts.append(["시간", b_slot, a_slot])
     if b_place and b_place != place:
         parts.append(["장소", b_place, place or "없음"])
-    if (b_dates, b_slot or "시간 미정", b_place, e.scope) == (a_dates, a_slot, place, scope):
+    if (b_dates, b_blocks, b_place, e.scope) == (a_dates, (e.slot, e.slot_end), place, scope):
         return _live(request, "바뀐 것이 없어요.")
     e.scope = scope
     if scope == ME and e.by_id is None:  # 쓴 사람 없는 '나' 일정은 아무도 못 보므로 저장하는 사람이 쓴 사람이 된다

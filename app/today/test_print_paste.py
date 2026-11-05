@@ -47,7 +47,7 @@ class ReadWeekTests(SimpleTestCase):
         r = d["rows"]
         self.assertEqual((r[0]["date"], r[0]["s"], r[0]["place"]), (date(2026, 10, 27), "b3", "강당"))
         self.assertEqual(r[0]["title"], "3학년 생활안전 체험교실 (실내화 지참)")  # 제목은 원문 그대로
-        self.assertIsNone(r[1]["s"])  # 시간이 없으면 전일
+        self.assertIsNone(r[1]["s"])  # 시간이 없으면 종일
         self.assertEqual(r[2]["s"], "pm")  # 15:00 → 방과후
         self.assertEqual(r[4]["date"], date(2026, 10, 30))  # 빈 날짜는 위 날짜를 따라감
         self.assertEqual(r[4]["who"], "양서윤")
@@ -421,7 +421,7 @@ class PasteViewTests(Base):
         self.assertEqual(Event.objects.count(), 0)
         self.assertIn("5건 넣기", html)
         self.assertRegex(html, r"읽지 못한 줄 <span class=\"num\">1</span>")
-        self.assertIn("전일", html)
+        self.assertIn("종일", html)
         self.assertIn("3학년 생활안전 체험교실 (실내화 지참)", html)
         self.assertIn("사일", html)  # 등록
 

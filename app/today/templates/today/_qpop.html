@@ -4,7 +4,7 @@
   <div class="ph"><b>{{ p.title }}</b></div>
   <div class="chips">
     <span class="pill"><span class="k">날짜</span>{{ dates }}{% if not p.date_given %} (오늘){% endif %}</span>
-    <span class="pill{% if not slot %} miss{% endif %}"><span class="k">시간</span>{{ slot|default:"시간 미정" }}</span>
+    <span class="pill{% if not slot %} miss{% endif %}"><span class="k">시간</span>{{ slot|default:"종일" }}</span>
     <span class="pill{% if not p.place %} miss{% endif %}"><span class="k">장소</span>{{ p.place|default:"없음" }}</span>
     {% if p.target %}<span class="pill"><span class="k">대상</span>{{ p.target }}</span>{% endif %}
   </div>

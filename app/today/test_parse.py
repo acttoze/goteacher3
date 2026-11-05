@@ -73,7 +73,7 @@ class ParseTests(SimpleTestCase):
         self.assertEqual(slot_text("b2", "b3"), "2~3블록")
         self.assertEqual(slot_text("b1", "b3"), "종일")
         self.assertEqual(slot_text("b3", "pm"), "3블록~방과후")
-        self.assertEqual(slot_text(None), "시간 미정")
+        self.assertEqual(slot_text(None), "종일")
         self.assertEqual(block_of_time("07:00"), "b1")
         self.assertEqual(block_of_time("12:20"), "b3")
         self.assertEqual(block_of_time("16:00"), "pm")

@@ -1,6 +1,8 @@
 """일정(일간·주간·월간, Q3). 모습은 design/schedule.html, 동작은 prototype/assets/app.js cal().
 
-- 일간·주간: 날 × 블록 4칸 + 시간 미정. 월간: 일~토 달력(prototype). 칸마다 동학년 일정(Event), NEIS 학사일정(시간 미정), 복무(학교), 취합 마감(마감 시각의 블록).
+- 채널: 학교(일정 중 개인 아닌 것 + NEIS)·복무·취합(마감)·개인(scope=me). 동학년은 일정(이름은 space.word)·취합 둘.
+- 일간: 종일·1~3블록·방과후·개인 줄(복무·NEIS는 종일, 마감은 마감 시각의 블록). 주간: 채널 줄 × 월~금. 월간: 일~토 달력, 주마다 날짜 줄 + 채널 줄.
+- 필터는 schedule.js가 data-ch·data-group을 보고 숨긴다(서버는 표시만).
 - 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
 - 칸 안 추가·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 지금 모드·지금 날짜의 판(_week.html)을 돌려준다.
 - 바뀐 것·마감 목록: 보고 있는 날·주·달의 것만.
@@ -24,10 +26,10 @@ from django.views.decorators.http import require_GET
 from collect.lists import _colors, _mine_q
 from collect.models import Collection, Row
 from spaces import neis
-from spaces.models import Attendance
+from spaces.models import Attendance, Member
 from spaces.views import _space_ctx
 
-from .models import Event, reachable_q, scope_choices
+from .models import ALL, ME, Event, reachable_q, scope_choices
 from .parse import SLOT_KEYS, SLOTS, block_of_time
 
 WD = "월화수목금토일"
@@ -39,6 +41,14 @@ MODE_AGE = 365 * 86400
 
 def _d(d):
     return f"{d.month}/{d.day}({WD[d.weekday()]})"
+
+
+def _channels(space):
+    """왼쪽 줄·필터 목록. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음)."""
+    if not space.is_school:
+        return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": ""}]
+    return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "duty", "label": "복무", "scope": ""},
+            {"k": "collect", "label": "취합", "scope": ""}, {"k": "me", "label": "개인", "scope": ME}]
 
 
 def this_monday(today):
@@ -137,12 +147,16 @@ def board_ctx(request, mode, raw):
     first, last, list_first, list_last = v["first"], v["last"], v["list_first"], v["list_last"]
     days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
     colors = _colors(space)
+    channels = _channels(space)
+
+    def group_of(m):  # 카드의 data-group(월간 그룹 필터, 학교 공간만)
+        return m.group if m and mode == "month" and space.is_school else ""
 
     # 일정: 보고 있는 기간에 걸치는 것
     evs = list(Event.objects.in_space(space).filter(reachable_q(me), date__lte=last)
                .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first))
                .select_related("by", "changed_by").order_by("date", "slot", "created_at"))
-    cells = defaultdict(list)  # (날짜, 블록) → 칸 안 항목
+    cells = defaultdict(list)  # (날짜, 채널, 블록) → 칸 안 항목
     dialogs = []
     clashes = week_conflicts(space, evs)
     for e in evs:
@@ -152,24 +166,29 @@ def board_ctx(request, mode, raw):
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
         conf = clashes.get(e.pk)
         x["conf"] = _conf_text({"place": e.place}, conf, me) if conf else ""
+        personal = space.is_school and e.scope == ME  # 관리자도 reachable_q로 남의 것은 받지 않는다
+        x["ch"], x["group"] = "me" if personal else "school", group_of(e.by)
+        # 줄로 블록을 알 수 없는 카드에 블록 이름. 범위 블록은 meta에 이미 있고 월간은 템플릿이 slot_label을 쓴다.
+        one_block = e.slot and e.slot_end in ("", e.slot)
+        x["tag"] = x["slot_label"] if one_block and (mode == "week" or (mode == "day" and personal)) else ""
         dialogs.append(x)
         for d in days:  # 월간의 기간 일정은 이어지는 주말을 뺀다(prototype)
             if e.date <= d <= e.last_day and (mode != "month" or e.date == d or d.weekday() < 5):
-                cells[(d, e.slot)].append(x)
+                cells[(d, x["ch"], e.slot)].append(x)
 
-    # NEIS 학사일정(시간 없음 → 시간 미정 줄). 불러오기 실패와 '없음'을 나눠 알린다.
+    # NEIS 학사일정(시간 없음 → 종일 줄). 불러오기 실패와 '없음'을 나눠 알린다.
     sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{first:%Y%m%d}", f"{last:%Y%m%d}")
     seen = set()
     for r in sched:
         d = parse_date(f"{r['ymd'][:4]}-{r['ymd'][4:6]}-{r['ymd'][6:8]}") if len(r["ymd"]) == 8 else None
         if d and first <= d <= last and (d, r["name"]) not in seen:
             seen.add((d, r["name"]))
-            cells[(d, "")].append({"kind": "neis", "name": r["name"]})
+            cells[(d, "school", "")].append({"kind": "neis", "name": r["name"], "ch": "school"})
 
-    # 복무(J1, 학교 공간): 시간 미정 줄에 '이름 유형'. 모든 회원에게 같게.
+    # 복무(J1, 학교 공간): '이름 유형'. 모든 회원에게 같게.
     if space.is_school:
-        for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).order_by("pk"):
-            cells[(a.date, "")].append({"kind": "duty", "title": a.title, "time": a.time_text})
+        for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("member").order_by("pk"):
+            cells[(a.date, "duty", "")].append({"kind": "duty", "title": a.title, "time": a.time_text, "ch": "duty", "group": group_of(a.member)})
 
     # 취합 마감(첫날 0시 ~ 끝날 다음 날 0시)
     tz = timezone.get_current_timezone()
@@ -193,24 +212,41 @@ def board_ctx(request, mode, raw):
         by = c.created_by.name if c.created_by else "알 수 없음"
         x = {"kind": "due", "c": c, "href": href, "hm": f"{at:%H:%M}", "who": by,
              "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
-             "day": f"{_d(at.date())} {at:%H:%M}", "today": at.date() == today}
+             "day": f"{_d(at.date())} {at:%H:%M}", "today": at.date() == today, "ch": "collect", "group": group_of(c.created_by)}
         if list_first <= at.date() <= list_last:
             dues.append(x)
-        cells[(at.date(), block_of_time(f"{at:%H:%M}"))].append(x)
+        cells[(at.date(), "collect", block_of_time(f"{at:%H:%M}"))].append(x)
 
     n_items = sum(len(v) for v in cells.values())
+
+    def by_slot(d, ch):  # 한 칸 안: 종일 먼저, 그다음 블록 순
+        return [x for k in ["", *SLOT_KEYS] for x in cells[(d, ch, k)]]
+
+    def row(label, items_of, slot="", scope=ALL, ch="", time="", note=""):
+        return {"label": label, "ch": ch, "time": time, "note": note,
+                "cells": [{"items": items_of(d), "today": d == today, "date": d.isoformat(), "slot": slot, "scope": scope,
+                           "when": f"{_d(d)} · {label}", "add": f"{_d(d)} {label}에 일정 추가"} for d in days]}
+
     if mode == "month":
-        board = {"mcells": [{"n": d.day, "out": not list_first <= d <= list_last, "today": d == today, "date": d.isoformat(), "slot": "",
-                             "weekend": d.weekday() >= 5, "when": _d(d), "add": f"{_d(d)}에 일정 추가",
-                             "items": [x for k in ["", *SLOT_KEYS] for x in cells[(d, k)]]} for d in days],
-                 "dow": MONTH_DOW}
+        mweeks = []
+        for i in range(0, len(days), 7):
+            week = days[i:i + 7]
+            flags = [{"n": d.day, "out": not list_first <= d <= list_last, "today": d == today, "weekend": d.weekday() >= 5} for d in week]
+            mweeks.append({"heads": flags, "rows": [
+                {"ch": c["k"], "label": c["label"],
+                 "cells": [{**f, "items": by_slot(d, c["k"]), "date": d.isoformat(), "slot": "", "scope": c["scope"],
+                            "when": f"{_d(d)} · {c['label']}", "add": f"{_d(d)} {c['label']}에 일정 추가"} for d, f in zip(week, flags)]}
+                for c in channels]})
+        board = {"mweeks": mweeks, "dow": MONTH_DOW}
     else:
-        wrows = []
-        for s in [*SLOTS, {"k": "", "label": "시간 미정"}]:
-            t = "" if not s["k"] else f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"])
-            wrows.append({"label": s["label"], "time": t,
-                          "cells": [{"items": cells[(d, s["k"])], "today": d == today, "date": d.isoformat(), "slot": s["k"],
-                                     "when": f"{_d(d)} · {s['label']}", "add": f"{_d(d)} {s['label']}에 일정 추가"} for d in days]})
+        if mode == "week":
+            wrows = [row(c["label"], lambda d, k=c["k"]: by_slot(d, k), scope=c["scope"], ch=c["k"]) for c in channels]
+        else:
+            wrows = [row("종일", lambda d: cells[(d, "school", "")] + cells[(d, "duty", "")]),
+                     *[row(s["label"], lambda d, k=s["k"]: cells[(d, "school", k)] + cells[(d, "collect", k)], slot=s["k"],
+                           time=f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"])) for s in SLOTS]]
+            if space.is_school:
+                wrows.append(row("개인", lambda d: by_slot(d, "me"), scope=ME, ch="me", note="나만 보여요"))
         board = {"wrows": wrows, "days": [{"md": f"{d.month}/{d.day}", "wd": WD[d.weekday()], "today": d == today} for d in days]}
 
     changed = sorted((e for e in evs if e.changed_from and e.date <= list_last and e.last_day >= list_first),
@@ -230,7 +266,8 @@ def board_ctx(request, mode, raw):
             "focus": v["focus"].isoformat(), "print_view": "month" if mode == "month" else "week",
             "paste_w": (v["focus"] if mode == "month" else v["w"]).isoformat(),
             "n_items": n_items, "dialogs": dialogs, "neis_empty": not seen, "neis_fail": neis.failed(sched),
-            "chg": chg, "dues": dues, "slot_choices": SLOTS, "scope_choices": scope_choices(me), **board}
+            "chg": chg, "dues": dues, "slot_choices": SLOTS, "scope_choices": scope_choices(me),
+            "filter_channels": channels, "filter_groups": Member.Group.choices if mode == "month" and space.is_school else [], **board}
 
 
 @never_cache
