@@ -2,9 +2,10 @@ import os
 
 from django.conf import settings
 from django.http import HttpResponse
+from django.templatetags.static import static
 from django.urls import include, path
 from django.views.decorators.http import require_safe
-from django.views.generic import TemplateView
+from django.views.generic import RedirectView, TemplateView
 
 from accounts import device
 from accounts import views as accounts
@@ -137,5 +138,6 @@ urlpatterns = [
     path("community/<str:key>/report", community.post_report),
     path("sitemap.xml", library.sitemap),
     path("robots.txt", robots),
+    path("favicon.ico", RedirectView.as_view(url=static("favicon.ico"))),  # 링크 태그를 안 읽는 브라우저·검색 로봇
     path("healthz", healthz),
 ]

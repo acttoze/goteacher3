@@ -1,6 +1,6 @@
 from unittest import mock
 
-from django.test import SimpleTestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from config import queue
 
@@ -67,3 +67,14 @@ class SafeErrorLogTests(SimpleTestCase):
             self.client.raise_request_exception = False
             self.assertEqual(self.client.get("/healthz").status_code, 500)
         self.assertIn("Internal Server Error: /healthz", cm.output[0])
+
+
+class FaviconTests(TestCase):
+    def test_pages_link_icon_and_root_path_redirects(self):
+        for url in ("/", "/forms"):
+            html = self.client.get(url).content.decode()
+            self.assertIn('rel="icon"', html, url)
+            self.assertIn("mark.svg", html, url)
+        r = self.client.get("/favicon.ico")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn("favicon.ico", r["Location"])
