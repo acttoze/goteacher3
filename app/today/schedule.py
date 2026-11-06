@@ -5,7 +5,9 @@
   - 그룹 탭(scope=내 소속)·개인 탭(scope=me, 내가 쓴 것): 일간·주간은 종일·1~3블록·방과후 줄, 월간은 달력 칸에 시간순.
   - 동학년 공간: 탭 없음. 채널 줄 동학년(일정 + NEIS)·취합.
 - 칸이 곧 볼 사람: 학교 탭 all, 그룹 탭 내 소속, 개인 탭 me(today.views.add가 확인). 복무 칸은 누구나 '이름 유형 [시간]'(duty_add).
-- 취합 줄은 모두에게 제목·마감·만든 사람만. 링크는 만든 사람(관리), 내 줄(받는 링크), 관리자(관리)에게만. 받는 링크를 대상 아닌 사람에게 싣지 않는다.
+- 취합(QC 일정 취합 범위 2026-11-06): 받는 사람이 전 교직원(audience all)이면 학교 탭 취합 줄, 소속 고르기·소속별 1칸이면
+  고른 소속의 그룹 탭 맨 위 취합 줄(월간은 칸 맨 위)에만. 부서·사람 고르기·범위 모름은 일정 탭에 없고 아래 마감 목록에만.
+  카드는 제목·마감·만든 사람. 링크는 만든 사람(관리), 내 줄(받는 링크), 관리자(관리)에게만. 받는 링크를 대상 아닌 사람에게 싣지 않는다.
 - 필터(학교 탭·동학년 채널만)는 schedule.js가 data-ch를 보고 숨긴다(서버는 표시만).
 - 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
 - 칸 안 추가·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 지금 탭·모드·날짜의 판(_week.html)을 돌려준다.
@@ -162,6 +164,19 @@ def _duty_deletable(a, me):
     return me.is_manager or me.can_duty or me.pk in (a.by_id, a.member_id)
 
 
+def _collect_tab(space, c):
+    """취합 카드가 놓일 탭: 'school'(전 교직원, 동학년은 언제나), 고른 소속 목록(소속 고르기·소속별 1칸), 그 밖에는 None(일정에 없음)."""
+    if not space.is_school:
+        return "school"
+    aud = c.audience if isinstance(c.audience, dict) else {}
+    mode = aud.get("mode")
+    if mode == "all":
+        return "school"
+    if mode in ("groups", "pergroup") and isinstance(aud.get("groups"), list):
+        return aud["groups"]
+    return None
+
+
 def _dialog_scopes(me, e):
     """수정 대화상자의 볼 사람: 학교 전체 · 내 그룹 · 개인(나만). 지금 값이 다른 그룹이면 그 값도 남긴다."""
     out = [(ALL, "학교 전체"), *([(me.group, me.get_group_display())] if me.group else []), (ME, "개인(나만)")]
@@ -267,10 +282,11 @@ def board_ctx(request, mode, raw):
             href = "" if space.is_school else f"/c/{c.link_token}"  # 학교 공간의 대상 아닌 사람에게는 받는 링크를 싣지 않는다
         x = {"kind": "due", "c": c, "href": href, "hm": f"{at:%H:%M}", "who": by,
              "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
-             "day": f"{_d(at.date())} {at:%H:%M}", "today": at.date() == today, "ch": "collect"}
+             "day": f"{_d(at.date())} {at:%H:%M}", "today": at.date() == today, "ch": "collect" if channeled else ""}
         if list_first <= at.date() <= list_last and (mine or row or not space.is_school):
             dues.append(x)
-        if channeled:
+        where = _collect_tab(space, c)
+        if (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
             cells[(at.date(), "collect", block_of_time(f"{at:%H:%M}"))].append(x)
 
     n_items = sum(len(v) for v in cells.values())
@@ -283,9 +299,10 @@ def board_ctx(request, mode, raw):
         lines = [{"label": c["label"], "ch": c["k"], "slot": "", "scope": c["scope"], "post": c.get("post", ""),
                   "items": lambda d, k=c["k"]: by_slot(d, k)} for c in channels]
     elif mode == "month":
-        lines = [{"label": "", "slot": "", "items": lambda d: by_slot(d, "")}]
+        lines = [{"label": "", "slot": "", "items": lambda d: by_slot(d, "collect") + by_slot(d, "")}]  # 취합 카드가 칸 맨 위
     else:
-        lines = [{"label": "종일", "slot": "", "items": lambda d: cells[(d, "", "")]},
+        lines = [*([{"label": "취합", "slot": "", "scope": "", "items": lambda d: by_slot(d, "collect")}] if tab == "group" else []),
+                 {"label": "종일", "slot": "", "items": lambda d: cells[(d, "", "")]},
                  *[{"label": s["label"], "slot": s["k"], "time": f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"]),
                     "items": lambda d, k=s["k"]: cells[(d, "", k)]} for s in SLOTS]]
 

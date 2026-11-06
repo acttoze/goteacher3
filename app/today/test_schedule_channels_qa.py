@@ -246,7 +246,7 @@ class SourceRowTests(Base):
         self.ev(self.t4, "그룹일", "g4", "b3")
         self.ev(self.t4, "혼자일", ME, "pm")
         Attendance.objects.create(space=self.hub, member=self.t5, date=TODAY, name="오일", kind="출장", by=self.t5)
-        c = Collection.objects.create(space=self.hub, created_by=self.t4, title="낼표", source=Collection.Source.SHEET, unit_head=["학년반"],
+        c = Collection.objects.create(space=self.hub, created_by=self.t4, title="낼표", source=Collection.Source.SHEET, unit_head=["학년반"], audience={"mode": "all"},
                                       due=datetime(2026, 10, 29, 16, 0, tzinfo=KST))
         Field.objects.create(collection=c, pos=0, name="칸", kind="number")
         Row.objects.create(collection=c, pos=0, unit="4-1", who="사일", member=self.t4)
@@ -325,7 +325,7 @@ class QueryCountTests(Base):
         self.ev(m, f"{tag} 개인", ME, "b1", place="강당")
         self.ev(m, f"{tag} 그룹", m.group, "b2", place="음악실", target="대상")
         Attendance.objects.create(space=self.hub, member=m, date=TODAY, name=m.name, kind="출장", by=m)
-        c = Collection.objects.create(space=self.hub, created_by=m, title=f"{tag} 표", source=Collection.Source.SHEET, unit_head=["학년반"],
+        c = Collection.objects.create(space=self.hub, created_by=m, title=f"{tag} 표", source=Collection.Source.SHEET, unit_head=["학년반"], audience={"mode": "all"},
                                       due=datetime(2026, 10, 29, 11, 0, tzinfo=KST))
         Field.objects.create(collection=c, pos=0, name="칸", kind="number")
         Row.objects.create(collection=c, pos=0, unit=self.t4.cls, who=self.t4.name, member=self.t4)

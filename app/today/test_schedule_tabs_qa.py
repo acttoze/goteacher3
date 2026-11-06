@@ -180,7 +180,7 @@ class CollectLinkTests(Base):
     def setUp(self):
         super().setUp()
         self.c = Collection.objects.create(space=self.hub, created_by=self.t5, title="오학년 조사", source=Collection.Source.SHEET,
-                                           unit_head=["학년반"], due=datetime(2026, 10, 29, 15, 0, tzinfo=KST))
+                                           unit_head=["학년반"], due=datetime(2026, 10, 29, 15, 0, tzinfo=KST), audience={"mode": "all"})
         Field.objects.create(collection=self.c, pos=0, name="칸", kind="number")
         self.r = Row.objects.create(collection=self.c, pos=0, unit="5-1", who="오일", member=self.t5)
         self.secrets = (self.c.link_token, self.r.key, self.c.key)
@@ -213,18 +213,19 @@ class CollectLinkTests(Base):
             self.assertIn("오학년 조사", r.content.decode(), mode)
 
     def test_group_cell_row_link_only_for_that_group(self):
+        # QC 일정 취합 범위: 소속별 1칸은 고른 소속(4학년)의 그룹 탭에만, 다른 소속에는 제목도 없다
         c = Collection.objects.create(space=self.hub, created_by=self.t5, title="사학년 칸", source=Collection.Source.SHEET,
-                                      unit_head=["학년반"], due=datetime(2026, 10, 29, 16, 0, tzinfo=KST))
+                                      unit_head=["학년반"], due=datetime(2026, 10, 29, 16, 0, tzinfo=KST), audience={"mode": "pergroup", "groups": ["g4"]})
         Field.objects.create(collection=c, pos=0, name="칸", kind="number")
         r = Row.objects.create(collection=c, pos=0, unit="4학년", who="4학년", group="g4")
         for m in (self.t4, self.t4b):
-            self.assertIn(f"/c/{c.link_token}/u/{r.key}", self.page(m, "week"), m.name)
+            self.assertIn(f"/c/{c.link_token}/u/{r.key}", self.page(m, "week", tab="group"), m.name)
         other = self.member("육일", "6-1", "g6")
         for mode in MODES:
-            html = self.page(other, mode)
-            self.assertIn("사학년 칸", grid_of(html), mode)
-            for s in (c.link_token, r.key, c.key):
-                self.assertNotIn(s, html, mode)
+            for tab in ("school", "group", "me"):
+                html = self.page(other, mode, tab=tab)
+                for s in ("사학년 칸", c.link_token, r.key, c.key):
+                    self.assertNotIn(s, html, (mode, tab))
 
     def test_manager_gets_manage_link_every_mode(self):
         for mode in MODES:

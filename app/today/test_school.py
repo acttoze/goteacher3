@@ -335,7 +335,8 @@ class WeekDueTests(Base):
     """이번 주 마감: 내가 만든 것·내 줄·내 그룹 칸만."""
 
     def coll(self, by, title, due=NOW + timedelta(hours=1), **row):
-        c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"])
+        c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"],
+                                      audience={"mode": "all"})  # 학교 탭 취합 줄은 전 교직원 취합만(QC 일정 취합 범위)
         Field.objects.create(collection=c, pos=0, name="칸")
         if row:
             Row.objects.create(collection=c, pos=0, unit="칸", **row)

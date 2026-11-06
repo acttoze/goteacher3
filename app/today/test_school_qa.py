@@ -276,7 +276,8 @@ class MergeCommandQa(TestCase):
 
 class LeakQa(Base):
     def coll(self, by, title, due=NOW + timedelta(hours=1), **row):
-        c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"])
+        c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"],
+                                      audience={"mode": "all"})  # 학교 탭 취합 줄은 전 교직원 취합만(QC 일정 취합 범위)
         f = Field.objects.create(collection=c, pos=0, name="칸")
         if row:
             r = Row.objects.create(collection=c, pos=0, unit="칸", **row)
