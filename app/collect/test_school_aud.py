@@ -1,5 +1,6 @@
 """H4 학교 공간 취합: 받는 사람 범위 5가지, 접근 제한, 목록, 한글 줄 맞춤, 저장 한도, 200줄 합본."""
 import csv
+import re
 import io
 import shutil
 import tempfile
@@ -21,10 +22,11 @@ from spaces.models import Duty, Member, School, Space
 
 from . import hwpform
 from .models import Cell, Collection, Field, Row
-from .recipients import audience_head, audience_rows, audience_text, read_audience, roster_rows
+from .recipients import GROUPS, audience_head, audience_rows, audience_text, make_rows, read_audience, roster_rows, stored_audience
 from .test_hwp import table_doc
 
 User = get_user_model()
+re_find = re.findall
 UNTIL = date(2099, 1, 1)
 
 
@@ -61,9 +63,27 @@ class SchoolBase(TestCase):
         return c
 
     def make(self, who=None, **aud):
-        r = self.login(who or self.boss).post(f"{self.base}/c/new", {"src": "sheet", "title": "조사", "col_name_0": "참가(명)", **aud})
+        """aud=groups·dept는 새로 고를 수 없다(QC 취합 받는 사람 2026-11-06). 이미 만든 옛 취합으로 두고 시험한다:
+        전 교직원으로 만든 뒤 범위·줄·머리를 그 옛 범위로 바꿔 저장(그때 만들던 것과 같은 값)."""
+        old = aud.get("aud") in ("groups", "dept")
+        r = self.login(who or self.boss).post(f"{self.base}/c/new", {"src": "sheet", "title": "조사", "col_name_0": "참가(명)",
+                                                                     **({**aud, "aud": "all"} if old else aud)})
         self.assertEqual(r.status_code, 302, r.content[:400])
-        return Collection.objects.latest("pk")
+        c = Collection.objects.latest("pk")
+        return self.as_old(c, aud) if old else c
+
+    def as_old(self, c, aud):
+        if aud["aud"] == "groups":
+            d = {"mode": "groups", "groups": [g for g in GROUPS if g in aud.get("aud_groups", [])], "hr": aud.get("aud_hr") == "on"}
+        else:
+            known = set(Duty.objects.in_space(self.hub).values_list("dept", flat=True))
+            d = {"mode": "dept", "depts": list(dict.fromkeys(x for x in aud.get("aud_depts", []) if x in known))}
+        rows = audience_rows(self.hub, d)
+        c.rows.all().delete()
+        make_rows(c, rows)
+        c.audience, c.unit_head = stored_audience(d, rows), audience_head(d)
+        c.save()
+        return c
 
     def lines(self, c):
         return [(r.unit, r.who, r.member_id) for r in c.rows.all()]
@@ -126,8 +146,7 @@ class AudienceTests(SchoolBase):
 
     def test_nobody_picked_is_error_and_makes_nothing(self):
         n = Collection.objects.count()
-        for aud in ({"aud": "groups"}, {"aud": "pergroup"}, {"aud": "people"}, {"aud": "dept"},
-                    {"aud": "groups", "aud_groups": ["office"], "aud_hr": "on"}):
+        for aud in ({"aud": "pergroup"}, {"aud": "people"}):
             r = self.login(self.boss).post(f"{self.base}/c/new", {"src": "sheet", "title": "x", "col_name_0": "칸", **aud})
             self.assertContains(r, "받을 사람이나 그룹을 골라 주세요.", status_code=400)
         self.assertEqual(Collection.objects.count(), n)
@@ -170,15 +189,19 @@ class AudienceTests(SchoolBase):
         self.assertEqual(c.rows.last().who, "강사")
 
     def test_new_screen_lists_choices_and_summary_endpoint(self):
+        """QC 취합 받는 사람(2026-11-06): 선택지는 전 교직원·소속·개인 셋. 소속 고르기·부서·담임만은 화면에 없다."""
         Duty.objects.create(space=self.hub, dept="교육과정부", task="교육과정", who="사일", order=0)
         c = self.login(self.boss)
         html = c.get(f"{self.base}/c/new").content.decode()
-        for piece in ('name="aud" value="all"', 'name="aud" value="groups"', 'name="aud" value="pergroup"', 'name="aud" value="dept"',
-                      'name="aud" value="people"', f'value="{self.t41.key}"', "교육과정부", "담임만"):
-            self.assertIn(piece, html)
-        r = c.post(f"{self.base}/c/new/aud", {"aud": "groups", "aud_groups": ["g4", "g5"], "aud_hr": "on"})
-        self.assertContains(r, "4학년·5학년 담임 4명 · 반별 1칸")
-        r = c.post(f"{self.base}/c/new/aud", {"aud": "groups"})
+        box = html[html.index('id="audBox"'):html.index('id="audSum"')]
+        self.assertEqual(re_find(r'name="aud" value="(\w+)"', box), ["all", "pergroup", "people"])
+        for piece in (f'value="{self.t41.key}"', "<b>전 교직원</b>", "<b>소속</b>", "<b>개인</b>", 'name="aud_sort" value="group"'):
+            self.assertIn(piece, box)
+        for gone in ("aud_groups", "aud_hr", "aud_depts", "담임만", "data-gall", "1~6학년만", "소속 고르기", "사람 고르기", "<b>부서</b>"):
+            self.assertNotIn(gone, box)
+        r = c.post(f"{self.base}/c/new/aud", {"aud": "pergroup", "aud_pgroups": ["g4", "g5"]})
+        self.assertContains(r, "소속 2곳(4학년·5학년) · 소속별 1칸")
+        r = c.post(f"{self.base}/c/new/aud", {"aud": "pergroup"})
         self.assertContains(r, "받을 사람이나 그룹을 골라 주세요.")
         self.assertEqual(self.login(self.boss).post(f"/s/{self.hub.token}/c/new/aud", {"aud": "all"}).status_code, 200)
 
@@ -420,10 +443,10 @@ class HwpRowTests(SchoolBase):
         self.assertEqual(c.post(f"{self.base}/hwp/upload?pick=1", {"file": SimpleUploadedFile("표.hwpx", doc)}).status_code, 200)
         sf = SourceFile.objects.get(name="표.hwpx")
         self.assertEqual(c.post(f"{self.base}/hwp/{sf.key}/pick", {"sec": 0, "index": 1}).status_code, 200)
-        r = c.post(f"{self.base}/c/new/hwp/{sf.key}", {"aud": "groups", "aud_groups": ["g4"], "aud_hr": "on"})
+        r = c.post(f"{self.base}/c/new/hwp/{sf.key}", {"aud": "people", "aud_people": [self.t41.key, self.t42.key]})  # 담임만 범위가 없어져 개인으로
         self.assertEqual(r.status_code, 200)
-        who = {x["head"]: (x["who"] or {}).get("unit") for x in r.context["hwpf"]["rows"]}
-        self.assertEqual(who, {"5-1": None, "4-1": "4-1", "4-2": "4-2", "합계": None})
+        who = {x["head"]: (x["who"] or {}).get("who") for x in r.context["hwpf"]["rows"]}
+        self.assertEqual(who, {"5-1": None, "4-1": "사일", "4-2": "사이", "합계": None})
 
 
 class QuotaTests(SchoolBase):
@@ -736,8 +759,7 @@ class NameMatchTests(SchoolBase):
     def test_unmatched_owners_counted_on_preview_and_board(self):
         Duty.objects.create(space=self.hub, dept="가", task="일", who="사일, 없는이름", order=0)
         boss = self.login(self.boss)
-        self.assertContains(boss.post(f"{self.base}/c/new/aud", {"aud": "dept", "aud_depts": ["가"]}), "명부와 짝짓지 못한 담당 1명")
-        c = self.make(aud="dept", aud_depts=["가"])
+        c = self.make(aud="dept", aud_depts=["가"])  # 옛 부서 범위 취합(새로는 못 고른다)
         self.assertContains(boss.get(f"{self.base}/c/{c.key}/live"), "명부와 짝짓지 못한 담당 1명")
         self.assertEqual(boss.post(f"{self.base}/c/{c.key}/again").status_code, 303)
         self.assertEqual(Collection.objects.latest("pk").audience["unmatched"], 1)
@@ -753,8 +775,9 @@ class InputTests(SchoolBase):
 
     def test_only_known_values_are_stored(self):
         Duty.objects.create(space=self.hub, dept="가", task="일", who="사일", order=0)
-        c = self.make(aud="dept", aud_depts=["가", "없는부서", "가"])
-        self.assertEqual(c.audience["depts"], ["가"])
+        r = self.login(self.boss).post(f"{self.base}/c/new", {"src": "sheet", "title": "옛 범위", "col_name_0": "칸", "aud": "dept", "aud_depts": ["가"]})
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(Collection.objects.latest("pk").audience["mode"], "all")  # 부서·소속 고르기는 새로 받지 않는다
         c = self.make(aud="people", aud_people=[self.t41.key, "없는키", self.t41.key])
         self.assertEqual(c.audience["people"], [self.t41.key])
 
@@ -802,3 +825,94 @@ class RecipientKeepsGradeTests(TestCase):
         self.assertEqual(timezone.is_aware(c.created_at), True)
         html = self.client.get(f"/s/{g.token}/c/new").content.decode()
         self.assertNotIn('name="aud"', html)
+
+
+class SortTests(SchoolBase):
+    """QC 취합 받는 사람(2026-11-06): 전 교직원·개인은 줄 순서를 소속순(기본) ↔ 부서별로 고른다."""
+
+    def duties(self):
+        for i, (dept, who) in enumerate([("교육과정부", "사일, 부장"), ("방과후부", "오 일, 사일"), ("교육과정부", "행정"), ("정보부", "없는이름")]):
+            Duty.objects.create(space=self.hub, dept=dept, task=f"일{i}", who=who, order=i)
+
+    def test_default_is_group_order(self):
+        self.duties()
+        c = self.make(aud="all")
+        self.assertEqual((c.unit_head, [r.member_id for r in c.rows.all()]), (["직위", "성명"], [m.pk for m in self.roster]))
+        self.assertNotIn("sort", c.audience)
+
+    def test_all_by_dept(self):
+        self.duties()
+        c = self.make(aud="all", aud_sort="dept")
+        self.assertEqual(c.unit_head, ["부서", "성명"])
+        self.assertEqual(c.audience["sort"], "dept")
+        self.assertIn("전 교직원 9명 · 사람별 1칸 · 부서별", c.audience["text"])
+        got = [(r.unit, r.member_id) for r in c.rows.all()]
+        # 표 순서로 부서를 묶고(정보부는 명부 사람이 없어 빠짐), 사일은 처음 나온 교육과정부에만, 부서 없는 사람은 맨 뒤 소속순
+        self.assertEqual(got, [("교육과정부", self.t41.pk), ("교육과정부", self.boss.pk), ("교육과정부", self.adm.pk),
+                               ("방과후부", self.t51.pk)] + [("부서 없음", m.pk) for m in (self.t42, self.t4x, self.t52, self.meal, self.sup)])
+
+    def test_people_by_dept_only_picked(self):
+        self.duties()
+        c = self.make(aud="people", aud_people=[self.sup.key, self.t51.key, self.boss.key], aud_sort="dept")
+        self.assertEqual([(r.unit, r.who) for r in c.rows.all()], [("교육과정부", "부장"), ("방과후부", "오일"), ("부서 없음", "지원")])
+        self.assertEqual(c.audience["text"], "개인 3명 · 사람별 1칸 · 부서별")
+
+    def test_dept_sort_without_duty_is_ignored_and_pergroup_has_no_sort(self):
+        c = self.make(aud="all", aud_sort="dept")
+        self.assertEqual((c.unit_head, c.audience.get("sort")), (["직위", "성명"], None))
+        self.duties()
+        c = self.make(aud="pergroup", aud_pgroups=["g4"], aud_sort="dept")
+        self.assertEqual((c.unit_head, c.audience.get("sort")), (["그룹", "작성"], None))
+
+    def test_again_keeps_sort(self):
+        self.duties()
+        c = self.make(aud="all", aud_sort="dept")
+        Member.objects.create(space=self.hub, name="새사람", cls="3-1", group="g3")
+        self.assertEqual(self.login(self.boss).post(f"{self.base}/c/{c.key}/again").status_code, 303)
+        new = Collection.objects.latest("pk")
+        self.assertEqual((new.unit_head, new.audience["sort"]), (["부서", "성명"], "dept"))
+        self.assertEqual(new.rows.get(who="새사람").unit, "부서 없음")  # 지금 명부로, 부서 없는 사람 묶음에(소속순이라 3학년이 먼저)
+        self.assertEqual([r.who for r in new.rows.filter(unit="부서 없음")][:2], ["새사람", "사이"])
+
+    def test_old_groups_and_dept_collections_still_work_on_again(self):
+        self.duties()
+        for aud in ({"aud": "groups", "aud_groups": ["g4"], "aud_hr": "on"}, {"aud": "dept", "aud_depts": ["방과후부"]}):
+            c = self.make(**aud)
+            self.assertEqual(self.login(self.boss).post(f"{self.base}/c/{c.key}/again").status_code, 303, aud)
+            new = Collection.objects.latest("pk")
+            self.assertEqual((new.audience["mode"], new.unit_head, [r.who for r in new.rows.all()]),
+                             (c.audience["mode"], c.unit_head, [r.who for r in c.rows.all()]), aud)
+
+    def test_sort_button_and_people_list_grouping(self):
+        boss = self.login(self.boss)
+        html = boss.get(f"{self.base}/c/new").content.decode()
+        self.assertRegex(html, r'<button class="btn sec sm" type="button" data-sort disabled aria-describedby="sortNote"[^>]*>소속순</button>')
+        self.assertIn("업무분장이 없어 부서별로 정렬할 수 없어요", html)
+        self.assertNotIn("{#", html)  # 템플릿 주석이 화면에 새지 않는다
+        self.assertNotIn("_aud_school_in.html", html)
+        self.duties()
+        html = boss.get(f"{self.base}/c/new").content.decode()
+        self.assertRegex(html, r'<button class="btn sec sm" type="button" data-sort aria-label="줄 순서 바꾸기: 지금 소속순">소속순</button>')
+        self.assertEqual(re_find(r'<div class="pg"><b>([^<]+)</b>', html), ["4학년", "5학년", "교무실", "행정실", "급식소", "기타/지원"])
+        r = boss.post(f"{self.base}/c/new/aud", {"part": "box", "aud": "people", "aud_sort": "dept", "aud_people": [self.t51.key]})
+        box = r.content.decode()
+        self.assertEqual(re_find(r'<div class="pg"><b>([^<]+)</b>', box), ["교육과정부", "방과후부", "부서 없음"])
+        self.assertIn('name="aud_sort" value="dept"', box)
+        self.assertIn(">부서별</button>", box)
+        self.assertIn(f'value="{self.t51.key}" checked', box)
+        self.assertIn('id="lockA" hx-swap-oob="true">부서<', box)  # 직접 입력의 자동 칸 이름도 맞춘다
+        self.assertIn("개인 1명 · 사람별 1칸 · 부서별", box)
+
+    def test_sort_row_hidden_for_pergroup(self):
+        html = self.login(self.boss).post(f"{self.base}/c/new/aud", {"part": "box", "aud": "pergroup", "aud_pgroups": ["g4"]}).content.decode()
+        self.assertIn('<div class="asort" data-aud="all people" hidden>', html)
+        self.assertIn('<div class="asort" data-aud="all people">', self.login(self.boss).get(f"{self.base}/c/new").content.decode())
+
+    def test_box_redraw_is_school_only_and_other_space_404(self):
+        g = Space.objects.create(school=School.objects.create(neis_atpt="C10", neis_code="3", name="옆옆초"), grade=4, name="옆")
+        u = User.objects.create(username="google:옆옆")
+        Member.objects.create(space=g, user=u, name="옆옆", cls="4-1")
+        c = Client()
+        c.force_login(u)
+        self.assertEqual(c.post(f"/s/{g.token}/c/new/aud", {"part": "box"}).status_code, 404)
+        self.assertEqual(c.post(f"{self.base}/c/new/aud", {"part": "box"}).status_code, 404)

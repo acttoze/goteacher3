@@ -430,8 +430,8 @@ class AudienceNoteTests(Base):
         html = self.as_(self.t4).get(f"{self.base}/c/new").content.decode()
         box = html[html.index('id="audBox"'):]
         notes = re.findall(r'value="(\w+)"[^>]*><b>[^<]+</b><span>[^<]+</span><em class="anote">([^<]+)</em>', box)
-        self.assertEqual(notes, [("all", "학교 일정에 보여요"), ("groups", "고른 소속의 일정에 보여요"), ("pergroup", "고른 소속의 일정에 보여요"),
-                                 ("dept", "일정에는 안 보이고 받는 사람의 마감에만 떠요"), ("people", "일정에는 안 보이고 받는 사람의 마감에만 떠요")])
+        self.assertEqual(notes, [("all", "학교 일정에 보여요"), ("pergroup", "고른 소속의 일정에 보여요"),
+                                 ("people", "일정에는 안 보이고 받는 사람의 마감에만 떠요")])  # 선택지 셋(QC 취합 받는 사람)
         self.assertIn(".amode .anote { margin-left: auto; font-style: normal; font-size: 16px;", html)
 
 

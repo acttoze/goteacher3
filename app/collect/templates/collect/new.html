@@ -89,10 +89,13 @@
   .gck input, .pck input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
   .gck span, .pck span { color: var(--muted); }
   .gck:has(input:checked), .pck:has(input:checked) { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
-  .hr-only { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+  .asort { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 4px 16px; font-size: 16px; }
+  .asort > span:first-of-type { font-weight: 600; }
+  .asort .btn { min-height: 40px; font-size: 16px; }
+  .asort[hidden] { display: none; }
   .plist { display: grid; gap: 12px; max-height: 330px; overflow-y: auto; margin-top: 12px; }
-  .pg { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; align-items: start; }
-  .pg > b { font-size: 15px; color: var(--muted); padding-top: 8px; }
+  .pg { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px; align-items: start; }
+  .pg > b { font-size: 15px; color: var(--muted); padding-top: 8px; overflow-wrap: anywhere; }
   .pck[hidden], .pg[hidden] { display: none; }
   .audsum { padding: 12px 16px; border-radius: var(--radius-in); background: var(--surface); font-size: 15px; }
   .audsum .names { display: block; margin-top: 4px; color: var(--muted); }

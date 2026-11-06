@@ -6,8 +6,10 @@ prototype TR.audRows 이식. 동학년판에는 그룹이 학년 하나뿐이라
 명부 밖(prototype ext, design '명부 밖 선생님도 링크로 받기'): allow_outside일 때만, 마감 전까지. 받는 화면은 C5.
 
 H4 학교 공간: 범위(audience)를 골라 줄을 만든다(prototype spec·TR.audRows·TR.audText).
-- all: 전 교직원 / groups: 고른 그룹(hr면 담임만·반별 1칸) / pergroup: 그룹마다 1칸(그룹 누구나) /
-  dept: 업무분장(Duty) 담당자 / people: 고른 사람. 줄 순서는 학년·반, 그다음 교무실·행정실·급식소·기타.
+- 새로 고르는 것은 셋(QC 취합 받는 사람, 2026-11-06): all 전 교직원 / pergroup 소속(소속마다 1칸, 소속 누구나) / people 개인(고른 사람).
+  all·people은 정렬(sort)을 고른다: 소속순(기본, 학년·반 그다음 교무실·행정실·급식소·기타) 또는 dept 부서별
+  (업무분장 표 순서로 묶고, 여러 부서인 사람은 처음 나온 부서에 한 번, 부서 없는 사람은 맨 뒤 '부서 없음'). 부서별 줄 머리는 부서·성명.
+- 옛 범위 groups(고른 그룹, hr면 담임만·반별 1칸)·dept(업무분장 담당자)는 새로 고를 수 없지만, 이미 만든 취합의 다시 걷기·합본은 그대로.
 동학년은 범위가 없다({}): 지금처럼 반별 명부.
 """
 from django.db import transaction
@@ -23,7 +25,8 @@ OUTSIDE_UNIT = "명부 밖"
 OUTSIDE_MAX = 60  # 명부 밖 줄 상한(링크가 새도 줄이 끝없이 늘지 않게)
 GRADES = [g for g in Member.Group.values if g[1:].isdigit()]
 GROUPS = dict(Member.Group.choices)
-HR_HEAD, PEOPLE_HEAD = ["학년반", "담임"], ["직위", "성명"]  # prototype lockCols
+HR_HEAD, PEOPLE_HEAD, DEPT_HEAD = ["학년반", "담임"], ["직위", "성명"], ["부서", "성명"]  # prototype lockCols
+NO_DEPT = "부서 없음"
 
 
 class OutsideClosed(Exception):
@@ -68,19 +71,37 @@ def read_audience(space, data):
     if not space.is_school:
         return {}
     mode = data.get("aud", "")
-    if mode == "all":
-        return {"mode": "all"}
     if mode == "pergroup":
         return {"mode": mode, "groups": [g for g in GROUPS if g in data.getlist("aud_pgroups")]}
-    if mode == "dept":
-        known = set(Duty.objects.in_space(space).values_list("dept", flat=True))
-        return {"mode": mode, "depts": list(dict.fromkeys(d for d in data.getlist("aud_depts") if d in known))}
+    sort = {"sort": "dept"} if data.get("aud_sort") == "dept" and Duty.objects.in_space(space).exists() else {}
     if mode == "people":
         known = set(Member.objects.in_space(space).values_list("key", flat=True))
-        return {"mode": mode, "people": list(dict.fromkeys(k for k in data.getlist("aud_people") if k in known))}
-    if mode == "groups":
-        return {"mode": mode, "groups": [g for g in GROUPS if g in data.getlist("aud_groups")], "hr": data.get("aud_hr") == "on"}
-    return {"mode": "all"}  # 첫 화면 기본: 전 교직원(2026-11-06 사용자 결정)
+        return {"mode": mode, "people": list(dict.fromkeys(k for k in data.getlist("aud_people") if k in known)), **sort}
+    return {"mode": "all", **sort}  # 기본: 전 교직원. 옛 groups·dept는 새로 받지 않는다(QC 취합 받는 사람)
+
+
+def _first_depts(space, members):
+    """{회원 pk: 부서}와 부서 순서. 업무분장 표 순서로 처음 나온 부서 하나. 담당은 이름 글자라 명부 이름과 맞춘다."""
+    by_name = {}
+    for m in members:
+        by_name.setdefault(_person(m.name), []).append(m)
+    dept_of, order = {}, []
+    for d in Duty.objects.in_space(space).order_by("order", "pk"):
+        for n in split_people(d.who, by_name):
+            for m in by_name.get(n, []):
+                if m.pk not in dept_of:
+                    dept_of[m.pk] = d.dept
+                    if d.dept not in order:
+                        order.append(d.dept)
+    return dept_of, order
+
+
+def _by_dept(space, members):
+    """[(부서, [회원])]: 부서는 표 순서, 묶음 안은 소속순, 부서 없는 사람은 맨 뒤 '부서 없음'."""
+    dept_of, order = _first_depts(space, members)
+    out = [(d, [m for m in members if dept_of.get(m.pk) == d]) for d in order]
+    rest = [m for m in members if m.pk not in dept_of]
+    return [(d, ms) for d, ms in out + [(NO_DEPT, rest)] if ms]
 
 
 def _dept_rows(space, depts):
@@ -115,6 +136,8 @@ def audience_rows(space, aud):
         members = [m for m in members if m.key in aud["people"]]
     elif mode == "groups":
         members = [m for m in members if m.group in aud["groups"]]
+    if aud.get("sort") == "dept" and mode in ("all", "people"):
+        return [{"unit": d, "who": m.name, "member": m} for d, ms in _by_dept(space, members) for m in ms]
     return _lines(members, "class" if aud.get("hr") else "people")
 
 
@@ -122,16 +145,19 @@ def audience_head(aud):
     mode = aud.get("mode")
     if mode is None or aud.get("hr"):
         return list(HR_HEAD)
+    if aud.get("sort") == "dept" and mode in ("all", "people"):
+        return list(DEPT_HEAD)
     return {"pergroup": ["그룹", "작성"], "dept": ["부서", "담당"]}.get(mode, list(PEOPLE_HEAD))
 
 
 def audience_text(aud, n):
     """prototype TR.audText: 받는 곳 설명 한 줄."""
     mode = aud.get("mode")
+    order = " · 부서별" if aud.get("sort") == "dept" else ""
     if mode == "all":
-        return f"전 교직원 {n}명 · 사람별 1칸"
+        return f"전 교직원 {n}명 · 사람별 1칸{order}"
     if mode == "people":
-        return f"개인 {n}명 · 사람별 1칸"
+        return f"개인 {n}명 · 사람별 1칸{order}"
     if mode == "dept":
         return f"부서 {len(aud['depts'])}곳 담당 {n}명 · 사람별 1칸"
     groups = aud.get("groups", [])
@@ -152,21 +178,17 @@ def audience_where(aud):
 
 
 def audience_form(space, aud):
-    """고르는 화면 값(_aud_school.html). 고른 것은 다시 그릴 때 그대로 둔다."""
+    """고르는 화면 값(_aud_school.html). 고른 것은 다시 그릴 때 그대로 둔다. 개인 목록은 고른 정렬로 묶는다(소속별 ↔ 부서별)."""
     members = _members(space)
     picked = set(aud.get("people", []))
     groups, mode = aud.get("groups", []), aud.get("mode")
     n = {g: sum(m.group == g for m in members) for g in GROUPS}
-    names, known = {_person(m.name) for m in members}, {}
-    for d in Duty.objects.in_space(space).order_by("order", "pk"):
-        known.setdefault(d.dept, set()).update(split_people(d.who, names))
-    return {"aud_mode": mode, "aud_hr": aud.get("hr", True),
-            "aud_groups": [{"id": g, "label": label, "n": n[g], "on": g in groups and mode == "groups", "pon": g in groups and mode == "pergroup"}
-                           for g, label in GROUPS.items()],
-            "aud_depts": [{"name": d, "n": len(people), "on": d in aud.get("depts", [])} for d, people in known.items()],
+    by_dept = aud.get("sort") == "dept"
+    packs = _by_dept(space, members) if by_dept else [(label, [m for m in members if m.group == g]) for g, label in GROUPS.items() if n[g]]
+    return {"aud_mode": mode, "aud_sort": "dept" if by_dept else "group", "aud_has_duty": Duty.objects.in_space(space).exists(),
+            "aud_groups": [{"id": g, "label": label, "n": n[g], "pon": g in groups and mode == "pergroup"} for g, label in GROUPS.items()],
             "aud_people": [{"label": label, "members": [{"key": m.key, "name": m.name, "pos": m.position or m.cls_text, "on": m.key in picked}
-                                                        for m in members if m.group == g]}
-                           for g, label in GROUPS.items() if n[g]]}
+                                                        for m in ms]} for label, ms in packs]}
 
 
 def unmatched_count(aud, rows):

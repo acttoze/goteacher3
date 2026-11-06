@@ -204,8 +204,12 @@ def _aud_sum(space, aud):
 @require_POST
 @school_required
 def aud_summary(request):
-    """받는 사람을 바꿀 때마다 요약 줄(htmx). 저장하지 않는다."""
-    return render(request, "collect/_aud_sum.html", {"oob": True, **_aud_sum(request.space, read_audience(request.space, request.POST))})
+    """받는 사람을 바꿀 때마다 요약 줄(htmx). 저장하지 않는다. part=box면 상자 안 전체(정렬을 바꿔 개인 목록 묶음이 바뀔 때)."""
+    aud = read_audience(request.space, request.POST)
+    if request.POST.get("part") == "box":
+        return render(request, "collect/_aud_school_in.html",
+                      {"space": request.space, "oob": True, **audience_form(request.space, aud), **_aud_sum(request.space, aud)})
+    return render(request, "collect/_aud_sum.html", {"oob": True, **_aud_sum(request.space, aud)})
 
 
 def _create_cols(request, title, source, fields, unit_head, multi, rows, options=None, audience=None):

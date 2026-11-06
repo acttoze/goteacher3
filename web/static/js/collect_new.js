@@ -156,35 +156,42 @@
   });
 })();
 
-// H4 학교 공간 받는 사람: 고른 방식의 칸만 보이기, 그룹 묶음 단추, 사람 찾기. 요약 줄은 서버가 그린다(htmx, _aud_school.html).
+// H4 학교 공간 받는 사람: 고른 방식의 칸만 보이기, 정렬 단추(소속순 ↔ 부서별), 사람 찾기. 요약 줄은 서버가 그린다(htmx, _aud_school.html).
+// 정렬을 바꾸면 상자 안을 서버가 다시 그리므로 상자 안 요소에는 직접 붙이지 않고 상자에 위임한다.
 (function () {
   var box = document.getElementById('audBox');
   if (!box) return;
   function panes() {
     var on = box.querySelector('input[name=aud]:checked');
-    box.querySelectorAll('[data-aud]').forEach(function (p) { p.hidden = !on || p.dataset.aud !== on.value; });
+    box.querySelectorAll('[data-aud]').forEach(function (p) { p.hidden = !on || p.dataset.aud.split(' ').indexOf(on.value) < 0; });
   }
   function changed() { box.dispatchEvent(new Event('change', { bubbles: true })); }
+  function hwpRows() {
+    var check = document.getElementById('hwpCheck');  // 한글 양식 '받는 줄'도 새 범위로
+    if (check) htmx.trigger(check, 'change');
+  }
   box.addEventListener('change', function (e) {
     if (e.target.name === 'aud') panes();
-    var check = document.getElementById('hwpCheck');  // 한글 양식 '받는 줄'도 새 범위로
-    if (check && e.target.id !== 'psq') htmx.trigger(check, 'change');
+    if (e.target.id !== 'psq') hwpRows();
   });
   box.addEventListener('click', function (e) {
-    var g = e.target.closest('[data-gall]');
-    if (g) {
-      box.querySelectorAll('input[name=aud_groups]').forEach(function (c) { c.checked = g.dataset.gall === 'grade' && /^g\d$/.test(c.value); });
-      changed();
+    var sort = e.target.closest('[data-sort]');
+    if (sort && !sort.disabled) {
+      var input = box.querySelector('input[name=aud_sort]');
+      input.value = input.value === 'dept' ? 'group' : 'dept';
+      htmx.ajax('POST', box.getAttribute('hx-post'), { source: box, target: box, swap: 'innerHTML', values: { part: 'box' } })
+        .then(function () { panes(); var b = box.querySelector('[data-sort]'); if (b) b.focus(); hwpRows(); });
     } else if (e.target.closest('[data-pclear]')) {
       box.querySelectorAll('input[name=aud_people]').forEach(function (c) { c.checked = false; });
       changed();
     }
   });
-  document.getElementById('psq').addEventListener('input', function () {
-    var q = this.value.trim();
+  box.addEventListener('input', function (e) {
+    if (e.target.id !== 'psq') return;
+    var q = e.target.value.trim();
     box.querySelectorAll('.pck').forEach(function (l) { l.hidden = !!q && l.textContent.indexOf(q) < 0; });
     box.querySelectorAll('.pg').forEach(function (g) { g.hidden = !g.querySelector('.pck:not([hidden])'); });
   });
-  document.getElementById('psq').addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
+  box.addEventListener('keydown', function (e) { if (e.target.id === 'psq' && e.key === 'Enter') e.preventDefault(); });
   panes();
 })();

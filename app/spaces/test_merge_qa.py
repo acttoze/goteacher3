@@ -182,8 +182,8 @@ class HwpAfterMergeQa(MergeBase):
         self.assertFalse(f["error"])
         data = {"src": "hwp", "title": title, "hwp": sf.key, "hwp_sent": "1", "hwp_table": f["table"],
                 "hwp_items": str(len(f["items"])), "outside": "on",
-                # 반별 표라 '1~6학년 담임·반별 1칸'을 직접 고른다(기본 범위가 전 교직원으로 바뀜). 동학년 공간은 범위를 읽지 않는다.
-                "aud": "groups", "aud_groups": ["g1", "g2", "g3", "g4", "g5", "g6"], "aud_hr": "on"}
+                # 담임만 범위는 없어졌다(QC 취합 받는 사람 2026-11-06). 전 교직원으로 받고 줄은 회원의 반으로 맞춘다. 동학년 공간은 범위를 읽지 않는다.
+                "aud": "all"}
         for it in f["items"]:
             data.update({f"item_{it['i']}_role": it["role"], f"item_{it['i']}_name": it["name"],
                          f"item_{it['i']}_kind": it["kind"]})
@@ -224,7 +224,7 @@ class HwpAfterMergeQa(MergeBase):
         sf, c = self.make(f"/s/{hub.token}", hub, ["5-1", "4-1", "4-2"], "학교표.hwpx")
         unit = dict(c.rows.values_list("key", "unit"))
         got = {unit[x["row"]]: x["r"] for x in sf.cellmap["lines"]}
-        self.assertEqual(got, {"5-1": 1, "4-1": 2, "4-2": 3})
+        self.assertEqual(got, {"5학년 1반": 1, "4학년 1반": 2, "4학년 2반": 3})  # 전 교직원 줄의 이름은 「4학년 1반」
 
 
 class LateMembersQa(MergeBase):

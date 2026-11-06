@@ -1,34 +1,5 @@
-{# H4 학교 공간 받는 사람(prototype renderAud). anote: 일정 화면 어디에 뜨는지(QC 일정 취합 범위, today.schedule._collect_tab). 전체·그룹·그룹별·부서·사람. 바꾸면 요약 줄만 서버가 다시 그린다(저장은 '만들고 링크 받기'에서). 이름은 자동 이스케이프. #}
+{% comment %}H4 학교 공간 받는 사람(prototype renderAud). 전 교직원·소속·개인(QC 취합 받는 사람 2026-11-06). 바꾸면 요약 줄만 서버가 다시 그린다(저장은 '만들고 링크 받기'에서).
+정렬을 바꾸면 상자 안(_aud_school_in.html)을 서버가 다시 그린다(개인 목록 묶음이 바뀐다). 이름은 자동 이스케이프.{% endcomment %}
 <div class="sec-h"><h2 id="audH">누구에게서 받나요</h2><span class="r">줄은 고른 범위의 지금 명부로 만들어요</span></div>
 <div class="audbox" id="audBox" hx-post="/s/{{ space.token }}/c/new/aud" hx-trigger="change" hx-target="#audSum" hx-swap="outerHTML"
-  hx-params="csrfmiddlewaretoken,aud,aud_hr,aud_groups,aud_pgroups,aud_depts,aud_people">
-  <label class="amode"><input type="radio" name="aud" value="all"{% if aud_mode == "all" %} checked{% endif %}><b>전 교직원</b><span>사람마다 한 줄</span><em class="anote">학교 일정에 보여요</em></label>
-
-  <label class="amode"><input type="radio" name="aud" value="groups"{% if aud_mode == "groups" %} checked{% endif %}><b>소속 고르기</b><span>고른 소속의 사람마다 한 줄</span><em class="anote">고른 소속의 일정에 보여요</em></label>
-  <div class="apane" data-aud="groups"{% if aud_mode != "groups" %} hidden{% endif %}>
-    <div class="gck-row">{% for g in aud_groups %}<label class="gck"><input type="checkbox" name="aud_groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}>{{ g.label }}<span class="num">{{ g.n }}</span></label>{% endfor %}</div>
-    <div class="wrap-row" style="margin-top:12px">
-      <button class="btn ghost sm" type="button" data-gall="grade">1~6학년만</button><button class="btn ghost sm" type="button" data-gall="none">모두 해제</button>
-      <label class="hr-only"><span class="toggle"><input type="checkbox" name="aud_hr"{% if aud_hr %} checked{% endif %}><i></i></span><span>담임만 · 반별 1칸</span></label>
-    </div>
-  </div>
-
-  <label class="amode"><input type="radio" name="aud" value="pergroup"{% if aud_mode == "pergroup" %} checked{% endif %}><b>소속별 1칸</b><span>소속의 의견을 물을 때 · 소속 누구나</span><em class="anote">고른 소속의 일정에 보여요</em></label>
-  <div class="apane" data-aud="pergroup"{% if aud_mode != "pergroup" %} hidden{% endif %}>
-    <div class="gck-row">{% for g in aud_groups %}<label class="gck"><input type="checkbox" name="aud_pgroups" value="{{ g.id }}"{% if g.pon %} checked{% endif %}>{{ g.label }}<span class="num">{{ g.n }}</span></label>{% endfor %}</div>
-    <p class="small muted" style="margin-top:10px">소속 칸은 그 소속 누구나 쓸 수 있고, 한 명이 내면 제출 완료예요. 내기 전까지는 그 소속 선생님 모두의 낼 것에 떠요.</p>
-  </div>
-
-  <label class="amode"><input type="radio" name="aud" value="dept"{% if aud_mode == "dept" %} checked{% endif %}><b>부서</b><span>업무분장의 담당자마다 한 줄</span><em class="anote">일정에는 안 보이고 받는 사람의 마감에만 떠요</em></label>
-  <div class="apane" data-aud="dept"{% if aud_mode != "dept" %} hidden{% endif %}>
-    {% if aud_depts %}<div class="gck-row">{% for d in aud_depts %}<label class="gck"><input type="checkbox" name="aud_depts" value="{{ d.name }}"{% if d.on %} checked{% endif %}>{{ d.name }}<span class="num">{{ d.n }}</span></label>{% endfor %}</div>
-    {% else %}<p class="small muted">아직 업무분장이 없어요. <a class="tlink acc" href="/s/{{ space.token }}/school?tab=duty">학교 화면</a>에서 표를 붙여넣으면 부서로 고를 수 있어요.</p>{% endif %}
-  </div>
-
-  <label class="amode"><input type="radio" name="aud" value="people"{% if aud_mode == "people" %} checked{% endif %}><b>사람 고르기</b><span>전 교직원 중에서</span><em class="anote">일정에는 안 보이고 받는 사람의 마감에만 떠요</em></label>
-  <div class="apane" data-aud="people"{% if aud_mode != "people" %} hidden{% endif %}>
-    <div class="wrap-row"><label class="search grow"><span class="sr">이름·직책으로 찾기</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input class="input" id="psq" type="search" placeholder="이름·직책으로 찾기 (예: 부장, 전담, 김)" autocomplete="off"></label><button class="btn ghost sm" type="button" data-pclear>모두 해제</button></div>
-    <div class="plist">{% for g in aud_people %}<div class="pg"><b>{{ g.label }}</b><div class="pg-l">{% for m in g.members %}<label class="pck"><input type="checkbox" name="aud_people" value="{{ m.key }}"{% if m.on %} checked{% endif %}>{{ m.name }}<span>{{ m.pos }}</span></label>{% endfor %}</div></div>{% endfor %}</div>
-  </div>
-  {% include "collect/_aud_sum.html" %}
-</div>
+  hx-params="csrfmiddlewaretoken,aud,aud_sort,aud_pgroups,aud_people,part">{% include "collect/_aud_school_in.html" %}</div>
