@@ -181,7 +181,9 @@ class HwpAfterMergeQa(MergeBase):
         f = self.client.get(f"{base}/c/new/hwp/{sf.key}").context["hwpf"]
         self.assertFalse(f["error"])
         data = {"src": "hwp", "title": title, "hwp": sf.key, "hwp_sent": "1", "hwp_table": f["table"],
-                "hwp_items": str(len(f["items"])), "outside": "on"}
+                "hwp_items": str(len(f["items"])), "outside": "on",
+                # 반별 표라 '1~6학년 담임·반별 1칸'을 직접 고른다(기본 범위가 전 교직원으로 바뀜). 동학년 공간은 범위를 읽지 않는다.
+                "aud": "groups", "aud_groups": ["g1", "g2", "g3", "g4", "g5", "g6"], "aud_hr": "on"}
         for it in f["items"]:
             data.update({f"item_{it['i']}_role": it["role"], f"item_{it['i']}_name": it["name"],
                          f"item_{it['i']}_kind": it["kind"]})

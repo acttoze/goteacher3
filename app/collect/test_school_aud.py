@@ -132,9 +132,11 @@ class AudienceTests(SchoolBase):
             self.assertContains(r, "받을 사람이나 그룹을 골라 주세요.", status_code=400)
         self.assertEqual(Collection.objects.count(), n)
 
-    def test_no_audience_field_defaults_to_all_grades_homerooms(self):
+    def test_no_audience_field_defaults_to_all_staff(self):
+        """기본 범위는 전 교직원(2026-11-06 사용자 결정, 전에는 1~6학년 담임)."""
         c = self.make()
-        self.assertEqual([r.unit for r in c.rows.all()], ["4-1", "4-2", "5-1", "5-2"])
+        self.assertEqual(c.audience["mode"], "all")
+        self.assertEqual(c.rows.count(), Member.objects.in_space(c.space).count())
 
     def test_paste_and_hwp_paths_use_audience_too(self):
         r = self.login(self.boss).post(f"{self.base}/c/new", {"src": "paste", "title": "표", "paste": "반\t담임\t참가(명)\n4-1\t\t\n", "aud": "all"})

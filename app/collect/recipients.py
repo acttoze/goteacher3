@@ -80,7 +80,7 @@ def read_audience(space, data):
         return {"mode": mode, "people": list(dict.fromkeys(k for k in data.getlist("aud_people") if k in known))}
     if mode == "groups":
         return {"mode": mode, "groups": [g for g in GROUPS if g in data.getlist("aud_groups")], "hr": data.get("aud_hr") == "on"}
-    return {"mode": "groups", "groups": GRADES, "hr": True}  # prototype 첫 화면: 1~6학년 담임
+    return {"mode": "all"}  # 첫 화면 기본: 전 교직원(2026-11-06 사용자 결정)
 
 
 def _dept_rows(space, depts):
