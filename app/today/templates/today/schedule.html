@@ -19,24 +19,21 @@
   .wgrid > .hd { border-top: 0; min-height: 0; }
   .hd b { display: block; font-size: 16px; }
   .hd span { font-size: var(--fs-small); color: var(--muted); }
-  .hd.today b { color: var(--accent); }
-  .tcol { background: var(--accent-soft); }
-  .ev { display: block; width: 100%; text-align: left; border: 0; font: inherit; color: inherit; text-decoration: none; font-size: 15px; line-height: 1.35; padding: 8px 10px; border-radius: 8px; background: var(--surface); margin-bottom: 6px; position: relative; }
+  .hd.today b { color: var(--accent-ink); }
+  .wgrid > .hd.tcol { background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); } /* taste-skill-ignore: 오늘은 머리 칸만 표시, 칸 바탕은 흰색 그대로 */
+  .ev { display: block; width: 100%; text-align: left; border: 0; font: inherit; color: inherit; text-decoration: none; font-size: 15px; line-height: 1.35; padding: 8px 10px; border-radius: 8px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); margin-bottom: 6px; position: relative; } /* taste-skill-ignore: 흰 바탕에서 카드 경계(회색만으로 1.1:1) */
   button.ev, a.ev { cursor: pointer; }
   button.ev:hover { background: var(--hover); }
-  .tcol .ev { background: #fff; }
   .ev:last-child { margin-bottom: 0; }
   .ev .p { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
-  .ev.mine, button.ev.mine:hover { background: var(--ink); color: #fff; }
-  .ev.mine .p { color: #c9ccd2; }
+  .ev.mine { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 3px 0 0 var(--accent); } /* taste-skill-ignore: 내 일정 = 옅은 파랑 + 왼쪽 띠(범례와 같은 표시) */
+  button.ev.mine:hover { background: var(--accent-track); }
   .ev.due { background: #fff; box-shadow: inset 0 0 0 2px var(--accent); } /* taste-skill-ignore: 마감 일정 표시(범례와 같은 표시) */
   .ev.due .k { color: var(--accent-ink); font-weight: 700; }
-  .ev.neis, .tcol .ev.neis { background: transparent; box-shadow: inset 0 0 0 1px var(--control); } /* taste-skill-ignore: 나이스 학사일정 표시(범례와 같은 표시) */
+  .ev.neis { background: transparent; box-shadow: inset 0 0 0 1px var(--control); } /* taste-skill-ignore: 나이스 학사일정 표시(범례와 같은 표시) */
   .ev.duty .k { color: var(--muted); font-weight: 700; }
   .ev .chg { display: block; color: var(--accent-ink); font-weight: 700; font-size: var(--fs-small); margin-top: 2px; }
-  .ev.mine .chg { color: #b9c8ff; }
   .ev .cf { font-weight: 700; color: var(--pill-warn-ink); }
-  .ev.mine .cf { color: var(--pill-warn-line); }
   .ev .by { position: absolute; top: -9px; right: 6px; }
   .ev.fresh { padding-top: 16px; }
 
@@ -60,10 +57,10 @@
   .mgrid > .ml-h, .mgrid > .ml { border-left: 0; }
   .mgrid > .ml { padding: 2px 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); line-height: 22px; }
   .mgrid > .mdh, .mgrid > .mdh-l { border-top-color: var(--control); background: var(--surface); padding: 2px 8px; min-height: 0; }
-  .mgrid > .mdh.tcol { background: var(--accent-soft); }
+  .mgrid > .mdh.tcol { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); } /* taste-skill-ignore: 오늘 날짜 줄만 표시 */
   .mh.we, .mdh.we .md { color: var(--muted); }
   .md { font-size: 16px; font-weight: 700; }
-  .mdh.tcol .md { color: var(--accent); }
+  .mdh.tcol .md { color: var(--accent-ink); font-weight: 700; }
   .mdh.out .md { color: var(--faint); font-weight: 500; }
   .mc .ev { padding: 6px 8px; margin-bottom: 4px; }
   .mc .ev.fresh { padding-top: 16px; margin-top: 12px; } /* '방금' 이름표가 제목·위 카드를 가리지 않게 */
@@ -87,8 +84,8 @@
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--fs-small); color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .legend i { width: 18px; height: 12px; border-radius: 3px; display: inline-block; }
-  .sw-mine { background: var(--ink); }
-  .sw-grade { background: var(--surface); }
+  .sw-mine { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); } /* taste-skill-ignore: 범례 견본 */
+  .sw-grade { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); } /* taste-skill-ignore: 범례 견본 */
   .sw-neis { box-shadow: inset 0 0 0 1px var(--control); } /* taste-skill-ignore: 범례 견본 */
   .sw-due { box-shadow: inset 0 0 0 2px var(--accent); } /* taste-skill-ignore: 범례 견본 */
 

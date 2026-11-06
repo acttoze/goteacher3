@@ -15,18 +15,16 @@
   .dgrid > .hd { border-top: 0; }
   .hd b { display: block; font-size: 16px; }
   .hd span { font-size: var(--fs-small); color: var(--muted); }
-  .hd.now b { color: var(--accent); }
-  .col-now { background: var(--accent-soft); }
-  .ev { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; font-size: 15px; line-height: 1.35; padding: 8px 10px; border-radius: 8px; background: var(--surface); margin-bottom: 6px; position: relative; }
+  .hd.now b { color: var(--accent-ink); }
+  .dgrid > .hd.col-now { background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); } /* taste-skill-ignore: 지금은 머리 칸만 표시, 칸 바탕은 흰색 그대로 */
+  .ev { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; font-size: 15px; line-height: 1.35; padding: 8px 10px; border-radius: 8px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); margin-bottom: 6px; position: relative; } /* taste-skill-ignore: 흰 바탕에서 카드 경계 */
   .ev:hover { background: var(--hover); }
-  .col-now .ev { background: #fff; }
   .ev:last-child { margin-bottom: 0; }
   .ev .p { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
-  .ev.mine { background: var(--ink); color: #fff; }
-  .ev.mine .p { color: #c9ccd2; }
+  .ev.mine { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 3px 0 0 var(--accent); } /* taste-skill-ignore: 내 일정 = 옅은 파랑 + 왼쪽 띠 */
+  .ev.mine:hover { background: var(--accent-track); }
   .ev .chg { display: block; color: var(--accent-ink); font-weight: 700; font-size: var(--fs-small); margin-top: 2px; }
   .ev del { color: var(--muted); font-weight: 400; }
-  .ev.mine del { color: #a7abb3; }
   .span4 { grid-column: 2 / span 4; display: flex; align-items: center; gap: 14px; font-size: 15px; flex-wrap: wrap; }
   .span4 .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
   .lunch b { font-weight: 700; white-space: nowrap; }
