@@ -8,7 +8,7 @@
   <h1>{{ c.title }}</h1>
   <p class="meta">
     {% if owner %}<span class="by"><span class="av sm" style="background:var(--ink)">{{ owner.name|slice:":1" }}</span><span><b>{{ owner.name }}</b> 선생님({{ owner.cls }})이 걷어요</span></span>{% endif %}
-    <span>{% if c.due %}마감 <b class="num">{{ c.due|date:"n/j H:i" }}</b>{% else %}마감 미정{% endif %}</span>
+    <span>{% if c.due %}마감 <b class="num">{{ c.due_day }}</b>{% else %}마감 미정{% endif %}</span>
   </p>
   <div class="status"><div class="track"><i style="width:{{ pct }}%"></i></div><span class="n num"><b>{{ n_done }}</b> / {{ n_total }}{{ per }} 냈어요</span></div>
 </div>
@@ -65,7 +65,7 @@
 
   <label class="field"><span>내는 사람 <span class="hint">선택 · 대신 내는 분은 이름을 남겨 주세요</span></span><input class="input lg" name="by" autocomplete="name" value="{{ by }}" maxlength="40" placeholder="이름"></label>
   <button class="btn pri lg block" type="submit">{% if matrix %}저장하기{% elif done %}고쳐서 다시 내기{% else %}제출하기{% endif %}</button>
-  <p class="after">{% if c.due %}마감 {{ c.due|date:"n/j H:i" }} 전까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
+  <p class="after">{% if c.due %}마감일 {{ c.due_day }}까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
 </form>
 {% if find_box %}<section class="panel" aria-labelledby="proxyH" style="margin-top:16px"><h2 id="proxyH">다른 선생님 대신 내기</h2>{% include "collect/_recv_find.html" %}</section>{% endif %}
 
@@ -80,7 +80,7 @@
     <dt>시각</dt><dd>{{ at|date:"n/j H:i" }}{% if late %} · 마감 뒤에 냈어요{% endif %}</dd>
   </dl>
   <a class="btn sec lg block" href="/c/{{ c.link_token }}/u/{{ row.key }}">고치기</a>
-  <p class="after">{% if c.due %}마감 {{ c.due|date:"n/j H:i" }} 전까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
+  <p class="after">{% if c.due %}마감일 {{ c.due_day }}까지{% else %}마감 전까지{% endif %} 고칠 수 있어요.</p>
 </section>
 <p class="invite">매일 아침 내 일과와 낼 것을 한 장으로 보려면 <a class="tlink acc" href="/">고티처를 써 보세요</a>.</p>
 

@@ -46,8 +46,8 @@ class DueTests(TestCase):
         c = c or self.c
         return f"/s/{(space or c.space).token}/c/{c.key}/due"
 
-    def post(self, d="2027-11-03", t="17:00", client=None, c=None, space=None):
-        return (client or self.client).post(self.url(c, space), {"date": d, "time": t}, HTTP_HX_REQUEST="true")
+    def post(self, d="2027-11-03", client=None, c=None, space=None):
+        return (client or self.client).post(self.url(c, space), {"date": d}, HTTP_HX_REQUEST="true")
 
     def due(self):
         self.c.refresh_from_db()
@@ -57,33 +57,32 @@ class DueTests(TestCase):
     def test_set_due_in_seoul(self):
         r = self.post()
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(self.due(), datetime(2027, 11, 3, 17, 0, tzinfo=SEOUL))
+        self.assertEqual(self.due(), datetime(2027, 11, 3, 23, 59, tzinfo=SEOUL))  # 날짜만: 그날 끝
         body = r.content.decode()
-        self.assertIn("11/3(수) 17:00", body)
+        self.assertIn("11/3(수)", body)
+        self.assertNotIn('type="time"', body)  # 시각은 받지 않는다(QC 2026-11-06)
         self.assertIn("마감 바꾸기", body)
 
     def test_change_due(self):
         self.post()
-        r = self.post("2027-11-05", "12:30")
-        self.assertEqual(self.due(), datetime(2027, 11, 5, 12, 30, tzinfo=SEOUL))
+        r = self.post("2027-11-05")
+        self.assertEqual(self.due(), datetime(2027, 11, 5, 23, 59, tzinfo=SEOUL))
         self.assertIn("마감 변경", r.content.decode())
 
-    def test_time_defaults_to_17(self):
-        self.post(t="")
-        self.assertEqual(self.due(), datetime(2027, 11, 3, 17, 0, tzinfo=SEOUL))
+    def test_time_sent_is_ignored(self):
+        self.client.post(self.url(), {"date": "2027-11-03", "time": "09:00"}, HTTP_HX_REQUEST="true")
+        self.assertEqual(self.due(), datetime(2027, 11, 3, 23, 59, tzinfo=SEOUL))
 
     def test_past_date_allowed(self):
         """prototype은 지난 날짜를 막지 않는다."""
-        self.post("2020-01-02", "09:00")
-        self.assertEqual(self.due(), datetime(2020, 1, 2, 9, 0, tzinfo=SEOUL))
+        self.post("2020-01-02")
+        self.assertEqual(self.due(), datetime(2020, 1, 2, 23, 59, tzinfo=SEOUL))
 
     def test_bad_date_not_saved(self):
         for d in ("", "2026-13-40", "내일"):
             r = self.post(d)
             self.assertEqual(r.status_code, 200)
             self.assertIn("마감 날짜를 골라 주세요", r.content.decode())
-        self.assertIsNone(self.due())
-        self.post(t="25:99")
         self.assertIsNone(self.due())
 
     def test_get_not_allowed(self):
@@ -130,12 +129,12 @@ class DueTests(TestCase):
     def test_notice_has_due_and_link(self):
         r = self.post()
         body = r.content.decode()
-        self.assertIn("[고티처] 「학예회 참가 인원」 마감 안내: 11/3(수) 17:00", body)
+        self.assertIn("[고티처] 「학예회 참가 인원」 마감 안내: 11/3(수)\n", body)
         self.assertIn("아직 안 채운 분은 링크에서 우리 반 칸만 채워 주세요.", body)
         self.assertIn(f"https://t.goteacher.xyz/c/{self.c.link_token}", body)
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
         self.assertIn("마감 안내 문구 복사", page)
-        self.assertIn("마감 안내: 11/3(수) 17:00", page)
+        self.assertIn("마감 안내: 11/3(수)\n", page)
 
     def test_no_notice_before_due(self):
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
@@ -153,11 +152,11 @@ class DueTests(TestCase):
     # ---- 반영
     def test_recv_shows_changed_due(self):
         self.post()
-        self.assertIn("11/3 17:00", Client().get(f"/c/{self.c.link_token}").content.decode())
-        self.post("2027-11-05", "12:30")
+        self.assertIn("마감 <b class=\"num\">11/3(수)</b>", Client().get(f"/c/{self.c.link_token}").content.decode())
+        self.post("2027-11-05")
         recv = Client().get(f"/c/{self.c.link_token}").content.decode()
-        self.assertIn("11/5 12:30", recv)
-        self.assertNotIn("11/3 17:00", recv)
+        self.assertIn("11/5(금)", recv)
+        self.assertNotIn("11/3(수)", recv)
 
     def test_detail_title_updated_oob(self):
         body = self.post().content.decode()
@@ -189,42 +188,38 @@ class DueQATests(TestCase):
         with mock.patch("django.utils.timezone.now", return_value=now):
             return self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
 
-    # 시간대: 23:59·00:00은 서울 기준 그 날짜로 저장·표시
-    def test_2359_and_midnight_kept_in_seoul(self):
-        self.post("2027-11-03", "23:59")
+    # 시간대: 마감일은 서울 기준 그날 끝(23:59)으로 저장하고 그 날짜로 표시
+    def test_due_day_end_kept_in_seoul(self):
+        self.post("2027-11-03")
         self.assertEqual(self.due(), datetime(2027, 11, 3, 14, 59, tzinfo=dt_tz.utc))
-        self.assertIn("11/3 23:59", Client().get(f"/c/{self.c.link_token}").content.decode())
-        self.post("2027-11-04", "00:00")
-        self.assertEqual(self.due(), datetime(2027, 11, 3, 15, 0, tzinfo=dt_tz.utc))
         recv = Client().get(f"/c/{self.c.link_token}").content.decode()
-        self.assertIn("11/4 00:00", recv)
-        self.assertNotIn("11/3 15:00", recv)
+        self.assertIn("11/3(수)", recv)
 
     # '오늘' 표기는 서울 날짜로(UTC로는 전날인 아침에도)
     def test_today_label_uses_seoul_date(self):
         now = at_seoul(2026, 10, 30, 8, 0)  # UTC 10/29 23:00
         with mock.patch("django.utils.timezone.now", return_value=now):
-            body = self.post("2026-10-30", "17:00").content.decode()
-        self.assertIn("마감 안내: 오늘 17:00", body)
-        self.assertIn("9시간 0분 남았어요", body)
+            body = self.post("2026-10-30").content.decode()
+        self.assertIn("마감 안내: 오늘\n", body)
+        self.assertIn("오늘 마감이에요", body)
 
-    def test_next_day_midnight_not_today(self):
+    def test_tomorrow_late_night_not_today(self):
         now = at_seoul(2026, 10, 30, 23, 30)
         with mock.patch("django.utils.timezone.now", return_value=now):
-            body = self.post("2026-10-31", "00:00").content.decode()
-        self.assertIn("마감 안내: 10/31(토) 00:00", body)
-        self.assertIn("0시간 30분 남았어요", body)
+            body = self.post("2026-10-31").content.decode()
+        self.assertIn("마감 안내: 10/31(토)\n", body)
+        self.assertIn("1일 남았어요", body)
 
     def test_left_text_days_and_passed(self):
-        self.c.due = at_seoul(2026, 11, 2, 19, 0)
+        self.c.due = at_seoul(2026, 11, 2, 23, 59)
         self.c.save()
-        self.assertIn("3일 2시간 남았어요", self.card(at_seoul(2026, 10, 30, 17, 0)))
-        self.assertIn("마감 시각이 지났어요", self.card(at_seoul(2026, 11, 2, 19, 0)))
-        self.assertIn("마감 시각이 지났어요", self.card(at_seoul(2026, 11, 3, 9, 0)))
+        self.assertIn("3일 남았어요", self.card(at_seoul(2026, 10, 30, 17, 0)))
+        self.assertIn("오늘 마감이에요", self.card(at_seoul(2026, 11, 2, 19, 0)))
+        self.assertIn("마감일이 지났어요", self.card(at_seoul(2026, 11, 3, 9, 0)))
 
     def test_past_due_still_changeable(self):
-        self.post("2020-01-02", "09:00")
-        body = self.post("2027-01-02", "09:00").content.decode()
+        self.post("2020-01-02")
+        body = self.post("2027-01-02").content.decode()
         self.assertIn("마감 변경", body)
         self.assertIn("마감 바꾸기", body)
 
@@ -234,9 +229,9 @@ class DueQATests(TestCase):
         row = self.c.rows.first()
         Cell.objects.create(row=row, field=f, value="20")
         Cell.objects.filter(row=row).update(at=at_seoul(2027, 11, 3, 18, 0))
-        self.post("2027-11-03", "17:00")
+        self.post("2027-11-02")
         self.assertIn("늦게 냈어요", Client().get(f"/c/{self.c.link_token}").content.decode())
-        self.post("2027-11-03", "18:00")  # 낸 시각과 같으면 지각 아님
+        self.post("2027-11-03")  # 마감일 당일 안에 냈으면 지각 아님
         recv = Client().get(f"/c/{self.c.link_token}").content.decode()
         self.assertNotIn("늦게 냈어요", recv)
         self.assertIn("냈어요", recv)
@@ -246,7 +241,7 @@ class DueQATests(TestCase):
         a, k = self.a.token, self.c.key
         for u in (f"/s/{a}/c/{self.c.link_token}/due", f"/s/{a}/c/{self.other.key}/due",
                   f"/s/{self.b.token}/c/{k}/due", f"/s/{k}/c/{k}/due", f"/s/{a}x/c/{k}/due"):
-            r = self.client.post(u, {"date": "2027-11-03", "time": "17:00"})
+            r = self.client.post(u, {"date": "2027-11-03"})
             self.assertIn(r.status_code, (403, 404), u)
         self.assertIsNone(self.due())
 
@@ -266,12 +261,12 @@ class DueQATests(TestCase):
     # 안내 문구·알림 문구 변형(prototype: 안내/변경, 정했어요/바꿨어요, 내 줄/우리 반 칸/내 칸)
     def test_toast_text_first_and_changed(self):
         b1 = self.post().content.decode()
-        self.assertIn("마감을 11/3(수) 17:00로 정했어요. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.", b1)
-        b2 = self.post("2027-11-05", "12:30").content.decode()
-        self.assertIn("마감을 11/5(금) 12:30로 바꿨어요.", b2)
+        self.assertIn("마감을 11/3(수)로 정했어요. 받는 선생님 화면에 바로 반영되고, 안내 문구를 복사했어요.", b1)
+        b2 = self.post("2027-11-05").content.decode()
+        self.assertIn("마감을 11/5(금)로 바꿨어요.", b2)
         page = self.client.get(f"/s/{self.a.token}/c/{self.c.key}/").content.decode()
         self.assertNotIn("data-autocopy", page)  # 다시 열 때는 저절로 복사하지 않음
-        self.assertIn("마감 안내: 11/5(금) 12:30", page)  # 처음 연 화면은 '안내'
+        self.assertIn("마감 안내: 11/5(금)\n", page)  # 처음 연 화면은 '안내'
 
     def test_notice_where_variants(self):
         self.c.unit_head = ["이름"]
@@ -282,6 +277,6 @@ class DueQATests(TestCase):
         self.assertIn("링크에서 내 줄만", self.post().content.decode())
 
     def test_oob_sub_has_new_due(self):
-        body = self.post("2027-11-05", "12:30").content.decode()
+        body = self.post("2027-11-05").content.decode()
         sub = body[body.index('id="dueSub"'):]
-        self.assertIn("11/5(금) 12:30", sub)
+        self.assertIn("마감 <b class=\"num\">11/5(금)</b>", sub)

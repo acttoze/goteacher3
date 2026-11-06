@@ -69,7 +69,7 @@ class RemindTests(TestCase):
 
     def test_chip_uses_due_text(self):
         Collection.objects.filter(pk=self.c.pk).update(due=datetime(2027, 11, 3, 17, 0, tzinfo=SEOUL))
-        self.assertIn("4-2 칸이 아직 비어 있어요. 11/3(수) 17:00\n", self.body())
+        self.assertIn("4-2 칸이 아직 비어 있어요. 11/3(수)\n", self.body())
 
     def test_chip_is_button(self):
         body = self.body()
@@ -161,12 +161,12 @@ class RemindTests(TestCase):
 
     # ---- QA 경계 사례
     def test_qa_due_text_has_weekday_like_prototype(self):
-        """QA 실패(D2): prototype TR.dueText = c.due = TR.fmt(d)+' '+t → '11/3(수) 17:00'(요일 포함).
+        """QA 실패(D2): 요일 포함 '11/3(수)'. 마감은 날짜만(QC 2026-11-06)이라 시각은 붙이지 않는다.
         구현도 같은 표기(_due_text, D1 안내 문구와 공유)."""
         Collection.objects.filter(pk=self.c.pk).update(due=datetime(2027, 11, 3, 17, 0, tzinfo=SEOUL))
         body = self.body()
-        self.assertIn("4-2 칸이 아직 비어 있어요. 11/3(수) 17:00\n", body)
-        self.assertIn("\n11/3(수) 17:00 · 링크에서 우리 반 칸만 채워 주세요.", body)
+        self.assertIn("4-2 칸이 아직 비어 있어요. 11/3(수)\n", body)
+        self.assertIn("\n11/3(수) · 링크에서 우리 반 칸만 채워 주세요.", body)
 
     def test_qa_matrix_untouched_row_lists_all(self):
         spec = PRESETS["training"]

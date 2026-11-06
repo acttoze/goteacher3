@@ -6,7 +6,7 @@ C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 5초 �
 공간 소속은 SpaceMiddleware가 확인하고, 조회는 모두 in_space()를 거친다.
 """
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
@@ -99,7 +99,7 @@ def new(request):
     p = error = sf = hwpf = None
     data = request.POST if request.method == "POST" else request.GET  # 일정 취합 칸 ＋: ?due_d=날짜&aud=…로 미리 채운다
     aud = read_audience(space, data)
-    due_d, due_t, due_at = _read_new_due(data)
+    due_d, due_at = _read_new_due(data)
 
     def made(c):
         if due_at:
@@ -192,7 +192,7 @@ def new(request):
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
                      presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")),
-                     due_on="due_d" in data, due_d=due_d, due_t=due_t)
+                     due_d=due_d)
     ctx.update(_paste_ctx(p, error))
     if space.is_school:
         ctx.update(audience_form(space, aud), **_aud_sum(space, aud))
@@ -201,16 +201,20 @@ def new(request):
     return resp
 
 
+def due_at(d):
+    """마감은 날짜만 받는다(QC 2026-11-06). 저장은 그날 끝(23:59, Asia/Seoul): 그날 안에 내면 늦은 게 아니다."""
+    return timezone.make_aware(datetime.combine(d, time(23, 59)))
+
+
 def _read_new_due(data):
-    """만들기 화면의 마감(일정 취합 칸에서 온 날짜). (날짜 글자, 시각 글자, 저장할 시각 또는 None). 틀린 값은 마감 없이."""
+    """만들기 화면의 마감 날짜(기본 비움 = 마감 없음, 일정 취합 칸에서 오면 그 날). (날짜 글자, 저장할 시각 또는 None)."""
     try:
         d = datetime.strptime(data.get("due_d", ""), "%Y-%m-%d").date()
-        t = datetime.strptime(data.get("due_t", "") or "17:00", "%H:%M").time()
     except ValueError:
-        return "", "17:00", None
+        return "", None
     if not 2000 <= d.year <= 2100:
-        return "", "17:00", None
-    return d.isoformat(), t.strftime("%H:%M"), timezone.make_aware(datetime.combine(d, t))
+        return "", None
+    return d.isoformat(), due_at(d)
 
 
 def _aud_sum(space, aud):
@@ -490,21 +494,18 @@ def _can_close(request, c):
 
 
 def _due_text(c):
-    """prototype 마감 표기(app.js 854): 오늘이면 '오늘 17:00', 아니면 '11/3(화) 17:00'(TR.fmt), 없으면 '마감 미정'."""
+    """마감 표기. 날짜만(QC 2026-11-06): 오늘이면 '오늘', 아니면 '11/3(화)', 없으면 '마감 미정'."""
     if not c.due:
         return "마감 미정"
     due = timezone.localtime(c.due)
     if due.date() == timezone.localdate():
-        return f"오늘 {due:%H:%M}"
-    return f"{due.month}/{due.day}({'월화수목금토일'[due.weekday()]}) {due:%H:%M}"
+        return "오늘"
+    return c.due_day
 
 
 def _where(c):
     head = c.unit_head[:1]
     return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else "우리 소속 칸" if head == ["그룹"] else "내 칸"
-
-
-WD = "월화수목금토일"
 
 
 def _due_ctx(request, c, saved=None, error=None):
@@ -513,20 +514,16 @@ def _due_ctx(request, c, saved=None, error=None):
     now = timezone.localtime()
     ctx = {"can_due": _can_close(request, c), "due_saved": saved, "due_error": error}
     if not c.due:
-        d = (now + timedelta(days=4)).date()  # prototype 기본값: 오늘+4일 17:00
-        return {**ctx, "due_d": d.isoformat(), "due_t": "17:00"}
+        d = (now + timedelta(days=4)).date()  # prototype 기본값: 오늘+4일
+        return {**ctx, "due_d": d.isoformat()}
     due = timezone.localtime(c.due)
-    left = due - now
-    h, m = int(left.total_seconds() // 3600), round(left.total_seconds() % 3600 / 60)
-    if m == 60:
-        h, m = h + 1, 0
+    days = (due.date() - now.date()).days
     short = _due_text(c)
     notice = (f"[고티처] 「{c.title}」 마감 {'안내' if saved != 'changed' else '변경'}: {short}\n"
               f"아직 안 채운 분은 링크에서 {_where(c)}만 채워 주세요.\n{settings.SITE_URL}/c/{c.link_token}")
-    return {**ctx, "due_d": due.date().isoformat(), "due_t": due.strftime("%H:%M"), "due_short": short,
-            "due_label": f"{due.month}/{due.day}({WD[due.weekday()]}) {due.strftime('%H:%M')}",
-            "due_left": "마감 시각이 지났어요" if left.total_seconds() <= 0
-            else f"{h // 24}일 {h % 24}시간 남았어요" if h >= 48 else f"{h}시간 {m}분 남았어요",
+    return {**ctx, "due_d": due.date().isoformat(), "due_short": short,
+            "due_label": c.due_day,
+            "due_left": "마감일이 지났어요" if days < 0 else "오늘 마감이에요" if days == 0 else f"{days}일 남았어요",
             "notice": notice}
 
 
@@ -534,19 +531,18 @@ def _due_ctx(request, c, saved=None, error=None):
 @require_POST
 @owner_view(Collection)
 def due(request, c):
-    """마감 정하기·바꾸기(htmx). 날짜·시각은 Asia/Seoul. 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
+    """마감 정하기·바꾸기(htmx). 날짜만(Asia/Seoul, 그날 끝까지). 지난 날짜도 받는다(prototype). 카드와 제목 줄을 돌려준다."""
     if not _can_close(request, c):
         return HttpResponseForbidden("마감은 만든 선생님만 바꿀 수 있어요.")
     if c.closed_at:  # design: 잠근 동안 '마감 바꾸기' 꺼짐
         return HttpResponseForbidden("잠근 동안은 마감을 바꿀 수 없어요. 다시 연 뒤 바꿔 주세요.")
     try:
         d = datetime.strptime(request.POST.get("date", ""), "%Y-%m-%d").date()
-        t = datetime.strptime(request.POST.get("time", "") or "17:00", "%H:%M").time()
     except ValueError:
         ctx = {"c": c, "space": request.space, **_due_ctx(request, c, error="마감 날짜를 골라 주세요.")}
         return render(request, "collect/_due.html", ctx)
     saved = "changed" if c.due else "first"
-    c.due = timezone.make_aware(datetime.combine(d, t))
+    c.due = due_at(d)
     c.save(update_fields=["due"])
     return render(request, "collect/_due.html", {"c": c, "space": request.space, "oob": True,
                                                   **_due_ctx(request, c, saved=saved)})

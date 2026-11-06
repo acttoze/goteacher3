@@ -292,22 +292,23 @@ class SchoolTabTests(Base):
         self.assertEqual(grid_of(self.page(self.t4, "month")).count('<a class="cell-add"'), 35)
         new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "all", "due_d": days[0]}).content.decode()
         self.assertIn(f'name="due_d" value="{days[0]}"', new)
-        self.assertIn('name="due_t" value="17:00"', new)
+        self.assertNotIn('name="due_t"', new)  # 마감은 날짜만
         self.assertRegex(new, r'value="all" checked><b>전 교직원')
 
     def test_new_collect_from_schedule_saves_due(self):
         r = self.as_(self.t4).post(f"{self.base}/c/new", {"src": "sheet", "title": "일정에서", "col_name_0": "참가(명)",
-                                                          "aud": "all", "due_d": "2026-10-30", "due_t": "15:30"})
+                                                          "aud": "all", "due_d": "2026-10-30"})
         self.assertEqual(r.status_code, 302, r.content[:300])
         c = Collection.objects.get(title="일정에서")
-        self.assertEqual(c.due, datetime(2026, 10, 30, 15, 30, tzinfo=KST))
-        self.assertIn("일정에서 · 15:30", rows_of(self.page(self.t4, "week"))["취합"])
+        self.assertEqual(c.due, datetime(2026, 10, 30, 23, 59, tzinfo=KST))  # 날짜만: 그날 끝
+        self.assertIn("일정에서<", rows_of(self.page(self.t4, "week"))["취합"])
         r = self.as_(self.t4).post(f"{self.base}/c/new", {"src": "sheet", "title": "마감 비움", "col_name_0": "참가(명)",
-                                                          "aud": "all", "due_d": "", "due_t": "17:00"})
+                                                          "aud": "all", "due_d": ""})
         self.assertEqual(r.status_code, 302)
         self.assertIsNone(Collection.objects.get(title="마감 비움").due)
         plain = self.as_(self.t4).get(f"{self.base}/c/new").content.decode()
-        self.assertNotIn('name="due_d"', plain)  # 그냥 들어오면 마감은 만든 뒤(전과 같다)
+        self.assertIn('name="due_d" value=""', plain)  # 그냥 들어오면 마감일 칸은 비어 있다(기본 마감 없음)
+        self.assertNotIn('type="time"', plain)
 
 
 class CollectRowTests(Base):
@@ -326,7 +327,7 @@ class CollectRowTests(Base):
     def test_everyone_sees_title_time_and_maker(self):
         for m in (self.t4, self.t5, self.boss):
             row = rows_of(self.page(m, "week"))["취합"]
-            self.assertIn("오학년 조사 · 11:00", row, m.name)
+            self.assertIn("오학년 조사<", row, m.name)
             self.assertIn("오일", row, m.name)
 
     def test_link_only_for_those_who_can_open(self):

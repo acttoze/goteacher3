@@ -7,7 +7,7 @@
     {% else %}
     <p class="due-big">{% if can_due %}마감을 아직 정하지 않았어요{% else %}마감 미정{% endif %}</p>
     {% endif %}
-    <p class="due-left">{% if c.closed_at %}마감하고 잠갔어요. 링크로는 더 낼 수 없어요.{% elif c.due %}{{ due_left }}{% elif can_due %}만들 때는 마감을 받지 않아요. 정하면 받는 선생님 화면에 마감이 보여요.{% else %}만든 선생님이 정하면 여기에 보여요.{% endif %}</p>
+    <p class="due-left">{% if c.closed_at %}마감하고 잠갔어요. 링크로는 더 낼 수 없어요.{% elif c.due %}{{ due_left }}{% elif can_due %}마감 없이 만들었어요. 정하면 받는 선생님 화면에 마감이 보여요.{% else %}만든 선생님이 정하면 여기에 보여요.{% endif %}</p>
     {% if can_due %}
     <div class="rail-acts">
       <button class="btn {% if c.due %}sec{% else %}pri{% endif %}" type="button" data-open="#dueDlg"{% if c.closed_at %} disabled{% endif %}>{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</button>
@@ -21,10 +21,7 @@
         {% csrf_token %}
         <div class="dh"><h2 id="dueDlgH">{% if c.due %}마감 바꾸기{% else %}마감 정하기{% endif %}</h2></div>
         <div class="db">
-          <div class="grid" style="gap:12px">
-            <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ due_d }}" required></label>
-            <label class="field s6"><span>시각</span><input class="input" type="time" name="time" value="{{ due_t }}" step="600"></label>
-          </div>
+          <label class="field"><span>마감일</span><input class="input" type="date" name="date" value="{{ due_d }}" required></label>
           {% if due_error %}<p class="field-err" role="alert">{{ due_error }}</p>{% endif %}
           <p class="muted small">{% if c.due %}바꾸면 받는 선생님 화면의 마감도 함께 바뀌어요.{% else %}정하면 받는 선생님 화면에 마감이 보여요.{% endif %} 저장하면 마감 안내 문구를 복사해요.</p>
         </div>

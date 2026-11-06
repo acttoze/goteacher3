@@ -179,7 +179,7 @@ class ScheduleTests(TestCase):
         self.collection(self.m2, "다음 달 것", NOW + timedelta(days=30))
         r = self.client.get(self.url())
         html = r.content.decode()
-        self.assertRegex(html, r'class="ev due"[^>]*><span class="k">마감</span> 학예회 의상 대여 수량 · 12:00')
+        self.assertRegex(html, r'class="ev due"[^>]*><span class="k">마감</span> 학예회 의상 대여 수량<')
         mine = next(x for x in rows if x.member_id == self.me.pk)
         self.assertIn(f'href="/c/{c.link_token}/u/{mine.key}"', html)
         self.assertIn(f'href="/s/{self.a.token}/c/{mc.key}/"', html)

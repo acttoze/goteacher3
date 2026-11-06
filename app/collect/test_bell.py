@@ -73,7 +73,7 @@ class RemindCommandTests(Base):
         n = Notification.objects.get(member=self.m2)
         self.assertEqual(n.kind, Notification.Kind.D1)
         self.assertEqual(n.space, self.a)
-        self.assertEqual(n.text, "학예회 참가 인원 — 내일 17:00 마감")
+        self.assertEqual(n.text, "학예회 참가 인원 — 내일 마감")
         self.assertEqual(n.link, f"/c/{self.c.link_token}/u/{self.r2.key}")
         self.assertFalse(n.read)
 
@@ -81,7 +81,7 @@ class RemindCommandTests(Base):
         run(at(4, 8, 20))
         run(at(5, 8, 20))
         self.assertEqual(self.kinds(self.m2), ["d0", "d1"])
-        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 17:00 마감")
+        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 마감")
 
     def test_two_days_before_nothing(self):
         run(at(3, 12, 0))
@@ -163,7 +163,7 @@ class BellViewTests(Base):
         r = self.client.get(f"/s/{self.a.token}/bell")
         self.assertEqual(r.status_code, 200)
         body = r.content.decode()
-        self.assertIn("학예회 참가 인원 — 내일 17:00 마감", body)
+        self.assertIn("학예회 참가 인원 — 내일 마감", body)
         self.assertIn(f"/s/{self.a.token}/bell/{self.n2.key}", body)
         own = Notification.objects.get(member=self.owner)
         self.assertNotIn(own.key, body)  # 같은 공간 다른 사람 알림
@@ -242,7 +242,7 @@ class RemindEdgeQATests(Base):
         run(at(4, 8, 20))
         run(at(5, 8, 20))
         self.assertEqual([k for k, _ in self.kinds(self.m2)], ["d0", "d1"])
-        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 23:59 마감")
+        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 마감")
 
     def test_due_0000(self):
         """마감 11/5 00:00 = 11/4 밤. D-1은 11/4 08:20('내일 00:00'), 당일 08:20은 이미 지나 없음."""
@@ -250,7 +250,7 @@ class RemindEdgeQATests(Base):
         run(at(3, 8, 20))
         self.assertEqual(Notification.objects.count(), 0)
         run(at(4, 8, 20))
-        self.assertEqual(Notification.objects.get(member=self.m2).text, "학예회 참가 인원 — 내일 00:00 마감")
+        self.assertEqual(Notification.objects.get(member=self.m2).text, "학예회 참가 인원 — 내일 마감")
         run(at(5, 8, 20))
         self.assertEqual([k for k, _ in self.kinds(self.m2)], ["d1"])
 
@@ -264,14 +264,14 @@ class RemindEdgeQATests(Base):
         self.assertEqual(self.kinds(self.m2), [("d0", at(7, 0, 0).date()), ("d1", at(4, 0, 0).date()),
                                                ("d1", at(6, 0, 0).date())])
         self.assertEqual(Notification.objects.filter(member=self.m2, day=at(6, 0, 0).date()).get().text,
-                         "학예회 참가 인원 — 내일 17:00 마감")
+                         "학예회 참가 인원 — 내일 마감")
 
     def test_due_moved_to_today_after_d1(self):
         run(at(4, 8, 20))
         self.due(at(4, 18, 0))
         run(at(4, 9, 0))
         self.assertEqual([k for k, _ in self.kinds(self.m2)], ["d0", "d1"])
-        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 18:00 마감")
+        self.assertEqual(Notification.objects.get(member=self.m2, kind="d0").text, "학예회 참가 인원 — 오늘 마감")
 
     def test_proxy_submitted_row_excluded(self):
         r = Client().post(f"/c/{self.c.link_token}/u/{self.r2.key}", {"f0": "12", "by": "김가람"})

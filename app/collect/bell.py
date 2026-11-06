@@ -34,9 +34,8 @@ def remind(now=None):
     plan = {today: Notification.Kind.D0, today + timedelta(days=1): Notification.Kind.D1}
     new = []
     for c in Collection.objects.filter(closed_at__isnull=True, due__gt=now, due__date__in=list(plan)):
-        due = timezone.localtime(c.due)
-        kind = plan[due.date()]
-        text = f"{c.title} — {'오늘' if kind == Notification.Kind.D0 else '내일'} {due:%H:%M} 마감"
+        kind = plan[timezone.localtime(c.due).date()]
+        text = f"{c.title} — {'오늘' if kind == Notification.Kind.D0 else '내일'} 마감"
         rows = [u["row"] for u in _units(c) if not u["done"]]
         people = dict(Member.objects.in_space(c.space).values_list("pk", "group"))
         for r in rows:

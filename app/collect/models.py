@@ -5,6 +5,7 @@
 제출 여부·시각·내는 사람은 Cell(by, at)에서 계산한다(지각 = at > due).
 """
 from django.db import models
+from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
 from spaces.models import Member, Space, SpaceQuerySet, new_token
@@ -48,6 +49,14 @@ class Collection(models.Model):
     def head_shown(self):
         """화면·내보내기 머리글. 저장 값 '그룹'은 내부 식별자(submit 판정)라 그대로 두고 소속으로 보여 준다."""
         return ["소속" if h == "그룹" else h for h in self.unit_head]
+
+    @property
+    def due_day(self):
+        """마감일 표기 '11/3(수)'(날짜만, QC 2026-11-06). 마감이 없으면 빈 글자."""
+        if not self.due:
+            return ""
+        d = timezone.localtime(self.due)
+        return f"{d.month}/{d.day}({'월화수목금토일'[d.weekday()]})"
 
     def save(self, *args, **kwargs):
         if kwargs.get("update_fields") is not None:

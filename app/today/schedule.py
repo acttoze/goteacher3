@@ -40,7 +40,7 @@ from spaces.models import Attendance
 from spaces.views import _space_ctx
 
 from .models import ALL, ME, Event, reachable_q
-from .parse import SLOT_KEYS, SLOTS, block_of_time
+from .parse import SLOT_KEYS, SLOTS
 
 WD = "월화수목금토일"
 MONTH_DOW = "일월화수목금토"
@@ -283,14 +283,14 @@ def board_ctx(request, mode, raw):
             href = f"/s/{space.token}/c/{c.key}/"
         else:
             href = "" if space.is_school else f"/c/{c.link_token}"  # 학교 공간의 대상 아닌 사람에게는 받는 링크를 싣지 않는다
-        x = {"kind": "due", "c": c, "href": href, "hm": f"{at:%H:%M}", "who": by,
+        x = {"kind": "due", "c": c, "href": href, "who": by,
              "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
-             "day": f"{_d(at.date())} {at:%H:%M}", "today": at.date() == today, "ch": "collect" if channeled else ""}
+             "day": _d(at.date()), "today": at.date() == today, "ch": "collect" if channeled else ""}
         if list_first <= at.date() <= list_last and (mine or row or not space.is_school):
             dues.append(x)
         where = _collect_tab(space, c)
         if (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
-            cells[(at.date(), "collect", block_of_time(f"{at:%H:%M}"))].append(x)
+            cells[(at.date(), "collect", "")].append(x)  # 마감은 날짜만(종일)
 
     n_items = sum(len(v) for v in cells.values())
 

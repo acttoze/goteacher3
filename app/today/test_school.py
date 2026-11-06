@@ -382,7 +382,7 @@ class ToggleTests(Base):
         c1 = self.coll(self.boss, "온학교조사", due=NOW + timedelta(days=1))
         r = self.as_(self.t51).get(f"{self.base}/today?show=school")
         self.assertContains(r, "온학교조사")
-        self.assertContains(r, "10/31(토) 11:05")
+        self.assertContains(r, "10/31(토)")
         self.assertContains(r, "1/2")
         for secret in (c1.link_token, c1.key, "제출한사람이름", "안낸사람이름", "값값값"):
             self.assertNotContains(r, secret)

@@ -174,7 +174,7 @@ class TodayTests(TestCase):
         html = r.content.decode()
         h1 = html[html.index("<h1"):html.index("</h1>")]
         self.assertIn("학예회 반별 참가 인원", h1)
-        self.assertIn("오늘 14:00", h1)
+        self.assertIn("<span class=\"due num\">오늘</span> 마감", h1)
         mine = next(x for x in rows if x.member_id == self.me.pk)
         self.assertContains(r, f'href="/c/{c.link_token}/u/{mine.key}"')
         self.assertContains(r, "방과후 수요조사")
