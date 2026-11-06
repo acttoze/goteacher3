@@ -29,8 +29,8 @@ def reachable_q(me):
 
 
 def scope_choices(me):
-    """대상 고르기. 맨 앞이 기본값: 학교 전체."""
-    return [(ALL, "학교 전체"), (ME, "개인(나만)"), *Member.Group.choices]
+    """대상 고르기. 맨 앞이 기본값: 학교 전체. 쓸 수 있는 범위는 학교 전체·나·내 소속뿐(today.views._cell_scopes)."""
+    return [(ALL, "학교 전체"), (ME, "개인(나만)"), *([(me.group, me.get_group_display())] if me.group else [])]
 
 
 class Event(models.Model):

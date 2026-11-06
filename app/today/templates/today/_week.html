@@ -1,20 +1,22 @@
-{# 일정 판(일간·주간·월간) + 바뀐 것·마감. 칸 안 추가·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). #}
-<div id="week" data-mode="{{ mode }}" data-w="{{ w }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+{# 일정 판(일간·주간·월간) + 바뀐 것·마감. 칸 안 추가·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). 탭·모드·날짜는 data-*로 칸 입력에 넘긴다. #}
+<div id="week" data-mode="{{ mode }}" data-w="{{ w }}" data-tab="{{ tab }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
-    <div class="card-h"><h2 id="wkH">{{ space.label }}{% if not space.is_school %} · 학교{% endif %}</h2><span class="n num">{{ n_items }}</span>
-      <span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>취합 마감</span></span></div>
-    <div class="wk">{% if mode == "month" %}<div class="mgrid">
-      <div class="mh ml-h"></div>{% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
-      {% for wk in mweeks %}<div class="ml-h mdh-l"></div>{% for f in wk.heads %}<div class="mdh{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
-      {% for r in wk.rows %}<div class="ml" data-ch="{{ r.ch }}">{{ r.label }}</div>
-      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}" data-ch="{{ r.ch }}"{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
+    <div class="card-h"><h2 id="wkH">{{ board_title }}</h2><span class="n num">{{ n_items }}</span>
+      {% if channeled %}<span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>취합 마감</span></span>
+      {% elif tab == "group" %}<span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ tab_label }}</span></span>
+      {% else %}<span class="r">나만 보여요</span>{% endif %}</div>
+    <div class="wk">{% if mode == "month" %}<div class="mgrid{% if not channeled %} plain{% endif %}">
+      {% if channeled %}<div class="mh ml-h"></div>{% endif %}{% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
+      {% for wk in mweeks %}{% if channeled %}<div class="ml-h mdh-l"></div>{% endif %}{% for f in wk.heads %}<div class="mdh{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
+      {% for r in wk.rows %}{% if channeled %}<div class="ml" data-ch="{{ r.ch }}">{{ r.label }}</div>{% endif %}
+      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
       {% endfor %}{% endfor %}
     </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}
       {% for r in wrows %}
-      <div class="lbl"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}>{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}{% if r.note %}<span>{{ r.note }}</span>{% endif %}</div>
-      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %}{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
+      <div class="lbl"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}>{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}</div>
+      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %}{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
       {% endfor %}
     </div>{% endif %}
     {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">{{ period_short }} 학사일정이 없어요.</p>{% endif %}
@@ -22,7 +24,7 @@
     {% for x in dialogs %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>
       {% if x.can_write %}<form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#week" hx-swap="outerHTML">
-        {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="w" value="{{ w }}">
+        {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="w" value="{{ w }}"><input type="hidden" name="tab" value="{{ tab }}">
         <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
         <div class="db">
           <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.last_by.name|default:"알 수 없음" }}</p>
@@ -32,11 +34,21 @@
             <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
             <label class="field s6"><span>블록</span><select class="select" name="slot"><option value="">종일</option>{% for s in slot_choices %}<option value="{{ s.k }}"{% if s.k == x.e.slot %} selected{% endif %}>{{ s.label }}</option>{% endfor %}</select></label>
             <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
-            {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
+            {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in x.scopes %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
           </div>
         </div>
         <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-target="#week" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit">저장</button></div>
       </form>{% else %}{% include "today/_ev_read.html" %}{% endif %}
+    </div>
+    {% endfor %}
+    {% for x in duty_dialogs %}
+    <div class="scrim" id="duty-{{ x.a.key }}" hidden>
+      <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="dyh-{{ x.a.key }}" method="post" action="/s/{{ space.token }}/today/duty/{{ x.a.key }}/delete" hx-post="/s/{{ space.token }}/today/duty/{{ x.a.key }}/delete" hx-target="#week" hx-swap="outerHTML">
+        {% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="w" value="{{ w }}"><input type="hidden" name="tab" value="{{ tab }}">
+        <div class="dh"><h2 id="dyh-{{ x.a.key }}">복무 {{ x.title }}</h2></div>
+        <div class="db"><p class="muted">{{ x.a.date|date:"n/j" }}{% if x.time %} · {{ x.time }}{% endif %} · 넣은 사람 {{ x.a.by.name|default:"알 수 없음" }}</p><p class="muted">지우면 모든 선생님 일정에서 사라져요.</p></div>
+        <div class="df"><button class="btn danger" type="submit" style="margin-right:auto">지우기</button><button class="btn sec" type="button" data-close>닫기</button></div>
+      </form>
     </div>
     {% endfor %}
   </section>

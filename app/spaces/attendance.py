@@ -267,6 +267,25 @@ def read_attendance(text, today, known):
     return {"rows": list(rows.values()), "skipped": skipped + unknown, "unknown": unknown, "totals": totals}
 
 
+LINE_ERROR = f"명부에 있는 이름과 유형({'·'.join(Attendance.KINDS)})으로 써 주세요."
+
+
+def read_line(text, known):
+    """일정 화면 복무 칸의 한 줄 '이름 유형 [시간]' → {name, kind, time}, 못 읽으면 None(부르는 쪽은 원문을 돌려 보이지 않는다).
+    표 붙여넣기와 같은 원칙: 이름은 명부 이름과 정확히(공백 무시, 호칭 꼬리만 떼고), 유형은 KINDS로만(가족·건강 유형은 부재),
+    시간은 유형 뒤 글자에서 시각 낱말만 뽑는다. 나머지 글자(사유 등)는 어디에도 남기지 않는다. known: 명부 이름들(붙인 글자)."""
+    words = text.split()
+    at = next((i for i, w in enumerate(words) if w in Attendance.KINDS or _kind(w)), None)
+    if not at:  # 유형이 없거나 이름 없이 유형부터
+        return None
+    name = _match(" ".join(words[:at]), known)
+    if not name:
+        return None
+    kind = words[at] if words[at] in Attendance.KINDS else _kind(words[at])
+    _, times, word = _read_when(" ".join(words[at + 1:]), timezone.localdate(), dates_too=False)
+    return {"name": name[:40], "kind": kind, "time": _time_text(kind, None, [], times, word)}
+
+
 def _roster(space):
     """{붙인 이름: [회원들]}. 이름 맞추기와 소속 표시에만 쓴다(권한 아님)."""
     found = {}

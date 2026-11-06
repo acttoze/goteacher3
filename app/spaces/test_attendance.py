@@ -316,7 +316,7 @@ class NoReasonTests(Web):
 
     def test_no_reason_field_on_model(self):
         self.assertEqual({f.name for f in Attendance._meta.get_fields()},
-                         {"id", "space", "date", "name", "member", "kind", "time_text", "by", "created_at"})
+                         {"id", "key", "space", "date", "name", "member", "kind", "time_text", "by", "created_at"})
 
     def _capture(self):
         stream = io.StringIO()

@@ -12,4 +12,6 @@ urlpatterns = [
     path("today/events", views.add),
     path("today/e/<str:key>", views.edit),
     path("today/e/<str:key>/delete", views.delete),
+    path("today/duty", schedule.duty_add),  # 일정 학교 탭 복무 칸(QC 2026-11-06)
+    path("today/duty/<str:key>/delete", schedule.duty_delete),
 ]

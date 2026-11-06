@@ -22,11 +22,17 @@
     var form = document.getElementById('cellTpl').content.firstElementChild.cloneNode(true);
     form.elements.mode.value = week.dataset.mode;
     form.elements.w.value = week.dataset.w;
+    form.elements.tab.value = week.dataset.tab;
     form.elements.date.value = cell.dataset.date;
     form.elements.slot.value = cell.dataset.slot;
     if (form.elements.scope) {  // 동학년은 칸이 없다(언제나 모두)
       form.elements.scope.value = cell.dataset.scope;
-      form.elements.line.placeholder = form.elements.line.getAttribute('data-ph-' + cell.dataset.scope);
+      var ph = form.elements.line.getAttribute('data-ph-' + cell.dataset.scope);
+      if (ph) form.elements.line.placeholder = ph;
+    }
+    if (cell.dataset.post) {  // 복무 칸: 이름 유형 [시간]
+      form.action = cell.dataset.post;
+      form.setAttribute('hx-post', cell.dataset.post);
     }
     cell.classList.add('adding');
     cell.insertBefore(form, cell.querySelector('.cell-add'));
@@ -112,7 +118,7 @@
     if (saving && open && !e.detail.successful) stayOpen();
   });
 
-  // 채널·그룹 필터: 꺼진 값의 줄·카드를 숨긴다. 상태는 이 브라우저에만(공간별), 못 읽거나 못 써도 동작한다.
+  // 채널 필터(학교 탭·동학년): 꺼진 채널의 줄·카드를 숨긴다. 상태는 이 브라우저에만(공간별), 못 읽거나 못 써도 동작한다.
   var FILTER_KEY = 'gt_sched_off:' + location.pathname;
   function readOff() {
     try {
@@ -122,10 +128,10 @@
   }
   function filterInputs() { return document.querySelectorAll('.flt input[data-flt]'); }
   function applyFilters() {
-    var off = { ch: {}, grp: {} };
-    filterInputs().forEach(function (i) { if (!i.checked) off[i.dataset.flt][i.value] = true; });
-    document.querySelectorAll('#week [data-ch], #week [data-group]').forEach(function (el) {
-      el.classList.toggle('f-off', !!(off.ch[el.dataset.ch] || off.grp[el.dataset.group]));
+    var off = {};
+    filterInputs().forEach(function (i) { if (!i.checked) off[i.value] = true; });
+    document.querySelectorAll('#week [data-ch]').forEach(function (el) {
+      el.classList.toggle('f-off', !!off[el.dataset.ch]);
     });
     document.querySelectorAll('.flt').forEach(function (box) {
       var btn = box.querySelector('.flt-btn'), n = box.querySelectorAll('input:not(:checked)').length;
@@ -155,9 +161,8 @@
   });
   document.addEventListener('change', function (e) {
     if (!e.target.matches('.flt input[data-flt]')) return;
-    var kind = e.target.dataset.flt, state = readOff();  // 이 화면에 없는 종류(주간의 그룹)는 저장된 값을 둔다
-    state[kind] = [].filter.call(filterInputs(), function (i) { return i.dataset.flt === kind && !i.checked; })
-      .map(function (i) { return i.value; });
+    var state = readOff();
+    state.ch = [].filter.call(filterInputs(), function (i) { return !i.checked; }).map(function (i) { return i.value; });
     try { localStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (err) { /* 저장만 못 한다 */ }
     applyFilters();
   });

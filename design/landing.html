@@ -664,8 +664,8 @@
   function renderAns() {
     var r = parse($('#q').value);
     function kv(k, v, ph) { return '<div><div class="k">' + k + '</div><div class="v' + (v ? '' : ' miss') + '">' + (v || ph) + '</div></div>'; }
-    $('#ans').innerHTML = kv('날짜', r.date, '오늘') + kv('블록', r.slot, '시간 미정') + kv('장소', r.place, '—') + kv('제목', r.title, '—');
-    $('#ansRes').textContent = r.slot ? '4학년 오늘 화면 ' + r.slot.split(' ')[0] + ' 칸에 올라가요.' : '시간이 없으면 「전일」 칸에 모였다가, 필요할 때 블록으로 옮겨요.';
+    $('#ans').innerHTML = kv('날짜', r.date, '오늘') + kv('블록', r.slot, '종일') + kv('장소', r.place, '—') + kv('제목', r.title, '—');
+    $('#ansRes').textContent = r.slot ? '4학년 오늘 화면 ' + r.slot.split(' ')[0] + ' 칸에 올라가요.' : '시간이 없으면 「종일」 칸에 모였다가, 필요할 때 블록으로 옮겨요.';
   }
   $('#q').addEventListener('input', renderAns);
   $$('.examples button').forEach(function (b) { b.onclick = function () { $('#q').value = b.dataset.q; renderAns(); $('#q').focus(); }; });

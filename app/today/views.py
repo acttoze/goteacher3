@@ -66,16 +66,21 @@ def _clash(pool, d, end, s, e, exclude=None):
             and slot_idx(x.slot) <= b and a <= slot_idx(x.slot_end or x.slot)]
 
 
-def _conflicts(space, d, end, s, e, place):
+def _others_private(me):
+    """남의 '나만' 일정: 겹침 판정에도 넣지 않는다('다른 일정'으로도 보이지 않게, 관리자 포함)."""
+    return Q(scope=ME) & ~Q(by=me)
+
+
+def _conflicts(space, me, d, end, s, e, place):
     """TR.conflicts: 같은 장소, 날짜가 겹치고 블록이 겹치는 일정."""
     if not (place and d and s):
         return []
-    qs = (Event.objects.in_space(space).filter(place=place).exclude(slot="").select_related("by")
+    qs = (Event.objects.in_space(space).filter(place=place).exclude(slot="").exclude(_others_private(me)).select_related("by")
           .filter(date__lte=end or d).filter(Q(end__gte=d) | Q(end__isnull=True, date__gte=d)))
     return _clash(qs, d, end, s, e)
 
 
-def week_conflicts(space, evs):
+def week_conflicts(space, me, evs):
     """일정 여러 건의 겹침을 쿼리 한 번으로: {일정 pk: 겹치는 일정들}."""
     evs = [x for x in evs if x.place and x.slot]
     if not evs:
@@ -83,7 +88,7 @@ def week_conflicts(space, evs):
     pool = {}
     first, last = min(x.date for x in evs), max(x.last_day for x in evs)
     for x in (Event.objects.in_space(space).filter(place__in={e.place for e in evs}, date__lte=last).exclude(slot="")
-              .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first)).select_related("by")):
+              .exclude(_others_private(me)).filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first)).select_related("by")):
         pool.setdefault(x.place, []).append(x)
     return {x.pk: _clash(pool[x.place], x.date, x.end, x.slot, x.slot_end, exclude=x) for x in evs}
 
@@ -260,16 +265,22 @@ def _read_cell(request):
 
 
 def _read_scope(request):
-    """볼 사람. 칸 추가는 add가 먼저 값을 확인하므로 대체값은 한 줄 입력에만 쓰인다. 동학년은 언제나 모두, 학교 공간은 고른 값(없거나 틀리면 내 그룹, 그룹이 없으면 나)."""
+    """볼 사람. 칸 추가는 add가 먼저 값을 확인하므로 대체값은 한 줄 입력에만 쓰인다. 동학년은 언제나 모두,
+    학교 공간은 학교 전체·나·내 소속 중 고른 값(없거나 그 밖이면 내 그룹, 그룹이 없으면 나). 남의 그룹 범위로는 쓰지 못한다."""
     me = request.member
     if not request.space.is_school:
         return ALL
     raw = request.POST.get("scope")
-    return raw if _scope_ok(raw) else (me.group or ME)
+    return raw if raw in _cell_scopes(me) else (me.group or ME)
 
 
 def _scope_ok(raw):
     return raw in (ALL, ME, *Member.Group.values)
+
+
+def _cell_scopes(me):
+    """일정 칸이 저장할 수 있는 볼 사람: 학교 탭 전체, 그룹 탭 내 소속, 개인 탭 나."""
+    return [ALL, ME, *([me.group] if me.group else [])]
 
 
 def _scope_toast(e):
@@ -293,7 +304,7 @@ def preview(request):
         return render(request, "today/_qpop.html", {"empty": True})
     ctx = {"error": error}
     if p:
-        conf = _conflicts(request.space, p["date"], p["end"], p["s"], p["e"], p["place"])
+        conf = _conflicts(request.space, request.member, p["date"], p["end"], p["s"], p["e"], p["place"])
         ctx.update(p=p, dates=_dates(p["date"], p["end"]), slot=slot_text(p["s"], p["e"]) if p["s"] else "",
                    conf=_conf_text(p, conf, request.member) if conf else "", n_rooms=len(ROOMS))
     return render(request, "today/_qpop.html", ctx)
@@ -308,7 +319,7 @@ def add(request):
         cell_date, cell_slot = _read_cell(request)
         if cell_date is None:
             return HttpResponseBadRequest("칸의 날짜·블록을 다시 확인해 주세요.")
-        if request.space.is_school and not _scope_ok(request.POST.get("scope")):  # 칸은 줄이 볼 사람을 정한다. 대체값으로 넓히지 않는다
+        if request.space.is_school and request.POST.get("scope") not in _cell_scopes(request.member):  # 칸은 탭이 볼 사람을 정한다. 대체값으로 넓히지 않는다
             return HttpResponseBadRequest("볼 사람을 다시 확인해 주세요.")
     p, error = _read_line(request)
     if p is None:
@@ -320,7 +331,7 @@ def add(request):
         p.update(date=cell_date, end=None)
         if cell_slot:
             p.update(s=cell_slot, e=cell_slot)
-    conf = _conflicts(request.space, p["date"], p["end"], p["s"], p["e"], p["place"])
+    conf = _conflicts(request.space, request.member, p["date"], p["end"], p["s"], p["e"], p["place"])
     e = Event.objects.create(space=request.space, by=request.member, date=p["date"], end=p["end"],
                              slot=p["s"] or "", slot_end=p["e"] or "", title=p["title"],
                              place=(p["place"] or "")[:PLACE_MAX], target=p["target"], scope=_read_scope(request))
@@ -360,7 +371,8 @@ def edit(request, key):
     slot = request.POST.get("slot", "")
     place = _clean(request.POST.get("place", ""), PLACE_MAX + 1)
     scope = request.POST.get("scope", e.scope) if request.space.is_school else e.scope
-    if d is None or slot not in ["", *SLOT_KEYS] or len(place) > PLACE_MAX or not _scope_ok(scope):
+    # 볼 사람은 학교 전체·나·내 소속만. 지금 값이 다른 그룹이면 그 값 그대로 두는 것만 받는다.
+    if d is None or slot not in ["", *SLOT_KEYS] or len(place) > PLACE_MAX or scope not in [*_cell_scopes(request.member), e.scope]:
         return HttpResponseBadRequest("날짜·블록·장소를 다시 확인해 주세요. 날짜는 달력에서 골라 주세요.")
     b_dates, b_slot, b_place = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else None, e.place
     b_blocks = (e.slot, e.slot_end)  # 1~3블록도 표기가 '종일'이라 글자로는 블록 없음과 나눌 수 없다

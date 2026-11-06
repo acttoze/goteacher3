@@ -57,8 +57,8 @@ class Base(TestCase):
     def ev(self, by, title, scope=ALL, slot="", d=TODAY, **kw):
         return Event.objects.create(space=self.hub, by=by, title=title, scope=scope, slot=slot, slot_end=kw.pop("slot_end", slot), date=d, **kw)
 
-    def page(self, m, mode, **kw):
-        return self.as_(m).get(f"{self.base}/schedule", {"mode": mode, **kw}).content.decode()
+    def page(self, m, mode, tab="school", **kw):
+        return self.as_(m).get(f"{self.base}/schedule", {"mode": mode, "tab": tab, **kw}).content.decode()
 
 
 class PersonalLeakTests(Base):
@@ -88,8 +88,8 @@ class PersonalLeakTests(Base):
                 self.assert_clean(r.content.decode(), f"{m.name} {path}")
 
     def test_writer_sees_it_in_personal_row_and_change_list(self):
-        html = self.page(self.t4, "week")
-        self.assertIn("비밀상담기록", rows_of(html)["개인"])
+        html = self.page(self.t4, "week", tab="me")  # QC 2026-11-06: 개인 탭
+        self.assertIn("비밀상담기록", rows_of(html)["2블록"])
         self.assertIn("비밀옛장소", html[html.index('id="chg"'):])
 
     def test_change_list_count_and_item_count_do_not_betray(self):
@@ -108,13 +108,13 @@ class PersonalLeakTests(Base):
             self.assert_clean(r.content.decode(), mode)
 
     def test_place_clash_says_no_title_or_name(self):
-        """겹침 문구는 '다른 일정'까지만. 같은 곳·같은 블록의 내 일정 대화상자와 칸 안."""
+        """QC 2026-11-06: 남의 개인 일정은 겹침 판정에서 뺀다. '다른 일정'으로도 나오지 않는다."""
         for m in self.viewers():
             mine = self.ev(m, f"{m.name} 수업", ALL, "b2", place="과학실")
             html = self.page(m, "week")
             self.assert_clean(html, m.name)
-            self.assertIn("다른 일정 (2블록)", html, m.name)
-            self.assertNotIn("(2블록, 사일)", html, m.name)
+            self.assertNotIn("다른 일정", html, m.name)
+            self.assertNotIn("장소 겹침", html, m.name)
             mine.delete()
 
     def test_preview_and_toast_on_clash_say_no_title(self):
@@ -201,11 +201,12 @@ class ExistingScopeTests(Base):
         return dlg[i:dlg.index("</select>", i)]
 
     def test_every_mode_selects_stored_group_and_order(self):
+        """QC 2026-11-06: 볼 사람은 학교 전체 · 내 그룹 · 개인(나만) 셋."""
         e = self.ev(self.t5, "오학년 일", "g5")
         for mode in ("day", "week", "month"):
-            sel = self.dialog_select(self.page(self.boss, mode), e)  # 관리자가 남의 그룹 일정을 연다
+            sel = self.dialog_select(self.page(self.t5, mode, tab="group"), e)
             self.assertIn('<option value="g5" selected>5학년</option>', sel, mode)
-            self.assertEqual(re.findall(r'value="(\w+)"', sel)[:3], ["all", "me", "g1"], mode)
+            self.assertEqual(re.findall(r'value="(\w+)"', sel), ["all", "g5", "me"], mode)
             self.assertEqual(sel.count(" selected"), 1, mode)
             self.assertNotIn("우리 소속", sel, mode)
 
@@ -223,13 +224,13 @@ class ExistingScopeTests(Base):
         e.refresh_from_db()
         self.assertEqual((e.scope, e.slot), ("g4", "b3"))
 
-    def test_group_event_stays_out_of_personal_row(self):
+    def test_group_event_stays_in_group_tab(self):
         self.ev(self.t4, "사학년 일", "g4", "b1")
-        for mode in ("day", "week"):
-            rows = rows_of(self.page(self.t4, mode))
-            self.assertNotIn("사학년 일", rows["개인"], mode)
-        self.assertIn("사학년 일", rows_of(self.page(self.t4, "week"))["학교"])
-        self.assertIn("사학년 일", rows_of(self.page(self.t4, "day"))["1블록"])
+        for mode in ("day", "week", "month"):
+            self.assertNotIn("사학년 일", grid_of(self.page(self.t4, mode, tab="me")), mode)
+            self.assertNotIn("사학년 일", grid_of(self.page(self.t4, mode)), mode)
+            self.assertIn("사학년 일", grid_of(self.page(self.t4, mode, tab="group")), mode)
+        self.assertIn("사학년 일", rows_of(self.page(self.t4, "day", tab="group"))["1블록"])
 
     def test_no_our_group_wording_on_other_scope_pickers(self):
         c = self.as_(self.t4)
@@ -256,7 +257,9 @@ class SourceRowTests(Base):
     def test_week_each_kind_only_in_own_row(self):
         self.fill()
         rows = rows_of(self.page(self.t4, "week"))
-        want = {"학교": ("학교일", "그룹일", "독서주간"), "복무": ("오일 출장",), "취합": ("낼표",), "개인": ("혼자일",)}
+        self.assertNotIn("그룹일", "".join(rows.values()))  # 그룹·개인 일정은 학교 탭에 없다(QC 2026-11-06)
+        self.assertNotIn("혼자일", "".join(rows.values()))
+        want = {"학교": ("학교일", "독서주간"), "복무": ("오일 출장",), "취합": ("낼표",)}
         for k, words in want.items():
             for w in words:
                 self.assertIn(w, rows[k], k)
@@ -268,7 +271,9 @@ class SourceRowTests(Base):
     def test_month_each_kind_only_in_own_row(self):
         self.fill()
         grid = grid_of(self.page(self.t4, "month"))
-        want = {"school": ("학교일", "그룹일", "독서주간"), "duty": ("오일 출장",), "collect": ("낼표",), "me": ("혼자일",)}
+        self.assertNotIn("그룹일", grid)
+        self.assertNotIn("혼자일", grid)
+        want = {"school": ("학교일", "독서주간"), "duty": ("오일 출장",), "collect": ("낼표",)}
         for ch, words in want.items():
             html = self.month_row(grid, ch)
             for w in words:
@@ -280,20 +285,19 @@ class SourceRowTests(Base):
 
     def test_day_pm_due_and_group_event(self):
         self.fill()
-        rows = rows_of(self.page(self.t4, "day"))
-        self.assertIn("낼표", rows["방과후"])  # 16:00
-        self.assertIn("그룹일", rows["3블록"])
-        self.assertIn("혼자일", rows["개인"])
-        self.assertNotIn("혼자일", rows["방과후"])
-        self.assertIn("오일 출장", rows["종일"])
+        rows = rows_of(self.page(self.t4, "day"))  # 학교 탭 일간도 채널 줄(QC 2026-11-06)
+        self.assertIn("낼표", rows["취합"])
+        self.assertIn("오일 출장", rows["복무"])
+        self.assertIn("그룹일", rows_of(self.page(self.t4, "day", tab="group"))["3블록"])
+        self.assertIn("혼자일", rows_of(self.page(self.t4, "day", tab="me"))["방과후"])
 
     def test_personal_range_event_on_each_day_and_skips_weekend_in_month(self):
         e = self.ev(self.t4, "혼자 출장", ME, d=date(2026, 11, 6), end=date(2026, 11, 9))
-        grid = grid_of(self.page(self.t4, "month", w="2026-11-01"))
+        grid = grid_of(self.page(self.t4, "month", tab="me", w="2026-11-01"))
         self.assertEqual(grid.count(f'data-open="#ev-{e.key}"'), 2)
         for w, days in (("2026-11-06", 1), ("2026-11-09", 1)):
-            rows = rows_of(self.page(self.t4, "day", w=w))
-            self.assertEqual(rows["개인"].count(f'data-open="#ev-{e.key}"'), days, w)
+            rows = rows_of(self.page(self.t4, "day", tab="me", w=w))
+            self.assertEqual(rows["종일"].count(f'data-open="#ev-{e.key}"'), days, w)
 
     def test_range_event_starting_on_weekend_shows_on_start_day(self):
         e = self.ev(self.t4, "주말 시작", ALL, d=date(2026, 11, 7), end=date(2026, 11, 9))  # 토~월
@@ -406,11 +410,12 @@ class GradeSpaceEdgeTests(TestCase):
 
 class WordingFileTests(TestCase):
     def test_old_wording_not_in_product_files(self):
-        """템플릿·정적 JS·파이썬 어디에도 없다(테스트 제외). design/은 시안이라 제외."""
-        roots = [Path(settings.BASE_DIR), Path(settings.BASE_DIR).parent / "web" / "static"]
+        """템플릿·정적 JS·파이썬·확정 디자인(design/) 어디에도 없다(테스트·옛 문구를 고치는 마이그레이션 제외). QC 2026-11-06에 design/도 포함."""
+        roots = [Path(settings.BASE_DIR), Path(settings.BASE_DIR).parent / "web" / "static", Path(settings.BASE_DIR).parent / "design"]
         hits = []
         for root in roots:
             for p in root.rglob("*"):
-                if p.suffix in (".py", ".html", ".js", ".txt") and p.is_file() and not p.name.startswith("test") and "시간 미정" in p.read_text("utf-8", "ignore"):
+                if (p.suffix in (".py", ".html", ".js", ".txt") and p.is_file() and not p.name.startswith("test") and "migrations" not in p.parts
+                        and "시간 미정" in p.read_text("utf-8", "ignore")):
                     hits.append(str(p))
         self.assertEqual(hits, [])

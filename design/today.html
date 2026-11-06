@@ -198,7 +198,7 @@
     h += '<div class="lbl">4학년 · 학교</div>';
     G.slots.forEach(function (s) { h += '<div class="' + (s.k === G.nowSlot ? 'col-now' : '') + '">' + G.events.filter(function (e) { return e.s === s.k; }).map(evHtml).join('') + '</div>'; });
     h += '<div class="lbl">점심 12:20</div><div class="lunch"><b>급식</b><span>' + G.meal.map(esc).join(' · ') + '</span><span class="k num">' + G.mealKcal + 'kcal · ' + esc(G.neis) + '</span></div>';
-    h += '<div class="lbl">시간 미정</div><div class="untimed">' + G.events.filter(function (e) { return !e.s; }).map(function (e) { return '<div>' + evHtml(e) + '</div>'; }).join('') + '</div>';
+    h += '<div class="lbl">종일</div><div class="untimed">' + G.events.filter(function (e) { return !e.s; }).map(function (e) { return '<div>' + evHtml(e) + '</div>'; }).join('') + '</div>';
     $('#dgrid').innerHTML = h;
     $('#dayN').textContent = G.events.length;
     $('#dayR').textContent = G.date.label + ' · ' + G.date.week;

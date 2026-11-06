@@ -195,7 +195,7 @@
       q.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' || !q.value.trim()) return;
         var r = U.parseLine(q.value.trim());
-        U.toast('「' + (r.title || q.value.trim()) + '」 ' + (r.date || '오늘') + ' ' + (r.slot ? r.slot.split(' ')[0] : '시간 미정') + (r.place ? ' · ' + r.place : '') + '에 올렸어요');
+        U.toast('「' + (r.title || q.value.trim()) + '」 ' + (r.date || '오늘') + ' ' + (r.slot ? r.slot.split(' ')[0] : '종일') + (r.place ? ' · ' + r.place : '') + '에 올렸어요');
         q.value = '';
         if (opt.onQuick) opt.onQuick(r);
       });

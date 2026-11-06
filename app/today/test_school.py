@@ -67,9 +67,11 @@ class ScopeTests(Base):
         }
         for title, (_, who) in cases.items():
             for m in (self.t41, self.t42, self.t51):
-                for path in ("/today", "/schedule"):
-                    r = self.as_(m).get(self.base + path)
-                    self.assertEqual(title in r.content.decode(), m in who, (title, m.name, path))
+                r = self.as_(m).get(self.base + "/today")
+                self.assertEqual(title in r.content.decode(), m in who, (title, m.name, "/today"))
+                # 일정은 탭으로 나뉜다(QC 2026-11-06): 세 탭 중 어디에든 보이는지
+                html = "".join(self.as_(m).get(f"{self.base}/schedule", {"tab": t}).content.decode() for t in ("school", "group", "me"))
+                self.assertEqual(title in html, m in who, (title, m.name, "/schedule"))
 
     def test_other_group_address_is_404_for_edit_and_delete(self):
         e = self.ev(self.t41, "사학년협의", "g4", place="과학실")
@@ -113,11 +115,13 @@ class ScopeTests(Base):
         self.assertEqual(self.as_(self.boss).post(f"{self.base}/today/e/{e.key}/delete").status_code, 200)
 
     def test_managers_board_other_than_today_shows_all_but_not_others_private(self):
+        """QC 2026-11-06: 일정은 학교·내 그룹·개인 탭뿐이라 관리자도 남의 그룹 일정은 판에 없다(주소로는 고칠 수 있다)."""
         self.ev(self.t41, "사학년협의", "g4")
         self.ev(self.t41, "사일혼자일", "me")
         c = self.as_(self.boss)
-        self.assertContains(c.get(f"{self.base}/schedule"), "사학년협의")
-        self.assertNotContains(c.get(f"{self.base}/schedule"), "사일혼자일")
+        for tab in ("school", "group", "me"):
+            self.assertNotContains(c.get(f"{self.base}/schedule", {"tab": tab}), "사학년협의")
+            self.assertNotContains(c.get(f"{self.base}/schedule", {"tab": tab}), "사일혼자일")
         self.assertNotContains(c.get(f"{self.base}/today"), "사학년협의")  # 오늘은 다른 선생님처럼 내 것
 
     def test_others_private_is_404_for_manager(self):
@@ -156,7 +160,7 @@ class ScopeTests(Base):
         self.assertNotContains(r, "사일")
         r = c.post(f"{self.base}/today/events", {"line": "오늘 2블록 과학실 오학년수업"}, headers={"HX-Request": "true"})
         self.assertNotContains(r, "사학년비밀회의")
-        r = c.get(f"{self.base}/schedule")  # 내가 올린 일정의 겹침 안내(주간판 대화상자)
+        r = c.get(f"{self.base}/schedule?tab=group")  # 내가 올린 일정(내 그룹)의 겹침 안내(주간판 대화상자)
         self.assertContains(r, "다른 일정")
         self.assertNotContains(r, "사학년비밀회의")
 
@@ -168,12 +172,14 @@ class WriterlessScopeTests(Base):
         self.assertEqual(c.post(f"{self.base}/today/e/{e.key}", {"date": "2026-10-30", "slot": "", "place": "", "scope": "me"}).status_code, 200)
         e.refresh_from_db()
         self.assertEqual((e.scope, e.by), ("me", self.boss))
-        self.assertContains(c.get(f"{self.base}/schedule"), "주인없음")
+        self.assertContains(c.get(f"{self.base}/schedule?tab=me"), "주인없음")
 
     def test_manager_sees_writer_only_label_on_others_event(self):
         self.ev(self.t41, "사학년협의", "g4")
-        self.assertContains(self.as_(self.boss).get(f"{self.base}/schedule"), "쓴 사람만")
-        self.assertNotContains(self.as_(self.t41).get(f"{self.base}/schedule"), "쓴 사람만")
+        self.ev(self.boss, "교무실일", "office")  # 관리자가 쓴 것: '나'를 고르면 쓴 사람(자기)만
+        boss2 = self.seat("교무실", "교감", "office", manager=True)
+        self.assertContains(self.as_(boss2).get(f"{self.base}/schedule?tab=group"), "쓴 사람만")  # 남이 쓴 내 그룹 일정
+        self.assertNotContains(self.as_(self.t41).get(f"{self.base}/schedule?tab=group"), "쓴 사람만")
         ownerless = self.ev(None, "주인없음", "all")
         html = self.as_(self.boss).get(f"{self.base}/schedule").content.decode()
         block = html[html.index(f'id="ev-{ownerless.key}"'):]
@@ -225,7 +231,7 @@ class AddTests(Base):
         self.assertEqual((e.scope, e.by), ("all", self.t41))
         self.assertContains(self.as_(self.t51).get(f"{self.base}/today"), f'id="ev-{e.key}"')  # 다른 학년에게도 보인다
         self.assertEqual(self.add(self.t41, scope="me").scope, "me")
-        self.assertEqual(self.add(self.boss, scope="g5").scope, "g5")
+        self.assertEqual(self.add(self.boss, scope="g5").scope, "office")  # 남의 그룹 범위는 받지 않고 내 그룹으로(QC 2026-11-06 후속)
 
     def test_bad_scope_falls_back_to_default(self):
         self.assertEqual(self.add(self.t41, scope="<x>").scope, "g4")
@@ -317,7 +323,7 @@ class MergeTests(TestCase):
                 mock.patch("spaces.neis.meals", return_value=[]), mock.patch("spaces.neis.schedule", return_value=[]):
             c = Client()
             c.force_login(self.b.user)
-            for path in ("/today", "/schedule"):
+            for path in ("/today", "/schedule?tab=group"):
                 r = c.get(f"/s/{hub.token}{path}")
                 self.assertContains(r, "오학년옛일정0")
                 self.assertNotContains(r, "사학년옛일정0")
@@ -340,11 +346,13 @@ class WeekDueTests(Base):
         made = self.coll(self.t51, "내가만든조사", member=self.t41, who="사일")
         myrow = self.coll(self.t41, "내줄조사", member=self.t51, who="오일")
         mygrp = self.coll(self.t41, "내그룹칸조사", who="오학년", group="g5")
-        for m in (self.t51, self.boss):  # 관리자도 주간판은 자기 것만
+        for m in (self.t51, self.boss):  # QC 2026-11-06: 제목은 취합 줄에 모두에게, 받는 링크는 대상만. 아래 마감 목록은 자기 것만
             r = self.as_(m).get(f"{self.base}/schedule")
-            self.assertNotContains(r, "사학년비밀조사")
+            self.assertContains(r, "사학년비밀조사")
+            self.assertNotIn("사학년비밀조사", r.content.decode().split('id="due"')[1])
             self.assertNotContains(r, other.link_token)
-            self.assertNotContains(r, other.key)
+            if not m.is_manager:
+                self.assertNotContains(r, other.key)
         r = self.as_(self.t51).get(f"{self.base}/schedule")
         self.assertContains(r, f"/c/{made.key}/")
         self.assertContains(r, f"/c/{myrow.link_token}/u/")

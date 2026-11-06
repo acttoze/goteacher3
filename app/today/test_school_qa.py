@@ -108,7 +108,8 @@ class ReachQa(Base):
         c = self.as_(self.boss)
         for path, headers in (("/today/parse", {}), ("/today/events", {"HX-Request": "true"})):
             r = c.post(self.base + path, {"line": "오늘 2블록 과학실 부장회의"}, headers=headers)
-            self.assertContains(r, "다른 일정")
+            self.assertNotContains(r, "다른 일정")  # QC 2026-11-06: 남의 개인 일정은 겹침 판정에서도 뺀다
+            self.assertNotContains(r, "겹쳐요")
             self.assertNotContains(r, "혼자비밀")
             self.assertNotContains(r, ", 사일)")  # 겹침 문구의 이름 자리("학사일정"과 헷갈리지 않게)
         r = c.post(f"{self.base}/today/events", {"line": "오늘 2블록 과학실 또회의", "view": "week"}, headers={"HX-Request": "true"})
@@ -283,19 +284,22 @@ class LeakQa(Base):
         return c
 
     def test_week_for_group_less_member_has_no_others_collection(self):
-        """그룹 없는 회원: 빈 그룹 값이 그룹 없는 줄과 맞아 버리지 않아야 한다."""
+        """그룹 없는 회원: 빈 그룹 값이 그룹 없는 줄과 맞아 버리지 않아야 한다(링크 없음).
+        QC 2026-11-06: 학교 탭 취합 줄은 제목·마감·만든 사람을 모두에게 보인다. 링크·토큰은 여전히 대상만."""
         m = self.seat("지원", "무소속", "")
         c = self.coll(self.t41, "남의조사", who="이름만")  # group="" member=None
         html = self.as_(m).get(f"{self.base}/schedule").content.decode()
-        for s in (c.title, c.key, c.link_token):
+        self.assertIn(c.title, html)
+        for s in (c.key, c.link_token):
             self.assertNotIn(s, html)
 
     def test_week_raw_response_has_no_others_tokens_for_member_and_manager(self):
         other = self.coll(self.t41, "사학년비밀조사", member=self.t42, who="사이")
         row = other.rows.get()
-        for m in (self.t51, self.boss):
+        for m in (self.t51, self.boss):  # QC 2026-11-06: 제목은 학교 공개, 받는 링크·제출값은 아니다. 관리자는 관리 화면 링크(key)
             html = self.as_(m).get(f"{self.base}/schedule").content.decode()
-            for s in (other.title, other.key, other.link_token, row.key, "제출값값"):
+            self.assertIn(other.title, html, m.name)
+            for s in (other.link_token, row.key, "제출값값", *([] if m.is_manager else [other.key])):
                 self.assertNotIn(s, html, m.name)
 
     def test_toggle_raw_response_has_no_tokens_for_member(self):

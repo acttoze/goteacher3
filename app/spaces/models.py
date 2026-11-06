@@ -243,11 +243,13 @@ class MemberLog(models.Model):
 
 class Attendance(models.Model):
     """오늘 복무 한 줄(J1). 유형·시간만, 사유 칸은 두지 않는다. 이름은 글자로 저장한다.
-    member: 명부에서 이름이 하나로 맞을 때만(소속 표시용). 권한에 쓰지 않는다. 동명이인·명부에 없으면 비운다."""
+    member: 명부에서 이름이 하나로 맞을 때만(소속 표시용). 권한에 쓰지 않는다. 동명이인·명부에 없으면 비운다.
+    by: 넣은 사람. 일정 화면에서 한 줄을 지울 수 있는 사람은 by·관리자·복무 입력자."""
 
     KINDS = ["출장", "외출", "조퇴", "연가", "휴가", "지각", "부재"]  # 부재: 육아시간 등 가족·건강이 드러나는 유형
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="attendance")
+    key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)  # 일정 화면의 지우기 주소(순번 ID 대신)
     date = models.DateField("날짜")
     name = models.CharField("이름", max_length=40)
     member = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
