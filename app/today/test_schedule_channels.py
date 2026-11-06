@@ -276,9 +276,38 @@ class SchoolTabTests(Base):
         self.assertEqual(rows["복무"].count('data-scope="duty"'), 5)
         self.assertEqual(rows["복무"].count(f'data-post="/s/{self.hub.token}/today/duty"'), 5)
         self.assertNotIn("data-cell", rows["취합"])
-        self.assertEqual(html.count('class="cell-add"'), 10)
-        self.assertEqual(self.page(self.t4, "day").count('class="cell-add"'), 2)
-        self.assertEqual(grid_of(self.page(self.t4, "month")).count('class="cell-add"'), 70)
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 10)
+        self.assertEqual(self.page(self.t4, "day").count('<button type="button" class="cell-add"'), 2)
+        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<button type="button" class="cell-add"'), 70)
+
+    def test_collect_cells_link_to_new_collect_with_day_and_all(self):
+        """QC 2026-11-06: 취합 줄 칸에도 ＋. 입력 카드 대신 그 날 마감·전 교직원으로 취합 만들기."""
+        week = self.page(self.t4, "week")
+        row = rows_of(week)["취합"]
+        days = re.findall(r'<a class="cell-add" href="/s/[^/]+/c/new\?aud=all&amp;due_d=([\d-]+)"', row)
+        self.assertEqual(len(days), 5)
+        self.assertIn(TODAY.isoformat(), days)
+        self.assertIn('data-go="', row)
+        self.assertEqual(rows_of(self.page(self.t4, "day"))["취합"].count('<a class="cell-add"'), 1)
+        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<a class="cell-add"'), 35)
+        new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "all", "due_d": days[0]}).content.decode()
+        self.assertIn(f'name="due_d" value="{days[0]}"', new)
+        self.assertIn('name="due_t" value="17:00"', new)
+        self.assertRegex(new, r'value="all" checked><b>전 교직원')
+
+    def test_new_collect_from_schedule_saves_due(self):
+        r = self.as_(self.t4).post(f"{self.base}/c/new", {"src": "sheet", "title": "일정에서", "col_name_0": "참가(명)",
+                                                          "aud": "all", "due_d": "2026-10-30", "due_t": "15:30"})
+        self.assertEqual(r.status_code, 302, r.content[:300])
+        c = Collection.objects.get(title="일정에서")
+        self.assertEqual(c.due, datetime(2026, 10, 30, 15, 30, tzinfo=KST))
+        self.assertIn("일정에서 · 15:30", rows_of(self.page(self.t4, "week"))["취합"])
+        r = self.as_(self.t4).post(f"{self.base}/c/new", {"src": "sheet", "title": "마감 비움", "col_name_0": "참가(명)",
+                                                          "aud": "all", "due_d": "", "due_t": "17:00"})
+        self.assertEqual(r.status_code, 302)
+        self.assertIsNone(Collection.objects.get(title="마감 비움").due)
+        plain = self.as_(self.t4).get(f"{self.base}/c/new").content.decode()
+        self.assertNotIn('name="due_d"', plain)  # 그냥 들어오면 마감은 만든 뒤(전과 같다)
 
 
 class CollectRowTests(Base):
@@ -473,10 +502,17 @@ class BlockTabTests(Base):
         d = TODAY.isoformat()
         for tab, scope in (("group", "g4"), ("me", ME)):
             html = self.page(self.t4, "day", tab=tab)
-            self.assertEqual(html.count('class="cell-add"'), 5, tab)
+            self.assertEqual(html.count('<button type="button" class="cell-add"'), 5, tab)
             for slot in ("", "b1", "b2", "b3", "pm"):
                 self.assertIn(f'data-cell data-date="{d}" data-slot="{slot}" data-scope="{scope}"', html)
-            self.assertEqual(self.page(self.t4, "week", tab=tab).count('class="cell-add"'), 25, tab)
+            self.assertEqual(self.page(self.t4, "week", tab=tab).count('<button type="button" class="cell-add"'), 25, tab)
+
+    def test_group_tab_collect_cells_link_with_my_group(self):
+        row = rows_of(self.page(self.t4, "week", tab="group"))["취합"]
+        self.assertEqual(row.count('/c/new?aud=pergroup&amp;aud_pgroups=g4&amp;due_d='), 10)  # 칸 5 × (data-go, 링크)
+        new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "pergroup", "aud_pgroups": "g4", "due_d": TODAY.isoformat()}).content.decode()
+        self.assertRegex(new, r'value="pergroup" checked><b>소속')
+        self.assertRegex(new, r'name="aud_pgroups" value="g4" checked>')
 
     def test_block_row_beats_parsed_block_and_all_day_row_keeps_it(self):
         self.add(self.t4, "2블록 칸이 이김", slot="pm", scope="g4", mode="day", tab="group")
@@ -853,8 +889,9 @@ class GradeSpaceTests(TestCase):
             self.assertIn("협의", rows["동학년"])
             self.assertIn("독서주간 골든벨", rows["동학년"])
             self.assertNotIn("data-cell", rows["취합"])
-        self.assertEqual(self.page("week").count('class="cell-add"'), 5)
-        self.assertEqual(self.page("day").count('class="cell-add"'), 1)
+        self.assertEqual(self.page("week").count('<button type="button" class="cell-add"'), 5)
+        self.assertEqual(self.page("day").count('<button type="button" class="cell-add"'), 1)
+        self.assertEqual(rows_of(self.page("week"))["취합"].count(f'<a class="cell-add" href="{self.base}/c/new?due_d='), 5)
         self.assertEqual(month_labels(self.page("month")), ["동학년", "취합"] * 5)
 
     def test_filter_is_two_channels(self):

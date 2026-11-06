@@ -1,4 +1,4 @@
-{# 일정 판(일간·주간·월간) + 바뀐 것·마감. 칸 안 추가·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). 탭·모드·날짜는 data-*로 칸 입력에 넘긴다. #}
+{# 일정 판(일간·주간·월간) + 바뀐 것·마감. 취합 줄 칸(data-go)의 ＋는 취합 만들기 링크. 칸 안 추가·고치기·지우기 뒤 htmx가 통째로 바꾼다(G1 뷰, view=week). 탭·모드·날짜는 data-*로 칸 입력에 넘긴다. #}
 <div id="week" data-mode="{{ mode }}" data-w="{{ w }}" data-tab="{{ tab }}"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card" aria-labelledby="wkH">
     <div class="card-h"><h2 id="wkH">{{ board_title }}</h2><span class="n num">{{ n_items }}</span>
@@ -9,14 +9,14 @@
       {% if channeled %}<div class="mh ml-h"></div>{% endif %}{% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
       {% for wk in mweeks %}{% if channeled %}<div class="ml-h mdh-l"></div>{% endif %}{% for f in wk.heads %}<div class="mdh{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
       {% for r in wk.rows %}{% if channeled %}<div class="ml" data-ch="{{ r.ch }}">{{ r.label }}</div>{% endif %}
-      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
+      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% elif c.go %} data-go="{{ c.go }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% elif c.go %}<a class="cell-add" href="{{ c.go }}" aria-label="{{ c.add }}" title="{{ c.add }}"><span aria-hidden="true">＋</span></a>{% endif %}</div>{% endfor %}
       {% endfor %}{% endfor %}
     </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}
       {% for r in wrows %}
       <div class="lbl"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}>{{ r.label }}{% if r.time %}<span class="num">{{ r.time }}</span>{% endif %}</div>
-      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %}{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% endif %}</div>{% endfor %}
+      {% for c in r.cells %}<div{% if c.today %} class="tcol"{% endif %}{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="{{ c.slot }}" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% elif c.go %} data-go="{{ c.go }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% elif c.go %}<a class="cell-add" href="{{ c.go }}" aria-label="{{ c.add }}" title="{{ c.add }}"><span aria-hidden="true">＋</span></a>{% endif %}</div>{% endfor %}
       {% endfor %}
     </div>{% endif %}
     {% if neis_fail %}<p class="note">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.</p>{% elif neis_empty %}<p class="note">{{ period_short }} 학사일정이 없어요.</p>{% endif %}

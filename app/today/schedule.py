@@ -7,6 +7,7 @@
 - 칸이 곧 볼 사람: 학교 탭 all, 그룹 탭 내 소속, 개인 탭 me(today.views.add가 확인). 복무 칸은 누구나 '이름 유형 [시간]'(duty_add).
 - 취합(QC 일정 취합 범위 2026-11-06): 받는 사람이 전 교직원(audience all)이면 학교 탭 취합 줄, 소속 고르기·소속별 1칸이면
   고른 소속의 그룹 탭 맨 위 취합 줄(월간은 칸 맨 위)에만. 부서·사람 고르기·범위 모름은 일정 탭에 없고 아래 마감 목록에만.
+  취합 줄 칸의 ＋는 입력 카드 대신 취합 만들기로 간다: 그 날 마감, 학교 탭은 전 교직원·그룹 탭은 내 소속(QC 2026-11-06).
   카드는 제목·마감·만든 사람. 링크는 만든 사람(관리), 내 줄(받는 링크), 관리자(관리)에게만. 받는 링크를 대상 아닌 사람에게 싣지 않는다.
 - 필터(학교 탭·동학년 채널만)는 schedule.js가 data-ch를 보고 숨긴다(서버는 표시만).
 - 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
@@ -54,10 +55,12 @@ def _d(d):
 
 
 def _channels(space):
-    """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음), post: 칸 추가 주소(복무)."""
+    """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음), post: 칸 추가 주소(복무).
+    go: 칸 추가가 대신 여는 취합 만들기 주소(그 날을 마감으로, 학교 탭은 전 교직원)."""
+    go = f"/s/{space.token}/c/new?" + ("aud=all&" if space.is_school else "")
     if not space.is_school:
-        return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": ""}]
-    return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": ""},
+        return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go}]
+    return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go},
             {"k": "duty", "label": "복무", "scope": "duty", "post": f"/s/{space.token}/today/duty"}]
 
 
@@ -296,12 +299,13 @@ def board_ctx(request, mode, raw):
 
     # 가로 줄: 채널(학교 탭·동학년) 또는 블록(그룹·개인 탭의 일간·주간). 그룹·개인 탭의 월간은 이름 없는 한 줄.
     if channeled:
-        lines = [{"label": c["label"], "ch": c["k"], "slot": "", "scope": c["scope"], "post": c.get("post", ""),
+        lines = [{"label": c["label"], "ch": c["k"], "slot": "", "scope": c["scope"], "post": c.get("post", ""), "go": c.get("go", ""),
                   "items": lambda d, k=c["k"]: by_slot(d, k)} for c in channels]
     elif mode == "month":
         lines = [{"label": "", "slot": "", "items": lambda d: by_slot(d, "collect") + by_slot(d, "")}]  # 취합 카드가 칸 맨 위
     else:
-        lines = [*([{"label": "취합", "slot": "", "scope": "", "items": lambda d: by_slot(d, "collect")}] if tab == "group" else []),
+        lines = [*([{"label": "취합", "slot": "", "scope": "", "go": f"/s/{space.token}/c/new?aud=pergroup&aud_pgroups={me.group}&",
+                     "items": lambda d: by_slot(d, "collect")}] if tab == "group" else []),
                  {"label": "종일", "slot": "", "items": lambda d: cells[(d, "", "")]},
                  *[{"label": s["label"], "slot": s["k"], "time": f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"]),
                     "items": lambda d, k=s["k"]: cells[(d, "", k)]} for s in SLOTS]]
@@ -311,7 +315,8 @@ def board_ctx(request, mode, raw):
         name = line["label"] or "일정"
         return {"items": line["items"](d), "today": d == today, "date": d.isoformat(), "slot": line["slot"], "scope": scope,
                 "post": line.get("post", ""), "when": f"{_d(d)} · {name}",
-                "add": f"{_d(d)} 복무 추가" if line.get("post") else f"{_d(d)} " + (f"{line['label']}에 " if line["label"] else "") + "일정 추가"}
+                "go": f"{line['go']}due_d={d.isoformat()}" if line.get("go") else "",
+                "add": f"{_d(d)} 복무 추가" if line.get("post") else f"{_d(d)} 마감 취합 만들기" if line.get("go") else f"{_d(d)} " + (f"{line['label']}에 " if line["label"] else "") + "일정 추가"}
 
     if mode == "month":
         mweeks = []

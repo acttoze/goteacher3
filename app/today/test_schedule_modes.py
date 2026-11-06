@@ -89,10 +89,10 @@ class CellAddTests(Base):
         for i in range(6):
             Event.objects.create(space=self.a, by=self.me, date=MON + timedelta(days=1), slot="b1", title=f"꽉 찬 일 {i}")
         html = self.client.get(self.url(), {"mode": "week"}).content.decode()
-        self.assertEqual(html.count('class="cell-add"'), 5)  # 5일 × 일정 줄(취합 줄에는 없다)
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 5)  # 5일 × 일정 줄(취합 줄 ＋는 링크)
         self.assertIn('aria-label="10/27(화) 동학년에 일정 추가"', html)
         day = self.client.get(self.url(), {"mode": "day", "w": "2026-10-27"}).content.decode()
-        self.assertEqual(day.count('class="cell-add"'), 1)  # QC 2026-11-06: 일간도 채널 줄(동학년 일정 줄 하나)
+        self.assertEqual(day.count('<button type="button" class="cell-add"'), 1)  # QC 2026-11-06: 일간도 채널 줄(동학년 일정 줄 하나)
         self.assertIn('aria-label="10/27(화) 동학년에 일정 추가"', day)
         # 꽉 찬 칸에서도 단추는 일정 뒤에 있다
         cell = html[html.index('data-date="2026-10-27" data-slot=""'):]
@@ -187,7 +187,7 @@ class ModeTests(Base):
         self.assertIn("10월 29일 목요일", html)
         self.assertIn("수업 공개", html)
         self.assertIn('wgrid one', html)
-        self.assertEqual(html.count('class="cell-add"'), 1)  # QC 2026-11-06: 일간도 채널 줄
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 1)  # QC 2026-11-06: 일간도 채널 줄
         self.assertIn(f'data-date="{TODAY}" data-slot=""', html)
         self.assertEqual([*self.sched.call_args[0][2:]], ["20261029", "20261029"])
         for w in ("2026-10-28", "2026-10-30"):
@@ -209,7 +209,7 @@ class ModeTests(Base):
         self.assertIn("이번 달 일정", html)
         self.assertIn('class="mgrid"', html)
         # 2026년 10월: 9/27(일)부터 10/31(토)까지 5주, 일~토(prototype)
-        self.assertEqual(html.count('class="cell-add"'), 35)
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 35)
         heads = re.findall(r'<div class="mh[^"]*">(.)</div>', html)
         self.assertEqual("".join(heads), "일월화수목금토")
         self.assertIn('data-date="2026-09-27" data-slot=""', html)

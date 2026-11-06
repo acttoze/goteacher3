@@ -97,7 +97,16 @@ def new(request):
     space = request.space
     title, text, errors, src = "", "", {}, "paste"
     p = error = sf = hwpf = None
-    aud = read_audience(space, request.POST)
+    data = request.POST if request.method == "POST" else request.GET  # 일정 취합 칸 ＋: ?due_d=날짜&aud=…로 미리 채운다
+    aud = read_audience(space, data)
+    due_d, due_t, due_at = _read_new_due(data)
+
+    def made(c):
+        if due_at:
+            c.due = due_at
+            c.save(update_fields=["due"])
+        return redirect(f"/s/{space.token}/c/{c.key}/")
+
     if request.method == "POST":
         src = request.POST.get("src", "paste")
         title = clean_text(request.POST.get("title", ""))[:200]
@@ -111,7 +120,7 @@ def new(request):
             elif spec:
                 c = _create_cols(request, spec["title"], Collection.Source.PRESET, spec["fields"],
                                  spec["unit_head"], spec["multi"], roster_rows(space, spec["roster"]))
-                return redirect(f"/s/{space.token}/c/{c.key}/")
+                return made(c)
             errors["preset"] = "양식을 하나 골라 주세요."
         elif src == "sheet":
             cols = _sheet_cols(request.POST)
@@ -131,7 +140,7 @@ def new(request):
                 c = _create_cols(request, title or f"{cols[0][0]} 조사", Collection.Source.SHEET,
                                  [(n, k) for n, k, _ in cols], audience_head(aud), multi, rows, options=[o for _, _, o in cols],
                                  audience=stored_audience(aud, rows))
-                return redirect(f"/s/{space.token}/c/{c.key}/")
+                return made(c)
         elif src == "hwp":
             # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 취합을 만든다(hwpform).
             sf = SourceFile.objects.in_space(space).filter(key=request.POST.get("hwp", "")[:64].replace("\x00", "")).first()
@@ -158,7 +167,7 @@ def new(request):
                 elif not errors:
                     c = _create_hwp(request, title, sf, hwpf, aud, rows)
                     if c is not None:
-                        return redirect(f"/s/{space.token}/c/{c.key}/")
+                        return made(c)
                     errors["hwp"] = "다른 창에서 이 파일로 취합을 먼저 만들었어요. 취합 목록을 확인해 주세요."
         elif src == "paste":
             text, how = request.POST.get("paste", ""), request.POST.get("pii", "")
@@ -173,7 +182,7 @@ def new(request):
                 errors["aud"] = no_one
             if not errors:
                 c = _create(request, title, p, aud, rows)
-                return redirect(f"/s/{space.token}/c/{c.key}/")
+                return made(c)
         else:
             src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
     ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src, hwp_max_mb=settings.HWP_MAX_UPLOAD // (1024 * 1024), max_body=settings.MAX_REQUEST_BYTES,
@@ -182,13 +191,26 @@ def new(request):
                      hwp=pick_ctx(sf) if sf else None, hwpf=hwpf,
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
                      presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
-                     roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")))
+                     roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")),
+                     due_on="due_d" in data, due_d=due_d, due_t=due_t)
     ctx.update(_paste_ctx(p, error))
     if space.is_school:
         ctx.update(audience_form(space, aud), **_aud_sum(space, aud))
     resp = render(request, "collect/new.html", ctx, status=400 if errors else 200)
     resp["Content-Security-Policy"] = PREVIEW_CSP  # 한글 쪽 미리보기(WASM)를 이 화면에서 그린다
     return resp
+
+
+def _read_new_due(data):
+    """만들기 화면의 마감(일정 취합 칸에서 온 날짜). (날짜 글자, 시각 글자, 저장할 시각 또는 None). 틀린 값은 마감 없이."""
+    try:
+        d = datetime.strptime(data.get("due_d", ""), "%Y-%m-%d").date()
+        t = datetime.strptime(data.get("due_t", "") or "17:00", "%H:%M").time()
+    except ValueError:
+        return "", "17:00", None
+    if not 2000 <= d.year <= 2100:
+        return "", "17:00", None
+    return d.isoformat(), t.strftime("%H:%M"), timezone.make_aware(datetime.combine(d, t))
 
 
 def _aud_sum(space, aud):

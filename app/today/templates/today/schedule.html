@@ -44,7 +44,8 @@
   .cell-add { display: block; flex: 1 0 auto; width: 100%; min-height: 40px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: transparent; font: 600 18px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
   .cell-add:hover, .cell-add:focus-visible { background: var(--hover); border-color: var(--control); color: var(--ink); }
   .cell-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  [data-cell] { cursor: pointer; }
+  a.cell-add { display: flex; align-items: center; justify-content: center; text-decoration: none; } /* 취합 칸: 만들기 화면으로 가는 링크 */
+  [data-cell], [data-go] { cursor: pointer; }
   [data-cell].adding { cursor: auto; }
   [data-cell].adding .cell-add { display: none; }
   .cell-card { display: grid; gap: 6px; }

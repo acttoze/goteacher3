@@ -100,13 +100,17 @@
   .audsum { padding: 12px 16px; border-radius: var(--radius-in); background: var(--surface); font-size: 15px; }
   .audsum .names { display: block; margin-top: 4px; color: var(--muted); }
   .audsum.empty { background: var(--pill-neg-bg); color: var(--pill-neg-ink); font-weight: 600; }
+  /* 일정 취합 칸 ＋로 왔을 때만: 마감 날짜·시각 */
+  .due-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 16px 0; }
+  .due-row .field { margin: 0; }
+  .due-row .small { padding-bottom: 12px; }
 </style>
 {% endblock %}
 {% block main %}
 <div class="title">
   <div class="grow">
     <h1>새 취합</h1>
-    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 학교 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감은 만든 뒤 정해요.</p>
+    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 학교 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감은 {% if due_on %}일정에서 고른 날로 들어가요{% else %}만든 뒤 정해요{% endif %}.</p>
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>
@@ -118,6 +122,9 @@
         <div class="sec-h"><h2 id="formH">무엇을 받나요</h2><span class="r">교직원 정보만 받아요 · 학생 개인정보는 받지 않아요</span></div>
         <label class="field"><span>제목</span><input class="input lg" id="title" name="title" value="{{ title }}" maxlength="200" placeholder="예: 학예회 반별 참가 인원" autocomplete="off"{% if errors.title %} aria-invalid="true" aria-describedby="eTitle"{% endif %}></label>
         {% if errors.title %}<p class="field-err" id="eTitle">{{ errors.title }}</p>{% endif %}
+        {% if due_on %}<div class="due-row"><label class="field"><span>마감 날짜</span><input class="input" type="date" name="due_d" value="{{ due_d }}"></label>
+          <label class="field"><span>마감 시각</span><input class="input" type="time" name="due_t" value="{{ due_t }}"></label>
+          <span class="small muted">비우면 마감 없이 만들고, 만든 뒤 정할 수 있어요.</span></div>{% endif %}
         <input type="hidden" name="src" id="src" value="{{ src }}">
         <div class="seg" role="group" aria-label="양식 가져오기">
           {% for k, label in srcs %}<button type="button" data-src="{{ k }}" aria-pressed="{% if k == src %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
@@ -198,7 +205,7 @@
           <div class="go" style="margin-top:18px">
             <button class="btn pri lg block" type="submit">만들고 링크 받기</button>
             {% if errors.pii %}<p class="msg-inline" role="alert">{{ errors.pii }}</p>{% endif %}
-            <p>마감은 만든 뒤 정해요. 만들면 링크가 든 쪽지를 복사할 수 있어요.</p>
+            <p>{% if not due_on %}마감은 만든 뒤 정해요. {% endif %}만들면 링크가 든 쪽지를 복사할 수 있어요.</p>
           </div>
         </div>
       </section>
