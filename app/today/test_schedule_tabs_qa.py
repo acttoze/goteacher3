@@ -10,7 +10,6 @@
 """
 import io
 import logging
-import re
 from datetime import date, datetime, timedelta
 from unittest import mock
 from zoneinfo import ZoneInfo
@@ -25,7 +24,7 @@ from config.logsafe import SafeErrorFormatter
 from spaces.models import Attendance, Member, School, Space
 
 from .models import ALL, ME, Event
-from .test_schedule_channels import card, grid_of, rows_of
+from .test_schedule_channels import card, grid_of
 
 User = get_user_model()
 KST = ZoneInfo("Asia/Seoul")
