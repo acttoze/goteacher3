@@ -13,23 +13,29 @@ import ipaddress
 import time
 
 from django.core.cache import caches
+from django.core.cache.backends.locmem import LocMemCache
 
 TOO_MANY = "너무 자주 보냈어요. 잠시 뒤 다시 해 주세요."
+_LOCAL = LocMemCache("ratelimit-fallback", {})  # fallback=True인 제한만: 캐시가 죽으면 프로세스 메모리로 센다
 
 
-def allow(scope, ident, limit, window, count=True):
+def _check(cache, key, limit, window, count):
+    if not count:
+        return (cache.get(key) or 0) < limit
+    cache.add(key, 0, window + 1)
+    return cache.incr(key) <= limit
+
+
+def allow(scope, ident, limit, window, count=True, fallback=False):
     """scope·ident 조합이 이번 창(window초)에서 limit번 안이면 True(이번 요청도 센다).
-    count=False면 세지 않고 보기만 한다(성공한 요청만 셀 때: 먼저 보고, 끝난 뒤 count=True로 한 번 센다)."""
+    count=False면 세지 않고 보기만 한다(성공한 요청만 셀 때: 먼저 보고, 끝난 뒤 count=True로 한 번 센다).
+    fallback=True(로그인·가입, P1): 캐시가 죽어도 막는 장치가 사라지지 않게 프로세스 메모리로 센다(gunicorn 프로세스마다 따로)."""
     h = hashlib.sha256(f"{scope}:{ident}".encode()).hexdigest()[:32]
     key = f"rl:{scope}:{h}:{int(time.time() // window)}"
-    cache = caches["ratelimit"]
     try:
-        if not count:
-            return (cache.get(key) or 0) < limit
-        cache.add(key, 0, window + 1)
-        return cache.incr(key) <= limit
-    except Exception:  # 캐시 연결 끊김·방금 만료 등: 막지 않는다
-        return True
+        return _check(caches["ratelimit"], key, limit, window, count)
+    except Exception:  # 캐시 연결 끊김·방금 만료 등: 보통은 막지 않는다
+        return _check(_LOCAL, key, limit, window, count) if fallback else True
 
 
 def too_many(scope, ident, limit, window=60):

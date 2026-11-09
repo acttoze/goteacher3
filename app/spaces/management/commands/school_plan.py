@@ -3,7 +3,7 @@ school_plan requests  (대기 신청 목록. 신청을 처리하려고 담당자
 school_plan <NEIS 학교 코드> --on --until YYYY-MM-DD [--manager=<회원 key> | --manager-request=<신청 ID>] | --off | --remove-manager=<회원 key>
 
 --on: 학교 공간을 만들고 동학년을 합친다. 다시 돌려도 안전하다(기한 연장·관리자 추가에도 쓴다). 이 학교의 대기 신청은 닫는다.
-      학교에 관리자가 없으면 --manager 또는 --manager-request가 필수다. 관리자는 구글 회원만 된다.
+      학교에 관리자가 없으면 --manager 또는 --manager-request가 필수다. 관리자는 계정 회원(구글·아이디)만 된다.
       --manager-request: 신청자를 관리자로. 회원 0명 학교도 켤 수 있다(경고를 낸다). 신청자가 다른 공간에 있으면 오류.
       회원이 있는 학교에 회원이 아닌 신청자를 세우려면 --identity-checked(운영자가 공문·전화로 재직을 확인했다는 뜻).
       끊겼던 플랜을 다시 켜면 옛 업체 링크는 해제한다(TV 주소는 유지).

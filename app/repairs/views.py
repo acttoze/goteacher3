@@ -427,11 +427,11 @@ def photo_file(request, key):
 @manager_required
 @school_write_required
 def set_handler(request, key):
-    """수리 담당자 지정·해제(관리자만). 구글 회원만(손님 자리는 반·이름으로 찾기 쉬워서, 관리자·복무 입력자와 같은 이유)."""
+    """수리 담당자 지정·해제(관리자만). 계정 회원만(손님 자리는 반·이름으로 찾기 쉬워서, 관리자·복무 입력자와 같은 이유)."""
     m = get_in_space_or_404(Member, request, key=key)
     on, htmx = request.POST.get("on") == "1", request.headers.get("HX-Request")
     if on and (m.user_id is None or is_guest(m.user)):
-        error = "이름만 들어온 선생님은 수리 담당자가 될 수 없어요. 구글 계정을 이으면 돼요."
+        error = "이름만 들어온 선생님은 수리 담당자가 될 수 없어요. 구글이나 아이디로 이으면 돼요."
         if htmx:
             return school_body(request, status=400, error=error)
         return HttpResponse(error, status=400, content_type="text/plain; charset=utf-8")

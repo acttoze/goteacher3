@@ -15,7 +15,7 @@ from . import views
 from .gates import manager_required, school_required, school_write_required
 from .models import Member, School, Space
 from .test_merge import MergeBase
-from .test_school import TOKEN, JoinBase, google
+from .test_school import TOKEN, JoinBase, as_guest_origin, google
 
 User = get_user_model()
 BANNED = ("동학년", "0학년", "티로드")
@@ -150,7 +150,7 @@ class GuestToGoogleQa(JoinBase):
         """화면 문구 '구글 계정을 이으면 바로 이어져요'. 비밀번호 해시가 바뀌어 login이 세션을 비우고 초대 정보가 사라져 /join이 404가 된다."""
         guest = User.objects.create(username="guest:free", first_name="떠돌이")
         c = Client()
-        c.force_login(guest)
+        as_guest_origin(c, guest)
         c.get(self.link)
         self.assertEqual(self.login_via_google(c, "free-google")["Location"], "/join")
         self.assertContains(c.get("/join"), 'name="group"')
@@ -164,7 +164,7 @@ class GuestToGoogleQa(JoinBase):
         guest = User.objects.create(username="guest:merged", first_name="옮긴손님")
         seat = Member.objects.create(space=self.hub, user=guest, name="옮긴손님", cls="5-3", group="g5")
         c = Client()
-        c.force_login(guest)
+        as_guest_origin(c, guest)
         self.login_via_google(c, "merged-google")
         seat.refresh_from_db()
         self.assertEqual(seat.user.username, "google:merged-google")

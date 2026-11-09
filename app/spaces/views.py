@@ -18,7 +18,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
-from accounts.models import DEVICE_AGE, DEVICE_COOKIE, DeviceToken, is_guest, new_guest
+from accounts.models import DEVICE_AGE, DEVICE_COOKIE, GUEST_ORIGIN, DeviceToken, is_guest, is_id_member, new_guest
 from accounts.views import home as login_home
 from accounts.views import remember_pc, wants_remember
 from collect.models import Collection, Notification
@@ -121,13 +121,13 @@ def _clean_name(raw):
 @never_cache
 @require_safe
 def home(request):
-    """익명: 소개 페이지. 손님: 구글로 시작하기. 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
+    """익명: 소개 페이지. 손님: 시작 화면(구글·아이디). 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
     mine = _my_space(request.user) if request.user.is_authenticated else None
     if mine:  # design: 로그인 뒤 첫 화면은 오늘(brand → today.html)
         return redirect(f"/s/{mine.token}/today")
     if not request.user.is_authenticated:  # 로그인 전: 소개 페이지(G5). 시작 화면은 /start
         return render(request, "landing.html", {"forms_n": FormDoc.objects.count()})
-    if is_guest(request.user):  # 동학년 만들기는 구글 회원만
+    if is_guest(request.user):  # 동학년 만들기는 계정 회원만
         return login_home(request)
 
     q = request.GET.get("q", "").strip()[:40]
@@ -311,13 +311,14 @@ def _roster(space, me=None):
     rows = []
     for i, m in enumerate(members):
         color, ink = PEOPLE_COLORS[i % len(PEOPLE_COLORS)]
-        google = m.user_id and not is_guest(m.user)
-        via = "구글 가입" if google else "초대 링크 · 이름만"
+        account = m.user_id and not is_guest(m.user)
+        id_member = account and is_id_member(m.user)
+        via = ("아이디 가입" if id_member else "구글 가입") if account else "초대 링크 · 이름만"
         if space.is_school and m.is_manager:
             via += " · 관리자"
         elif not space.is_school and i == 0:
             via += " · 만든 사람"
-        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not google, "role": _role(m),
+        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not account, "id_member": id_member, "role": _role(m),
                      "at": timezone.localtime(m.joined_at), "me": me is not None and m.pk == me.pk})
     waiting = [_cls_label(c) for c in slots if c not in taken]
     # prototype: 칸(NEIS 반 + 전담) 중 채워진 칸. 칸 밖 반은 칸을 하나씩 더한다. NEIS가 없으면 들어온 사람 수.
@@ -336,7 +337,7 @@ def _invite(space, me):
         return {}
     link = f"{settings.SITE_URL}/j/{space.invite_token}"
     room = f"{space.school.name} 학교 공간" if space.is_school else f"{space.school.name} {space.grade}학년 동학년방"
-    how = ("아래 링크를 누르고 구글로 로그인한 뒤 소속·직책·이름만 고르면 들어와요." if space.is_school
+    how = ("아래 링크를 누르고 구글이나 아이디로 로그인한 뒤 소속·직책·이름만 고르면 들어와요." if space.is_school
            else "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)")
     msg = (f"[고티처] {room}이에요.\n"
            f"{how}\n{link}\n\n"
@@ -403,7 +404,7 @@ def remove_member(request, key):
     """회원 내보내기(대표만, 나는 못 내보냄, 마지막 관리자도 못 내보냄). 손님이면 그 User를 지워 기기 토큰·세션도 끊는다.
 
     낸 값은 남는다(줄은 member가 비고 합본에 그대로). 다음 취합 명부에서 빠진다.
-    구글 회원은 이 동학년 자리만 빠지고 계정·로그인은 그대로(다른 동학년을 만들 수 있게).
+    계정 회원은 이 동학년 자리만 빠지고 계정·로그인은 그대로(다른 동학년을 만들 수 있게).
     """
     m = get_in_space_or_404(Member, request, key=key)
     ctx = _space_ctx(request)
@@ -468,8 +469,8 @@ def made(request):
 @never_cache
 @require_GET
 def welcome(request):
-    """초대로 들어온 직후(design/join.html done): 함께 쓰는 선생님 + 구글 잇기(선택)."""
-    return render(request, "spaces/welcome.html", _space_ctx(request, guest=is_guest(request.user)))
+    """초대로 들어온 직후(design/join.html done): 함께 쓰는 선생님 + 구글·아이디 잇기(선택)."""
+    return render(request, "spaces/welcome.html", _space_ctx(request, guest=is_guest(request.user), id_member=is_id_member(request.user)))
 
 
 def _retired_invite(request, old):
@@ -507,7 +508,7 @@ def invite(request, invite_token):
 @require_http_methods(["GET", "POST"])
 def join(request):
     """가입 없이 반·이름만 고르고 들어오기(prototype/join.html). 같은 반·같은 이름이면 같은 사람으로 본다.
-    학교 공간은 구글 회원만 따로 들어온다(_join_school)."""
+    학교 공간은 계정 회원(구글·아이디)만 따로 들어온다(_join_school)."""
     space = Space.objects.filter(invite_token=request.session.get(INVITE) or "-").select_related("school").first()
     if space is None:
         return render(request, "spaces/join.html", {"missing": True}, status=404)
@@ -551,11 +552,11 @@ def join(request):
                     return _retired_invite(request, Space.objects.filter(pk=space.pk).first() or space)
                 same = Member.objects.in_space(space).filter(cls=cls, name=name).select_related("user").first()
                 if same and same.user_id and not is_guest(same.user):
-                    errors["name"] = "이 반·이름은 구글 계정으로 이어 둔 선생님이에요. 본인이면 구글로 들어와 주세요."
+                    errors["name"] = "이 반·이름은 계정으로 이어 둔 선생님이에요. 본인이면 구글이나 아이디로 로그인해 주세요."
                 elif same and user.is_authenticated:
-                    # 손님 자리를 구글에 잇는 길은 그 손님 PC에서 「구글 계정으로 이어 두기」 하나뿐이다.
+                    # 손님 자리를 계정에 잇는 길은 그 손님 PC에서 「…으로 이어 두기」 하나뿐이다.
                     errors["name"] = ("이 반·이름으로 이미 들어온 선생님이 있어요. 본인이면 처음 들어온 PC에서 "
-                                      "「구글 계정으로 이어 두기」를 눌러 주세요.")
+                                      "「구글 계정으로 이어 두기」나 「아이디로 이어 두기」를 눌러 주세요.")
                 elif same and same.user_id:
                     user = same.user  # 같은 선생님이 다른 PC에서: 같은 손님으로 이어 준다
                     _seat_alert(space, same)
@@ -564,6 +565,7 @@ def join(request):
                 else:
                     if not user.is_authenticated:
                         user = new_guest(name)
+                        request.session[GUEST_ORIGIN] = user.pk  # 이 세션이 손님을 만들었다(계정 잇기 자격, P1 S5)
                     if same:  # 주인 없는 자리(예전 손님이 지워짐)
                         same.user = user
                         same.save(update_fields=["user"])
@@ -630,8 +632,8 @@ def log_place(member, before):
 
 
 def _join_school(request, space):
-    """학교 공간 입장(리드 결정): 구글 회원만, 승인 없음. 소속·직책(학년이면 반)·이름을 고른다.
-    구글 자리는 사람마다 하나라 같은 이름이어도 각자 들어온다. 익명·손님은 자리를 만들지 않고 구글로 보낸다."""
+    """학교 공간 입장(리드 결정, P에서 바뀜): 계정 회원(구글·아이디)만, 승인 없음. 소속·직책(학년이면 반)·이름을 고른다.
+    계정 자리는 사람마다 하나라 같은 이름이어도 각자 들어온다. 익명·손님은 자리를 만들지 않고 로그인 칸을 보인다."""
     user = request.user
     post = request.method == "POST"
     ctx = {"space": space, "n": Member.objects.in_space(space).count()}
@@ -660,7 +662,7 @@ def _join_school(request, space):
             # 합칠 때 옮겨진 손님·주인 없는 자리와 겹치면 새 자리를 만들지 않는다(같은 사람이 둘로 갈리지 않게, 리드 결정)
             if members.filter(Q(user__isnull=True) | Q(user__username__startswith="guest:"), cls=cls, name=name).exists():
                 errors["name"] = ("이 이름으로 이미 들어온 선생님이 있어요. 본인이면 처음 들어온 PC에서 "
-                                  "「구글 계정으로 이어 두기」를 눌러 주세요.")
+                                  "「구글 계정으로 이어 두기」나 「아이디로 이어 두기」를 눌러 주세요.")
             elif members.count() >= SCHOOL_SEATS:
                 errors["name"] = "이 학교 공간에는 더 들어올 수 없어요. 담당 선생님께 알려 주세요."
             else:
@@ -730,7 +732,7 @@ def leave(request):
     내가 만든 취합은 남은 선생님 중 가장 먼저 들어온 분이 넘겨받는다(그분이 새 학년 대표, _roster의 creator).
     학교 공간은 관리자가 넘겨받고(입장 순서로 넘기지 않음), 마지막 관리자는 나갈 수 없다.
     내가 낸 칸은 합본에 남는다(줄의 member만 빈다). 마지막 한 명이면 동학년을 지운다(같은 학년을 새로 만들 수 있게).
-    손님은 다른 소속이 없으므로 계정도 지우고(기기 토큰 CASCADE) 로그아웃한다. 구글 회원은 첫 화면으로.
+    손님은 다른 소속이 없으므로 계정도 지우고(기기 토큰 CASCADE) 로그아웃한다. 계정 회원은 첫 화면으로.
     """
     space, me = request.space, request.member
     if request.POST.get("confirm", "").strip() != space.name:

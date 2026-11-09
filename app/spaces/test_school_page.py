@@ -242,7 +242,7 @@ class ManagerTests(Base):
         guest.refresh_from_db()
         self.assertFalse(guest.is_manager)
         self.assertFalse(MemberLog.objects.exists())
-        self.assertContains(self.manager.get(f"{self.base}/school"), "구글 계정을 이으면")
+        self.assertContains(self.manager.get(f"{self.base}/school"), "구글이나 아이디로 이으면")
 
     def test_seat_without_user_refused(self):
         empty = Member.objects.create(space=self.hub, name="빈자리", cls="4-3", group="g4")

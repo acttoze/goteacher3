@@ -124,7 +124,7 @@ def _apply(request):
     user = request.user
     if not user.is_authenticated:
         return redirect(LOGIN_HREF)
-    if is_guest(user):  # 관리자는 구글 회원만 된다
+    if is_guest(user):  # 관리자는 계정 회원만 된다
         return render(request, "spaces/plan.html", _ctx(request), status=403)
     values, errors = _read(request.POST)
     mine = _my_space(user)

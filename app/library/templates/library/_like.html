@@ -7,7 +7,7 @@
   {% if error %}<p class="muted" role="alert">{{ error }}</p>{% endif %}
   {% else %}
   <p><b>추천 <span class="num">{{ like.n }}</span></b></p>
-  <p class="muted">추천은 고티처 회원만 할 수 있어요. <a href="{{ like.login }}">구글로 로그인</a></p>
+  <p class="muted">추천은 고티처 회원만 할 수 있어요. <a href="{{ like.login }}">로그인</a></p>
   {% endif %}
 </div>
 {% if oob %}<span id="lk-{{ shown.slug }}" hx-swap-oob="true">추천 {{ like.n }}</span>{% endif %}

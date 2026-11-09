@@ -5,7 +5,7 @@
 - 검색은 제목·설명에서 낱말마다(AND) 찾는다. 분류는 학교·교육청.
 - 내려받기는 FileResponse(Content-Disposition RFC 5987). 수를 세므로 캐시에 두지 않게 한다(private, no-cache).
 - 조회·내려받기 수는 봇 User-Agent·HEAD를 빼고 F()+1만 한다(단순하게).
-- Q9 추천은 구글 회원만(accounts.is_google_member, 업체 추천과 같은 기준). 양식마다 1표, 누르면 켜고 끈다. 비회원에게는 단추 대신 안내와 로그인 링크.
+- Q9 추천은 계정 회원만(accounts.is_account_member, 업체 추천과 같은 기준). 양식마다 1표, 누르면 켜고 끈다. 비회원에게는 단추 대신 안내와 로그인 링크.
 - 디자인의 '이 양식으로 취합하기'·쪽 수·표 칸·첫 쪽 미리보기는 한글 양식 취합(E5~F)과 표 분석이 붙을 때 넣는다.
 """
 import re
@@ -21,7 +21,7 @@ from django.utils.http import urlencode
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_safe
 
-from accounts.models import is_google_member
+from accounts.models import is_account_member
 from config.ratelimit import TOO_MANY, allow, client_ip
 from partners.models import Partner
 from spaces.models import Member
@@ -62,11 +62,11 @@ def _frame(request, page="forms"):
 
 
 def _like_ctx(request, doc):
-    """추천 칸(library/_like.html) 값. 손님은 구글을 바로 잇고, 비로그인은 시작 화면으로 간다(협력업체와 같음)."""
+    """추천 칸(library/_like.html) 값. 손님·비로그인 모두 시작 화면(구글·아이디)으로 간다(협력업체와 같음)."""
     user = request.user
-    start = "/auth/google/login?" if user.is_authenticated else "/start?"
-    return {"n": doc.likes.count(), "can": is_google_member(user),
-            "on": is_google_member(user) and doc.likes.filter(user=user).exists(),
+    start = "/start?"
+    return {"n": doc.likes.count(), "can": is_account_member(user),
+            "on": is_account_member(user) and doc.likes.filter(user=user).exists(),
             "login": start + urlencode({"next": f"/forms/{doc.slug}"})}
 
 
@@ -131,7 +131,7 @@ def download(request, slug):
 def like(request, slug):
     """켜고 끄기. htmx는 추천 칸 조각, 스크립트가 없으면 그 양식 화면으로 돌아간다."""
     doc = get_object_or_404(FormDoc, slug=slug)
-    if not is_google_member(request.user):
+    if not is_account_member(request.user):
         return HttpResponse(LIKE_ONLY_MEMBER, status=403, content_type="text/plain; charset=utf-8")
     htmx = request.headers.get("HX-Request")
     if not allow("form-like", str(request.user.pk), LIKES_PER_HOUR, 3600):

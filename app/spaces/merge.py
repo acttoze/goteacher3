@@ -24,7 +24,7 @@ def _fks_to(model):
 
 
 def _one_seat_per_user(school, hub):
-    """한 사용자가 여러 자리면(손님을 구글에 이으면 생긴다) 하나로. 학교 공간 자리, 먼저 들어온 자리 순으로 남긴다.
+    """한 사용자가 여러 자리면(손님을 계정에 이으면 생긴다) 하나로. 학교 공간 자리, 먼저 들어온 자리 순으로 남긴다.
 
     지울 자리를 가리키는 값(만든 취합·줄·알림 등)은 남기는 자리로 옮긴다. 돌려주는 값: {지운 자리 pk: 남긴 자리 pk}.
     """
@@ -56,14 +56,14 @@ def _merge_one(old, hub):
 
 
 def _seat_applicant(school, hub, req, identity_checked=False):
-    """신청자(구글 회원)를 학교 공간 관리자로. 이 학교에 자리가 있으면 그 자리, 없으면 새 자리(소속은 교무실, 본인이 고칠 수 있다).
+    """신청자(계정 회원)를 학교 공간 관리자로. 이 학교에 자리가 있으면 그 자리, 없으면 새 자리(소속은 교무실, 본인이 고칠 수 있다).
     다른 학교 공간·동학년에 있으면 ValueError(교사 한 명은 공간 하나).
     회원이 있는 학교에 회원 아닌 신청자를 세우려면 운영자가 재직을 확인했어야 한다(identity_checked). 아니면 ValueError."""
     if req.school_id != school.pk:
         raise ValueError("이 학교의 신청이 아닙니다.")
     user = req.user
     if user is None or is_guest(user):
-        raise ValueError("신청자가 구글 회원이 아닙니다.")
+        raise ValueError("신청자가 계정 회원이 아닙니다.")
     get_user_model().objects.select_for_update().filter(pk=user.pk).first()  # 동학년 만들기·입장과 직렬화
     if Member.objects.filter(user=user).exclude(space=hub).exists():
         raise ValueError("신청자가 이미 다른 공간에 있습니다. 그 공간에서 나간 뒤 다시 켜 주세요.")
@@ -88,7 +88,7 @@ def open_school(school, until, manager=None, applicant=None, identity_checked=Fa
             if not Member.objects.filter(pk=manager.pk, space__school=school).exists():
                 raise ValueError("관리자는 이 학교의 회원이어야 합니다.")
             if manager.user_id is None or is_guest(manager.user):
-                raise ValueError("관리자는 구글 회원만 될 수 있습니다.")
+                raise ValueError("관리자는 계정 회원만 될 수 있습니다.")
         resumed = not school.writable
         school.plan, school.paid_until = School.Plan.SCHOOL, until
         school.save(update_fields=["plan", "paid_until"])

@@ -73,8 +73,8 @@
     {% if pending %}<div class="plan-done"><b>신청했어요</b><span>{{ pending.school.name }} · 운영자가 학교로 확인 연락을 드려요. 입금과 재직을 확인하면 학교 공간이 열려요.</span><a class="btn pri" href="/school-plan/q/{{ pending.key }}">견적서 보기</a></div>{% endif %}
     {% if sent %}<ul class="plan-sent">{% for r in sent %}<li>{{ r.school.name }} · {{ r.get_status_display }} · <a href="/school-plan/q/{{ r.key }}">견적서 보기</a></li>{% endfor %}</ul>{% endif %}
     {% if not can_apply %}
-      <p>{% if guest %}이름만 들어오신 분은 신청할 수 없어요. 학교 플랜 관리자는 구글 계정이 필요해서, 구글로 이어 주시면 신청할 수 있어요.{% else %}신청은 구글 계정으로 해요. 첫 관리자가 될 선생님이 로그인해 주세요.{% endif %}</p>
-      <p><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a></p>
+      <p>{% if guest %}이름만 들어오신 분은 신청할 수 없어요. 학교 플랜 관리자는 계정이 필요해서, 구글 계정이나 아이디로 이어 주시면 신청할 수 있어요.{% else %}신청은 구글 계정이나 아이디로 해요. 첫 관리자가 될 선생님이 로그인해 주세요.{% endif %}</p>
+      <p><a class="btn pri" href="{{ login_href }}">로그인하고 신청하기</a></p>
     {% elif already and my_school %}
       <p class="notice" role="status">{{ already }} 기한이 30일 안으로 남으면 여기서 다시 신청할 수 있어요.</p>
     {% else %}

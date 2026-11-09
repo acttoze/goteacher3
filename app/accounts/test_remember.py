@@ -42,7 +42,7 @@ class GoogleRememberTests(TestCase):
 
     def test_start_has_remember_unchecked_and_hint(self):
         r = self.client.get("/start")
-        self.assertContains(r, 'action="/auth/google/login"')
+        self.assertContains(r, 'action="/auth/login"')  # P1: 아이디 칸과 구글 단추가 한 폼
         self.assertRegex(r.content.decode(), r'<input type="checkbox" name="remember" value="1">')
         self.assertNotRegex(r.content.decode(), r'name="remember" value="1" checked')
         self.assertContains(r, "이 PC 기억하기(1년)")

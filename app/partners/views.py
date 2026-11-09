@@ -1,7 +1,7 @@
 """N1·N2 협력업체. 동작은 prototype app.js vendorList·vendorView·vInArea·reviewNew, 구조는 양식 자료실(library).
 
 - 목록·상세는 로그인 없이. 로그인한 회원은 공통 틀, 그 밖에는 bare 틀.
-- 추천은 구글 회원만. 운영자 확인을 기다릴 뿐 어디에도 공개되지 않는다.
+- 추천은 계정 회원만. 운영자 확인을 기다릴 뿐 어디에도 공개되지 않는다.
 - 후기 자격은 _can_write. 주소에 후기를 가리키는 값이 없다: 언제나 '내가 쓴 이 업체 후기' 하나만 다루므로 남의 후기는 고칠 길이 없다.
 - 공개 응답에는 배지·운영자가 확인한 한 줄·`고티처 선생님 · 지역 · 학교급`·월 단위 날짜·신고 번호만 나간다.
 """
@@ -25,7 +25,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_safe
 
 from accounts.models import GUEST_PREFIX, is_guest
-from accounts.models import is_google_member as _can_suggest
+from accounts.models import is_account_member as _can_suggest
 from collect.paste import clean_text
 from config.ratelimit import allow
 from library.views import _frame, _url
@@ -42,7 +42,7 @@ SUGGEST_PER_DAY = 5
 DAY = 86400
 SUGGEST_PATH = "/partners/suggest"
 LOGIN_HREF = f"/start?next={SUGGEST_PATH}"
-GUEST_LOGIN_HREF = f"/auth/google/login?next={SUGGEST_PATH}"  # 손님은 구글을 바로 잇는다(settings·welcome과 같음)
+GUEST_LOGIN_HREF = f"/start?next={SUGGEST_PATH}"  # 손님은 시작 화면에서 구글·아이디로 잇는다
 SORT_MANY = "many"  # 기본은 이름 순(후기 순위가 조작 유인이 되지 않게). 좋은 점 많은 순은 고를 때만
 REVIEWS_PER_PAGE = 10
 REVIEW_BADGES_MAX = 5
@@ -145,7 +145,7 @@ def detail(request, slug):
         "review_count": page_obj.paginator.count, "page_obj": page_obj, "mine": mine,
         "write_href": review_path if request.user.is_authenticated else _login_href(review_path),
         "can_suggest": _can_suggest(request.user),
-        "login_href": ("/auth/google/login?" + urlencode({"next": f"/partners/{partner.slug}"})) if request.user.is_authenticated else _login_href(f"/partners/{partner.slug}"),
+        "login_href": ("/start?" + urlencode({"next": f"/partners/{partner.slug}"})) if request.user.is_authenticated else _login_href(f"/partners/{partner.slug}"),
         "saved": request.user.is_authenticated and "saved" in request.GET,
         "deleted": request.user.is_authenticated and "deleted" in request.GET,
     })
@@ -170,7 +170,7 @@ def _my_review(partner, user):
 
 
 def _can_write(me):
-    """쓰기 자격: 학교 플랜이 켜진 학교 공간 회원, 또는 구글 회원이 둘 이상인 공간에 정한 날수를 넘겨 있은 회원."""
+    """쓰기 자격: 학교 플랜이 켜진 학교 공간 회원, 또는 계정 회원이 둘 이상인 공간에 정한 날수를 넘겨 있은 회원."""
     if me.space.is_school and me.space.school.writable:
         return True
     if me.joined_at > timezone.now() - timedelta(days=settings.PARTNER_REVIEW_MIN_DAYS):
@@ -220,7 +220,7 @@ def _review_gate(request, slug):
     if not request.user.is_authenticated:
         return partner, None, None, redirect(_login_href(_review_path(partner)))
     if is_guest(request.user):
-        login = "/auth/google/login?" + urlencode({"next": _review_path(partner)})
+        login = "/start?" + urlencode({"next": _review_path(partner)})
         return partner, None, None, _review_page(request, partner, 403, refused=True, login_href=login)
     me = _my_seat(request.user)
     if me is None:

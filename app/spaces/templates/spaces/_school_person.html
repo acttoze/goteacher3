@@ -1,4 +1,4 @@
-{# 명부 줄의 관리 창(관리자에게만): 관리자 지정·해제, 내보내기. #}
+{# 명부 줄의 관리 창(관리자에게만): 관리자 지정·해제, 임시 비밀번호(P1, 아이디 회원), 내보내기. #}
 <div class="scrim" id="p-{{ r.m.key }}" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="p-{{ r.m.key }}-h">
   <div class="dh"><h2 id="p-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님</h2></div>
   <div class="db">
@@ -6,7 +6,7 @@
       {% if last_manager %}<p>마지막 관리자라 해제할 수 없어요. 다른 선생님을 먼저 관리자로 세워 주세요.</p>
       {% else %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="0">
         <p>학교 관리자예요. 해제하면 초대 링크·업무분장·관리자 지정을 더 맡지 않아요.</p><div><button class="btn sec sm" type="submit">관리자 해제</button></div></form>{% endif %}
-    {% elif r.guest %}<p>이름만 들어온 선생님은 관리자가 될 수 없어요. 구글 계정을 이으면 돼요.</p>
+    {% elif r.guest %}<p>이름만 들어온 선생님은 관리자가 될 수 없어요. 구글이나 아이디로 이으면 돼요.</p>
     {% else %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/manager" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="1">
       <p>관리자는 초대 링크·업무분장·내보내기·관리자 지정을 맡아요.</p><div><button class="btn sec sm" type="submit">관리자로 세우기</button></div></form>{% endif %}{% endif %}
     {% if writable and not r.m.is_manager and not r.guest %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/attendance" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/attendance" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="{% if r.m.can_duty %}0{% else %}1{% endif %}">
@@ -15,6 +15,8 @@
       <p>수리 담당자는 수리 요청 알림을 받고 상태와 답변을 바꿔요. 행정실 소속이어도 지정해야 맡아요.</p><div><button class="btn sec sm" type="submit">{% if r.m.can_repair %}수리 담당자 해제{% else %}수리 담당자로 지정{% endif %}</button></div></form>
     <form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/meal" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/meal" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="on" value="{% if r.m.can_meal %}0{% else %}1{% endif %}">
       <p>급식 담당자는 식판 사진을 올리고 TV 화면을 정해요. 급식소 소속이어도 지정해야 맡아요.</p><div><button class="btn sec sm" type="submit">{% if r.m.can_meal %}급식 담당자 해제{% else %}급식 담당자로 지정{% endif %}</button></div></form>{% endif %}
+    {% if r.id_member and not r.m.is_manager %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/password" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/password" hx-target="#pw-{{ r.m.key }}" hx-confirm="{{ r.m.name }} 선생님의 비밀번호를 임시 비밀번호로 바꿀까요? 지금 쓰던 비밀번호와 다른 PC 로그인은 끊겨요.">{% csrf_token %}
+      <p>비밀번호를 잊었으면 임시 비밀번호를 줄 수 있어요. 한 번만 보여요.</p><div><button class="btn sec sm" type="submit">임시 비밀번호 주기</button></div><div id="pw-{{ r.m.key }}" aria-live="polite"></div></form>{% endif %}
     {% if not r.me %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-post="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}
       <p>내보내면 이 학교에서 빠지고, 다음 취합부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}{% if r.made %} 이 선생님이 만든 취합 {{ r.made }}개는 내가 넘겨받아요.{% endif %}</p>
       <div><button class="btn danger sm" type="submit">내보내기</button></div></form>{% endif %}

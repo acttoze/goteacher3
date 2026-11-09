@@ -19,6 +19,16 @@ User = get_user_model()
 TOKEN = {"access_token": "t"}
 
 
+def as_guest_origin(c, guest):
+    """P1 S5: 이 세션이 손님을 만든 PC다(계정 잇기 자격)."""
+    from accounts.models import GUEST_ORIGIN
+
+    c.force_login(guest)
+    session = c.session
+    session[GUEST_ORIGIN] = guest.pk
+    session.save()
+
+
 def google(sub, name="새선생"):
     return User.objects.create(username=f"google:{sub}", first_name=name)
 
@@ -41,7 +51,8 @@ class EntryTests(JoinBase):
         c = Client()
         n = Member.objects.in_space(self.hub).count()
         page = c.get(self.link, follow=True)
-        self.assertContains(page, "/auth/google/login")
+        self.assertContains(page, 'action="/auth/login"')  # P1: 구글·아이디 로그인 칸
+        self.assertContains(page, 'name="via" value="google"')
         self.assertContains(page, "/join")  # 돌아올 곳
         self.assertNotContains(page, 'name="group"')
         self.assertNotContains(page, 'action="/join"')
@@ -97,7 +108,7 @@ class EntryTests(JoinBase):
         guest = User.objects.create(username="guest:link", first_name="옮긴손님")
         Member.objects.create(space=self.hub, user=guest, name="옮긴손님", cls="5-3", group="g5")
         c = Client()
-        c.force_login(guest)
+        as_guest_origin(c, guest)
         c.get("/auth/google/login")
         info = {"sub": "far", "email": "", "name": "다른학교"}
         with mock.patch("accounts.views._http_json", side_effect=[TOKEN, info]):
@@ -143,7 +154,7 @@ class EntryTests(JoinBase):
         c = self.member_client(guest)
         page = c.get("/join")
         self.assertContains(page, "구글")
-        self.assertContains(page, "/auth/google/login")
+        self.assertContains(page, 'action="/auth/login"')
         self.assertNotContains(page, 'name="group"')
         r = c.post("/join", {"group": "office", "role": "교무", "name": "떠돌이"})
         self.assertEqual(r.status_code, 403)

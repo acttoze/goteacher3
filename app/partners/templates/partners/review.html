@@ -27,8 +27,8 @@
     <h1>{{ p.name }} 후기</h1>
   </div></div>
   {% if refused %}
-  <p class="notice">후기는 구글로 로그인한 선생님만 쓸 수 있어요.</p>
-  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a> <a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
+  <p class="notice">후기는 구글이나 아이디로 로그인한 선생님만 쓸 수 있어요.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">로그인하기</a> <a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>
   {% elif no_space %}
   <p class="notice">후기는 학교당 한 건이라 학교를 알아야 해요. 동학년이나 학교 공간에 들어온 뒤 써 주세요.</p>
   <p style="margin-top:16px"><a class="btn pri" href="/">공간 만들기</a> <a class="btn sec" href="/partners/{{ p.slug }}">업체로 돌아가기</a></p>

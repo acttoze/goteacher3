@@ -242,7 +242,7 @@ class LifecycleTests(Base):
         c.force_login(guest)
         r = c.get(self.url)
         self.assertEqual(r.status_code, 403)
-        self.assertContains(r, "/auth/google/login?next=", status_code=403)
+        self.assertContains(r, "/start?next=", status_code=403)
         self.assertNotContains(r, 'name="badges"', status_code=403)
 
     def test_partner_hidden_then_back(self):

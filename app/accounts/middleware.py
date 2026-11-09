@@ -1,6 +1,10 @@
-from django.contrib.auth import login
+from urllib.parse import quote
 
-from .models import DEVICE_COOKIE, DeviceToken
+from django.contrib.auth import login
+from django.http import HttpResponse
+from django.shortcuts import redirect
+
+from .models import DEVICE_COOKIE, MUST_CHANGE, DeviceToken
 
 
 class DeviceTokenMiddleware:
@@ -22,3 +26,22 @@ class DeviceTokenMiddleware:
         if bad and DEVICE_COOKIE not in response.cookies:
             response.delete_cookie(DEVICE_COOKIE)
         return response
+
+
+class PasswordChangeMiddleware:
+    """임시 비밀번호로 들어온 세션(P1 S6): 비밀번호를 바꾸기 전에는 바꾸기 화면·로그아웃·정적 파일만."""
+
+    OPEN = ("/account/password", "/auth/logout", "/static/", "/privacy", "/terms")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.session.get(MUST_CHANGE) and not request.path.startswith(self.OPEN):
+            to = "/account/password?next=" + quote(request.get_full_path() if request.method == "GET" else "/")
+            if request.headers.get("HX-Request"):
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = to
+                return response
+            return redirect(to)
+        return self.get_response(request)

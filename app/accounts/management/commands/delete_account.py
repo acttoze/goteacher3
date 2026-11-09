@@ -1,4 +1,4 @@
-"""계정 삭제(운영자): delete_account <이메일 또는 구글 sub> [--dry-run]. 처리방침 '요청하면 지체 없이 파기'의 이행.
+"""계정 삭제(운영자): delete_account <이메일·구글 sub·아이디> [--dry-run]. 처리방침 '요청하면 지체 없이 파기'의 이행.
 
 - 지운다: 회원 자리(남은 사람이 없는 동학년은 공간째), 기기 토큰, 웹 푸시 구독, 세션, 대기 중인 플랜 신청, 그 사람의 복무 줄, 계정.
 - 이름을 바꾼다: 공지·공지 판·수리 요청·식판 사진·업체 추천의 쓴 사람 표시를 '나간 선생님'으로.
@@ -15,7 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
 
-from accounts.models import DeviceToken
+from accounts.models import GUEST_PREFIX, DeviceToken
 from collect.models import PushSubscription, Row
 from community.models import Comment, Post
 from meals.models import MealPhoto
@@ -68,14 +68,17 @@ class Command(BaseCommand):
             "이미 낸 값의 이름은 기간까지 남는다. 마지막 관리자는 거부한다. 건수만 출력한다.")
 
     def add_arguments(self, parser):
-        parser.add_argument("who", help="이메일 또는 구글 sub")
+        parser.add_argument("who", help="이메일, 구글 sub 또는 아이디")
         parser.add_argument("--dry-run", action="store_true", help="지우지 않고 건수만 센다")
 
     def _find(self, who):
         who = who.strip()
-        users = list(get_user_model().objects.filter(username__startswith="google:").filter(Q(username=f"google:{who}") | Q(email__iexact=who))) if who else []
+        # 계정 회원만(손님 guest: 제외): 구글은 sub·메일, 아이디 회원은 아이디(대소문자 무시)
+        users = list(get_user_model().objects.exclude(username__startswith=GUEST_PREFIX).filter(
+            Q(username=f"google:{who}") | Q(username__startswith="google:", email__iexact=who)
+            | (Q(username__iexact=who) & ~Q(username__contains=":")))) if who else []
         if len(users) != 1:
-            raise CommandError(f"구글 계정을 하나로 찾지 못했습니다({len(users)}개). sub로 다시 써 주세요.")
+            raise CommandError(f"계정을 하나로 찾지 못했습니다({len(users)}개). 구글은 sub, 아이디 회원은 아이디로 다시 써 주세요.")
         return users[0].pk
 
     def handle(self, *args, **o):

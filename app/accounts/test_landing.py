@@ -30,7 +30,8 @@ class LandingTests(TestCase):
         r = self.client.get("/start")
         self.assertEqual(r.status_code, 200)
         self.assertContains(r, "구글 계정으로 시작하기")
-        self.assertContains(r, 'action="/auth/google/login"')
+        self.assertContains(r, 'action="/auth/login"')  # P1: 아이디 칸과 구글 단추가 한 폼
+        self.assertContains(r, 'name="via" value="google"')
 
     def test_start_keeps_safe_next(self):
         r = self.client.get("/start", {"next": "/s/abc/"})
@@ -76,12 +77,13 @@ class LandingQAEdgeTests(TestCase):
     """QA 추가(G5): 링크를 실제로 따라가는 흐름과 경계 사례."""
 
     def _follow_to_google(self, start_location):
-        """/start?next=... 화면의 구글 시작 폼(GET)을 그대로 보내 google_login까지 간다."""
+        """/start?next=... 화면의 로그인 폼을 구글 단추(via=google)로 보내 google_login까지 간다(P1: 한 폼)."""
         html = self.client.get(start_location).content.decode()
-        form = re.search(r'<form class="g-row" method="get" action="([^"]+)">(.*?)</form>', html, re.S)
+        form = re.search(r'<form class="lg-form" method="post" action="([^"]+)"[^>]*>(.*?)</form>', html, re.S)
         fields = re.findall(r'<input type="(?:hidden|checkbox)" name="([^"]+)" value="([^"]*)"', form.group(2))
-        return self.client.get(form.group(1), {k: [v.replace("&amp;", "&") for kk, v in fields if kk == k]
-                                               for k, _ in fields})
+        data = {k: [v.replace("&amp;", "&") for kk, v in fields if kk == k] for k, _ in fields if k != "csrfmiddlewaretoken"}
+        r = self.client.post(form.group(1), {**data, "via": "google"})
+        return self.client.get(r["Location"])
 
     def test_full_flow_returns_to_original_next_with_query(self):
         from unittest import mock
@@ -107,7 +109,7 @@ class LandingQAEdgeTests(TestCase):
         for bad in ("//evil.example/", "/\\evil.example/", "https:evil.example", "javascript:alert(1)",
                     "http://evil.example/s/x/"):
             html = self.client.get("/start", {"next": bad}).content.decode()
-            self.assertIn('action="/auth/google/login"', html, bad)
+            self.assertIn('action="/auth/login"', html, bad)
             self.assertNotIn('name="next"', html, bad)  # next 없이
             self.assertNotIn("evil", html, bad)
             self.assertNotIn("javascript:", html, bad)

@@ -1,5 +1,5 @@
 {% extends frame %}
-{# N1 업체 추천. 구글 회원만. 운영자 확인을 기다릴 뿐 공개되지 않는다. #}
+{# N1 업체 추천. 계정 회원만. 운영자 확인을 기다릴 뿐 공개되지 않는다. #}
 {% block title %}업체 추천하기 · 고티처{% endblock %}
 {% block head %}
 <meta name="robots" content="noindex">
@@ -19,8 +19,8 @@
     <p class="sub">운영자가 확인한 뒤 올립니다. 업체가 스스로 등록·광고할 수는 없어요.</p>
   </div></div>
   {% if refused %}
-  <p class="notice">업체 추천은 구글로 로그인한 선생님만 할 수 있어요.</p>
-  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">구글로 시작하기</a> <a class="btn sec" href="/partners">협력업체로 돌아가기</a></p>
+  <p class="notice">업체 추천은 구글이나 아이디로 로그인한 선생님만 할 수 있어요.</p>
+  <p style="margin-top:16px"><a class="btn pri" href="{{ login_href }}">로그인하기</a> <a class="btn sec" href="/partners">협력업체로 돌아가기</a></p>
   {% elif sent %}
   <p class="notice">추천을 받았어요. 운영자가 확인한 뒤 올립니다.</p>
   <p style="margin-top:16px"><a class="btn pri" href="/partners">협력업체로 돌아가기</a> <a class="btn sec" href="/partners/suggest">한 곳 더 추천하기</a></p>

@@ -75,8 +75,8 @@ class GateTests(Base):
         for path in ("/community", "/community/new"):
             r = c.get(path)
             self.assertEqual(r.status_code, 403)
-            self.assertContains(r, "구글로 이으면 쓸 수 있어요", status_code=403)
-            self.assertContains(r, "/auth/google/login?next=/community", status_code=403)
+            self.assertContains(r, "구글 계정이나 아이디로 이으면 쓸 수 있어요", status_code=403)
+            self.assertContains(r, "/start?next=/community", status_code=403)
             self.assertNotContains(r, "비밀 제목", status_code=403)
         self.assertEqual(c.post("/community/new", {"title": "x", "body": "y"}).status_code, 403)
         self.assertEqual(Post.objects.count(), 1)

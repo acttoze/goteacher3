@@ -9,7 +9,7 @@
   {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
   {% if alone and writable %}<div class="well steps-w"><b>아직 혼자예요. 이 순서로 시작해 보세요.</b>
     <ol class="steps">
-      <li><b>초대 링크 보내기</b><span>선생님들이 구글로 로그인하고 소속·직책을 골라 들어와요.</span><button class="btn pri sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></li>
+      <li><b>초대 링크 보내기</b><span>선생님들이 구글이나 아이디로 로그인하고 소속·직책을 골라 들어와요.</span><button class="btn pri sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></li>
       <li><b>업무분장 붙여넣기</b><span>2월에 만드는 그 표 그대로면 부서마다 카드가 생겨요.</span><a class="btn sec sm" href="/s/{{ space.token }}/school/duties">업무분장 붙여넣기</a></li>
       <li><b>담당자 지정</b><span>선생님이 들어오면 명부 줄의 '관리'에서 복무 입력·수리·급식 담당을 정해요.</span></li>
     </ol></div>{% endif %}

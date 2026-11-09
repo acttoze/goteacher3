@@ -27,7 +27,7 @@
 {% endblock %}
 {% block ptitle %}협력업체{% endblock %}
 {% block ctx %}{% include "_out_nav.html" with on="partners" %}{% endblock %}
-{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">시작하기</a></span>{% endif %}{% endblock %}
 {% block main %}
 {% include "_out_band.html" with kind="open" %}
 <p class="crumb"><a href="/partners">협력업체</a> / {{ p.cat }}</p>
@@ -51,7 +51,7 @@
       <div class="card-h"><h2 id="rvH">선생님 후기</h2><span class="n">{{ review_count }}</span>
         {% if mine.is_hidden %}<span class="r">운영자가 내렸어요</span>{% else %}<a class="btn pri sm" href="{{ write_href }}">{% if mine %}내 후기 고치기{% else %}후기 쓰기{% endif %}</a>{% endif %}</div>
       <div class="card-b">
-        {% if not can_suggest %}<p class="muted" style="margin-bottom:14px">추천은 고티처 회원만 할 수 있어요. <a href="{{ login_href }}">구글로 로그인</a></p>{% endif %}
+        {% if not can_suggest %}<p class="muted" style="margin-bottom:14px">추천은 고티처 회원만 할 수 있어요. <a href="{{ login_href }}">로그인</a></p>{% endif %}
         {% for r in page_obj.object_list %}
         <div class="rv">
           <div class="ptags">{% for b in r.badge_names %}<span class="pill acc">{{ b }}</span>{% endfor %}</div>

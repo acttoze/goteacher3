@@ -189,7 +189,7 @@ class GuestStillGuestTests(Base):
         _seat(g, "다솜초등학교", "손님", "3333333")
         c = self.client_class()
         c.force_login(g)
-        self.assertContains(c.get("/community"), "구글로 이으면", status_code=403)
+        self.assertContains(c.get("/community"), "아이디로 이으면", status_code=403)
 
     def test_seated_member_passes_nick_step(self):
         u = _google("n", "n@example.com")

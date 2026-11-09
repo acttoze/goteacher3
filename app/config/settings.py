@@ -100,6 +100,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "accounts.middleware.DeviceTokenMiddleware",
+    "accounts.middleware.PasswordChangeMiddleware",  # P1: 임시 비밀번호로 들어온 세션은 바꾸기 화면만
     "spaces.middleware.SpaceMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -133,8 +134,19 @@ DATABASES = {
     )
 }
 
-AUTH_PASSWORD_VALIDATORS = []
-LOGIN_URL = "/start"  # 시작 화면(구글로 시작하기). / 는 로그인 전 소개 페이지
+# P1 아이디 회원: 8자 이상 + 흔한 비밀번호 거부만(복잡도 규칙 없음, 리드 결정). 가입·비밀번호 바꾸기·changepassword가 같이 쓴다.
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+]
+# 구버전(그누보드) 해시는 확인만 하고, 첫 로그인 때 맨 앞(기본) 해셔로 바꿔 저장한다.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "accounts.hashers.G5PBKDF2PasswordHasher",
+]
+# P1 이관 전 구 아이디 선점 막기: 저장소 밖 파일(한 줄에 아이디 하나). 비우거나 파일이 없으면 끔. P3 이관 뒤 지운다.
+RESERVED_IDS_FILE = os.environ.get("RESERVED_IDS_FILE", "")
+LOGIN_URL = "/start"  # 시작 화면(구글·아이디로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"

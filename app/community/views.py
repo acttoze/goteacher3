@@ -1,4 +1,4 @@
-"""Q10 커뮤니티(33번). 공간에 속한 구글 회원만 보고 쓰며, 화면에는 닉네임만 나온다.
+"""Q10 커뮤니티(33번). 공간에 속한 계정 회원만 보고 쓰며, 화면에는 닉네임만 나온다.
 
 - 공간에 속하지 않아 공간 필터가 없다. 들어오는 길은 게이트(community_view) 하나다: 비로그인은 로그인으로, 손님·공간 없는 회원은 안내(403), 닉네임 없는 회원은 입장 화면.
 - 틀은 양식 자료실과 같다(library._frame). 안내 화면만 bare. 응답은 저장 금지·검색 제외.
@@ -72,7 +72,7 @@ def community_view(view):
         if not request.user.is_authenticated:
             r = redirect("/start?" + urlencode({"next": HOME}, safe="/"))
         elif is_guest(request.user):
-            r = _page(request, "community/guest.html", {"login_href": "/auth/google/login?" + urlencode({"next": HOME}, safe="/")}, 403)
+            r = _page(request, "community/guest.html", {"login_href": "/start?" + urlencode({"next": HOME}, safe="/")}, 403)
         elif not Member.objects.filter(user=request.user).exists():
             r = _page(request, "community/no_space.html", status=403)
         else:

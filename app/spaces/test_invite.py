@@ -116,7 +116,7 @@ class DuplicateTests(InviteBase):
 
     def test_google_member_name_cannot_be_taken_by_link(self):
         r = self.join(Client(), "4-1", "송민재")
-        self.assertContains(r, "구글 계정으로 이어 둔 선생님", status_code=400)
+        self.assertContains(r, "계정으로 이어 둔 선생님", status_code=400)
         self.assertEqual(Member.objects.in_space(self.space).count(), 1)
 
     def test_taken_slot_shows_who(self):

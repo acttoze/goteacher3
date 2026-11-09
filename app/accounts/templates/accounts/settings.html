@@ -36,6 +36,7 @@
 
 {% if area == "me" %}
 {% include "accounts/_me.html" %}
+{% if id_member %}{% include "accounts/_password.html" %}{% endif %}
 
 {% elif area == "alerts" %}
 <section class="srow"><div class="lab"><h2>묶음 시간</h2><p>마감 리마인드·새 기기 알림을 모아 하루 세 번만 보내요. 끄면 그 시간 소식은 다음 묶음으로 넘어가요. 주말·휴업일에는 쉬어요.</p></div>
@@ -65,7 +66,7 @@
   <form class="dialog" role="dialog" aria-modal="true" aria-labelledby="lvH" method="post" action="/s/{{ space.token }}/settings/leave">
     {% csrf_token %}
     <div class="dh"><h2 id="lvH">{{ space.name }}에서 나갈까요?</h2></div>
-    <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 취합이 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 취합이 모두 지워져요.{% endif %}{% if guest %} 구글 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
+    <div class="db"><p>{% if rows|length > 1 %}나가면 {{ space_word }} 취합이 내 화면에서 사라져요. 내가 낸 칸은 합본에 그대로 남아요. 다시 들어오려면 초대 링크가 필요해요.{% else %}마지막 선생님이라 {% if space.is_school %}학교와{% else %}동학년과{% endif %} 취합이 모두 지워져요.{% endif %}{% if guest %} 계정을 이어 두지 않아서 이 PC에서도 로그아웃돼요.{% endif %}</p>
       {% if my_reviews %}<p>협력업체 후기는 나간 뒤에도 익명으로 남고, 나간 뒤에는 고치거나 지울 수 없어요(운영자에게 메일). 지우려면 지금 지워 주세요.</p>
       {% for r in my_reviews %}<p class="df" style="justify-content:space-between;align-items:center"><span>{{ r.partner.name }}{% if r.is_hidden %} · 운영자가 내렸어요{% endif %}</span>{% if not r.is_hidden %}<button class="btn sec sm" type="button" hx-post="/partners/{{ r.partner.slug }}/review/delete" hx-vals='{"back":"settings"}' hx-confirm="{{ r.partner.name }} 후기를 지울까요? 되돌릴 수 없어요.">내 후기 지우기</button>{% endif %}</p>
       {% endfor %}{% endif %}
@@ -78,9 +79,10 @@
 <section class="srow"><div class="lab"><h2>로그인 기억</h2><p>켜 두면 같은 PC에서는 1년 동안 다시 로그인하지 않아요. 공용 PC라면 끄거나, 쓰고 나서 로그아웃하세요.</p></div>
   <div>{% include "accounts/_remember.html" %}</div></section>
 
-<section class="srow"><div class="lab"><h2>구글 계정</h2><p>다른 PC에서 들어올 때 이 계정으로 로그인해요.</p></div>
-  <div class="panel pad">{% if guest %}<div class="row"><span class="st">이어 두지 않음</span><a class="btn sec sm" href="/auth/google/login?next=/s/{{ space.token }}/settings%3Fa%3Ddevice">구글 계정으로 이어 두기</a></div>
-    {% else %}<div class="row"><span class="st done">연결됨</span><b>{{ request.user.email|default:request.user.first_name }}</b></div>{% endif %}</div></section>
+<section class="srow"><div class="lab"><h2>계정</h2><p>다른 PC에서 들어올 때 이 계정으로 로그인해요.</p></div>
+  <div class="panel pad">{% if guest %}<div class="row"><span class="st">이어 두지 않음</span><a class="btn sec sm" href="/auth/google/login?next=/s/{{ space.token }}/settings%3Fa%3Ddevice">구글 계정으로 이어 두기</a><a class="btn sec sm" href="/signup?next=/s/{{ space.token }}/settings%3Fa%3Ddevice">아이디로 이어 두기</a></div>
+    {% elif id_member %}<div class="row"><span class="st done">아이디</span><b>{{ request.user.username }}</b></div>
+    {% else %}<div class="row"><span class="st done">구글 연결됨</span><b>{{ request.user.email|default:request.user.first_name }}</b></div>{% endif %}</div></section>
 
 <section class="srow"><div class="lab"><h2>로그인한 기기</h2><p>모르는 기기가 있거나 공용 PC에서 로그아웃을 잊었다면 모든 기기에서 로그아웃하세요. 다음에 다시 로그인해야 해요.</p></div>
   <div class="panel">
@@ -94,7 +96,7 @@
     {% csrf_token %}
     <div class="dh"><h2 id="allDlgH">모든 기기에서 로그아웃할까요?</h2></div>
     <div class="db"><p>이 PC를 포함해 로그인한 모든 브라우저가 로그아웃되고, 브라우저 알림 받기도 꺼져요.
-      {% if guest %}구글 계정을 이어 두지 않아서, 다시 들어오려면 초대 링크로 같은 반·이름을 골라야 해요.{% else %}다시 쓰려면 구글로 로그인하세요.{% endif %}</p></div>
+      {% if guest %}계정을 이어 두지 않아서, 다시 들어오려면 초대 링크로 같은 반·이름을 골라야 해요.{% elif id_member %}다시 쓰려면 아이디로 로그인하세요.{% else %}다시 쓰려면 구글로 로그인하세요.{% endif %}</p></div>
     <div class="df"><button class="btn ghost" type="button" data-close>취소</button><button class="btn danger" type="submit">모두 로그아웃</button></div>
   </form>
 </div>

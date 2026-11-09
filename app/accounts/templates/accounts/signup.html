@@ -1,0 +1,45 @@
+{% extends "bare.html" %}
+{% block title %}아이디로 가입 · 고티처{% endblock %}
+{% block head %}
+<style>
+  /* P1 아이디 가입: 아이디·비밀번호·확인·이름 네 칸. 메일 인증 없음. 1536×750 첫 화면에 가입 단추까지 보인다. */
+  .bare.wide { max-width: 760px; padding-top: 40px; }
+  .su-h { font-size: 32px; line-height: 1.18; letter-spacing: -0.04em; font-weight: 800; }
+  .su-lead { margin-top: 12px; font-size: 18px; color: var(--muted); }
+  .su { margin-top: 28px; padding: 28px; gap: 22px; }
+  .su-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 24px; }
+  .su-end { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; }
+  .su-fine { font-size: 15px; color: var(--muted); }
+  .su-fine a { color: var(--ink); }
+</style>
+{% endblock %}
+{% block main %}
+<h1 class="su-h">아이디로 가입하기</h1>
+<p class="su-lead">메일 인증 없이 바로 시작해요. 구글 계정이 있으면 <a href="/start{% if next and next != '/' %}?next={{ next|urlencode }}{% endif %}">구글로 시작</a>해도 돼요.</p>
+{% if error %}<p class="notice" role="alert" style="margin-top:20px">{{ error }}</p>{% endif %}
+<form class="card su" method="post" action="/signup" novalidate>
+  {% csrf_token %}
+  {% if next and next != '/' %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+  <div class="su-grid">
+    <label class="field"><span>아이디 <span class="hint">영문·숫자·_ 3~20자</span></span>
+      <input class="input lg" name="username" value="{{ username }}" autocomplete="username" maxlength="20" required autofocus{% if errors.username %} aria-invalid="true" aria-describedby="e-username"{% endif %}>
+      {% if errors.username %}<span class="field-err" id="e-username" role="alert">{{ errors.username }}</span>{% endif %}</label>
+    <label class="field"><span>이름 <span class="hint">선생님들에게 보여요</span></span>
+      <input class="input lg" name="name" value="{{ name }}" autocomplete="name" maxlength="40" required{% if errors.name %} aria-invalid="true" aria-describedby="e-name"{% endif %}>
+      {% if errors.name %}<span class="field-err" id="e-name" role="alert">{{ errors.name }}</span>{% endif %}</label>
+    <label class="field"><span>비밀번호 <span class="hint">8자 이상</span></span>
+      <input class="input lg" type="password" name="password" autocomplete="new-password" required{% if errors.password %} aria-invalid="true" aria-describedby="e-password"{% endif %}>
+      {% if errors.password %}<span class="field-err" id="e-password" role="alert">{{ errors.password }}</span>{% endif %}</label>
+    <label class="field"><span>비밀번호 확인</span>
+      <input class="input lg" type="password" name="password2" autocomplete="new-password" required{% if errors.password2 %} aria-invalid="true" aria-describedby="e-password2"{% endif %}>
+      {% if errors.password2 %}<span class="field-err" id="e-password2" role="alert">{{ errors.password2 }}</span>{% endif %}</label>
+  </div>
+  <div class="su-end">
+    <button class="btn pri lg" type="submit">가입하고 시작하기</button>
+    <input type="hidden" name="remember" value="0">
+    <label class="chk"><input type="checkbox" name="remember" value="1"{% if remember %} checked{% endif %}> 이 PC 기억하기(1년)</label>
+  </div>
+  <p class="su-fine">가입하면 <a href="/terms" target="_blank" rel="noopener">이용약관</a>과 <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a>에 동의하는 것으로 봐요. 비밀번호를 잊으면 학교 관리자 선생님이 임시 비밀번호를 줄 수 있어요.</p>
+</form>
+<p class="su-fine" style="margin-top:20px">이미 아이디가 있으면 <a href="/start{% if next and next != '/' %}?next={{ next|urlencode }}{% endif %}">로그인</a>하세요.</p>
+{% endblock %}

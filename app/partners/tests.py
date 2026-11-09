@@ -110,7 +110,7 @@ class ListTests(Base):
             if has_partner:
                 partner()
             self.assertContains(self.client.get("/partners"), f'<a href="/start?next=/partners/suggest">{guide}</a>')
-            self.assertContains(self.gc.get("/partners"), f'<a href="/auth/google/login?next=/partners/suggest">{guide}</a>')
+            self.assertContains(self.gc.get("/partners"), f'<a href="/start?next=/partners/suggest">{guide}</a>')
             r = self.mc.get("/partners")
             self.assertNotContains(r, guide)
             self.assertContains(r, SUGGEST)

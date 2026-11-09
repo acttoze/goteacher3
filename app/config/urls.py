@@ -52,6 +52,7 @@ urlpatterns = [
     path("s/<str:space_token>/school/summary", school_summary.sheet),
     path("s/<str:space_token>/school/me", school_page.edit_me),
     path("s/<str:space_token>/school/members/<str:key>/manager", school_page.set_manager),
+    path("s/<str:space_token>/school/members/<str:key>/password", school_page.temp_password),  # P1 임시 비밀번호
     path("s/<str:space_token>/school/members/<str:key>/attendance", attendance_page.set_writer),
     path("s/<str:space_token>/school/attendance", attendance_page.page),
     path("s/<str:space_token>/school/attendance/preview", attendance_page.preview),
@@ -65,6 +66,7 @@ urlpatterns = [
     path("s/<str:space_token>/settings/slots", device.slots),
     path("s/<str:space_token>/settings/logout-all", device.logout_all),
     path("s/<str:space_token>/settings/me", spaces.update_me),
+    path("s/<str:space_token>/settings/password", device.change_password),  # P1 아이디 회원
     path("s/<str:space_token>/settings/leave", spaces.leave),
     path("s/<str:space_token>/invite", spaces.new_invite),
     path("s/<str:space_token>/made", spaces.made),
@@ -105,7 +107,10 @@ urlpatterns = [
     path("m/<str:token>", phone.page),  # M3 폰으로 식판 사진 올리기(로그인 없음)
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
-    path("start", accounts.home),  # 시작 화면(구글로 시작하기). 로그인 전 / 는 소개 페이지
+    path("start", accounts.home),  # 시작 화면(구글·아이디로 시작하기). 로그인 전 / 는 소개 페이지
+    path("auth/login", accounts.id_login),  # P1 아이디 로그인
+    path("signup", accounts.signup),  # P1 아이디 가입
+    path("account/password", accounts.force_password),  # P1 임시 비밀번호 뒤 바꾸기
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),
@@ -125,9 +130,9 @@ urlpatterns = [
     path("partners/<str:slug>", partners.detail),
     path("partners/<str:slug>/review", partners.review),  # N2 후기(내 학교의 이 업체 후기 하나만 다룬다)
     path("partners/<str:slug>/review/delete", partners.review_delete),
-    path("school-plan", school_plan.page),  # O1 소개는 로그인 없이, 신청은 구글 회원
+    path("school-plan", school_plan.page),  # O1 소개는 로그인 없이, 신청은 계정 회원
     path("school-plan/q/<str:key>", school_plan.quote),
-    path("community", community.index),  # Q10 커뮤니티(구글 회원, 전국 하나)
+    path("community", community.index),  # Q10 커뮤니티(계정 회원, 전국 하나)
     path("community/nick", community.nick),
     path("community/new", community.new),
     path("community/c/<str:key>/delete", community.comment_delete),

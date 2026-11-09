@@ -154,7 +154,7 @@ class LikeTests(TestCase):
         self.client.force_login(new_guest("손님"))
         self.assertEqual(self.client.post(self.url()).status_code, 403)
         self.assertFalse(FormLike.objects.exists())
-        self.assertContains(self.client.get(f"/forms/{self.a.slug}"), "/auth/google/login?next=")
+        self.assertContains(self.client.get(f"/forms/{self.a.slug}"), "/start?next=")
 
     def test_toggle_one_vote(self):
         self.client.force_login(self.user)

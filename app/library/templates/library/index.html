@@ -54,7 +54,7 @@
 {% endblock %}
 {% block ptitle %}양식 자료실{% endblock %}
 {% block ctx %}{% include "_out_nav.html" with on="forms" %}{% endblock %}
-{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">구글로 시작하기</a></span>{% endif %}{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">시작하기</a></span>{% endif %}{% endblock %}
 {% block main %}
 {% include "_out_band.html" with kind="open" %}
 <div class="title" id="ftitle">

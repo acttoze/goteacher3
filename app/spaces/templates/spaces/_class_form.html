@@ -25,7 +25,7 @@
   <label class="field"><span>이름</span>
     <input class="input lg" id="nm" name="name" value="{{ name }}" maxlength="40" style="max-width:320px" autocomplete="off"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
     {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}
-    <span class="hint">구글 계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span>
+    <span class="hint">계정 이름을 가져왔어요. 동학년에게 이 이름으로 보여요.</span>
   </label>
   <div class="wrap-row"><button class="btn pri lg" type="submit">{{ grade }}학년 동학년 만들기</button><span class="small muted">이미 다른 선생님이 만들었다면, 그 선생님이 보낸 초대 링크로 들어오세요.</span></div>
   {% endif %}
