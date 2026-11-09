@@ -1,0 +1,34 @@
+{# P2 일정 본문·첨부·댓글(대화상자 오른쪽 칸). 열 때 받아 오고(_ev_more_slot.html), 쓰면 이 칸만 바꾼다. 400·429도 이 칸에 그린다(data-err-swap). #}
+<div class="stack-y" id="evm-{{ e.key }}" data-err-swap{% if toast %} data-toast-now="{{ toast }}"{% endif %} style="gap:20px">
+  <section class="field" aria-labelledby="evbH-{{ e.key }}">
+    <h3 class="lbl" id="evbH-{{ e.key }}">본문</h3>
+    {% if can_write %}<form class="field" method="post" action="/s/{{ space.token }}/today/e/{{ e.key }}/body" hx-post="/s/{{ space.token }}/today/e/{{ e.key }}/body" hx-target="#evm-{{ e.key }}" hx-swap="outerHTML">{% csrf_token %}
+      <textarea class="textarea" name="body" rows="4" maxlength="{{ body_max }}" aria-labelledby="evbH-{{ e.key }}" placeholder="준비물·안내처럼 자세한 내용을 적어 주세요"{% if body_error %} aria-invalid="true"{% endif %} style="min-height:112px">{% if body_text %}{{ body_text }}{% else %}{{ e.body }}{% endif %}</textarea>
+      {% if body_error %}<p class="field-err" role="alert">{{ body_error }}</p>{% endif %}
+      <div><button class="btn sec sm" type="submit">본문 저장</button></div>
+    </form>
+    {% elif e.body %}<p>{{ e.body|linebreaksbr }}</p>
+    {% else %}<p class="muted">본문이 없어요.</p>{% endif %}
+  </section>
+
+  <section class="field" aria-labelledby="evfH-{{ e.key }}">
+    <h3 class="lbl" id="evfH-{{ e.key }}">첨부 <span class="num muted">{{ files|length }}</span></h3>
+    {% if files %}<ul class="list">{% for f in files %}<li style="min-height:56px;padding:6px 0"><div class="grow" style="min-width:0;overflow-wrap:anywhere"><div class="t">{{ f.name }}</div><div class="m">{{ f.stored|filesizeformat }}</div></div><a class="btn sec sm" href="/s/{{ space.token }}/today/e/{{ e.key }}/f/{{ f.key }}" download>받기</a>{% if can_write %}<form method="post" action="/s/{{ space.token }}/today/e/{{ e.key }}/f/{{ f.key }}/delete" hx-post="/s/{{ space.token }}/today/e/{{ e.key }}/f/{{ f.key }}/delete" hx-target="#evm-{{ e.key }}" hx-swap="outerHTML" hx-confirm="「{{ f.name }}」 첨부를 지울까요?">{% csrf_token %}<button class="btn ghost sm" type="submit">지우기</button></form>{% endif %}</li>{% endfor %}</ul>
+    {% elif not can_write %}<p class="muted">첨부가 없어요.</p>{% endif %}
+    {% if can_write %}{% if files|length < max_files %}<form method="post" enctype="multipart/form-data" action="/s/{{ space.token }}/today/e/{{ e.key }}/files" hx-post="/s/{{ space.token }}/today/e/{{ e.key }}/files" hx-encoding="multipart/form-data" hx-target="#evm-{{ e.key }}" hx-swap="outerHTML">{% csrf_token %}
+      <div class="row" style="gap:12px;flex-wrap:wrap"><label class="btn sec sm">파일 올리기<input class="sr" type="file" name="attach" multiple accept=".hwp,.hwpx,.pdf" data-max-mb="{{ max_total_mb }}" data-autosubmit aria-label="첨부 파일 고르기"></label><span class="small muted">한글(.hwp, .hwpx)·PDF, {{ max_files }}개까지, 개당 {{ max_mb }}MB</span></div>
+      <noscript><button class="btn sec sm" type="submit">올리기</button></noscript>
+    </form>{% else %}<p class="small muted">첨부는 일정 하나에 {{ max_files }}개까지예요.</p>{% endif %}
+    {% if file_error %}<p class="field-err" role="alert">{{ file_error }}</p>{% endif %}{% endif %}
+  </section>
+
+  <section class="field" aria-labelledby="evcH-{{ e.key }}">
+    <h3 class="lbl" id="evcH-{{ e.key }}">댓글 <span class="num muted">{{ comments|length }}</span></h3>
+    {% if comments %}<ul class="list">{% for x in comments %}<li style="align-items:flex-start;min-height:0;padding:10px 0"><div class="grow" style="min-width:0;overflow-wrap:anywhere"><div class="m" style="margin:0 0 2px">{{ x.c.by_name }} · <span class="num">{% if x.c.at|date:"Y" == this_year %}{{ x.c.at|date:"n/j H:i" }}{% else %}{{ x.c.at|date:"Y/n/j" }}{% endif %}</span></div><div>{{ x.c.body|linebreaksbr }}</div></div>{% if x.can_del %}<form method="post" action="/s/{{ space.token }}/today/e/{{ e.key }}/c/{{ x.c.key }}/delete" hx-post="/s/{{ space.token }}/today/e/{{ e.key }}/c/{{ x.c.key }}/delete" hx-target="#evm-{{ e.key }}" hx-swap="outerHTML" hx-confirm="이 댓글을 지울까요?">{% csrf_token %}<button class="btn ghost sm" type="submit">지우기</button></form>{% endif %}</li>{% endfor %}</ul>{% endif %}
+    <form class="field" method="post" action="/s/{{ space.token }}/today/e/{{ e.key }}/comments" hx-post="/s/{{ space.token }}/today/e/{{ e.key }}/comments" hx-target="#evm-{{ e.key }}" hx-swap="outerHTML">{% csrf_token %}
+      <textarea class="textarea" name="body" rows="2" maxlength="{{ comment_max }}" aria-labelledby="evcH-{{ e.key }}" placeholder="댓글을 남기면 일정 쓴 선생님에게 알림이 가요" required{% if comment_error %} aria-invalid="true"{% endif %} style="min-height:72px">{{ comment_text }}</textarea>
+      {% if comment_error %}<p class="field-err" role="alert">{{ comment_error }}</p>{% endif %}
+      <div><button class="btn pri sm" type="submit">댓글 올리기</button></div>
+    </form>
+  </section>
+</div>

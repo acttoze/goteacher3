@@ -173,6 +173,7 @@ class Notification(models.Model):
     VENDOR(K2): 업체 링크 발급·재발급·해제를 관리자 모두에게. 🔔만(pushed=True).
     MEAL(M3): 기존 식판 사진이 폰 QR로 바뀌면 QR 만든 담당자와 관리자에게. 🔔만(pushed=True).
     PLAN(O1): 학교 플랜 만료 전 관리자에게. 🔔만(pushed=True). 같은 회원·같은 문구(기한과 단계가 든다)는 하나.
+    EV_COMMENT(P2): 일정에 댓글이 달리면 일정 쓴 사람에게(자기 댓글 제외). 🔔만(pushed=True).
     """
 
     class Kind(models.TextChoices):
@@ -187,6 +188,7 @@ class Notification(models.Model):
         VENDOR = "vendor", "업체 계정"
         MEAL = "meal", "식판 사진 바뀜"
         PLAN = "plan", "학교 플랜 만료 전"
+        EV_COMMENT = "ev_comment", "일정 댓글"
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="notifications")
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="notifications")

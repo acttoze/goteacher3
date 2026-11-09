@@ -54,8 +54,8 @@ services:
       traefik.http.routers.gt-staging-body.tls.certresolver: letsencrypt
       traefik.http.routers.gt-staging-body.service: gt-staging
       traefik.http.routers.gt-staging-body.middlewares: gt-staging-buf3
-      # 공지 쓰기·고치기
-      traefik.http.routers.gt-staging-up101.rule: Host(`t.goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/board/(new|[^/]+/edit)$$`)
+      # 공지 쓰기·고치기, 일정 첨부(P2)
+      traefik.http.routers.gt-staging-up101.rule: Host(`t.goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/(board/(new|[^/]+/edit)|today/e/[^/]+/files)$$`)
       traefik.http.routers.gt-staging-up101.priority: "1000"
       traefik.http.routers.gt-staging-up101.entrypoints: websecure
       traefik.http.routers.gt-staging-up101.tls: "true"

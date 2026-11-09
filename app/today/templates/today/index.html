@@ -65,22 +65,22 @@
   .feed-more[open] summary { display: none; }
 
   /* 공백 없는 긴 제목이 카드를 넘지 않게 */
-  h1, .ev, .todo .t, .sent .t, .feed .x, .wide .t, .dh h2, .qpop .ph { overflow-wrap: anywhere; min-width: 0; }
+  h1, .ev, .todo .t, .sent .t, .feed .x, .list.wide .t, .dh h2, .qpop .ph { overflow-wrap: anywhere; min-width: 0; }
   .todo .grow, .sent > div, .feed .x { min-width: 0; }
-  .sent .t, .todo .t a, .wide a { max-width: 100%; }
+  .sent .t, .todo .t a, .list.wide a { max-width: 100%; }
 
   /* 볼 범위 토글·대상 고르기(학교 공간에서만 쓴다) */
   .quick.scoped { display: flex; gap: 8px; flex-basis: 620px; }
   .quick.scoped label:first-of-type { flex: 1; min-width: 0; }
   .quick.scoped select { width: 170px; height: 42px; flex: none; }
-  .wide { padding: 0 var(--pad) var(--pad); }
-  .wide li { display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 80px; gap: 16px; align-items: center; min-height: 48px; padding: 8px 0; }
-  .wide li.none { display: block; border: 0; }
-  .wide a { text-decoration: none; display: inline-block; padding: 6px 0; }
-  .wide a:hover { color: var(--accent); }
-  .wide .due, .wide .cnt { font-size: 15px; white-space: nowrap; }
-  .wide .due.urgent { color: var(--accent-ink); font-weight: 600; }
-  .wide .cnt { font-weight: 700; text-align: right; }
+  .list.wide { padding: 0 var(--pad) var(--pad); }
+  .list.wide li { display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 80px; gap: 16px; align-items: center; min-height: 48px; padding: 8px 0; }
+  .list.wide li.none { display: block; border: 0; }
+  .list.wide a { text-decoration: none; display: inline-block; padding: 6px 0; }
+  .list.wide a:hover { color: var(--accent); }
+  .list.wide .due, .list.wide .cnt { font-size: 15px; white-space: nowrap; }
+  .list.wide .due.urgent { color: var(--accent-ink); font-weight: 600; }
+  .list.wide .cnt { font-weight: 700; text-align: right; }
 
   /* 한 줄 입력 미리보기(prototype qpop) */
   .qpop { top: 48px; left: 0; right: 0; padding: 10px 12px; }

@@ -16,10 +16,11 @@
     </div><!-- /dgrid --></div>
     {% for x in events %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>
-      {% if x.can_write %}<form class="dialog" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#live" hx-swap="outerHTML">
-        {% csrf_token %}
+      {% if x.can_write %}<div class="dialog wide" role="dialog" aria-modal="true" aria-labelledby="evh-{{ x.e.key }}">
         <div class="dh"><h2 id="evh-{{ x.e.key }}">{{ x.e.title }}</h2></div>
-        <div class="db">
+        <div class="db"><div class="grid" style="gap:var(--gap)">
+          <form class="s5" id="evf-{{ x.e.key }}" style="display:flex;flex-direction:column;gap:16px" method="post" action="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}" hx-target="#live" hx-swap="outerHTML">
+          {% csrf_token %}
           <p class="muted">{{ x.dates }} · {{ x.slot_label }}{% if x.e.target %} · {{ x.e.target }}{% endif %} · {% if x.e.changed_from %}바꾼{% else %}올린{% endif %} 사람 {{ x.e.last_by.name|default:"알 수 없음" }}</p>
           <div class="grid" style="gap:12px">
             <label class="field s6"><span>날짜</span><input class="input" type="date" name="date" value="{{ x.e.date|date:'Y-m-d' }}" required></label>
@@ -27,9 +28,11 @@
             <label class="field s12"><span>장소</span><input class="input" name="place" maxlength="40" value="{{ x.e.place }}" placeholder="예: 과학실, 4-1 교실"></label>
             {% if space.is_school %}<label class="field s12"><span>볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}"{% if v == x.e.scope %} selected{% endif %}>{% if v == "me" and x.e.by_id and not x.mine %}쓴 사람만{% else %}{{ t }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
           </div>
-        </div>
-        <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-target="#live" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit">저장</button></div>
-      </form>{% else %}{% include "today/_ev_read.html" %}{% endif %}
+          </form>
+          <div class="s7">{% include "today/_ev_more_slot.html" %}</div>
+        </div></div>
+        <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-include="#evf-{{ x.e.key }}" hx-target="#live" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit" form="evf-{{ x.e.key }}">저장</button></div>
+      </div>{% else %}{% include "today/_ev_read.html" %}{% endif %}
     </div>
     {% endfor %}
   </section>

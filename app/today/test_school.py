@@ -132,7 +132,8 @@ class ScopeTests(Base):
         e = self.ev(self.t41, "온학교행사", "all")
         html = self.as_(self.t51).get(f"{self.base}/today").content.decode()
         self.assertIn(f'id="ev-{e.key}"', html)
-        self.assertNotIn(f"/today/e/{e.key}", html)
+        self.assertNotIn(f'/today/e/{e.key}"', html)  # 고치기 폼 주소(P2 본문·댓글 주소 /more는 읽는 사람에게도 있다)
+        self.assertNotIn(f"/today/e/{e.key}/delete", html)
         self.assertIn("/today/e/" + e.key, self.as_(self.t41).get(f"{self.base}/today").content.decode())
 
     def test_other_space_event_is_404_even_for_manager(self):

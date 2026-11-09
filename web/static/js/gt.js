@@ -67,6 +67,11 @@
     e.stopPropagation();
     toast('파일이 너무 커요. ' + over.dataset.maxMb + 'MB까지 올릴 수 있어요. 줄여서 다시 올려 주세요.');
   }, true);
+  // 고르면 바로 올리기(P2 일정 첨부): requestSubmit이라 위 크기 검사와 htmx를 그대로 거친다.
+  document.addEventListener('change', function (e) {
+    var i = e.target;
+    if (i.matches && i.matches('input[type=file][data-autosubmit]') && i.files.length && i.form) i.form.requestSubmit();
+  });
   // 일반 폼(data-upload-form)을 fetch로 보낸다. 앞단의 413·429는 앱 화면이 아닌 글자라 일반 POST면 화면 전체가 그 글자로 바뀌고 쓴 내용·고른 파일이 사라진다.
   // 413·429 글자·연결 실패는 폼을 그대로 두고 안내, 앱이 준 HTML(폼 오류, 리디렉트한 화면)은 화면을 교체. 스크립트가 없으면 일반 POST 그대로.
   document.addEventListener('submit', function (e) {

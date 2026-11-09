@@ -24,6 +24,7 @@ from partners.models import Review, Suggestion
 from repairs.models import Repair
 from spaces.merge import retry_once, vacate
 from spaces.models import Attendance, Member, PlanRequest, Space, is_last_manager
+from today.models import EventComment
 
 GONE_NAME = "나간 선생님"
 GONE_UNIT = "나간 분"  # 줄 머리가 이름이던 줄. 화면은 뒤에 '선생님'을 붙인다
@@ -56,6 +57,7 @@ def _forget_names(seat):
         "공지 판": NoticeVersion.objects.in_space(seat.space).filter(by=seat.name).update(by=GONE_NAME),
         "수리 요청": Repair.objects.in_space(seat.space).filter(by=seat).update(by_name=GONE_NAME),
         "식판 사진": MealPhoto.objects.in_space(seat.space).filter(by=seat).update(by_name=GONE_NAME),
+        "일정 댓글": EventComment.objects.in_space(seat.space).filter(by=seat).update(by_name=GONE_NAME),
         "업체 추천": Suggestion.objects.filter(by_member=seat).update(by_name=GONE_NAME),
     }
     n["안 낸 취합 줄"] = _forget_rows(seat)

@@ -30,7 +30,7 @@ from spaces.models import Attendance, Member
 from spaces.views import _josa, _space_ctx
 
 from . import schedule
-from .models import ALL, ME, Event, my_range_q, reachable_q, scope_choices
+from .models import ALL, ME, Event, my_range_q, reachable_q, scope_choices, with_counts
 from .parse import ROOMS, SLOT_KEYS, SLOTS, parse, slot_idx, slot_text
 
 WD = "월화수목금토일"
@@ -161,7 +161,7 @@ def _live_ctx(request, now):
     space, me = request.space, request.member
     today = timezone.localdate(now)
     events = [_ev_item(e, me, today) for e in
-              _on_day(Event.objects.in_space(space).filter(my_range_q(me)), today)
+              _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me))), today)
               .select_related("by", "changed_by").order_by("slot", "created_at")]
     now_slot, pct = _now_slot(timezone.localtime(now))
     cols = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],

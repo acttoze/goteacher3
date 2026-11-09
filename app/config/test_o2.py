@@ -525,6 +525,7 @@ class DeleteAccountTests(TestCase):
 # ---------------------------------------------------------------- 7. 앱 본문 상한
 UPLOADS = {
     "/s/T/board/new": "MAX_NOTICE_REQUEST_BYTES", "/s/T/board/K/edit": "MAX_NOTICE_REQUEST_BYTES",
+    "/s/T/today/e/K/files": "MAX_NOTICE_REQUEST_BYTES",
     "/s/T/hwp/upload": "MAX_HWP_REQUEST_BYTES",
     "/s/T/repairs/new": "MAX_PHOTO_REQUEST_BYTES", "/s/T/repairs/K/edit": "MAX_PHOTO_REQUEST_BYTES",
     "/s/T/meals/20261104/upload": "MAX_PHOTO_REQUEST_BYTES", "/m/T": "MAX_PHOTO_REQUEST_BYTES",
@@ -555,7 +556,8 @@ class BodyLimitTests(SimpleTestCase):
 
     def test_other_paths_default(self):
         for path in ("/join", "/s/T/c/new", "/s/T/c/new/preview", "/s/T/board/K/delete", "/s/T/repairs/K/state",
-                     "/s/T/hwp/K/pick", "/s/T/school/attendance", "/m/T/x"):
+                     "/s/T/hwp/K/pick", "/s/T/school/attendance", "/m/T/x",
+                     "/s/T/today/e/K/comments", "/s/T/today/e/K/body"):
             self.assertEqual(self.status(path, settings.MAX_REQUEST_BYTES), 200, path)
             self.assertEqual(self.status(path, settings.MAX_REQUEST_BYTES + 1), 413, path)
 
@@ -569,7 +571,8 @@ class BodyLimitTests(SimpleTestCase):
         for f in Path(settings.BASE_DIR).rglob("*.py"):
             if "request.FILES" in f.read_text() and not re.search(r"(^|/)tests?(_|\.)", f.name):
                 found.add(f.relative_to(settings.BASE_DIR).as_posix())
-        self.assertEqual(found, {"repairs/views.py", "notices/views.py", "meals/phone.py", "meals/views.py", "hwpfiles/views.py"})
+        self.assertEqual(found, {"repairs/views.py", "notices/views.py", "meals/phone.py", "meals/views.py", "hwpfiles/views.py",
+                                 "today/more.py"})
 
     def test_paste_fits(self):
         """표본의 URL 인코딩 비율은 1.54~1.86배. 받을 수 있는 가장 큰 HTML도 Django 상한 안, 그 상한은 일반 본문 상한과 같다."""

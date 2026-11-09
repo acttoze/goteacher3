@@ -17,9 +17,9 @@
 - 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
 - 안 쓴 올린 파일: 취합에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
-- 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto.
-  공지 첨부는 따로 기간을 두지 않고 공지와 함께 지운다(쓴 사람·관리자가 지울 때, 플랜이 끝나고 1년 뒤).
-- 고아 파일: hwp/·forms/·notice/·repair/·meal/ 아래 어느 행도 가리키지 않는 파일(1시간 넘은 것만 — 저장 중인 파일 보호).
+- 행이 지워지면 디스크 파일도 지운다(post_delete → 커밋 뒤). SourceFile·ResultFile·library.FormDoc·notices.NoticeFile·repairs.Repair·meals.MealPhoto·today.EventFile.
+  공지 첨부는 따로 기간을 두지 않고 공지와 함께 지운다(쓴 사람·관리자가 지울 때, 플랜이 끝나고 1년 뒤). 일정 첨부도 일정과 함께(P2).
+- 고아 파일: hwp/·forms/·notice/·repair/·meal/·event/ 아래 어느 행도 가리키지 않는 파일(1시간 넘은 것만 — 저장 중인 파일 보호).
 - 저장 크기(stored): 디스크에 실제로 있는 파일 크기 합과 다르면 고친다(공간·전체 상한 계산이 맞게).
 출력·로그에는 건수만 남긴다(제목·이름·값·파일 이름 없음).
 """
@@ -64,8 +64,8 @@ UNREAD_BELL_AGE = timedelta(days=180)
 ORPHAN_GRACE = timedelta(hours=1)
 FILE_FIELDS = {"hwpfiles.SourceFile": ("original", "hwpx"), "hwpfiles.ResultFile": ("file", "hwpx"),
                "library.FormDoc": ("file",), "notices.NoticeFile": ("file",), "repairs.Repair": ("photo",),
-               "meals.MealPhoto": ("photo",)}
-MEDIA_DIRS = ("hwp", "forms", "notice", "repair", "meal")
+               "meals.MealPhoto": ("photo",), "today.EventFile": ("file",)}
+MEDIA_DIRS = ("hwp", "forms", "notice", "repair", "meal", "event")
 
 
 # ---------------------------------------------------------------- 행이 지워지면 파일도
@@ -135,7 +135,8 @@ def _referenced():
             names.update(n for n in row if n)
     from library.models import FormDoc
     from notices.models import NoticeFile
-    for model in (FormDoc, NoticeFile):
+    from today.models import EventFile
+    for model in (FormDoc, NoticeFile, EventFile):
         names.update(n for n in model.objects.values_list("file", flat=True) if n)
     for model in (Repair, MealPhoto):
         names.update(n for n in model.objects.values_list("photo", flat=True) if n)
@@ -194,7 +195,8 @@ def stored_mismatches():
         if n != rf.stored:
             out.append((rf, n))
     from notices.models import NoticeFile
-    for nf in NoticeFile.objects.all():
+    from today.models import EventFile
+    for nf in [*NoticeFile.objects.all(), *EventFile.objects.all()]:
         n = _disk_size((nf.file,))
         if n != nf.stored:
             out.append((nf, n))

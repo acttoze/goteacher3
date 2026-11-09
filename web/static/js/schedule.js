@@ -174,4 +174,9 @@
     i.checked = !(Array.isArray(list) && list.indexOf(i.value) >= 0);
   });
   applyFilters();
+  // 🔔 일정 댓글 알림(P2)은 #ev-<key>로 온다: 그 일정 대화상자를 연다(판에 없으면 아무 일도 없다).
+  if (/^#ev-[\w-]+$/.test(location.hash)) {
+    var dlg = document.getElementById(location.hash.slice(1));
+    if (dlg && dlg.classList.contains('scrim')) dlg.hidden = false;
+  }
 })();

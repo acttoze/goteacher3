@@ -39,7 +39,7 @@ from spaces.gates import school_required, school_write_required
 from spaces.models import Attendance
 from spaces.views import _space_ctx
 
-from .models import ALL, ME, Event, reachable_q
+from .models import ALL, ME, Event, reachable_q, with_counts
 from .parse import SLOT_KEYS, SLOTS
 
 WD = "월화수목금토일"
@@ -213,7 +213,7 @@ def board_ctx(request, mode, raw):
         return e.scope == tab_scope
 
     # 일정: 보고 있는 기간에 걸치는 것. 바뀐 것 목록은 탭과 무관하게 내가 볼 수 있는 전부.
-    seen_evs = list(Event.objects.in_space(space).filter(reachable_q(me), date__lte=last)
+    seen_evs = list(with_counts(Event.objects.in_space(space).filter(reachable_q(me), date__lte=last))
                     .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first))
                     .select_related("by", "changed_by").order_by("date", "slot", "created_at"))
     evs = [e for e in seen_evs if on_tab(e)]
