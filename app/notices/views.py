@@ -2,7 +2,7 @@
 
 - 보기는 NoticeQuerySet.visible_to로만(대상 밖이면 상세·옛 판·첨부 모두 404). 고치기·지우기는 쓴 사람·관리자, 직위 글자는 안 본다.
 - 충돌: 폼이 고칠 때의 판(base_v)을 들고 다니다가, 저장 때 최신 판과 다르면 저장하지 않고 쓴 내용과 함께 돌려준다(409).
-- 첨부 검사는 hwp.sniff(압축 안 풂, 선언 크기로 폭탄 거부)와 PDF 머리. 서버는 첨부를 풀지 않으므로 웹 요청에서 이것만 본다.
+- 첨부 검사는 filekinds.judge(P4: 한글·PDF·오피스·오픈문서·그림, 압축 안 풂·매크로 거부). 서버는 첨부를 풀지 않는다.
 - 요청 크기: CSRF 미들웨어가 뷰보다 먼저 본문을 풀기 때문에, 쓰기·고치기는 _body_guard로 CSRF 검사를 뷰 앞으로 옮겨
   선언 크기를 본문보다 먼저 본다.
 - 제목·본문은 자동 이스케이프, 본문 줄바꿈만 linebreaksbr.
@@ -39,6 +39,7 @@ from spaces.models import Member
 from spaces.views import _space_ctx
 
 from . import seen as seenlib
+from .filekinds import ACCEPT, ALIAS, EMBED, LABEL, MACRO, TYPES, judge
 from .models import AUDIENCE, FILE_LIST, FILES, ITEMS, MUST, TITLE, Notice, NoticeFile, NoticeSeen, NoticeVersion, audience_value, version_label
 from .seen import changes as _changes
 
@@ -49,8 +50,9 @@ MAX_TITLE, MAX_ITEM, MAX_BODY = 200, 200, 10000
 MAX_FILES, MAX_FILE = 5, 20 * MB
 # 화면 안내를 주는 선언 크기 상한. 공지 본문 상한(settings.MAX_NOTICE_REQUEST_BYTES, 413)보다 1MB 아래라 이 사이는 폼으로 돌아온다
 MAX_REQUEST = settings.MAX_NOTICE_REQUEST_BYTES - MB
+KINDS_TEXT = "한글·PDF·엑셀·워드·파워포인트·오픈문서·그림"  # 거부 안내(P4)
+KINDS_SHORT = "한글·PDF·오피스·그림"  # 첨부 칸 안내 한 줄(1536×750에서 파일 고르기 단추가 보이게)
 UPLOAD_PER_HOUR = 30  # 회원 한 명이 시간당 첨부를 담아 저장하는 횟수(거부된 것도 센다)
-TYPES = {"hwp": "application/x-hwp", "hwpx": "application/hwp+zip", "pdf": "application/pdf"}
 TOO_BIG = f"첨부는 합쳐서 {MAX_FILES * MAX_FILE // MB}MB까지 올릴 수 있어요. 파일을 줄여 다시 올려 주세요. 방금 쓴 내용은 저장되지 않았어요."
 BAD_UPLOAD = "올린 내용을 읽지 못했어요. 파일 이름이 너무 길거나 파일이 너무 많아요. 이름을 줄여 다시 올려 주세요. 방금 쓴 내용은 저장되지 않았어요."
 TOO_MANY_FILES = f"첨부는 공지 하나에 {MAX_FILES}개까지예요."
@@ -140,15 +142,6 @@ def _read_form(data):
     return form, errors
 
 
-def _judge(f):
-    """내용으로 본 형식. 위장·폭탄이면 hwp.HwpError. PDF는 머리만 읽고, 한글도 파일 하나씩만 메모리에 올린다."""
-    f.seek(0)
-    if f.read(5) == b"%PDF-":
-        return "pdf"
-    f.seek(0)
-    return hwp.sniff(f.read())
-
-
 def _read_files(uploads):
     """올린 파일 → ([{name, kind, size, file}], 오류). 이름의 확장자와 내용이 같은 형식일 때만 받는다."""
     if len(uploads) > MAX_FILES:
@@ -161,16 +154,21 @@ def _read_files(uploads):
         if not f.size:
             return [], f"「{name}」: 빈 파일이에요."
         ext = os.path.splitext(name)[1].lower().lstrip(".")
+        ext = ALIAS.get(ext, ext)
         if ext not in TYPES:
-            return [], f"「{name}」: 한글(.hwp, .hwpx)과 PDF만 올릴 수 있어요."
+            return [], f"「{name}」: {KINDS_TEXT}만 올릴 수 있어요."
         try:
-            kind = _judge(f)
-        except hwp.UnsafeFile:
+            kind = judge(f)
+        except hwp.UnsafeFile as e:
+            if str(e) == MACRO:
+                return [], f"「{name}」: 매크로가 든 문서는 받지 않아요. 매크로 없는 형식(.xlsx·.docx·.pptx 등)으로 저장해 올려 주세요."
+            if str(e) == EMBED:
+                return [], f"「{name}」: 외부 파일 연결이나 넣은 개체(OLE)가 든 문서는 받지 않아요. 연결·개체를 빼고 저장해 올려 주세요."
             return [], f"「{name}」: 파일 구조가 안전하지 않아 받지 않았어요. 다시 저장해 올려 주세요."
         except hwp.HwpError:
             kind = ""
         if kind != ext:
-            return [], f"「{name}」: 파일 이름과 내용이 달라요. 진짜 한글·PDF 파일만 올릴 수 있어요."
+            return [], f"「{name}」: 파일 이름과 내용이 달라요. 진짜 {LABEL[ext]} 파일만 올릴 수 있어요."
         out.append({"name": name, "kind": kind, "size": f.size, "file": f})
     return out, ""
 
@@ -226,7 +224,7 @@ def _form_ctx(request, form):
     """입력 칸 조각(_form_fields.html)이 쓰는 값. 쓰기 대화상자와 고치기 화면이 같다."""
     picked = set(form["groups"])
     return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
-            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB,
+            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
             "group_opts": [{"id": g, "label": label, "on": g in picked} for g, label in Member.Group.choices]}
 
 

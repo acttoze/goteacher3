@@ -180,7 +180,7 @@ class FileTests(MoreBase):
         self.assertEqual(SourceFile.used_bytes(self.hub), sum(self.e.files.values_list("stored", flat=True)))
 
     def test_blocked_kinds(self):
-        self.assertRejected(up("공문.exe", PDF), "PDF만")
+        self.assertRejected(up("공문.exe", PDF), "그림만")
         self.assertRejected(up("공문.pdf", b"MZ\x90\x00 exe"), "내용이 달라요")
         self.assertRejected(up("공문.hwp", PDF), "내용이 달라요")
         self.assertRejected(up("빈.pdf", b""), "빈 파일")

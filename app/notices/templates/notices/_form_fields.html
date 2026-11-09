@@ -23,9 +23,9 @@
     <label class="chk"><input type="checkbox" name="must"{% if can_must %}{% if form.must %} checked{% endif %}{% else %} disabled{% if notice.must %} checked{% endif %}{% endif %}><span><b>확인 필수</b><span>{% if can_must %}받는 분 모두에게 알리고, '확인했어요'를 눌러야 확인돼요.{% else %}학교 관리자만 켤 수 있어요. 아무나 켜면 알림이 너무 많아져요.{% endif %}</span></span></label>
   </div></section>
   <section class="card"><div class="card-h"><h2>첨부</h2></div><div class="card-b">
-    <p class="small muted" style="margin:0 0 10px">한글(.hwp, .hwpx)·PDF, {{ max_files }}개까지, 개당 {{ max_mb }}MB</p>
+    <p class="small muted" style="margin:0 0 10px">{{ kinds_text }}, {{ max_files }}개까지, 개당 {{ max_mb }}MB</p>
     {% if current_files %}<ul class="cur">{% for f in current_files %}<li><label class="chk"><input type="checkbox" name="remove" value="{{ f.key }}"{% if f.removing %} checked{% endif %}>지우기: {{ f.name }}</label></li>{% endfor %}</ul>{% endif %}
-    <div class="fpick"><label class="btn sec sm">파일 고르기<input class="sr" type="file" name="attach" multiple data-max-mb="{{ max_total_mb }}" accept=".hwp,.hwpx,.pdf" aria-label="첨부 파일 고르기" data-names="#attachNames"></label><span class="nm" id="attachNames" aria-live="polite">고른 파일 없음</span></div>
+    <div class="fpick"><label class="btn sec sm">파일 고르기<input class="sr" type="file" name="attach" multiple data-max-mb="{{ max_total_mb }}" accept="{{ accept }}" aria-label="첨부 파일 고르기" data-names="#attachNames"></label><span class="nm" id="attachNames" aria-live="polite">고른 파일 없음</span></div>
     {% if errors.files %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.files }}</p>{% endif %}
   </div></section>
   </div>

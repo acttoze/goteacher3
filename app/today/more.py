@@ -17,7 +17,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from collect.models import Notification
 from config.ratelimit import TOO_MANY, allow
-from notices.views import MAX_FILE, MAX_FILES, MB, TYPES, _body_guard, _clean, _quota_error, _read_files
+from notices.views import ACCEPT, KINDS_SHORT, MAX_FILE, MAX_FILES, MB, TYPES, _body_guard, _clean, _quota_error, _read_files
 
 from .models import ALL, BODY_MAX, COMMENT_MAX, ME, Event, EventComment, EventFile, reachable_q
 
@@ -38,7 +38,7 @@ def _part(request, e, status=200, **extra):
                 for c in e.comments.order_by("at", "pk")]
     ctx = {"space": request.space, "e": e, "can_write": e.writable_by(me), "files": e.files.order_by("at", "pk"),
            "comments": comments, "body_max": BODY_MAX, "comment_max": COMMENT_MAX, "max_files": MAX_FILES,
-           "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB,
+           "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
            "this_year": str(timezone.localdate().year), **extra}
     return render(request, "today/_ev_more.html", ctx, status=status)
 
