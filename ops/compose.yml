@@ -21,7 +21,11 @@ services:
     depends_on:
       db: { condition: service_healthy }
       redis: { condition: service_started }
-    volumes: [media:/srv/media]  # 올린 한글 파일(E2). worker와 공유
+    volumes:
+      - media:/srv/media  # 올린 한글 파일(E2). worker와 공유
+      # P1 구 아이디 예약 목록(서버에만, 커밋 안 함). .env의 RESERVED_IDS_FILE=/srv/reserved/ids.txt. 가입 뷰만 읽어 worker엔 없음.
+      # 폴더가 없으면 docker가 빈 폴더를 만든다 → 파일 없음 = 예약 꺼짐. P3 이관 뒤 이 줄과 폴더를 지운다
+      - ./reserved:/srv/reserved:ro
     mem_limit: 1g  # gthread 8슬롯 + 사진 재인코딩 여유(동시 재인코딩 수는 앱이 제한)
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"]
