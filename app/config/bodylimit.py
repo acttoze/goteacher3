@@ -16,7 +16,7 @@ PAGE = ('<!doctype html><html lang="ko"><meta charset="utf-8"><title>올린 내�
         "<p>올린 내용이 너무 커서 받지 못했어요. 아무것도 저장되지 않았어요. 뒤로 가서 파일이나 붙여넣은 표를 줄여 다시 올려 주세요.</p></html>")
 _UPLOADS = (
     (re.compile(r"/s/[^/]+/board/(?:new|[^/]+/edit)"), "MAX_NOTICE_REQUEST_BYTES"),
-    (re.compile(r"/s/[^/]+/today/e/[^/]+/files"), "MAX_NOTICE_REQUEST_BYTES"),  # P2 일정 첨부(공지 첨부와 같은 한도)
+    (re.compile(r"/s/[^/]+/today/e/[^/]+/(?:files|comments)"), "MAX_NOTICE_REQUEST_BYTES"),  # P2 일정 첨부·P5 댓글 첨부(공지 첨부와 같은 한도)
     (re.compile(r"/s/[^/]+/hwp/upload"), "MAX_HWP_REQUEST_BYTES"),
     (re.compile(r"/s/[^/]+/(?:repairs/new|repairs/[^/]+/edit|meals/[^/]+/upload)|/m/[^/]+"), "MAX_PHOTO_REQUEST_BYTES"),
 )

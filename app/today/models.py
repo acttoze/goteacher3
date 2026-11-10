@@ -7,7 +7,7 @@ by: 동학년은 마지막으로 쓴 사람(올린 사람, 바꾸면 바꾼 사�
 scope: 볼 사람(H5). 학교 전체(all)·그룹(g4, office…)·나(me). 동학년 공간은 언제나 all이고 합칠 때 출처 학년으로 바뀐다.
 Member.group은 본인이 고치는 값이라 보기 범위에만 쓴다. 쓰기 권한은 writable_by(쓴 사람과 관리자).
 주소에는 key만 쓴다(순번 ID 없음).
-P2 본문(평문)·첨부(EventFile)·댓글(EventComment): 일정을 볼 수 있는 사람(reachable)만 읽고, 첨부는 writable_by만 고친다(today.more).
+P2 본문(평문)·첨부(EventFile)·댓글(EventComment, P5 댓글 첨부는 EventFile.comment): 일정을 볼 수 있는 사람(reachable)만 읽고, 첨부는 writable_by만 고친다(today.more).
 첨부·댓글의 시각은 기본값만 두어 이관(P3)이 원래 시각을 넣을 수 있다. 댓글은 쓴 사람 자리 없이 이름 글자만 있어도 된다.
 """
 from django.db import models
@@ -89,10 +89,10 @@ class Event(models.Model):
 
 def with_counts(qs):
     """일정 칸의 작은 표시(첨부·댓글 수). 하위 쿼리라 일정 행이 늘지 않는다."""
-    def n(model):
-        sub = model.objects.filter(event=OuterRef("pk")).order_by().values("event").annotate(n=Count("pk")).values("n")
+    def n(model, **where):
+        sub = model.objects.filter(event=OuterRef("pk"), **where).order_by().values("event").annotate(n=Count("pk")).values("n")
         return Coalesce(Subquery(sub), 0)
-    return qs.annotate(n_files=n(EventFile), n_comments=n(EventComment))
+    return qs.annotate(n_files=n(EventFile, comment__isnull=True), n_comments=n(EventComment))
 
 
 def _file_path(instance, filename):
@@ -105,9 +105,11 @@ class EventChildQuerySet(SpaceQuerySet):
 
 
 class EventFile(models.Model):
-    """일정 첨부. 형식·크기·저장 한도는 공지 첨부와 같다(notices.views._read_files·_quota_error). 행이 지워지면 디스크 파일도(hwpfiles.retention)."""
+    """일정 첨부. 형식·크기·저장 한도는 공지 첨부와 같다(notices.views._read_files·_quota_error). 행이 지워지면 디스크 파일도(hwpfiles.retention).
+    comment가 있으면 그 댓글의 첨부(P5): 일정 첨부 목록·개수에 넣지 않고, 댓글을 지우면 함께 지운다. 내려받기 권한은 일정과 같다."""
 
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name="files")
+    comment = models.ForeignKey("EventComment", on_delete=models.CASCADE, null=True, blank=True, related_name="files")
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     name = models.CharField("올린 파일 이름", max_length=200)
     kind = models.CharField("판별 형식(매직 바이트)", max_length=4)

@@ -525,7 +525,7 @@ class DeleteAccountTests(TestCase):
 # ---------------------------------------------------------------- 7. 앱 본문 상한
 UPLOADS = {
     "/s/T/board/new": "MAX_NOTICE_REQUEST_BYTES", "/s/T/board/K/edit": "MAX_NOTICE_REQUEST_BYTES",
-    "/s/T/today/e/K/files": "MAX_NOTICE_REQUEST_BYTES",
+    "/s/T/today/e/K/files": "MAX_NOTICE_REQUEST_BYTES", "/s/T/today/e/K/comments": "MAX_NOTICE_REQUEST_BYTES",
     "/s/T/hwp/upload": "MAX_HWP_REQUEST_BYTES",
     "/s/T/repairs/new": "MAX_PHOTO_REQUEST_BYTES", "/s/T/repairs/K/edit": "MAX_PHOTO_REQUEST_BYTES",
     "/s/T/meals/20261104/upload": "MAX_PHOTO_REQUEST_BYTES", "/m/T": "MAX_PHOTO_REQUEST_BYTES",
@@ -557,7 +557,7 @@ class BodyLimitTests(SimpleTestCase):
     def test_other_paths_default(self):
         for path in ("/join", "/s/T/c/new", "/s/T/c/new/preview", "/s/T/board/K/delete", "/s/T/repairs/K/state",
                      "/s/T/hwp/K/pick", "/s/T/school/attendance", "/m/T/x",
-                     "/s/T/today/e/K/comments", "/s/T/today/e/K/body"):
+                     "/s/T/today/e/K/body", "/s/T/today/e/K/c/C/delete"):
             self.assertEqual(self.status(path, settings.MAX_REQUEST_BYTES), 200, path)
             self.assertEqual(self.status(path, settings.MAX_REQUEST_BYTES + 1), 413, path)
 

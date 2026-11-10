@@ -5,6 +5,8 @@
 - 첨부 검사·저장 한도·요청 크기 안내는 공지 첨부 것을 그대로 쓴다(notices.views). 올리는 주소는 앞단 큰 본문 라우터에 든다(config.bodylimit).
 - 플랜이 끝난 학교도 일정 쓰기와 같게 막지 않는다(리드 결정: 일정은 기존 회원이 계속 쓴다).
 - 본문 저장은 '바뀐 것'이 아니다(updated_at을 건드리지 않는다).
+- 댓글 첨부(P5): 댓글을 쓸 수 있는 사람이 댓글과 함께 올린다(댓글당 COMMENT_FILES개, 검사·한도는 일정 첨부와 같다).
+  내려받기는 일정 첨부와 같은 주소·권한, 따로 지우지 않고 댓글과 함께 지운다.
 """
 import logging
 
@@ -15,6 +17,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from accounts.models import is_guest
 from collect.models import Notification
 from config.ratelimit import TOO_MANY, allow
 from notices.views import ACCEPT, KINDS_SHORT, MAX_FILE, MAX_FILES, MB, TYPES, _body_guard, _clean, _quota_error, _read_files
@@ -25,6 +28,9 @@ log = logging.getLogger(__name__)
 UPLOAD_PER_HOUR = 30  # 공지 첨부와 같다
 COMMENT_PER_HOUR = 60
 TOO_MANY_FILES = f"첨부는 일정 하나에 {MAX_FILES}개까지예요."
+COMMENT_FILES = 3
+TOO_MANY_COMMENT_FILES = f"댓글 첨부는 {COMMENT_FILES}개까지예요."
+GUEST_NO_FILE = "파일은 계정으로 들어온 선생님만 올릴 수 있어요. 글만 남겨 주세요."
 NO_WRITE = "본문과 첨부는 쓴 선생님과 관리자만 고칠 수 있어요."
 
 
@@ -32,13 +38,26 @@ def _event(request, key):
     return get_object_or_404(Event.objects.in_space(request.space).filter(reachable_q(request.member)), key=key)
 
 
+def _own(e):
+    """일정 자체의 첨부(댓글 첨부 뺌)."""
+    return e.files.filter(comment__isnull=True)
+
+
+def _store(e, got, comment=None):
+    """트랜잭션 안에서 부른다. 되돌려지면 디스크에 남은 파일은 purge의 고아 정리가 줍는다."""
+    for f in got:
+        row = EventFile(event=e, comment=comment, name=f["name"], kind=f["kind"], stored=f["size"])
+        row.file.save(f["kind"], f["file"])
+
+
 def _part(request, e, status=200, **extra):
     me = request.member
     comments = [{"c": c, "can_del": me.is_manager or (c.by_id is not None and c.by_id == me.pk)}
-                for c in e.comments.order_by("at", "pk")]
-    ctx = {"space": request.space, "e": e, "can_write": e.writable_by(me), "files": e.files.order_by("at", "pk"),
+                for c in e.comments.prefetch_related("files").order_by("at", "pk")]
+    ctx = {"space": request.space, "e": e, "can_write": e.writable_by(me), "files": _own(e).order_by("at", "pk"),
            "comments": comments, "body_max": BODY_MAX, "comment_max": COMMENT_MAX, "max_files": MAX_FILES,
            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
+           "comment_files": COMMENT_FILES, "can_attach": not is_guest(request.user), "comment_mb": COMMENT_FILES * MAX_FILE // MB,
            "this_year": str(timezone.localdate().year), **extra}
     return render(request, "today/_ev_more.html", ctx, status=status)
 
@@ -77,7 +96,7 @@ def files(request, key):
     uploads = request.FILES.getlist("attach")
     if not uploads:
         return _part(request, e, 400, file_error="올릴 파일을 골라 주세요.")
-    if e.files.count() + len(uploads) > MAX_FILES:  # 빠른 거절. 저장 직전에 잠그고 다시 센다
+    if _own(e).count() + len(uploads) > MAX_FILES:  # 빠른 거절. 저장 직전에 잠그고 다시 센다
         return _part(request, e, 400, file_error=TOO_MANY_FILES)
     if not allow("event-up", request.member.key, UPLOAD_PER_HOUR, 3600):
         return _part(request, e, 429, file_error=TOO_MANY)
@@ -85,13 +104,11 @@ def files(request, key):
     error = error or _quota_error(request.space, got)
     if error:
         return _part(request, e, 400, file_error=error)
-    with transaction.atomic():  # 되돌려지면 디스크에 남은 파일은 purge의 고아 정리가 줍는다
+    with transaction.atomic():
         Event.objects.select_for_update().filter(pk=e.pk).first()  # 동시 업로드가 5개를 넘지 않게
-        if e.files.count() + len(got) > MAX_FILES:
+        if _own(e).count() + len(got) > MAX_FILES:
             return _part(request, e, 400, file_error=TOO_MANY_FILES)
-        for f in got:
-            row = EventFile(event=e, name=f["name"], kind=f["kind"], stored=f["size"])
-            row.file.save(f["kind"], f["file"])
+        _store(e, got)
     return _part(request, e, toast=f"첨부 {len(got)}개를 올렸어요.")
 
 
@@ -99,7 +116,7 @@ def files(request, key):
 @require_POST
 def file_delete(request, key, file_key):
     e = _event(request, key)
-    f = get_object_or_404(e.files, key=file_key)
+    f = get_object_or_404(_own(e), key=file_key)  # 댓글 첨부는 댓글과 함께만 지운다
     if not e.writable_by(request.member):
         return HttpResponseForbidden(NO_WRITE)
     f.delete()  # 디스크 파일은 커밋 뒤 hwpfiles.retention
@@ -109,7 +126,7 @@ def file_delete(request, key, file_key):
 @never_cache
 @require_GET
 def download(request, key, file_key):
-    """내려받기: 일정을 볼 수 있는 회원만, 첨부로만, 캐시 금지(공지 첨부와 같다)."""
+    """내려받기(일정·댓글 첨부): 일정을 볼 수 있는 회원만, 첨부로만, 캐시 금지(공지 첨부와 같다)."""
     f = get_object_or_404(_event(request, key).files, key=file_key)
     try:
         fh = f.file.open("rb")
@@ -130,9 +147,13 @@ def _bell_link(space, e):
 
 @never_cache
 @require_POST
+@_body_guard
 def comment(request, key):
+    """댓글 쓰기(첨부 함께). 너무 크거나 깨진 요청은 _body_guard가 본문을 읽지 않고 안내만 남긴다."""
     e = _event(request, key)
     me = request.member
+    if request.upload_error:
+        return _part(request, e, 400, comment_error=request.upload_error.replace("방금 쓴 내용은", "댓글과 첨부 모두"))
     text = _clean(request.POST, "body")
     if not text:
         return _part(request, e, 400, comment_error="댓글을 써 주세요.")
@@ -140,8 +161,22 @@ def comment(request, key):
         return _part(request, e, 400, comment_error=f"댓글은 {COMMENT_MAX:,}자까지예요.", comment_text=text)
     if not allow("event-cmt", me.key, COMMENT_PER_HOUR, 3600):
         return _part(request, e, 429, comment_error=TOO_MANY, comment_text=text)
+    uploads = request.FILES.getlist("attach")
+    got = []
+    if uploads:
+        if is_guest(request.user):  # 손님(이름만)은 글만
+            return _part(request, e, 400, comment_error=GUEST_NO_FILE, comment_text=text)
+        if len(uploads) > COMMENT_FILES:
+            return _part(request, e, 400, comment_error=TOO_MANY_COMMENT_FILES, comment_text=text)
+        if not allow("event-up", me.key, UPLOAD_PER_HOUR, 3600):
+            return _part(request, e, 429, comment_error=TOO_MANY, comment_text=text)
+        got, error = _read_files(uploads)
+        error = error or _quota_error(request.space, got)
+        if error:
+            return _part(request, e, 400, comment_error=error, comment_text=text)
     with transaction.atomic():
-        EventComment.objects.create(event=e, by=me, by_name=me.name, body=text)
+        c = EventComment.objects.create(event=e, by=me, by_name=me.name, body=text)
+        _store(e, got, c)
         if e.by_id and e.by_id != me.pk:
             Notification.objects.create(space=request.space, member_id=e.by_id, kind=Notification.Kind.EV_COMMENT,
                                         day=timezone.localdate(), text=f"「{e.title}」 일정에 {me.name} 선생님이 댓글을 남겼어요."[:300],
@@ -157,5 +192,5 @@ def comment_delete(request, key, comment_key):
     me = request.member
     if not (me.is_manager or (c.by_id is not None and c.by_id == me.pk)):
         return HttpResponseForbidden("댓글은 쓴 선생님과 관리자만 지울 수 있어요.")
-    c.delete()
+    c.delete()  # 댓글 첨부 행도 CASCADE, 디스크 파일은 커밋 뒤 hwpfiles.retention
     return _part(request, e, toast="댓글을 지웠어요.")
