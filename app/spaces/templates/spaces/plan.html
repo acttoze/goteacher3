@@ -68,7 +68,7 @@
     </div>
   </div>
   <section class="card plan-form" aria-labelledby="applyH">
-    <div class="card-h"><h2 id="applyH">학교 플랜 신청</h2></div>
+    <div class="card-h"><h2 id="applyH">{% if kind == "org" %}기관 플랜 신청{% else %}학교 플랜 신청{% endif %}</h2></div>
     <div class="card-b">
     {% if pending %}<div class="plan-done"><b>신청했어요</b><span>{{ pending.school.name }} · 운영자가 학교로 확인 연락을 드려요. 입금과 재직을 확인하면 학교 공간이 열려요.</span><a class="btn pri" href="/school-plan/q/{{ pending.key }}">견적서 보기</a></div>{% endif %}
     {% if sent %}<ul class="plan-sent">{% for r in sent %}<li>{{ r.school.name }} · {{ r.get_status_display }} · <a href="/school-plan/q/{{ r.key }}">견적서 보기</a></li>{% endfor %}</ul>{% endif %}
@@ -82,6 +82,9 @@
       {% if already %}<p class="notice" role="alert">{{ already }}</p>{% endif %}
       {% if limited %}<p class="err" role="alert">{{ limited }}</p>{% endif %}
       {% if not my_school %}
+      <nav class="tabs" aria-label="학교 또는 기관" style="margin-bottom:0"><a href="/school-plan"{% if kind != "org" %} aria-current="page"{% endif %}>학교</a><a href="/school-plan?kind=org"{% if kind == "org" %} aria-current="page"{% endif %}>기관 <span class="c">교육청·지원청 부서 등</span></a></nav>
+      {% endif %}
+      {% if not my_school and kind != "org" %}
       <form class="sf" action="/school-plan" method="get" hx-get="/school-plan" hx-target="#res" hx-disabled-elt="find button">
         <input class="input" name="q" value="{{ q }}" autocomplete="off" placeholder="학교 이름. 예: 새솔초" maxlength="40" aria-label="학교 이름">
         <button class="btn ink" type="submit">찾기</button>
@@ -89,7 +92,15 @@
       {% endif %}
       <form method="post" action="/school-plan{% if q %}?q={{ q|urlencode }}{% endif %}">
         {% csrf_token %}
-        {% if my_school %}<div class="field"><span>학교</span><b>{{ my_school.name }}</b></div>
+        {% if my_school %}<div class="field"><span>{% if my_school.is_org %}기관{% else %}학교{% endif %}</span><b>{{ my_school.name }}</b></div>
+        {% elif kind == "org" %}<input type="hidden" name="kind" value="org">
+        <div class="plan-two">
+          <label class="field"><span>시도교육청</span><select class="select" name="atpt" required{% if errors.atpt %} aria-invalid="true"{% endif %}><option value="">고르세요</option>
+            {% for code, label in offices %}<option value="{{ code }}"{% if code == values.atpt %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+            {% if errors.atpt %}<span class="field-err">{{ errors.atpt }}</span>{% endif %}</label>
+          <label class="field"><span>기관 이름</span><input class="input" name="org" value="{{ values.org|default:'' }}" maxlength="40" required placeholder="예: ○○교육지원청 ○○과"{% if errors.org %} aria-invalid="true"{% endif %}>
+            {% if errors.org %}<span class="field-err">{{ errors.org }}</span>{% endif %}</label>
+        </div>
         {% else %}<div id="res" aria-live="polite">{% include "spaces/_plan_schools.html" %}</div>
         {% if errors.school %}<p class="field-err" role="alert">{{ errors.school }}</p>{% endif %}{% endif %}
         <div class="plan-two">
@@ -100,12 +111,12 @@
         </div>
         <label class="field"><span>연락 메일</span><input class="input" type="email" name="email" value="{{ values.email|default:'' }}" maxlength="254" required{% if errors.email %} aria-invalid="true"{% endif %}>
           {% if errors.email %}<span class="field-err">{{ errors.email }}</span>{% endif %}</label>
-        <div class="plan-two">
+        {% if kind != "org" %}<div class="plan-two">
           <label class="field"><span>학생 수 <span class="hint">안 써도 돼요</span></span><input class="input" name="students" inputmode="numeric" value="{{ values.students|default_if_none:''|default:'' }}" maxlength="5"{% if errors.students %} aria-invalid="true"{% endif %}>
             {% if errors.students %}<span class="field-err">{{ errors.students }}</span>{% endif %}</label>
           <label class="field"><span>학급 수 <span class="hint">안 써도 돼요</span></span><input class="input" name="classes" inputmode="numeric" value="{{ values.classes|default_if_none:''|default:'' }}" maxlength="5"{% if errors.classes %} aria-invalid="true"{% endif %}>
             {% if errors.classes %}<span class="field-err">{{ errors.classes }}</span>{% endif %}</label>
-        </div>
+        </div>{% endif %}
         <button class="btn pri" type="submit">신청하고 견적서 받기</button>
       </form>
       {% if pending %}</details>{% endif %}

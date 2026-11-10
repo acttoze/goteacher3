@@ -16,6 +16,16 @@ def school_required(view):
     return inner
 
 
+def no_org(view):
+    """학교에만 있는 화면(급식·학교 화면·복무·정보수리방): 기관 공간이면 404(T1)."""
+    @wraps(view)
+    def inner(request, *args, **kwargs):
+        if request.space.is_org:
+            raise Http404
+        return view(request, *args, **kwargs)
+    return inner
+
+
 def manager_required(view):
     """학교 관리자가 아니면 403. 직위 글자가 아니라 Member.is_manager로만 판단한다."""
     @wraps(view)

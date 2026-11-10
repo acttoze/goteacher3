@@ -45,18 +45,34 @@ class School(models.Model):
         SCHOOL = "school", "학교 플랜"
 
     neis_atpt = models.CharField("시도교육청 코드", max_length=10)
-    neis_code = models.CharField("학교 코드", max_length=10)
+    neis_code = models.CharField("학교 코드", max_length=10)  # 기관(T1)은 빈 값: NEIS를 부르지 않는다
     name = models.CharField("학교 이름", max_length=100)
     plan = models.CharField("플랜", max_length=10, choices=Plan.choices, default=Plan.FREE)
     paid_until = models.DateField("결제 기한", null=True, blank=True)
+    # T1 기관 체험을 연 계정(계정당 체험 기관 하나). 체험 없이 운영자가 켠 기관·학교는 비어 있다.
+    trial_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    # T1 운영자가 org_plan --on으로 켠 때(공문·전화·입금 확인). 비어 있는 기관은 체험 중이거나 체험이 끝난 '운영자 미확인 기관'
+    org_checked_at = models.DateTimeField("운영자 확인", null=True, blank=True)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["neis_atpt", "neis_code"], name="uniq_school_neis"),
+            # 기관은 NEIS 코드가 없어 같은 시도에 여럿일 수 있다(T1)
+            models.UniqueConstraint(fields=["neis_atpt", "neis_code"], condition=~Q(neis_code=""), name="uniq_school_neis"),
         ]
 
     def __str__(self):
         return self.name
+
+    @property
+    def is_org(self):
+        """교육청·지원청 부서 같은 기관(T1). 공간이 생기기 전(플랜 신청)에도 알 수 있게 학교 행에 둔다."""
+        return self.neis_code == ""
+
+    @property
+    def org_unconfirmed(self):
+        """운영자가 켜지 않은 기관(체험 중·체험 끝남). 무료 공간처럼 다룬다(저장 한도·업체 후기), 화면에 '운영자 미확인' 표시.
+        쿼리로 묻는 곳은 free_space_q를 쓴다(같은 기준)."""
+        return self.is_org and self.org_checked_at is None
 
     @property
     def writable(self):
@@ -73,6 +89,12 @@ class School(models.Model):
         return (self.paid_until - timezone.localdate()).days
 
 
+def free_space_q(lookup="space"):
+    """무료 공간(동학년 + 운영자 미확인 기관, School.org_unconfirmed와 같은 기준)을 고르는 Q. lookup: 공간까지 가는 경로."""
+    return (Q(**{f"{lookup}__kind": "grade"})
+            | Q(**{f"{lookup}__kind": "org", f"{lookup}__school__org_checked_at__isnull": True}))
+
+
 # U1 소속 색: 흰 바탕에서 점으로 구분되는 중간 채도 10가지. 소속(Member.Group)도 10개라 학교 안에서 겹치지 않는다.
 GROUP_PALETTE = {
     "red": ("#e5534b", "빨강"), "orange": ("#e8833a", "주황"), "yellow": ("#d4a017", "노랑"), "green": ("#2f9e5b", "초록"),
@@ -82,7 +104,7 @@ GROUP_PALETTE = {
 
 
 class Space(models.Model):
-    """동학년 공간 또는 학교 공간(kind=school, grade=0, 학교당 하나).
+    """동학년 공간, 학교 공간(kind=school, grade=0, 학교당 하나) 또는 기관 공간(kind=org, grade=0, T1).
 
     token: 공간 주소(/s/<token>/). 들어오려면 소속 회원이어야 한다.
     invite_token: 초대 링크(B7). 주소와 따로 두어, 링크가 새면 초대만 새로 발급한다.
@@ -94,6 +116,7 @@ class Space(models.Model):
     class Kind(models.TextChoices):
         GRADE = "grade", "동학년"
         SCHOOL = "school", "학교"
+        ORG = "org", "기관"
 
     school = models.ForeignKey(School, on_delete=models.PROTECT, related_name="spaces")
     kind = models.CharField("종류", max_length=10, choices=Kind.choices, default=Kind.GRADE)
@@ -114,7 +137,8 @@ class Space(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["school", "grade"], name="uniq_space_school_grade"),
             models.CheckConstraint(
-                condition=Q(kind="school", grade=0) | Q(kind="grade", grade__gte=1), name="space_kind_matches_grade"
+                condition=Q(kind__in=["school", "org"], grade=0) | Q(kind="grade", grade__gte=1),
+                name="space_kind_matches_grade"
             ),
         ]
 
@@ -123,15 +147,29 @@ class Space(models.Model):
 
     @property
     def is_school(self):
-        return self.kind == self.Kind.SCHOOL
+        """학교판 공간: 학교 또는 기관(T1). 계정 회원만·관리자·플랜 기한이 같다. 기관에서 달라야 하는 곳만 is_org로 가른다."""
+        return self.kind in (self.Kind.SCHOOL, self.Kind.ORG)
+
+    @property
+    def is_org(self):
+        return self.kind == self.Kind.ORG
+
+    @property
+    def is_free(self):
+        """무료 공간: 동학년, 또는 운영자가 켜지 않은 기관(T1)."""
+        return not self.is_school or self.school.org_unconfirmed
 
     @property
     def label(self):
+        if self.is_org:
+            return self.name
         return "학교" if self.is_school else f"{self.grade}학년"
 
     @property
     def group_choices(self):
-        """[(소속 값, 이름)] 이 학교의 소속 순서(Q2). 학교 화면·취합 소속순이 같이 쓴다."""
+        """[(소속 값, 이름)] 이 학교의 소속 순서(Q2). 학교 화면·취합 소속순이 같이 쓴다. 기관은 그룹이 아직 없다(T2에서 org_groups)."""
+        if self.is_org:
+            return []
         keys = [k for k in self.group_order.split(",") if k in Member.Group.values]
         keys = list(dict.fromkeys(keys + Member.Group.values))
         return [(k, Member.Group(k).label) for k in keys]

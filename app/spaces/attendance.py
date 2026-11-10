@@ -30,7 +30,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from accounts.models import is_guest
 from collect.paste import FILLER, MAX_GRID_COLS, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, html_to_tsv, tsv_lines
 
-from .gates import manager_required, school_required, school_write_required
+from .gates import manager_required, no_org, school_required, school_write_required
 from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .school import TOAST, _person, _school_ctx, school_body, split_people
 from .views import _space_ctx
@@ -335,6 +335,7 @@ def _days(space):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @_writer_required
 @school_write_required
 def page(request):
@@ -362,6 +363,7 @@ def page(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @_writer_required
 @school_write_required
 def preview(request):
@@ -390,6 +392,7 @@ def preview(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @_writer_required
 @school_write_required
 def clear(request):
@@ -410,6 +413,7 @@ def clear(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def set_writer(request, key):

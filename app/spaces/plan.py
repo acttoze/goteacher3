@@ -21,7 +21,7 @@ from config.ratelimit import too_many
 
 from . import neis
 from .models import Member, PlanRequest, School
-from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, _clean_name, _josa, _my_space
+from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, read_org
 
 LOGIN_HREF = "/start?next=/school-plan"
 RENEW_DAYS = 30  # 기한이 이만큼 남으면 다시 신청할 수 있다(만료 안내와 같은 날)
@@ -89,7 +89,9 @@ def _ctx(request, **extra):
         ctx["guest"] = user.is_authenticated
         return ctx
     mine = _my_space(user)
-    ctx.update(can_apply=True, my_school=mine.school if mine else None,
+    # T1 기관: 체험이 끝난 기관 회원, 또는 공간 없이 기관으로 신청(시도·이름 직접 입력, 견적서)
+    org = mine.school.is_org if mine else request.GET.get("kind", request.POST.get("kind")) == "org"
+    ctx.update(can_apply=True, my_school=mine.school if mine else None, kind="org" if org else "school", offices=OFFICES,
                sent=list(PlanRequest.objects.filter(user=user).select_related("school").order_by("-created_at")[:3]))
     ctx["pending"] = next((r for r in ctx["sent"] if r.status == PlanRequest.Status.PENDING), None)
     ctx["sent"] = [r for r in ctx["sent"] if r is not ctx["pending"]]
@@ -128,12 +130,22 @@ def _apply(request):
         return render(request, "spaces/plan.html", _ctx(request), status=403)
     values, errors = _read(request.POST)
     mine = _my_space(user)
-    hit = None if mine else _picked(request)
-    if not mine and hit is None:
+    org = None
+    if not mine and request.POST.get("kind") == "org":  # 기관: NEIS 검색 대신 시도·이름(T1)
+        org, org_errors = read_org(request.POST)
+        errors.update(org_errors)
+    hit = None if mine or org else _picked(request)
+    if not mine and not org and hit is None:
         errors["school"] = "학교를 찾아 골라 주세요."
     school = mine.school if mine else School.objects.filter(neis_atpt=hit["atpt"], neis_code=hit["code"]).first() if hit else None
+    if org and not errors:  # 같은 사람이 같은 기관으로 대기 신청을 다시 보내면 그 신청을 고친다
+        same = PlanRequest.objects.filter(user=user, status=PlanRequest.Status.PENDING, school__neis_code="",
+                                          school__neis_atpt=org["atpt"], school__name=org["org"]).select_related("school").first()
+        school = same.school if same else None
 
     def again(status, **extra):
+        if org:
+            return render(request, "spaces/plan.html", _ctx(request, values={**values, **org}, errors=errors, **extra), status=status)
         ctx = _search(request, _ctx(request, values=values, errors=errors, **extra))
         return render(request, "spaces/plan.html", ctx, status=status)
 
@@ -144,7 +156,9 @@ def _apply(request):
     if too_many("plan-req", str(user.pk), REQUESTS_PER_HOUR, 3600):
         return again(429, limited="신청을 너무 자주 보냈어요. 1시간 뒤에 다시 해 주세요.")
     with transaction.atomic():
-        if school is None:
+        if school is None and org:
+            school = School.objects.create(neis_atpt=org["atpt"], neis_code="", name=org["org"])
+        elif school is None:
             school, _ = School.objects.get_or_create(neis_atpt=hit["atpt"], neis_code=hit["code"], defaults={"name": hit["name"]})
         seat = Member.objects.filter(user=user, space__school=school).first()
         req, _ = PlanRequest.objects.update_or_create(  # 같은 학교 대기 신청은 하나로 고친다
@@ -160,7 +174,7 @@ def page(request):
     if request.method == "POST":
         return _apply(request)
     ctx = _ctx(request)
-    if ctx.get("can_apply") and not ctx["my_school"]:
+    if ctx.get("can_apply") and not ctx["my_school"] and ctx["kind"] != "org":
         _search(request, ctx)
         if request.headers.get("HX-Request"):
             return render(request, "spaces/_plan_schools.html", ctx)

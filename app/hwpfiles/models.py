@@ -23,7 +23,7 @@ from django.utils import timezone
 import hwp
 from hwp.engine import section_names
 
-from spaces.models import Member, Space, SpaceQuerySet, new_token
+from spaces.models import Member, Space, SpaceQuerySet, free_space_q, new_token
 
 # 변환 보고의 요소 종류(python-hwpx 이름) → 교사에게 보일 말. 모르는 이름은 '기타 요소'.
 DROPPED_LABELS = {
@@ -90,7 +90,7 @@ class SourceFile(models.Model):
 
     @classmethod
     def used_bytes(cls, space=None, free=False):
-        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진 + M1 식판 사진 + P2 일정 첨부). space=None 이면 서비스 전체(서버 디스크 보호), free=True면 동학년 공간 합계."""
+        """공간 하나의 저장 합계(올린 파일 + F1 채운 결과 + I1 공지 첨부 + K1 수리 사진 + M1 식판 사진 + P2 일정 첨부). space=None 이면 서비스 전체(서버 디스크 보호), free=True면 무료 공간(동학년 + 운영자 미확인 기관) 합계."""
         from meals.models import MealPhoto
         from notices.models import NoticeFile
         from repairs.models import Repair
@@ -100,7 +100,7 @@ class SourceFile(models.Model):
         for model in (SourceFile, ResultFile, NoticeFile, Repair, MealPhoto, EventFile):
             qs = model.objects.in_space(space) if space is not None else model.objects.all()
             if free:
-                qs = qs.filter(**{qs.space_lookup + "__kind": Space.Kind.GRADE})
+                qs = qs.filter(free_space_q(qs.space_lookup))
             total += qs.aggregate(n=models.Sum("stored"))["n"] or 0
         return total
 
@@ -174,7 +174,7 @@ def lock_member(member):
 
 def space_quota(space):
     """공간 하나의 저장 상한: 학교 공간은 학년 여럿과 교무실이 함께 쓴다(H4)."""
-    return settings.HWP_SCHOOL_QUOTA if space.is_school else settings.HWP_SPACE_QUOTA
+    return settings.HWP_SPACE_QUOTA if space.is_free else settings.HWP_SCHOOL_QUOTA  # 운영자 미확인 기관은 동학년 상한(T1)
 
 
 def storage_room(space):
@@ -183,7 +183,7 @@ def storage_room(space):
     잠그지 않는다. 동시 올리기로 넘는 폭은 '동시 요청 수 × 건당 상한'이고, 넘긴 다음 요청부터 막힌다(디스크 경보가 그 위에 있다)."""
     rooms = [(space_quota(space) - SourceFile.used_bytes(space), "Quota"),
              (settings.HWP_TOTAL_QUOTA - SourceFile.used_bytes(), "TotalQuota")]
-    if not space.is_school:
+    if space.is_free:
         rooms.append((settings.HWP_FREE_TOTAL_QUOTA - SourceFile.used_bytes(free=True), "FreeQuota"))
     return min(rooms, key=lambda r: r[0])
 

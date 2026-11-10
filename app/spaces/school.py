@@ -19,7 +19,7 @@ from collect.models import Notification
 from collect.paste import PasteError, html_to_tsv
 
 from .duty_paste import EMPTY, TOO_BIG, read_duties
-from .gates import manager_required, school_required, school_write_required
+from .gates import manager_required, no_org, school_required, school_write_required
 from .merge import remove_manager
 from .models import GROUP_PALETTE, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .views import GROUP_ROLES, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values, read_place
@@ -151,6 +151,7 @@ def school_body(request, status=200, **extra):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def school(request):
     if request.headers.get("HX-Request"):  # 바꾸기 저장이 실패하면 본문을 다시 받아 원래 자리로(Q2)
         return school_body(request)
@@ -242,6 +243,7 @@ def _move_duty(space, what, target, keys):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def arrange(request):
@@ -270,6 +272,7 @@ def arrange(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def group_color(request):
@@ -293,6 +296,7 @@ def group_color(request):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @school_write_required
 def edit_me(request):
     """내 그룹·직책(승인 없음, 학교 입장과 같은 검증). 그룹을 바꾸면 cls·position도 함께 맞춘다. 실제로 바뀌면 이력."""
@@ -325,6 +329,7 @@ def edit_me(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def set_manager(request, key):
@@ -359,6 +364,7 @@ def set_manager(request, key):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 def temp_password(request, key):
     """임시 비밀번호 발급(P1, 리드 결정): 메일이 없어 학교 관리자가 명부에서 준다. 아이디 회원만, 관리자 대상은 거부.
@@ -394,6 +400,7 @@ def _preview_rows(rows, space):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def duties(request):
@@ -419,6 +426,7 @@ def duties(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def duties_preview(request):

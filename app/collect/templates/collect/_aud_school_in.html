@@ -1,5 +1,5 @@
 {# 받는 사람 상자 안. anote: 일정 화면 어디에 뜨는지(today.schedule._collect_tab). 정렬은 전 교직원·개인(사람마다 한 줄)에만. #}
-  <label class="amode"><input type="radio" name="aud" value="all"{% if aud_mode == "all" %} checked{% endif %}><b>전 교직원</b><span>사람마다 한 줄</span><em class="anote">학교 일정에 보여요</em></label>
+  <label class="amode"><input type="radio" name="aud" value="all"{% if aud_mode == "all" %} checked{% endif %}><b>전 교직원</b><span>사람마다 한 줄</span><em class="anote">{{ space_word }} 일정에 보여요</em></label>
 
   <label class="amode"><input type="radio" name="aud" value="pergroup"{% if aud_mode == "pergroup" %} checked{% endif %}><b>소속</b><span>소속마다 1칸 · 소속 누구나 한 명이 내면 끝</span><em class="anote">고른 소속의 일정에 보여요</em></label>
   <div class="apane" data-aud="pergroup"{% if aud_mode != "pergroup" %} hidden{% endif %}>
@@ -17,6 +17,6 @@
     <input type="hidden" name="aud_sort" value="{{ aud_sort }}">
     <span>줄 순서</span>
     <button class="btn sec sm" type="button" data-sort{% if not aud_has_duty %} disabled aria-describedby="sortNote"{% endif %} aria-label="줄 순서 바꾸기: 지금 {% if aud_sort == "dept" %}부서별{% else %}소속순{% endif %}">{% if aud_sort == "dept" %}부서별{% else %}소속순{% endif %}</button>
-    {% if not aud_has_duty %}<span class="muted" id="sortNote">업무분장이 없어 부서별로 정렬할 수 없어요. <a class="tlink acc" href="/s/{{ space.token }}/school?tab=duty">학교 화면</a>에서 표를 붙여넣으면 돼요.</span>{% elif aud_sort == "dept" %}<span class="muted">업무분장 표 순서로 부서마다 묶어요. 부서 없는 선생님은 맨 뒤</span>{% else %}<span class="muted">학년·반, 그다음 교무실·행정실·급식소·기타</span>{% endif %}
+    {% if not aud_has_duty %}<span class="muted" id="sortNote">업무분장이 없어 부서별로 정렬할 수 없어요.{% if not space.is_org %} <a class="tlink acc" href="/s/{{ space.token }}/school?tab=duty">학교 화면</a>에서 표를 붙여넣으면 돼요.{% endif %}</span>{% elif aud_sort == "dept" %}<span class="muted">업무분장 표 순서로 부서마다 묶어요. 부서 없는 선생님은 맨 뒤</span>{% else %}<span class="muted">학년·반, 그다음 교무실·행정실·급식소·기타</span>{% endif %}
   </div>
   {% include "collect/_aud_sum.html" %}

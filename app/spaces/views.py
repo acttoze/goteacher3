@@ -4,6 +4,7 @@
 고른 학교는 세션에만 둔다. 학교 값은 서버가 찾은 검색 결과에서만 가져온다(브라우저가 보낸 이름은 믿지 않는다).
 """
 import unicodedata
+from datetime import timedelta
 
 import segno
 
@@ -49,10 +50,26 @@ FALLBACK_CLASSES = ["1", "2", "3", "4"]  # NEIS 학급 정보가 없을 때(prot
 # 초대 입장 POST: 가짜 이름으로 상한(반 수×2)을 채우지 않게. 학교는 공인 IP 하나를 같이 쓰므로 IP 쪽을 넉넉히.
 JOIN_PER_MIN_IP = 10
 JOIN_PER_MIN_SESSION = 5
+ORG_NONE = "미배정"  # 기관 회원의 cls: 그룹에 배정되기 전(T1). 배정은 T2에서 관리자가 한다
 SCHOOL_SEATS = 300  # 학교 공간 입장 상한. 큰 학교 교직원(200명 안팎)을 넉넉히 받는다
 LAST_MANAGER = "마지막 관리자는 나갈 수 없어요. 다른 관리자를 먼저 세워 주세요."
 NEIS_PER_MIN = 20  # 학교 검색(사용자당 분당)
 NEIS_DOWN = "학교 정보를 불러오지 못했어요. 잠시 뒤 다시 찾아 주세요."
+# T1 기관이 고르는 시도교육청(NEIS 시도교육청 코드). 기관 행의 neis_atpt에 넣는다.
+OFFICES = [
+    ("B10", "서울특별시교육청"), ("C10", "부산광역시교육청"), ("D10", "대구광역시교육청"), ("E10", "인천광역시교육청"),
+    ("F10", "광주광역시교육청"), ("G10", "대전광역시교육청"), ("H10", "울산광역시교육청"), ("I10", "세종특별자치시교육청"),
+    ("J10", "경기도교육청"), ("K10", "강원특별자치도교육청"), ("M10", "충청북도교육청"), ("N10", "충청남도교육청"),
+    ("P10", "전북특별자치도교육청"), ("Q10", "전라남도교육청"), ("R10", "경상북도교육청"), ("S10", "경상남도교육청"),
+    ("T10", "제주특별자치도교육청"),
+]
+# 사칭 방지: 기관 이름이 시도교육청 이름 그 자체면 받지 않는다(공백 무시). 정식 이름 + 흔한 줄임('경기교육청'·'서울시교육청')
+_REGIONS = ["서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"]
+OFFICE_NAMES = ({label for _, label in OFFICES} | {"강원도교육청", "전라북도교육청"}
+                | {f"{r}{x}교육청" for r in _REGIONS for x in ("", "시", "도", "특별시", "광역시", "특별자치시", "특별자치도")})
+OFFICE_ONLY = "시도교육청 이름만으로는 만들 수 없어요. 부서 이름까지 써 주세요. 예: 인천광역시교육청 학교마을협력과"
+UNCONFIRMED = "체험 중 · 운영자 미확인 기관"
+TRIAL_USED = "이 계정은 이미 기관 체험을 썼어요. 계속 쓰려면 기관 플랜을 신청해 주세요."
 # design/assets/people.js의 사람 색. 들어온 순서대로 돌려 쓴다. (색, 글자를 검게)
 PEOPLE_COLORS = [("#c2410c", False), ("#0b7d7f", False), ("#d6246e", False), ("#37b24d", True), ("#f2a300", True)]
 # prototype TR.SUPPORT_ROLES·TR.groupRoles. 학년 그룹은 직책 대신 반·전담을 고른다.
@@ -118,10 +135,24 @@ def _clean_name(raw):
     return s.strip()[:40]
 
 
+def read_org(data):
+    """기관 칸 읽기(시작 화면 기관 만들기·플랜 신청이 같이 쓴다): (값, 오류). 시도는 목록 안의 코드만 받는다."""
+    values = {"atpt": data.get("atpt", ""), "org": _clean_name(data.get("org"))}
+    errors = {}
+    if values["atpt"] not in dict(OFFICES):
+        errors["atpt"] = "시도교육청을 골라 주세요."
+    if not values["org"]:
+        errors["org"] = "기관 이름을 써 주세요. 예: 인천광역시교육청 학교마을협력과"
+    elif "".join(values["org"].split()) in OFFICE_NAMES:
+        errors["org"] = OFFICE_ONLY
+    return values, errors
+
+
 @never_cache
 @require_safe
 def home(request):
-    """익명: 소개 페이지. 손님: 시작 화면(구글·아이디). 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기."""
+    """익명: 소개 페이지. 손님: 시작 화면(구글·아이디). 로그인: 내 동학년이 있으면 그 오늘 화면, 없으면 학교 찾기.
+    ?kind=org: 학교 대신 기관(교육청·지원청 부서 등) 만들기(T1)."""
     mine = _my_space(request.user) if request.user.is_authenticated else None
     if mine:  # design: 로그인 뒤 첫 화면은 오늘(brand → today.html)
         return redirect(f"/s/{mine.token}/today")
@@ -130,6 +161,8 @@ def home(request):
     if is_guest(request.user):  # 동학년 만들기는 계정 회원만
         return login_home(request)
 
+    if request.GET.get("kind") == "org":
+        return _org_form(request, {"name": request.user.first_name})
     q = request.GET.get("q", "").strip()[:40]
     ctx = {"q": q}
     if q:
@@ -166,6 +199,45 @@ def pick_school(request):
     school = hits[i]
     request.session[PICKED] = school
     return redirect("/new/class")
+
+
+def _org_form(request, values, errors=None, status=200):
+    return render(request, "spaces/start_school.html",
+                  {"kind": "org", "offices": OFFICES, "values": values, "errors": errors or {}, "trial_days": settings.ORG_TRIAL_DAYS,
+                   "trial_used": TRIAL_USED if School.objects.filter(trial_by=request.user).exists() else ""}, status=status)
+
+
+@never_cache
+@login_required
+@require_POST
+def new_org(request):
+    """기관 공간 바로 열기(T1, 사용자 결정 11/10): 고른 사람이 첫 관리자, 체험 기간(ORG_TRIAL_DAYS)만큼 플랜 기한.
+    계정당 체험 기관 하나(School.trial_by). 이미 공간이 있는 사람은 그 공간으로(교사 한 명은 공간 하나)."""
+    if is_guest(request.user):
+        return redirect("/")
+    values, errors = read_org(request.POST)
+    values["name"] = _clean_name(request.POST.get("name"))
+    values["position"] = _clean_name(request.POST.get("position"))
+    if not values["name"]:
+        errors["name"] = "함께 쓰는 분들에게 보일 이름을 써 주세요."
+    if errors:
+        return _org_form(request, values, errors, status=400)
+    with transaction.atomic():
+        get_user_model().objects.select_for_update().filter(pk=request.user.pk).first()  # 두 번 클릭·동학년 만들기와 직렬화
+        mine = _my_space(request.user)
+        if mine:
+            return redirect(f"/s/{mine.token}/")
+        if School.objects.filter(trial_by=request.user).exists():
+            return _org_form(request, values, status=409)
+        school = School.objects.create(neis_atpt=values["atpt"], neis_code="", name=values["org"], plan=School.Plan.SCHOOL,
+                                       paid_until=timezone.localdate() + timedelta(days=settings.ORG_TRIAL_DAYS),
+                                       trial_by=request.user)
+        space = Space.objects.create(school=school, kind=Space.Kind.ORG, grade=0, name=values["org"])
+        Member.objects.create(space=space, user=request.user, name=values["name"], cls=ORG_NONE, position=values["position"],
+                              is_manager=True)
+    resp = redirect(f"/s/{space.token}/settings?a=space")  # 첫 할 일은 초대
+    resp.status_code = 303
+    return resp
 
 
 GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
@@ -286,7 +358,9 @@ def _class_slots(space):
 
 
 def class_choices(space):
-    """[(반, 표시)]. 학교 공간은 모든 학년 + 다른 회원이 이미 쓰는 학년 반(교무실 등 학년 밖 값은 고르는 칸이 아니다)."""
+    """[(반, 표시)]. 학교 공간은 모든 학년 + 다른 회원이 이미 쓰는 학년 반(교무실 등 학년 밖 값은 고르는 칸이 아니다). 기관은 반이 없다."""
+    if space.is_org:
+        return []
     if not space.is_school:
         return [(c, _cls_label(c)) for c in _grade_choices(space.school, space.grade)]
     slots = [c for g in GRADES for c in _grade_choices(space.school, g)]
@@ -329,9 +403,14 @@ def _invite(space, me):
     if space.is_school and not me.is_manager:
         return {}
     link = f"{settings.SITE_URL}/j/{space.invite_token}"
-    room = f"{space.school.name} 학교 공간" if space.is_school else f"{space.school.name} {space.grade}학년 동학년방"
-    how = ("아래 링크를 누르고 구글이나 아이디로 로그인한 뒤 소속·직책·이름만 고르면 들어와요." if space.is_school
-           else "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)")
+    if space.is_org:
+        room, how = f"{space.name} 기관 공간", "아래 링크를 누르고 구글이나 아이디로 로그인한 뒤 이름만 쓰면 들어와요. 그룹은 관리자가 정해요."
+        if space.school.org_unconfirmed:  # 운영자가 켜기 전: 받는 사람이 진짜 기관인지 알 수 있게(T1)
+            room += f"({UNCONFIRMED})"
+    elif space.is_school:
+        room, how = f"{space.school.name} 학교 공간", "아래 링크를 누르고 구글이나 아이디로 로그인한 뒤 소속·직책·이름만 고르면 들어와요."
+    else:
+        room, how = f"{space.school.name} {space.grade}학년 동학년방", "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)"
     msg = (f"[고티처] {room}이에요.\n"
            f"{how}\n{link}\n\n"
            f"— {me.name} ({me.cls_text})")
@@ -361,6 +440,8 @@ def _space_ctx(request, **extra):
 def grade(request):
     """동학년 화면. 소속 확인은 SpaceMiddleware가 한다. 들어온 선생님은 5초마다 members로 다시 받는다.
     학교 공간은 명부가 길어 이 화면 대신 카드 격자인 학교 화면으로 보낸다(H3)."""
+    if request.space.is_org:  # 기관은 학교 화면이 없다(T1)
+        return redirect(f"/s/{request.space.token}/today")
     if request.space.is_school:
         return redirect(f"/s/{request.space.token}/school")
     ctx = _space_ctx(request)
@@ -585,7 +666,7 @@ def _welcome_alert(space, seat):
     text = f"{seat.name} 선생님({seat.cls_text})이 들어왔어요"
     Notification.objects.bulk_create(
         Notification(space=space, member=m, kind=Notification.Kind.JOIN, day=timezone.localdate(), text=text,
-                     link=f"/s/{space.token}/school", pushed=True, about=seat)
+                     link=f"/s/{space.token}/" + ("settings?a=space" if space.is_org else "school"), pushed=True, about=seat)
         for m in Member.objects.in_space(space).filter(is_manager=True)
     )
 
@@ -638,12 +719,15 @@ def _join_school(request, space):
         return render(request, "spaces/join_school.html", ctx, status=403 if post else 200)
 
     data = request.POST if post else request.GET
-    place, errors = read_place(space, data, post)
+    if space.is_org:  # 기관: 이름(+직위)만. 그룹은 관리자가 배정한다(T1, 가입자는 미배정)
+        place, errors = {"position": _clean_name(data.get("position"))}, {}
+    else:
+        place, errors = read_place(space, data, post)
     name = _clean_name(data.get("name", user.first_name))
     if post and not name:
-        errors["name"] = "선생님들에게 보일 이름을 써 주세요."
+        errors["name"] = "함께 쓰는 분들에게 보일 이름을 써 주세요." if space.is_org else "선생님들에게 보일 이름을 써 주세요."
     if post and not errors:
-        group, cls, position = place_values(place)
+        group, cls, position = ("", ORG_NONE, place["position"]) if space.is_org else place_values(place)
         with transaction.atomic():
             get_user_model().objects.select_for_update().filter(pk=user.pk).first()  # 두 번 클릭·다른 공간 동시 입장
             mine = _my_space(user)
@@ -657,7 +741,7 @@ def _join_school(request, space):
                 errors["name"] = ("이 이름으로 이미 들어온 선생님이 있어요. 본인이면 처음 들어온 PC에서 "
                                   "「구글 계정으로 이어 두기」나 「아이디로 이어 두기」를 눌러 주세요.")
             elif members.count() >= SCHOOL_SEATS:
-                errors["name"] = "이 학교 공간에는 더 들어올 수 없어요. 담당 선생님께 알려 주세요."
+                errors["name"] = f"이 {space.word} 공간에는 더 들어올 수 없어요. 담당 선생님께 알려 주세요."
             else:
                 seat = Member.objects.create(space=space, user=user, name=name, cls=cls, group=group, position=position)
                 _welcome_alert(space, seat)
@@ -665,7 +749,7 @@ def _join_school(request, space):
             request.session.pop(INVITE, None)
             return redirect(f"/s/{space.token}/welcome")
 
-    ctx.update(place, groups=Member.Group.choices, form_url="/join", name=name, errors=errors)
+    ctx.update(place, form=True, groups=Member.Group.choices, form_url="/join", name=name, errors=errors)
     tpl = "spaces/_join_school_form.html" if request.headers.get("HX-Request") else "spaces/join_school.html"
     return render(request, tpl, ctx, status=400 if errors else 200)
 

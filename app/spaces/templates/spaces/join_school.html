@@ -1,5 +1,5 @@
 {% extends "bare.html" %}
-{% block title %}학교 초대 · 고티처{% endblock %}
+{% block title %}{{ space.word }} 초대 · 고티처{% endblock %}
 {% block head %}{% include "spaces/_join_style.html" %}
 <style>
   /* 소속 10개·직책 11개가 한 줄씩 들어가게 넓힌다. 1536×750 첫 화면에 들어가기 단추까지 보인다. */
@@ -9,16 +9,30 @@
 {% block ctx %}<span class="ctx">{{ space.name }}</span>{% endblock %}
 {% block main %}
 <h1 class="inv-h">{{ space.name }}에 초대받았어요</h1>
-<p class="by" style="margin-top:8px">선생님 {{ n }}명이 함께 써요</p>
+{% if space.school.org_unconfirmed %}<p class="notice" role="note" style="margin-top:12px"><b>체험 중 · 운영자 미확인 기관</b> 고티처 운영자가 아직 이 기관을 확인하지 않았어요. 보낸 분을 아는 경우에만 들어오세요.</p>{% endif %}
+<p class="by" style="margin-top:8px">{% if space.is_org %}{{ n }}명{% else %}선생님 {{ n }}명이{% endif %} 함께 써요</p>
 {% if expired %}
-<p class="notice" role="alert" style="margin-top:24px">학교 플랜이 끝나 새로 들어올 수 없어요. 학교 담당 선생님께 알려 주세요.</p>
-{% elif groups %}
+<p class="notice" role="alert" style="margin-top:24px">{% if space.is_org %}기관 공간 기간이 끝나 새로 들어올 수 없어요. 관리자에게 알려 주세요.{% else %}학교 플랜이 끝나 새로 들어올 수 없어요. 학교 담당 선생님께 알려 주세요.{% endif %}</p>
+{% elif form and space.is_org %}
+{# T1 기관: 이름(+직위)만. 그룹은 관리자가 배정한다 #}
+<form class="card form" method="post" action="/join" aria-label="이름·직위" style="margin-top:24px;padding:24px 28px;gap:18px">{% csrf_token %}
+  <div class="join-row">
+    <label class="field"><span>이름</span>
+      <input class="input" name="name" value="{{ name }}" maxlength="40" autocomplete="name"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
+      {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}</label>
+    <label class="field"><span>직위 <span class="small muted" style="font-weight:400">선택</span></span>
+      <input class="input" name="position" value="{{ position }}" maxlength="40" placeholder="예: 장학사, 주무관" autocomplete="organization-title"></label>
+  </div>
+  <p class="muted">들어온 뒤 관리자가 그룹을 정해 줘요.</p>
+  <div><button class="btn pri lg" type="submit">들어가기</button></div>
+</form>
+{% elif form %}
 {% include "spaces/_join_school_form.html" %}
 {% else %}
 <section class="card form" aria-labelledby="gH" style="margin-top:24px">
-  <h2 id="gH">학교 공간은 구글 계정이나 아이디로 들어와요</h2>
-  {% if guest %}<p class="notice" role="alert">이름만 들어온 계정으로는 학교 공간에 들어올 수 없어요. 구글 계정이나 아이디를 이으면 바로 이어져요.</p>
-  {% else %}<p class="muted">명부와 공지가 있는 공간이라 본인 확인이 필요해요. 로그인하면 소속과 이름을 고르는 화면으로 바로 이어져요.</p>{% endif %}
+  <h2 id="gH">{{ space.word }} 공간은 구글 계정이나 아이디로 들어와요</h2>
+  {% if guest %}<p class="notice" role="alert">이름만 들어온 계정으로는 {{ space.word }} 공간에 들어올 수 없어요. 구글 계정이나 아이디를 이으면 바로 이어져요.</p>
+  {% else %}<p class="muted">명부와 공지가 있는 공간이라 본인 확인이 필요해요. 로그인하면 {% if space.is_org %}이름을 쓰는{% else %}소속과 이름을 고르는{% endif %} 화면으로 바로 이어져요.</p>{% endif %}
   {% with next="/join" %}{% include "accounts/_login_form.html" %}{% endwith %}
 </section>
 {% endif %}

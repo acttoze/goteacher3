@@ -171,6 +171,8 @@ def _my_review(partner, user):
 
 def _can_write(me):
     """쓰기 자격: 학교 플랜이 켜진 학교 공간 회원, 또는 계정 회원이 둘 이상인 공간에 정한 날수를 넘겨 있은 회원."""
+    if me.space.is_school and me.space.school.org_unconfirmed:  # 운영자가 켜지 않은 체험 기관은 후기를 쓰지 않는다(T1, 사칭 방지)
+        return False
     if me.space.is_school and me.space.school.writable:
         return True
     if me.joined_at > timezone.now() - timedelta(days=settings.PARTNER_REVIEW_MIN_DAYS):

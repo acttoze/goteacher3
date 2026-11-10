@@ -24,7 +24,7 @@ from notices.views import _quota_error
 from repairs import photo as repair_photo
 from repairs.views import _drop_after_commit, photo_response
 from spaces import neis
-from spaces.gates import manager_required, school_required, school_write_required
+from spaces.gates import manager_required, no_org, school_required, school_write_required
 from spaces.models import Member, MemberLog, get_in_space_or_404
 from spaces.school import school_body
 from spaces.views import _space_ctx
@@ -130,6 +130,7 @@ def _page(request, status=200, **extra):
 @never_cache
 @require_GET
 @school_required
+@no_org
 @meal_required
 def index(request):
     return _page(request, retry="retry" in request.GET)
@@ -138,6 +139,7 @@ def index(request):
 @never_cache
 @require_GET
 @school_required
+@no_org
 @meal_required
 def live(request):
     """열어 둔 입력 화면의 폴링(M3): 오늘 사진이 바뀌거나(QR도 내려간다) 날짜가 바뀌면 다시 그린다. 그대로면 204."""
@@ -153,6 +155,7 @@ def live(request):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @meal_required
 @school_write_required
 def qr(request):
@@ -204,6 +207,7 @@ def store_photo(space, day, data, by, source=MealPhoto.Source.PC, link_ref=None)
 @never_cache
 @require_POST
 @school_required
+@no_org
 @meal_required
 @school_write_required
 def upload(request, ymd):
@@ -230,6 +234,7 @@ def upload(request, ymd):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @meal_required
 def delete(request, ymd):
     day = _day_or_404(ymd)
@@ -241,6 +246,7 @@ def delete(request, ymd):
 
 @require_GET
 @school_required
+@no_org
 def photo_file(request, ymd):
     """사진: 학교 회원만(SpaceMiddleware). 화면의 ?v=가 바꿀 때마다 달라 브라우저 캐시를 써도 옛 사진이 안 나온다."""
     resp = photo_response(get_in_space_or_404(MealPhoto, request, date=_day_or_404(ymd)))
@@ -257,6 +263,7 @@ def _move(items, key, step):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @meal_required
 @school_write_required
 def screens(request):
@@ -299,6 +306,7 @@ def _screens_page(request, toast=""):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @meal_required
 def reissue_tv(request):
     """TV 주소 새로 만들기: 옛 주소는 바로 끊긴다. 보안 조치라 플랜이 끝난 학교도 받는다(초대 재발급과 같다)."""
@@ -310,6 +318,7 @@ def reissue_tv(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def set_writer(request, key):

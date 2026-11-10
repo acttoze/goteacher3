@@ -155,6 +155,8 @@ def _feed(space, me, now, colors):
 
 
 def _meal(space, today):
+    if space.is_org:  # 기관은 급식이 없다(T1)
+        return None
     ymd = f"{today:%Y%m%d}"
     rows = neis.meals(space.school.neis_atpt, space.school.neis_code, ymd, ymd)
     if not rows:
@@ -172,7 +174,7 @@ def _live_ctx(request, now):
     hexes = space.group_hex
     events = [_ev_item(e, me, today, hexes) for e in
               _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me))), today)
-              .select_related("by", "changed_by").order_by("slot", "created_at")]
+              .select_related("by", "changed_by", "space").order_by("slot", "created_at")]
     now_slot, pct = _now_slot(timezone.localtime(now))
     cols = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
              "time": f"{s['from']}~{'' if s['k'] == 'pm' else s['to']}",
@@ -220,12 +222,13 @@ def _page_ctx(request):
             .select_related("space__school", "created_by").order_by("-created_at"))
     sent = [_sent_item(c, now, colors) for c in [c for c in mine if not _past(c, now)][:3]]
     wide = request.space.is_school and request.GET.get("show") == "school"
+    duty = wide and not request.space.is_org  # 기관은 복무가 없다(T1)
     must = list(notice_seen.must_todo(request.space, request.member)) if request.space.is_school else []
     return _space_ctx(request, page="today", quick=True, todo=todo[:4], n_todo=len(todo),
                       must_list=must[:4], n_must=len(must), n_mine=len(todo) + len(must),
                       show_school=wide, school_wide=_school_wide(request, now) if wide else [],
                       notices_wide=_notices_wide(request) if wide else [],
-                      attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if wide else [],
+                      attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if duty else [],
                       urgent=next((x for x in todo if x["urgent"]), None), sent=sent,
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",
                       weekend=local.weekday() >= 5, first=SLOTS[0], **_live_ctx(request, now))

@@ -22,7 +22,7 @@ from collect.models import Notification
 from config.ratelimit import TOO_MANY, allow
 from notices.models import Notice
 from notices.views import _clean, _quota_error
-from spaces.gates import manager_required, school_required, school_write_required
+from spaces.gates import manager_required, no_org, school_required, school_write_required
 from spaces.models import Member, MemberLog, get_in_space_or_404
 from spaces.school import school_body
 from spaces.views import _space_ctx
@@ -241,6 +241,7 @@ def list_page(request, cat, status=200, form=None, **extra):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def index(request):
     return list_page(request, Repair.Cat.FACILITY, toast=request.session.pop(TOAST, ""))
 
@@ -248,6 +249,7 @@ def index(request):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def it_index(request):
     return list_page(request, Repair.Cat.INFO, toast=request.session.pop(TOAST, ""))
 
@@ -255,6 +257,7 @@ def it_index(request):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @school_write_required
 def new(request):
     """GET은 대화상자가 열린 시설 목록. POST의 분류는 대화상자가 든 페이지가 정하고 여기서 값을 본다. 오류면 그 목록을 연 채로."""
@@ -291,6 +294,7 @@ def _detail_ctx(request, r, **extra):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def detail(request, key):
     r = get_in_space_or_404(Repair, request, key=key)
     return render(request, "repairs/detail.html", _space_ctx(request, page="board", **_detail_ctx(request, r)))
@@ -299,6 +303,7 @@ def detail(request, key):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def it_detail(request, key):
     """정보 요청 상세의 정보수리방 주소(🔔·목록). 시설 요청은 여기 없다."""
     r = get_in_space_or_404(Repair, request, key=key, cat=Repair.Cat.INFO)
@@ -308,6 +313,7 @@ def it_detail(request, key):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @school_write_required
 def state(request, key):
     """처리: 담당자·관리자만 상태·답변을 바꾼다. 잘못 만든 값은 저장하지 않는다."""
@@ -328,6 +334,7 @@ def state(request, key):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@no_org
 @school_write_required
 def edit(request, key):
     """요청자가 처리 전(접수)에만 고친다. 저장 때 행을 잠가 담당자가 먼저 시작했으면 거부한다."""
@@ -369,6 +376,7 @@ def edit(request, key):
 @never_cache
 @require_POST
 @school_required
+@no_org
 def delete(request, key):
     """지우기는 개인정보 조치라 만료된 학교도 받는다(공지 판 내용 지우기와 같다)."""
     r = get_in_space_or_404(Repair, request, key=key)
@@ -381,6 +389,7 @@ def delete(request, key):
 @never_cache
 @require_POST
 @school_required
+@no_org
 def delete_photo(request, key):
     """사진만 지우기: 지우기와 같은 권한, 만료된 학교도 받는다. 요청 내용은 남는다."""
     get_in_space_or_404(Repair, request, key=key)
@@ -414,6 +423,7 @@ def photo_response(r):
 
 @require_GET
 @school_required
+@no_org
 def photo_file(request, key):
     """사진: 회원만(SpaceMiddleware). 화면의 ?v=가 바꿀 때마다 달라 브라우저 캐시를 써도 옛 사진이 안 나온다."""
     resp = photo_response(get_in_space_or_404(Repair, request, key=key))
@@ -424,6 +434,7 @@ def photo_file(request, key):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @manager_required
 @school_write_required
 def set_handler(request, key):

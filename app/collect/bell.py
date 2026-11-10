@@ -49,14 +49,21 @@ def remind(now=None):
 
 
 def _plan_notices(today):
-    """기한이 가까운 학교 플랜의 관리자 🔔. 문구에 단계와 기한이 들어 있어 유일 조건이 단계마다 한 번으로 막는다(기한을 늘리면 새로)."""
+    """기한이 가까운 학교 플랜·기관(체험 포함, T1)의 관리자 🔔. 문구에 단계와 기한이 들어 있어 유일 조건이 단계마다 한 번으로 막는다(기한을 늘리면 새로)."""
     out = []
-    hubs = Space.objects.filter(kind=Space.Kind.SCHOOL, school__plan=School.Plan.SCHOOL, school__paid_until__gte=today,
+    hubs = Space.objects.filter(kind__in=[Space.Kind.SCHOOL, Space.Kind.ORG], school__plan=School.Plan.SCHOOL, school__paid_until__gte=today,
                                 school__paid_until__lte=today + timedelta(days=PLAN_STAGES[-1])).select_related("school")
     for hub in hubs:
         until = hub.school.paid_until
         stage = next(s for s in PLAN_STAGES if (until - today).days <= s)
-        text = f"학교 플랜이 {stage}일 안에 끝나요({until:%Y-%m-%d}까지). 이어 쓰려면 다시 신청해 주세요."
+        if hub.school.org_unconfirmed:  # 기관 체험(T1): 끝나기 7일 전에만(체험을 연 날 바로 뜨지 않게), 신청 화면으로
+            if stage != PLAN_STAGES[0]:
+                continue
+            text = f"기관 공간 체험이 {stage}일 안에 끝나요({until:%Y-%m-%d}까지). 이어 쓰려면 기관 플랜을 신청해 주세요."
+        elif hub.is_org:
+            text = f"기관 플랜이 {stage}일 안에 끝나요({until:%Y-%m-%d}까지). 이어 쓰려면 다시 신청해 주세요."
+        else:
+            text = f"학교 플랜이 {stage}일 안에 끝나요({until:%Y-%m-%d}까지). 이어 쓰려면 다시 신청해 주세요."
         out += [Notification(space=hub, member=m, kind=Notification.Kind.PLAN, day=today, text=text, link="/school-plan", pushed=True)
                 for m in Member.objects.in_space(hub).filter(is_manager=True)]
     return out

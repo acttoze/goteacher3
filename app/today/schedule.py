@@ -35,7 +35,7 @@ from collect.lists import _colors, _mine_q
 from collect.models import Collection, Row
 from spaces import neis
 from spaces.attendance import DAYS_MAX, LINE_ERROR, _one, _roster, read_line
-from spaces.gates import school_required, school_write_required
+from spaces.gates import no_org, school_required, school_write_required
 from spaces.models import Attendance, Member
 from spaces.views import _space_ctx
 
@@ -58,8 +58,9 @@ def _channels(space):
     """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음), post: 칸 추가 주소(복무).
     go: 칸 추가가 대신 여는 취합 만들기 주소(그 날을 마감으로, 학교 탭은 전 교직원)."""
     go = f"/s/{space.token}/c/new?" + ("aud=all&" if space.is_school else "")
-    if not space.is_school:
-        return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go}]
+    if not space.is_school or space.is_org:  # 기관은 복무 줄이 없다(T1). 기관 전원 일정은 기본 줄 하나(그룹 줄은 T2)
+        return [{"k": "school", "label": "기관 전체" if space.is_org else space.word, "scope": ALL},
+                {"k": "collect", "label": "취합", "scope": "", "go": go}]
     return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go},
             {"k": "duty", "label": "복무", "scope": "duty", "post": f"/s/{space.token}/today/duty"}]
 
@@ -69,7 +70,7 @@ def tabs(request):
     me = request.member
     if not request.space.is_school:
         return []
-    return [("school", "학교"), *([("group", me.get_group_display())] if me.group else []), ("me", "개인")]
+    return [("school", request.space.name if request.space.is_org else "학교"), *([("group", me.get_group_display())] if me.group else []), ("me", "개인")]
 
 
 def read_tab(request):
@@ -184,7 +185,7 @@ def _collect_tab(space, c):
 
 def _dialog_scopes(me, e):
     """수정 대화상자의 볼 사람: 학교 전체 · 내 그룹 · 개인(나만). 지금 값이 다른 그룹이면 그 값도 남긴다."""
-    out = [(ALL, "학교 전체"), *([(me.group, me.get_group_display())] if me.group else []), (ME, "개인(나만)")]
+    out = [(ALL, f"{me.space.word} 전체"), *([(me.group, me.get_group_display())] if me.group else []), (ME, "개인(나만)")]
     if e.scope not in [k for k, _ in out]:
         out.insert(-1, (e.scope, e.scope_label))
     return out
@@ -221,7 +222,7 @@ def board_ctx(request, mode, raw):
     # 일정: 보고 있는 기간에 걸치는 것. 바뀐 것 목록은 탭과 무관하게 내가 볼 수 있는 전부.
     seen_evs = list(with_counts(Event.objects.in_space(space).filter(reachable_q(me), date__lte=last))
                     .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first))
-                    .select_related("by", "changed_by").order_by("date", "slot", "created_at"))
+                    .select_related("by", "changed_by", "space").order_by("date", "slot", "created_at"))
     evs = [e for e in seen_evs if on_tab(e)]
     cells = defaultdict(list)  # (날짜, 채널, 블록) → 칸 안 항목. 블록 줄 화면은 채널이 ""
     ch = "school" if channeled else ""
@@ -249,7 +250,7 @@ def board_ctx(request, mode, raw):
     seen = set()
     sched = []
     duty_dialogs = []
-    if channeled:
+    if channeled and not space.is_org:  # 기관은 NEIS가 없다(T1)
         # NEIS 학사일정(시간 없음 → 종일). 불러오기 실패와 '없음'을 나눠 알린다.
         sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{first:%Y%m%d}", f"{last:%Y%m%d}")
         for r in sched:
@@ -260,7 +261,7 @@ def board_ctx(request, mode, raw):
 
     # 복무(J1, 학교 공간): '이름 유형'. 모든 회원에게 같게. 지우기는 넣은 사람·당사자·관리자·복무 입력자.
     # 남이 넣은 줄(넣은 사람 ≠ 당사자)에는 넣은 사람을 함께 보인다(이름 위조를 알아보게).
-    if channeled and space.is_school:
+    if channeled and space.is_school and not space.is_org:
         for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("by", "member").order_by("pk"):
             x = {"kind": "duty", "a": a, "title": a.title, "time": a.time_text, "ch": "duty", "can_del": _duty_deletable(a, me),
                  "by_other": a.by.name if a.by_id and a.by_id != a.member_id else "", "mine": a.by_id == me.pk,
@@ -363,9 +364,9 @@ def board_ctx(request, mode, raw):
             "focus": v["focus"].isoformat(), "print_view": "month" if mode == "month" else "week",
             "paste_w": (v["focus"] if mode == "month" else v["w"]).isoformat(),
             "tabs": tab_list, "tab": tab, "tab_label": tab_label, "channeled": channeled,
-            "board_title": tab_label if tab != "school" else space.label + ("" if space.is_school else " · 학교"),
+            "board_title": tab_label if tab != "school" or space.is_org else space.label + ("" if space.is_school else " · 학교"),
             "n_items": n_items, "dialogs": dialogs, "duty_dialogs": duty_dialogs,
-            "neis_empty": channeled and not seen, "neis_fail": channeled and neis.failed(sched),
+            "neis_empty": channeled and not seen and not space.is_org, "neis_fail": channeled and neis.failed(sched),
             "chg": chg, "dues": dues, "slot_choices": SLOTS, "filter_channels": channels, "legend": legend, **board}
 
 
@@ -424,6 +425,7 @@ def _done(request, toast):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @school_write_required
 def duty_add(request):
     """학교 탭 복무 칸: '이름 유형 [시간]' 한 줄(누구나). 날짜는 칸, 오늘 ±31일만. 못 읽으면 원문을 돌려 보이지 않고 짧은 안내만."""
@@ -450,6 +452,7 @@ def duty_add(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @school_write_required
 def duty_delete(request, key):
     a = get_object_or_404(Attendance.objects.in_space(request.space), key=key)

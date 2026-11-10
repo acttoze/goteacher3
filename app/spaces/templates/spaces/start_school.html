@@ -1,8 +1,36 @@
 {% extends "bare.html" %}
-{% block title %}학교 찾기 · 고티처{% endblock %}
+{% block title %}{% if kind == "org" %}기관 공간 만들기{% else %}학교 찾기{% endif %} · 고티처{% endblock %}
 {% block head %}{% include "spaces/_start_style.html" %}{% endblock %}
-{% block ctx %}<span class="ctx">동학년 만들기</span>{% endblock %}
+{% block ctx %}<span class="ctx">{% if kind == "org" %}기관 공간 만들기{% else %}동학년 만들기{% endif %}</span>{% endblock %}
 {% block main %}
+{# T1 맨 위에서 학교 / 기관을 고른다(기관용이 있다는 것을 처음부터 보이게) #}
+<nav class="tabs kind-tabs" aria-label="어디에서 쓰나요">
+  <a href="/"{% if kind != "org" %} aria-current="page"{% endif %}>학교</a>
+  <a href="/?kind=org"{% if kind == "org" %} aria-current="page"{% endif %}>기관 <span class="c">교육청·지원청 부서 등</span></a>
+</nav>
+{% if kind == "org" %}
+<h1 class="st-h">어느 기관에서 쓰시나요?</h1>
+<p class="st-lead">교육청·교육지원청 부서처럼 학교가 아닌 곳은 기관 공간을 써요. 만들면 바로 열리고, {{ trial_days }}일 동안 체험할 수 있어요.</p>
+{% if trial_used %}<p class="notice" role="alert" style="margin-top:24px;max-width:760px">{{ trial_used }} <a class="tlink acc" href="/school-plan?kind=org">기관 플랜 신청</a></p>{% endif %}
+<form class="card form" style="margin-top:32px" method="post" action="/new/org" aria-label="기관 공간 만들기">{% csrf_token %}
+  <div class="org-row">
+    <label class="field"><span>시도교육청</span>
+      <select class="select" name="atpt"{% if errors.atpt %} aria-invalid="true" aria-describedby="atpt-err"{% endif %}><option value="">고르세요</option>
+        {% for code, label in offices %}<option value="{{ code }}"{% if code == values.atpt %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      {% if errors.atpt %}<p class="field-err" id="atpt-err" role="alert">{{ errors.atpt }}</p>{% endif %}</label>
+    <label class="field"><span>기관 이름</span>
+      <input class="input" name="org" value="{{ values.org }}" maxlength="40" placeholder="예: 인천광역시교육청 학교마을협력과" autocomplete="organization"{% if errors.org %} aria-invalid="true" aria-describedby="org-err"{% endif %}>
+      {% if errors.org %}<p class="field-err" id="org-err" role="alert">{{ errors.org }}</p>{% endif %}</label>
+    <label class="field"><span>내 이름</span>
+      <input class="input" name="name" value="{{ values.name }}" maxlength="40" autocomplete="name"{% if errors.name %} aria-invalid="true" aria-describedby="nm-err"{% endif %}>
+      {% if errors.name %}<p class="field-err" id="nm-err" role="alert">{{ errors.name }}</p>{% endif %}</label>
+    <label class="field"><span>직위 <span class="small muted" style="font-weight:400">선택</span></span>
+      <input class="input" name="position" value="{{ values.position }}" maxlength="40" placeholder="예: 장학사, 주무관" autocomplete="organization-title"></label>
+  </div>
+  <p class="muted">만든 분이 첫 관리자가 돼요. 다음 화면에서 초대 링크를 보내면 함께 쓸 분들이 들어와요. 체험은 계정마다 한 번이에요.</p>
+  <div><button class="btn pri lg" type="submit"{% if trial_used %} disabled{% endif %}>기관 공간 만들기</button></div>
+</form>
+{% else %}
 {% include "spaces/_steps.html" with n=2 label="학교 찾기" pct=50 %}
 <h1 class="st-h">어느 학교 선생님이세요?</h1>
 <p class="st-lead">학교 이름 일부만 써도 돼요. 나이스 학교 정보에서 찾아요.</p>
@@ -14,4 +42,5 @@
   </form>
   <div id="res" aria-live="polite">{% include "spaces/_schools.html" %}</div>
 </section>
+{% endif %}
 {% endblock %}

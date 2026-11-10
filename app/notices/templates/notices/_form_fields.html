@@ -12,9 +12,9 @@
   <section class="card"><div class="card-h"><h2>받는 곳</h2></div><div class="card-b audw">
     <div class="amodes">
       <label class="amode"><input type="radio" name="aud" value="all"{% if form.aud != "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>전체</b></label>
-      <label class="amode"><input type="radio" name="aud" value="groups"{% if form.aud == "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>소속 고르기</b></label>
+      {% if group_opts %}<label class="amode"><input type="radio" name="aud" value="groups"{% if form.aud == "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>소속 고르기</b></label>{% endif %}
     </div>
-    <div class="apane"><div class="gck-row">{% for g in group_opts %}<label class="gck"><input type="checkbox" name="groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}{% if aud_locked %} disabled{% endif %}>{{ g.label }}</label>{% endfor %}</div></div>
+    {% if group_opts %}<div class="apane"><div class="gck-row">{% for g in group_opts %}<label class="gck"><input type="checkbox" name="groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}{% if aud_locked %} disabled{% endif %}>{{ g.label }}</label>{% endfor %}</div></div>{% endif %}
     {% if errors.aud %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.aud }}</p>{% endif %}
     <p class="small muted" style="margin:10px 0 0">{% if aud_locked %}확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요. {% endif %}소속을 골라도 완전한 비공개는 아니에요. 민감한 내용은 적지 마세요.</p>
   </div></section>

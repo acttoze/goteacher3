@@ -40,7 +40,8 @@ class Command(BaseCommand):
         who.add_argument("--manager-request", type=int, help="첫 관리자로 세울 신청 ID(school_plan requests의 #번호)")
 
     def _requests(self):
-        rows = PlanRequest.objects.filter(status=PlanRequest.Status.PENDING).select_related("school", "member").order_by("created_at", "pk")
+        rows = (PlanRequest.objects.filter(status=PlanRequest.Status.PENDING).exclude(school__neis_code="")  # 기관 신청은 org_plan requests
+                .select_related("school", "member").order_by("created_at", "pk"))
         self.stdout.write(f"대기 {len(rows)}건")
         for r in rows:
             size = " ".join(x for x in (f"학생 {r.students}" if r.students else "", f"학급 {r.classes}" if r.classes else "") if x)
@@ -53,6 +54,8 @@ class Command(BaseCommand):
             return self._requests()
         if not (o["on"] or o["off"] or o["remove_manager"]):
             raise CommandError("--on, --off, --remove-manager 중 하나를 써 주세요.")
+        if not o["code"]:  # 기관(neis_code="")을 학교로 켜는 실수를 막는다(T1)
+            raise CommandError("NEIS 학교 코드를 써 주세요. 기관은 org_plan으로 켜 주세요.")
         schools = School.objects.filter(neis_code=o["code"])
         if o["atpt"]:
             schools = schools.filter(neis_atpt=o["atpt"])

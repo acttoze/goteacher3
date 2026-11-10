@@ -8,7 +8,10 @@
         <input class="input" id="nm" name="name" value="{% if typed is not None %}{{ typed }}{% else %}{{ me.name }}{% endif %}" maxlength="40" autocomplete="off" style="max-width:280px"{% if error %} aria-invalid="true" aria-describedby="me-err"{% endif %}></label>
       {% if error %}<p class="field-err" id="me-err" role="alert">{{ error }}</p>{% endif %}
     </form></section>
-  {% if space.is_school and not me.in_grade %}
+  {% if space.is_org %}
+  <section class="srow"><div class="lab"><h2>소속</h2><p>그룹은 관리자가 정해요.</p></div>
+    <div class="panel pad"><b>{{ me.cls_text }}</b></div></section>
+  {% elif space.is_school and not me.in_grade %}
   <section class="srow"><div class="lab"><h2>소속</h2><p>내 소속과 직책이에요. 학교 화면에서 고칠 수 있어요.</p></div>
     <div class="panel pad"><div class="row"><b>{{ me.cls_text }}</b><a class="btn sec sm" href="/s/{{ space.token }}/school/me" style="margin-left:auto">소속·직책 고치기</a></div></div></section>
   {% else %}

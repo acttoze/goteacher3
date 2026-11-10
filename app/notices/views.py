@@ -225,7 +225,7 @@ def _form_ctx(request, form):
     picked = set(form["groups"])
     return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
             "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
-            "group_opts": [{"id": g, "label": label, "on": g in picked} for g, label in Member.Group.choices]}
+            "group_opts": [] if request.space.is_org else [{"id": g, "label": label, "on": g in picked} for g, label in Member.Group.choices]}  # 기관 그룹은 T2
 
 
 def _form_page(request, form, status=200, **extra):

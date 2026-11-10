@@ -47,6 +47,7 @@ urlpatterns = [
     path("", spaces.home),
     path("new/school", spaces.pick_school),
     path("new/class", spaces.new_class),
+    path("new/org", spaces.new_org),  # T1 기관 공간 바로 열기(체험)
     path("s/<str:space_token>/", spaces.grade),
     path("s/<str:space_token>/school", school_page.school),
     path("s/<str:space_token>/school/summary", school_summary.sheet),

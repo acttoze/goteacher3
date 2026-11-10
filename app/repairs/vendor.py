@@ -26,7 +26,7 @@ from accounts.models import hash_token
 from collect.models import Notification
 from config.ratelimit import TOO_MANY, allow, client_ip
 from notices.views import _clean
-from spaces.gates import school_required, school_write_required
+from spaces.gates import no_org, school_required, school_write_required
 from spaces.models import Member, MemberLog, Space
 from spaces.views import _space_ctx
 
@@ -243,6 +243,7 @@ def _audit(request, account, before, after):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @_handler_required
 @school_write_required
 def issue(request):
@@ -266,6 +267,7 @@ def issue(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @_handler_required
 def revoke(request):
     """해제: 끊는 일이라 플랜이 끝난 학교도 받는다(플랜을 다시 켰을 때 살아나지 않게)."""
@@ -281,6 +283,7 @@ def revoke(request):
 @never_cache
 @require_POST
 @school_required
+@no_org
 @_handler_required
 def link(request):
     """복사 단추가 부를 때만 링크 원문을 준다(화면 HTML·브라우저 캐시에 남지 않게). 받은 사람을 명부 이력과 link_seen_by에 남긴다.
@@ -298,6 +301,7 @@ def link(request):
 @never_cache
 @require_GET
 @school_required
+@no_org
 @_handler_required
 def access_log(request):
     """누가 언제 무엇을. 탈취를 알아볼 수 있게 상태 변경·사진 열람은 어느 요청인지 제목으로 보여 준다. 링크를 복사한 선생님도 함께."""
@@ -316,6 +320,7 @@ def access_log(request):
 @never_cache
 @require_GET
 @school_required
+@no_org
 @_handler_required
 def preview(request):
     """업체가 보는 화면 그대로(읽기 전용). 사진은 회원 주소로, 접속 기록은 남기지 않는다. 계정이 없으면 보일 요청도 없다."""

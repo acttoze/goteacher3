@@ -19,7 +19,7 @@ from collect.submit import _matrix, _units, unit_rows
 from notices.models import Notice
 from notices.seen import statuses
 
-from .gates import school_required
+from .gates import no_org, school_required
 from .models import Member
 
 ACK_MIN_TARGETS = 10  # 리드 결정: 이번 학기 확인 필수 공지의 대상 합계가 이보다 적으면 '—'
@@ -75,6 +75,7 @@ def figures(space):
 @never_cache
 @require_GET
 @school_required
+@no_org
 def sheet(request):
     """한 장 인쇄(A4 세로). 학교 이름·기간·결재란과 숫자 카드, 안내 문구."""
     return render(request, "spaces/summary.html", {"space": request.space, "sum": figures(request.space),

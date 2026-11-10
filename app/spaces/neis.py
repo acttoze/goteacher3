@@ -96,7 +96,10 @@ _flights_lock = threading.Lock()
 
 
 def _get(path, params, ttl, fail_ttl=FAIL_TTL):
-    """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0)."""
+    """행 목록과 전체 건수(list_total_count). 실패하면 (Failed(), 0).
+    학교 코드 칸이 있는데 비었으면(기관 공간, T1) 부르지 않고 '없음'(실패 아님)."""
+    if "SD_SCHUL_CODE" in params and not params["SD_SCHUL_CODE"]:
+        return [], 0
     ck = _cache_key(path, params)
     hit = cache.get(ck)
     if hit is not None:

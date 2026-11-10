@@ -35,7 +35,7 @@ def reachable_q(me):
 
 def scope_choices(me):
     """대상 고르기. 맨 앞이 기본값: 학교 전체. 쓸 수 있는 범위는 학교 전체·나·내 소속뿐(today.views._cell_scopes)."""
-    return [(ALL, "학교 전체"), (ME, "개인(나만)"), *([(me.group, me.get_group_display())] if me.group else [])]
+    return [(ALL, f"{me.space.word} 전체"), (ME, "개인(나만)"), *([(me.group, me.get_group_display())] if me.group else [])]
 
 
 class Event(models.Model):
@@ -75,7 +75,9 @@ class Event(models.Model):
 
     @property
     def scope_label(self):
-        return {ALL: "학교 전체", ME: "나만"}.get(self.scope) or Member.Group(self.scope).label
+        if self.scope == ALL:  # 학교 전체 / 기관 전체(T1). 판을 읽을 때 space를 함께 읽는다(select_related)
+            return f"{self.space.word} 전체"
+        return "나만" if self.scope == ME else Member.Group(self.scope).label
 
     def reachable_by(self, me):
         """reachable_q와 같은 판정을 이미 읽은 행에(장소 겹침 문구)."""

@@ -123,7 +123,7 @@
 <div class="title">
   <div class="grow">
     <h1>새 취합</h1>
-    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 학교 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감일은 비워 두면 마감 없이 만들어요.</p>
+    <p class="sub">받을 칸만 정하면 돼요. 받는 사람 줄은 {% if space.is_school %}고른 범위의 {{ space_word }} 명부로{% else %}{{ space_word }} 명부로 반마다{% endif %} 만들어지고, 마감일은 비워 두면 마감 없이 만들어요.</p>
   </div>
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>

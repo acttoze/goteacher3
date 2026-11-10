@@ -59,6 +59,8 @@ SUPPLIER_CEO = os.environ.get("SUPPLIER_CEO", "").strip()
 SCHOOL_PLAN_VAT = os.environ.get("SCHOOL_PLAN_VAT", "").strip()  # 견적서 부가세 칸에 그대로 적는 글자(금액 또는 처리 방식)
 SCHOOL_PLAN_TOTAL = os.environ.get("SCHOOL_PLAN_TOTAL", "").strip()  # 합계 금액(숫자)
 QUOTE_VALID_DAYS = os.environ.get("QUOTE_VALID_DAYS", "").strip()  # 발행일부터 며칠(숫자)
+# T1 기관 공간 체험 기간(일). 30은 리드가 넣은 임시 값(사용자 확정 전)
+ORG_TRIAL_DAYS = int(os.environ.get("ORG_TRIAL_DAYS", "") or 30)
 RQ_JOB_TIMEOUT = 300  # 작업당 상한(초). 한글 변환 표본 최대 205초(30번 리드 결정)
 
 # 빈도 제한(config/ratelimit.py): 여러 gunicorn 프로세스가 같은 수를 세도록 큐와 같은 Redis의 다른 DB(/1). Redis가 멈춰도 요청이 붙잡히지 않게 1초에서 끊는다.

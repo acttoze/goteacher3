@@ -107,27 +107,27 @@
     <h1 id="finding">{% if urgent %}{{ urgent.c.title }}, <span class="due num">{{ urgent.due }}</span> 마감이에요{% elif n_must %}확인 필수 공지 {{ n_must }}건, 아직 확인 안 했어요{% elif n_todo %}오늘 마감은 다 냈어요. 남은 건 {{ n_todo }}건이에요{% else %}오늘 낼 것은 모두 끝났어요{% endif %}</h1>
     <p class="sub">{{ date_label }} · {% if now_slot %}지금 <b>{{ now_slot.label }} {{ now_slot.from }}~{% if now_slot.k != "pm" %}{{ now_slot.to }}{% endif %}</b>{% elif weekend %}주말이에요{% else %}{{ first.label }} {{ first.from }} 시작 전{% endif %} · 남은 내 일 <b class="num">{{ n_mine }}건</b></p>
   </div>
-  {% if space.is_school %}<form class="seg" role="group" aria-label="볼 범위" method="get" action="/s/{{ space.token }}/today"><button name="show" value="me" aria-pressed="{% if show_school %}false{% else %}true{% endif %}">나에게 온 것</button><button name="show" value="school" aria-pressed="{% if show_school %}true{% else %}false{% endif %}">학교 전체</button></form>{% endif %}
+  {% if space.is_school %}<form class="seg" role="group" aria-label="볼 범위" method="get" action="/s/{{ space.token }}/today"><button name="show" value="me" aria-pressed="{% if show_school %}false{% else %}true{% endif %}">나에게 온 것</button><button name="show" value="school" aria-pressed="{% if show_school %}true{% else %}false{% endif %}">{{ space_word }} 전체</button></form>{% endif %}
   {% if urgent %}<a class="btn pri" href="/c/{{ urgent.c.link_token }}/u/{{ urgent.row.key }}">{{ urgent.c.title|truncatechars:16 }} 내기</a>{% elif n_must %}<a class="btn pri" href="/s/{{ space.token }}/board/{{ must_list.0.key }}/">공지 확인하기</a>{% else %}<a class="btn pri" aria-disabled="true">오늘 마감 없음</a>{% endif %}
 </div>
 
 {% if show_school %}
-<section class="card" aria-labelledby="wideAH" style="margin-bottom:var(--gap)">
+{% if not space.is_org %}<section class="card" aria-labelledby="wideAH" style="margin-bottom:var(--gap)">
   <div class="card-h"><h2 id="wideAH">학교 전체 · 오늘 복무</h2><span class="n num">{{ attendance_wide|length }}</span><span class="r">유형·시간만 보여요. 사유는 안 받아요</span></div>
   <ul class="list wide">
     {% for a in attendance_wide %}<li><div class="t">{{ a.title }}</div><span class="due num">{{ a.time_text }}</span><span>{{ a.group_label }}</span><span></span></li>
     {% empty %}<li class="none"><p class="empty">오늘 부재자가 없어요.</p></li>{% endfor %}
   </ul>
-</section>
+</section>{% endif %}
 <section class="card" aria-labelledby="wideH" style="margin-bottom:var(--gap)">
-  <div class="card-h"><h2 id="wideH">학교 전체 · 진행 중인 취합</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
+  <div class="card-h"><h2 id="wideH">{{ space_word }} 전체 · 진행 중인 취합</h2><span class="n num">{{ school_wide|length }}</span><span class="r">마감순</span></div>
   <ul class="list wide">
     {% for x in school_wide %}<li><div class="t">{% if x.href %}<a href="{{ x.href }}">{{ x.title }}</a>{% else %}{{ x.title }}{% endif %}</div><span class="due num{% if x.urgent %} urgent{% endif %}">{{ x.due }}</span><div class="track{% if x.all %} done{% endif %}"><i style="width:{{ x.pct }}%"></i></div><span class="cnt num">{{ x.n_done }}/{{ x.n_total }}{{ x.per }}</span></li>
     {% empty %}<li class="none"><p class="empty">진행 중인 취합이 없어요.</p></li>{% endfor %}
   </ul>
 </section>
 <section class="card" aria-labelledby="wideNH" style="margin-bottom:var(--gap)">
-  <div class="card-h"><h2 id="wideNH">학교 전체 · 확인 필수 공지</h2><span class="n num">{{ notices_wide|length }}</span><span class="r">최근 순</span></div>
+  <div class="card-h"><h2 id="wideNH">{{ space_word }} 전체 · 확인 필수 공지</h2><span class="n num">{{ notices_wide|length }}</span><span class="r">최근 순</span></div>
   <ul class="list wide">
     {% for x in notices_wide %}<li><div class="t"><a href="/s/{{ space.token }}/board/{{ x.n.key }}/">{{ x.n.title }}</a></div><span class="due num">{{ x.n.by_name }} · {{ x.n.updated_at|date:"n/j" }}</span>{% if x.stat %}<div class="track{% if x.stat.pct == 100 %} done{% endif %}"><i style="width:{{ x.stat.pct }}%"></i></div><span class="cnt num">{{ x.stat.seen }}/{{ x.stat.total }}</span>{% else %}<span></span><span class="cnt">{% if x.acked %}나 확인함{% endif %}</span>{% endif %}</li>
     {% empty %}<li class="none"><p class="empty">확인 필수 공지가 없어요.</p></li>{% endfor %}

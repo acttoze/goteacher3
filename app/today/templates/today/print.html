@@ -71,7 +71,7 @@
     <div><div class="small">{{ space.school.name }}</div><h1>{{ heading }}</h1><div class="small">출력 {{ stamp }} · 고티처</div></div>
     <table class="sign"><tr><th>담당</th><th>교감</th><th>교장</th></tr><tr><td></td><td></td><td></td></tr></table>
   </div>
-  <p class="key">◆ 행사 &nbsp;■ 업무·교육 &nbsp;▲ 회의 &nbsp;○ 복무</p>
+  <p class="key">◆ 행사 &nbsp;■ 업무·교육 &nbsp;▲ 회의{% if not space.is_org %} &nbsp;○ 복무{% endif %}</p>
   {% if view == "week" %}
   <table class="wk{% if dense %} dense{% endif %}">
     <thead><tr><th class="l" scope="col"></th>{% for d in days %}<th scope="col">{{ d }}</th>{% endfor %}</tr></thead>
