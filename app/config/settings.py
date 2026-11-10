@@ -88,6 +88,7 @@ INSTALLED_APPS = [
     "meals",
     "partners",
     "community",
+    "legacy",
 ]
 
 MIDDLEWARE = [
