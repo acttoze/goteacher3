@@ -94,6 +94,8 @@ class Space(models.Model):
     token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     invite_token = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     merged_into = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="merged_spaces")
+    # Q2 학교 공간의 소속 순서(Member.Group 값을 쉼표로). 비면 기본 순서. 빠진 소속은 뒤에 기본 순서로 붙는다.
+    group_order = models.CharField("소속 순서", max_length=100, blank=True, default="", db_default="")  # db_default: 옛 상태 이관 테스트가 넣는 행
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -116,6 +118,13 @@ class Space(models.Model):
     @property
     def label(self):
         return "학교" if self.is_school else f"{self.grade}학년"
+
+    @property
+    def group_choices(self):
+        """[(소속 값, 이름)] 이 학교의 소속 순서(Q2). 학교 화면·취합 소속순이 같이 쓴다."""
+        keys = [k for k in self.group_order.split(",") if k in Member.Group.values]
+        keys = list(dict.fromkeys(keys + Member.Group.values))
+        return [(k, Member.Group(k).label) for k in keys]
 
     @property
     def word(self):
@@ -164,6 +173,8 @@ class Member(models.Model):
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     # Q1 설정 > 표시 요일: 일정 주·월 보기에 보일 요일(월=0~일=6 숫자를 이어서). 기본 월~금.
     days_on = models.CharField("표시 요일", max_length=7, default="01234")
+    # Q2 소속 안 순서(관리자가 끌어서 정함). 비면 직책 순(school._order).
+    order = models.PositiveIntegerField("소속 안 순서", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     objects = SpaceQuerySet.as_manager()

@@ -431,7 +431,7 @@ def _miss_groups(c, miss):
     for u in miss:
         r = u["row"]
         fold.setdefault(r.group or group_of.get(r.member_id, ""), []).append(u)
-    order = [*GROUPS, ""]  # 소속 순, 명부 밖 줄은 끝
+    order = [g for g, _ in c.space.group_choices] + [""]  # 학교 소속순(Q2), 명부 밖 줄은 끝
     return [{"label": GROUPS.get(g, "명부 밖"), "n": len(fold[g]), "text": _nudge_text(c, fold[g])} for g in order if g in fold]
 
 

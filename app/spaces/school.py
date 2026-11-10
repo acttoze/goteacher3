@@ -1,7 +1,9 @@
 """H3 학교 화면(prototype school·editMe): 학년분장·그룹 카드, 내 그룹·직책 고치기, 관리자 지정, 업무분장 붙여넣기. L1 요약 카드는 summary.py.
+Q2 관리자 순서·소속 바꾸기(arrange): 소속·부서 카드 순서, 카드 안 순서, 다른 소속·부서로 옮기기.
 
 모든 교직원이 같은 화면을 본다. 권한은 Member.is_manager로만 판단하고, 그룹·직책 글자는 표시에만 쓴다.
 """
+import json
 import re
 import secrets
 
@@ -19,7 +21,7 @@ from .duty_paste import EMPTY, TOO_BIG, read_duties
 from .gates import manager_required, school_required, school_write_required
 from .merge import remove_manager
 from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
-from .views import GROUP_ROLES, _cls_label, _invite, _space_ctx, log_place, place_values, read_place
+from .views import GROUP_ROLES, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values, read_place
 
 LOG_N = 20  # 관리자에게 보이는 최근 이력
 NAMES = re.compile(r"[,，、/\n]+")  # 담당 칸 하나에 여러 이름
@@ -38,15 +40,27 @@ def _order(m):
     return (0, roles.index(m.position)) if m.position in roles else (1, 0)
 
 
-def _group_cards(rows):
-    """사람이 있는 그룹의 카드, 빈 그룹 이름. rows: _roster의 줄."""
+def _in_group(m):
+    """소속 안 순서(Q2): 관리자가 정한 순서, 정하지 않은 사람은 그 뒤에 직책 순."""
+    return (m.order is None, m.order or 0, _order(m))
+
+
+def sort_members(space, members):
+    """학교 소속순(Q2): 이 학교의 소속 순서, 소속 안은 _in_group. 학교 화면과 취합 받는 사람 소속순이 같이 쓴다."""
+    rank = {g: i for i, (g, _) in enumerate(space.group_choices)}
+    members.sort(key=lambda m: (rank.get(m.group, len(rank)), _in_group(m)))
+    return members
+
+
+def _group_cards(space, rows, arrange=False):
+    """사람이 있는 그룹의 카드, 빈 그룹 이름. rows: _roster의 줄. 바꾸기 화면(arrange)은 빈 소속도 카드로(옮겨 넣을 곳)."""
     cards, empty = [], []
-    for g, label in Member.Group.choices:
-        mine = sorted((r for r in rows if r["m"].group == g), key=lambda r: _order(r["m"]))
-        if not mine:
+    for g, label in space.group_choices:
+        mine = sorted((r for r in rows if r["m"].group == g), key=lambda r: _in_group(r["m"]))
+        if not mine and not arrange:
             empty.append(label)
             continue
-        cards.append({"label": label, "n": len(mine),
+        cards.append({"g": g, "label": label, "n": len(mine),
                       "rows": [{**r, "pos": _cls_label(r["m"].cls) if r["m"].in_grade else r["m"].position} for r in mine]})
     return cards, empty
 
@@ -99,7 +113,10 @@ def _dept_cards(space, me):
 def _school_ctx(request, **extra):
     space, me = request.space, request.member
     tab = "duty" if request.GET.get("tab") == "duty" else "grade"
-    ctx = _space_ctx(request, page="school", tab=tab, writable=space.school.writable, **extra)
+    arrange = me.is_manager and space.school.writable and request.GET.get("arrange") == "1"
+    if request.GET.get("err") == "1":
+        extra.setdefault("error", "저장하지 못해 원래 자리로 돌렸어요. 다시 해 주세요.")
+    ctx = _space_ctx(request, page="school", tab=tab, writable=space.school.writable, arrange=arrange, **extra)
     ctx.update(_invite(space, me))
     ctx["n_groups"] = len(Member.Group.choices)
     ctx["alone"] = me.is_manager and len(ctx["rows"]) == 1
@@ -113,7 +130,10 @@ def _school_ctx(request, **extra):
         ctx["dept_cards"] = _dept_cards(space, me)
         ctx["n_tasks"] = sum(len(c["rows"]) for c in ctx["dept_cards"])
     else:
-        ctx["group_cards"], ctx["empty_groups"] = _group_cards(ctx["rows"])
+        ctx["group_cards"], ctx["empty_groups"] = _group_cards(space, ctx["rows"], arrange)
+        if arrange:  # 학년으로 옮길 때 고를 반
+            ctx["grade_classes"] = [(g, [(c, _cls_label(c)) for c in _grade_choices(space.school, int(g[1:]))])
+                                    for g, _ in space.group_choices if g[1:].isdigit()]
         if me.is_manager:
             ctx["logs"] = MemberLog.objects.in_space(space).order_by("-at", "-pk")[:LOG_N]
     return ctx
@@ -128,7 +148,119 @@ def school_body(request, status=200, **extra):
 @require_GET
 @school_required
 def school(request):
+    if request.headers.get("HX-Request"):  # 바꾸기 저장이 실패하면 본문을 다시 받아 원래 자리로(Q2)
+        return school_body(request)
     return render(request, "spaces/school.html", _school_ctx(request, toast=request.session.pop(TOAST, "")))
+
+
+def _keys(request):
+    """keys: 놓은 뒤 그 칸의 순서(JSON 글자 목록). 이상하면 None."""
+    try:
+        keys = json.loads(request.POST.get("keys", ""))
+    except ValueError:
+        return None
+    ok = isinstance(keys, list) and len(keys) <= 500 and all(isinstance(k, str) for k in keys)
+    return list(dict.fromkeys(keys)) if ok else None
+
+
+def _move_member(request, group, keys):
+    """소속 카드 안 순서(keys = 그 소속의 놓은 뒤 순서). 다른 소속에서 온 사람(한 번에 한 명)은 소속을 바꾸고 이력·🔔.
+    거절은 ValueError(안내 문구).
+    학년으로 오면 반(cls)을 받고 직위는 반 이름, 학년 밖으로 가면 cls는 소속 이름, 직위는 그대로(학년 반 이름이었으면 비움)."""
+    space, me = request.space, request.member
+    by_key = Member.objects.in_space(space).in_bulk(keys, field_name="key")
+    picked = [by_key[k] for k in keys if k in by_key]
+    moved = [m for m in picked if m.group != group]
+    if len(moved) > 1:
+        raise ValueError("한 번에 한 선생님씩 옮겨 주세요.")
+    done = "순서를 바꿨어요."
+    if moved:
+        m, label = moved[0], Member.Group(group).label
+        before = m.cls_text
+        if group[1:].isdigit():
+            cls = request.POST.get("cls", "")
+            if cls not in _grade_choices(space.school, int(group[1:])):
+                raise ValueError("몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요.")
+            m.cls, m.position = cls, _cls_label(cls)
+        else:
+            m.cls, m.position = label, "" if m.in_grade else m.position
+        m.group = group
+        m.save(update_fields=["group", "cls", "position"])
+        MemberLog.objects.create(space=space, by=me.name, name=m.name, before=before, after=m.cls_text)
+        if m.pk != me.pk:
+            Notification.objects.create(
+                space=space, member=m, kind=Notification.Kind.SEAT, day=timezone.localdate(), pushed=True,
+                text=f"{me.name} 선생님(관리자)이 내 소속을 {m.cls_text}{_josa(m.cls_text, '으로', '로')} 옮겼어요.",
+                link=f"/s/{space.token}/school")
+        done = f"{m.name} 선생님을 {label}{_josa(label, '으로', '로')} 옮겼어요."
+    rest = sorted(Member.objects.in_space(space).filter(group=group).exclude(pk__in=[m.pk for m in picked]), key=_in_group)
+    for i, m in enumerate(picked + rest):
+        m.order = i
+    Member.objects.bulk_update(picked + rest, ["order"])
+    return done
+
+
+def _move_duty(space, what, target, keys):
+    """업무분장: 부서 순서(depts, keys = 부서 이름) 또는 부서 안 줄 순서(duties, keys = 그 부서의 줄). 다른 부서 줄이 오면 dept를 바꾼다.
+    부서 순서는 Duty.order가 곧 표 순서라 전체를 다시 매긴다."""
+    by_dept = {}
+    for d in Duty.objects.in_space(space).order_by("order", "pk"):
+        by_dept.setdefault(d.dept, []).append(d)
+    if what == "depts":
+        order = [k for k in keys if k in by_dept] + [k for k in by_dept if k not in keys]
+        rows = [d for k in order for d in by_dept[k]]
+        done = "부서 순서를 바꿨어요."
+    else:
+        if target not in by_dept:
+            raise ValueError("없는 부서예요. 화면을 새로 고쳐 주세요.")
+        mine = {str(d.pk): d for ds in by_dept.values() for d in ds}
+        picked = [mine[k] for k in keys if k in mine]
+        moved = [d for d in picked if d.dept != target]
+        if len(moved) > 1:
+            raise ValueError("한 번에 한 줄씩 옮겨 주세요.")
+        for d in moved:
+            d.dept = target
+            Duty.objects.filter(pk=d.pk).update(dept=target)
+        ids = {d.pk for d in picked}
+        rows = []
+        for dept, ds in by_dept.items():
+            if dept == target:
+                rows += picked + [d for d in ds if d.pk not in ids]
+            else:
+                rows += [d for d in ds if d.pk not in ids]
+        done = f"업무 한 줄을 {target}{_josa(target, '으로', '로')} 옮겼어요." if moved else "순서를 바꿨어요."
+    for i, d in enumerate(rows):
+        d.order = i
+    Duty.objects.bulk_update(rows, ["order"])
+    return done
+
+
+@never_cache
+@require_POST
+@school_required
+@manager_required
+@school_write_required
+def arrange(request):
+    """Q2 순서·소속 바꾸기(관리자 끌어서 놓기·단추). what: groups(소속 카드)·members(소속 안, group=소속)·depts(부서 카드)·
+    duties(부서 안, group=부서). 응답은 본문 통째로: 실패해도 서버 상태(= 원래 자리)와 안내가 그려진다."""
+    space, what, keys = request.space, request.POST.get("what", ""), _keys(request)
+    target = request.POST.get("group", "")
+    if keys is None or what not in ("groups", "members", "depts", "duties") or (what == "members" and target not in Member.Group.values):
+        return school_body(request, status=400, error="저장하지 못했어요. 화면을 새로 고쳐 다시 해 주세요.")
+    try:
+        with transaction.atomic():
+            Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()  # 관리자 둘이 동시에 바꿔도 순서가 섞이지 않게
+            if what == "groups":
+                space.group_order = ",".join(k for k in keys if k in Member.Group.values)
+                Space.objects.filter(pk=space.pk).update(group_order=space.group_order)
+                done = "소속 순서를 바꿨어요."
+            elif what == "members":
+                done = _move_member(request, target, keys)
+            else:
+                done = _move_duty(space, what, target, keys)
+    except ValueError as e:  # 안에서 바꾼 것은 모두 되돌린다
+        return school_body(request, status=400, error=str(e))
+    return school_body(request, toast=done)
 
 
 @never_cache

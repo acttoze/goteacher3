@@ -16,7 +16,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from spaces.models import Duty, Member
-from spaces.school import _order, _person, split_people
+from spaces.school import _person, sort_members, split_people
 from spaces.views import _clean_name
 
 from .models import Collection, Row
@@ -39,11 +39,10 @@ def _class_no(cls):
 
 
 def _members(space):
-    """줄 순서로 정렬한 명부. 학교 공간은 소속 순(학년·반, 전담은 뒤, 교무실·행정실·급식소·기타), 같으면 학교 화면 순서."""
+    """줄 순서로 정렬한 명부. 학교 공간은 학교 화면과 같은 소속순(Q2 관리자가 바꾼 순서, 기본은 학년·반·전담 그다음 교무실·행정실·급식소·기타)."""
     members = list(Member.objects.in_space(space).order_by("joined_at", "pk"))
     if space.is_school:
-        rank = {g: i for i, g in enumerate(Member.Group.values)}
-        members.sort(key=lambda m: (rank.get(m.group, len(rank)), _order(m)))
+        sort_members(space, members)
     else:
         members.sort(key=lambda m: (m.cls.partition("-")[0], _class_no(m.cls) is None, _class_no(m.cls) or 0))
     return members
@@ -72,7 +71,7 @@ def read_audience(space, data):
         return {}
     mode = data.get("aud", "")
     if mode == "pergroup":
-        return {"mode": mode, "groups": [g for g in GROUPS if g in data.getlist("aud_pgroups")]}
+        return {"mode": mode, "groups": [g for g, _ in space.group_choices if g in data.getlist("aud_pgroups")]}
     sort = {"sort": "dept"} if data.get("aud_sort") == "dept" and Duty.objects.in_space(space).exists() else {}
     if mode == "people":
         known = set(Member.objects.in_space(space).values_list("key", flat=True))
@@ -184,9 +183,9 @@ def audience_form(space, aud):
     groups, mode = aud.get("groups", []), aud.get("mode")
     n = {g: sum(m.group == g for m in members) for g in GROUPS}
     by_dept = aud.get("sort") == "dept"
-    packs = _by_dept(space, members) if by_dept else [(label, [m for m in members if m.group == g]) for g, label in GROUPS.items() if n[g]]
+    packs = _by_dept(space, members) if by_dept else [(label, [m for m in members if m.group == g]) for g, label in space.group_choices if n[g]]
     return {"aud_mode": mode, "aud_sort": "dept" if by_dept else "group", "aud_has_duty": Duty.objects.in_space(space).exists(),
-            "aud_groups": [{"id": g, "label": label, "n": n[g], "pon": g in groups and mode == "pergroup"} for g, label in GROUPS.items()],
+            "aud_groups": [{"id": g, "label": label, "n": n[g], "pon": g in groups and mode == "pergroup"} for g, label in space.group_choices],
             "aud_people": [{"label": label, "members": [{"key": m.key, "name": m.name, "pos": m.position or m.cls_text, "on": m.key in picked}
                                                         for m in ms]} for label, ms in packs]}
 

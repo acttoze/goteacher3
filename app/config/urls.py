@@ -59,6 +59,7 @@ urlpatterns = [
     path("s/<str:space_token>/school/attendance/clear", attendance_page.clear),
     path("s/<str:space_token>/school/duties", school_page.duties),
     path("s/<str:space_token>/school/duties/preview", school_page.duties_preview),
+    path("s/<str:space_token>/school/arrange", school_page.arrange),  # Q2 순서·소속 바꾸기
     path("s/<str:space_token>/members", spaces.members),
     path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
     path("s/<str:space_token>/settings", device.settings_page),

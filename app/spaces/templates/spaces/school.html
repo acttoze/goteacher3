@@ -1,7 +1,8 @@
 {% extends "shell.html" %}
+{% load static %}
 {% block title %}학교 · 고티처{% endblock %}
 {% block ptitle %}학교{% endblock %}
-{% block head %}{% if link %}{% include "spaces/_invite_style.html" %}{% endif %}
+{% block head %}{% if link %}{% include "spaces/_invite_style.html" %}{% endif %}{% if is_creator and writable %}<script src="{% static 'js/school_arrange.js' %}" defer></script>{% endif %}
 <style>
   /* prototype school(): 그룹마다 카드, 교직원 40명이 1536×750 첫 화면에 여러 그룹으로 읽히게 줄을 낮게 둔다. */
   .gcard .card-h { min-height: 0; padding-bottom: 8px; }
@@ -43,5 +44,19 @@
   .att-row { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 4px 24px; }
   .att-row li { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; overflow-wrap: anywhere; min-width: 0; }
   .att-row b { font-weight: 600; }
+  /* Q2 관리자 끌어서 놓기 */
+  .arr-bar { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .arr-bar p { flex: 1; min-width: 0; margin: 0; }
+  .arr-btns { display: inline-flex; gap: 0; margin-left: auto; flex: none; margin-block: -2px; }
+  .card-h .r + .arr-btns { margin-left: 0; }
+  .arr-b { width: var(--control-h-sm); padding: 0; }
+  /* 바꾸기 줄: 이름 쪽은 좁아지면 줄바꿈, 단추는 같은 줄 오른쪽 */
+  .who[data-arr-key] { flex-wrap: nowrap; padding-right: 0; }
+  .arr-t { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; flex: 1; min-width: 0; }
+  .task[data-arr-key] { grid-template-columns: minmax(0, 1fr) minmax(0, max-content) auto; align-items: center; padding-block: 0; }
+  .arr-cls[hidden] { display: none; }
+  [data-arr-key][draggable] { cursor: grab; }
+  .dragging { opacity: .45; }
+  .arr-empty { display: flex; align-items: center; min-height: 40px; }
 </style>{% endblock %}
 {% block main %}{% include "spaces/_school.html" %}{% endblock %}
