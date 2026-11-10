@@ -28,3 +28,6 @@ staticfiles/
 
 # G3 보안 점검표(재현 방법 포함) — 공개 저장소·Pages에 올리지 않는다
 /meeting/31_security_check.md
+
+# 스테이징 확인용 계정(비밀번호, 커밋 금지)
+/check_accounts.txt
