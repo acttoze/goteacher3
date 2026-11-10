@@ -104,9 +104,10 @@ class NeisTests(Base):
 class GateTests(Base):
     """학교에만 있는 화면은 기관에서 404. 학교 공간은 그대로 열린다."""
 
-    GET_404 = ("/school", "/school/summary", "/school/me", "/school/attendance", "/school/duties", "/meals", "/meals/screens",
+    # T2: /school(= 채널 화면)·/school/me(직위)·배정(arrange)·그룹 색·관리자 지정·임시 비밀번호는 기관에서도 연다
+    GET_404 = ("/school/summary", "/school/attendance", "/school/duties", "/meals", "/meals/screens",
                "/it", "/repairs", "/repairs/new")
-    POST_404 = ("/school/arrange", "/school/group-color", "/school/attendance/preview", "/school/duties/preview",
+    POST_404 = ("/school/attendance/preview", "/school/duties/preview",
                 "/today/duty", "/repairs/vendor", "/meals/tv/reissue")
 
     def test_school_only_pages_are_404_in_org(self):
@@ -118,7 +119,7 @@ class GateTests(Base):
         for path in self.POST_404:
             self.assertEqual(c.post(base + path, {"date": "2026-11-10", "line": "김민수 출장"}).status_code, 404, path)
         other = Member.objects.create(space=space, user=google("2", "김"), name="김", cls="미배정")
-        for tail in ("manager", "password", "attendance", "repair", "meal"):
+        for tail in ("attendance", "repair", "meal"):
             self.assertEqual(c.post(f"{base}/school/members/{other.key}/{tail}").status_code, 404, tail)
 
     def test_duty_delete_is_404_in_org(self):
@@ -249,7 +250,7 @@ class JoinTests(Base):
         m = Member.objects.get(space=space, name="김민수")
         self.assertEqual((m.group, m.cls, m.position, m.is_manager), ("", "미배정", "주무관", False))
         bell = Notification.objects.get(member=boss)
-        self.assertEqual(bell.link, f"/s/{space.token}/settings?a=space")
+        self.assertEqual(bell.link, f"/s/{space.token}/channels")
 
     def test_guest_cannot_join_org(self):
         from accounts.models import new_guest

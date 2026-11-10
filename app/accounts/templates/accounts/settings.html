@@ -34,6 +34,8 @@
 {% if area == "prefs" %}
 <section class="srow"><div class="lab"><h2>표시 요일</h2><p>켠 요일만 일정 주·월 보기에 칸이 생겨요. 토·일을 켜면 주말 일정·복무·취합 마감도 보여요. 하나는 켜 두어야 해요.</p></div>
   {% include "accounts/_days.html" %}</section>
+{% if lines %}<section class="srow"><div class="lab"><h2>보이는 그룹 줄</h2><p>끈 그룹은 내 일정·오늘 화면에서만 빠져요. 다른 분 화면과 권한은 그대로예요. 하나는 켜 두어야 해요.</p></div>
+  {% include "accounts/_lines.html" %}</section>{% endif %}
 
 {% elif area == "me" %}
 {% include "accounts/_me.html" %}

@@ -19,6 +19,13 @@
   .wgrid > .lbl, .wgrid > .hd { background: var(--u1-head); border-color: var(--u1-head-line); } /* U1 머리줄·줄 이름 칸 */
   .wgrid > .lbl span { display: block; font-weight: 400; color: var(--faint); white-space: nowrap; }
   .wgrid > .hd { border-top: 0; min-height: 0; }
+  /* T2 기관 주 보기: 그룹 줄 여럿을 한눈에. 칸 여백·최소 높이를 줄이고, 일정 없는 줄은 ＋ 칸 높이만(학교 판은 그대로) */
+  .wgrid.org > div:not(.hd) { min-height: 0; padding: 6px 8px; }
+  .wgrid.org .ev { margin-bottom: 4px; padding-block: 6px; }
+  .wgrid.org .cell-add { min-height: 20px; }
+  .wgrid.org > div:has(.ev) > .cell-add { min-height: 14px; } /* 일정이 있는 칸의 ＋는 얇은 띠(누르면 그대로 입력 카드) */
+  .wgrid.org > .e { padding-block: 4px; }
+  .wgrid.org > .e .cell-add { min-height: 24px; }
   .hd b { display: block; font-size: 16px; }
   .hd span { font-size: var(--fs-small); color: var(--muted); }
   .hd.today b { color: var(--accent-ink); }
@@ -41,6 +48,7 @@
 
   /* 월간: 일~토 달력(prototype) 중 켠 요일 칸만(Q1), 주마다 날짜 줄 + 채널 줄. 빈 칸은 낮게, 긴 제목은 줄을 바꾼다 */
   .mgrid { display: grid; grid-template-columns: 56px repeat(var(--n, 7), minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .mgrid.org { grid-template-columns: 116px repeat(var(--n, 7), minmax(0, 1fr)); } /* T2 기관: 그룹 이름 줄(주간과 같은 폭) */
   .mgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 2px 4px; min-width: 0; min-height: 26px; }
   .mgrid > .mh { border-top: 0; min-height: 0; padding: 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); text-align: center; }
   .mgrid > .mh, .mgrid > .ml-h, .mgrid > .ml, .mgrid > .mdh, .mgrid > .mdh-l { background: var(--u1-head); border-color: var(--u1-head-line); } /* U1 머리줄 */
@@ -115,7 +123,7 @@
 </div>
 
 {# 칸 안 추가 카드. schedule.js가 눌린 칸에 복제해 넣고 mode·w·tab·date·slot·scope를 채운다(복무 칸은 data-post로 주소도). 안내 문구는 범위를 앞에. #}
-<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="tab"><input type="hidden" name="date"><input type="hidden" name="slot">{% if space.is_school %}<input type="hidden" name="scope">{% endif %}<label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter"{% if space.is_school %} data-ph-all="{{ space_word }} 전체 · 제목 쓰고 Enter" data-ph-me="나만 보기 · 제목 쓰고 Enter"{% if me.group %} data-ph-{{ me.group }}="{{ me.get_group_display }} · 제목 쓰고 Enter"{% endif %} data-ph-duty="예: 김민수 출장 13:00~16:30"{% endif %}></label><p class="cell-err" id="cellErr" role="alert"></p></form></template>
+<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#week" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="week"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="tab"><input type="hidden" name="date"><input type="hidden" name="slot">{% if space.is_school %}<input type="hidden" name="scope">{% endif %}<label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter"{% if space.is_school %} data-ph-all="{{ space_word }} 전체 · 제목 쓰고 Enter" data-ph-me="나만 보기 · 제목 쓰고 Enter"{% if space.is_org %}{% for k, n in space.group_choices %} data-ph-{{ k }}="{{ n }} · 제목 쓰고 Enter"{% endfor %}{% elif me.group %} data-ph-{{ me.group }}="{{ my_group_label }} · 제목 쓰고 Enter"{% endif %} data-ph-duty="예: 김민수 출장 13:00~16:30"{% endif %}></label><p class="cell-err" id="cellErr" role="alert"></p></form></template>
 
 {% include "today/_week.html" %}
 {% endblock %}

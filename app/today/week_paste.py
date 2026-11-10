@@ -18,7 +18,7 @@ from spaces.gates import school_required
 from spaces.models import Space
 from spaces.views import _space_ctx
 
-from .models import ALL, Event, reachable_q, scope_choices
+from .models import ALL, Event, default_scope, reachable_q, scope_choices
 from .parse import parse, slot_text
 from .schedule import shown_monday
 from .views import PLACE_MAX, _dates, _scope_ok
@@ -167,9 +167,11 @@ def read_week(text, mon):
 
 
 def _scope(request):
-    """대상은 기본 학교 전체(주간계획은 학교 공용)."""
+    """대상은 기본 학교 전체(주간계획은 학교 공용). 기관은 내 그룹 줄(미배정이면 첫 줄, T2)."""
     raw = request.POST.get("scope")
-    return raw if _scope_ok(raw) else ALL
+    if _scope_ok(raw, request.space):
+        return raw
+    return default_scope(request.member) if request.space.is_org else ALL
 
 
 def _mark_new(rows, space, me, scope):

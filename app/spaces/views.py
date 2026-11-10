@@ -284,7 +284,7 @@ def new_class(request):
         return redirect(f"/s/{mine.token}/")
     # POST는 고른 학교를 먼저 꺼내 지운다(두 번 클릭). 입력 오류로 다시 보여 줄 때만 되돌린다.
     school = request.session.pop(PICKED, None) if request.method == "POST" else request.session.get(PICKED)
-    if not school:
+    if not school or not school.get("code"):  # NEIS 코드 없는 학교(= 기관)에는 동학년을 만들지 않는다
         return redirect("/")
     if _school_open(school):
         return _school_notice(request, school)
@@ -666,7 +666,7 @@ def _welcome_alert(space, seat):
     text = f"{seat.name} 선생님({seat.cls_text})이 들어왔어요"
     Notification.objects.bulk_create(
         Notification(space=space, member=m, kind=Notification.Kind.JOIN, day=timezone.localdate(), text=text,
-                     link=f"/s/{space.token}/" + ("settings?a=space" if space.is_org else "school"), pushed=True, about=seat)
+                     link=f"/s/{space.token}/" + ("channels" if space.is_org else "school"), pushed=True, about=seat)
         for m in Member.objects.in_space(space).filter(is_manager=True)
     )
 

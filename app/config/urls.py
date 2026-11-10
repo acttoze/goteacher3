@@ -62,12 +62,15 @@ urlpatterns = [
     path("s/<str:space_token>/school/duties/preview", school_page.duties_preview),
     path("s/<str:space_token>/school/arrange", school_page.arrange),  # Q2 순서·소속 바꾸기
     path("s/<str:space_token>/school/group-color", school_page.group_color),  # U1 소속 색
+    path("s/<str:space_token>/channels", school_page.school),  # T2 기관 채널 화면(학교 화면 뷰가 기관이면 채널을 그린다)
+    path("s/<str:space_token>/school/groups", school_page.org_group),  # T2 기관 그룹 만들기·이름·지우기
     path("s/<str:space_token>/members", spaces.members),
     path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
     path("s/<str:space_token>/settings", device.settings_page),
     path("s/<str:space_token>/settings/remember", device.remember),
     path("s/<str:space_token>/settings/slots", device.slots),
     path("s/<str:space_token>/settings/days", device.days),
+    path("s/<str:space_token>/settings/lines", device.lines),  # T2 보이는 그룹 줄(기관)
     path("s/<str:space_token>/settings/logout-all", device.logout_all),
     path("s/<str:space_token>/settings/me", spaces.update_me),
     path("s/<str:space_token>/settings/password", device.change_password),  # P1 아이디 회원

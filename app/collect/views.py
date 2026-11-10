@@ -30,7 +30,7 @@ from .models import Cell, Collection, Field, Notification
 from . import hwpform
 from .paste import YES_NO, PasteError, clean_text, guess_kind, html_to_tsv, parse, student_info
 from .presets import PRESETS
-from .recipients import (GROUPS, audience_form, audience_head, audience_rows, audience_text, audience_where, make_rows,
+from .recipients import (audience_form, audience_head, audience_rows, audience_text, audience_where, make_rows,
                          read_audience, roster_rows, stored_audience, unmatched_count)
 from .submit import NA, _head, _matrix, _need
 
@@ -158,7 +158,7 @@ def new(request):
                     cols.append(("금액", "calc", []))
                 c = _create_cols(request, title or f"{cols[0][0]} 조사", Collection.Source.SHEET,
                                  [(n, k) for n, k, _ in cols], audience_head(aud), multi, rows, options=[o for _, _, o in cols],
-                                 audience=stored_audience(aud, rows))
+                                 audience=stored_audience(aud, rows, request.space))
                 return made(c)
         elif src == "hwp":
             # E6 칸 확인: 고른 표의 자동 라벨을 다듬은 값(POST)을 다시 검사해 취합을 만든다(hwpform).
@@ -254,8 +254,8 @@ def _aud_sum(space, aud):
     """받는 곳 요약 줄(_aud_sum.html)과 받는 사람 칸 머리글·쪽지 문구."""
     rows = audience_rows(space, aud)
     head = audience_head(aud)
-    return {"aud_n": len(rows), "aud_text": audience_text(aud, len(rows)), "aud_head_a": "소속" if head[0] == "그룹" else head[0], "aud_head_b": head[1],
-            "aud_where": audience_where(aud), "aud_names": [r["who"] for r in rows] if aud.get("mode") == "people" else [],
+    return {"aud_n": len(rows), "aud_text": audience_text(aud, len(rows), space), "aud_head_a": "소속" if head[0] == "그룹" and not space.is_org else head[0], "aud_head_b": head[1],
+            "aud_where": audience_where(aud, space), "aud_names": [r["who"] for r in rows] if aud.get("mode") == "people" else [],
             "aud_unmatched": unmatched_count(aud, rows)}
 
 
@@ -294,7 +294,7 @@ def _create(request, title, p, aud, rows):
         # 명부 우선(prototype TR.audRows·design): 표에서는 칸만 가져오고 줄은 명부(동학년은 반별, 학교 공간은 고른 범위)로 만든다.
         c = Collection.objects.create(space=request.space, created_by=request.member, title=title,
                                       source=Collection.Source.PASTE, allow_outside=_outside(request), unit_head=audience_head(aud),
-                                      audience=stored_audience(aud, rows))
+                                      audience=stored_audience(aud, rows, request.space))
         fields = []
         for i, f in enumerate(p["fields"]):
             kind = request.POST.get(f"kind_{i}")
@@ -347,7 +347,7 @@ def _create_hwp(request, title, sf, form, aud, roster):
             return None
         c = Collection.objects.create(space=request.space, created_by=request.member, title=title,
                                       source=Collection.Source.HWP, allow_outside=_outside(request), unit_head=audience_head(aud),
-                                      audience=stored_audience(aud, roster))
+                                      audience=stored_audience(aud, roster, request.space))
         Field.objects.bulk_create([Field(collection=c, pos=i, name=it["name"], kind=it["kind"],
                                          options=it["options"] if it["kind"] == "select" else [])
                                    for i, it in enumerate(form["inputs"])])
@@ -481,7 +481,9 @@ def _miss_groups(c, miss):
         r = u["row"]
         fold.setdefault(r.group or group_of.get(r.member_id, ""), []).append(u)
     order = [g for g, _ in c.space.group_choices] + [""]  # 학교 소속순(Q2), 명부 밖 줄은 끝
-    return [{"label": GROUPS.get(g, "명부 밖"), "n": len(fold[g]), "text": _nudge_text(c, fold[g])} for g in order if g in fold]
+    names = c.space.group_names
+    return [{"label": names.get(g) or ("미배정" if c.space.is_org and g == "" else "명부 밖"), "n": len(fold[g]), "text": _nudge_text(c, fold[g])}
+            for g in order if g in fold]
 
 
 def _nudge(c, miss, vals, fields, per):
@@ -554,7 +556,7 @@ def _due_text(c):
 
 def _where(c):
     head = c.unit_head[:1]
-    return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else "우리 소속 칸" if head == ["그룹"] else "내 칸"
+    return "내 줄" if _matrix(c) else "우리 반 칸" if head == ["학년반"] else ("우리 그룹 칸" if c.space.is_org else "우리 소속 칸") if head == ["그룹"] else "내 칸"
 
 
 def _due_ctx(request, c, saved=None, error=None):

@@ -43,7 +43,7 @@ def _shown(raw, today):
 
 def _events(request, first, last):
     return list(Event.objects.in_space(request.space).filter(reachable_q(request.member), date__lte=last)
-                .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first)).order_by("date", "slot", "created_at"))
+                .filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first)).select_related("space").order_by("date", "slot", "created_at"))
 
 
 def _neis(space, first, last):

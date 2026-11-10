@@ -1,0 +1,8 @@
+{# 보이는 그룹 줄(기관, T2). 표시 요일(_days.html)과 같은 스위치. 다 끄면 서버가 저장하지 않고 지금 값으로 되돌린다. #}
+<form class="panel" id="linePanel" method="post" action="/s/{{ space.token }}/settings/lines" hx-post="/s/{{ space.token }}/settings/lines" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  {% for k, n, on in lines %}<div class="sw"><div><b>{{ n }}</b>{% if not on %}<div class="d">꺼짐 · 내 일정 화면에 이 줄이 없어요</div>{% endif %}</div>
+    <label class="toggle"><input type="checkbox" name="on" value="{{ k }}"{% if on %} checked{% endif %} aria-label="{{ n }} 줄 보이기"><i></i></label></div>{% endfor %}
+  <noscript><div class="sw"><span></span><button class="btn sec sm" type="submit">저장</button></div></noscript>
+  {% if saved %}<span class="sr" data-toast-now="{{ saved }}"></span>{% endif %}
+</form>

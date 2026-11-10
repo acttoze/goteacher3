@@ -1,7 +1,7 @@
 {% extends "shell.html" %}
 {% load static %}
-{% block title %}학교 · 고티처{% endblock %}
-{% block ptitle %}학교{% endblock %}
+{% block title %}{% if space.is_org %}채널{% else %}학교{% endif %} · 고티처{% endblock %}
+{% block ptitle %}{% if space.is_org %}채널{% else %}학교{% endif %}{% endblock %}
 {% block head %}{% if link %}{% include "spaces/_invite_style.html" %}{% endif %}{% if is_creator and writable %}<script src="{% static 'js/school_arrange.js' %}" defer></script>{% endif %}
 <style>
   /* prototype school(): 그룹마다 카드, 교직원 40명이 1536×750 첫 화면에 여러 그룹으로 읽히게 줄을 낮게 둔다. */
@@ -62,5 +62,15 @@
   .gdot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--gc); }
   .gcolor { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 15px; color: var(--muted); }
   .gcolor .select { height: var(--control-h-sm); flex: 1; min-width: 0; }
+  /* T2 채널(기관): 그룹 만들기 한 줄, 미배정 카드는 점선으로 구분 */
+  .gnew { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+  .gnew .input { max-width: 320px; }
+  .gcard.none { border-style: dashed; }
+  .gcols .gcard { break-inside: avoid; margin-bottom: var(--gap); }
+  .gcols.org { columns: 3; }
+  .gcols.org .card-h h2 { flex: 1; min-width: 6em; }
+  .gcols.org .who .pos { font-size: 15px; }
+  .myrole { display: flex; gap: 10px; align-items: center; }
+  .myrole .input { width: 200px; }
 </style>{% endblock %}
-{% block main %}{% include "spaces/_school.html" %}{% endblock %}
+{% block main %}{% if space.is_org %}{% include "spaces/_channels.html" %}{% else %}{% include "spaces/_school.html" %}{% endif %}{% endblock %}

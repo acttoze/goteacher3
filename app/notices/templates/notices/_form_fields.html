@@ -12,11 +12,11 @@
   <section class="card"><div class="card-h"><h2>받는 곳</h2></div><div class="card-b audw">
     <div class="amodes">
       <label class="amode"><input type="radio" name="aud" value="all"{% if form.aud != "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>전체</b></label>
-      {% if group_opts %}<label class="amode"><input type="radio" name="aud" value="groups"{% if form.aud == "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>소속 고르기</b></label>{% endif %}
+      {% if group_opts %}<label class="amode"><input type="radio" name="aud" value="groups"{% if form.aud == "groups" %} checked{% endif %}{% if aud_locked %} disabled{% endif %}><b>{% if space.is_org %}그룹 고르기{% else %}소속 고르기{% endif %}</b></label>{% endif %}
     </div>
     {% if group_opts %}<div class="apane"><div class="gck-row">{% for g in group_opts %}<label class="gck"><input type="checkbox" name="groups" value="{{ g.id }}"{% if g.on %} checked{% endif %}{% if aud_locked %} disabled{% endif %}>{{ g.label }}</label>{% endfor %}</div></div>{% endif %}
     {% if errors.aud %}<p class="msg" role="alert" style="margin-top:8px">{{ errors.aud }}</p>{% endif %}
-    <p class="small muted" style="margin:10px 0 0">{% if aud_locked %}확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요. {% endif %}소속을 골라도 완전한 비공개는 아니에요. 민감한 내용은 적지 마세요.</p>
+    <p class="small muted" style="margin:10px 0 0">{% if aud_locked %}확인 필수 공지의 받는 곳은 학교 관리자만 바꿀 수 있어요. {% endif %}{% if space.is_org %}그룹을{% else %}소속을{% endif %} 골라도 완전한 비공개는 아니에요. 민감한 내용은 적지 마세요.</p>
   </div></section>
   <section class="card"><div class="card-h"><h2>알림과 확인</h2></div><div class="card-b ask">
     {% if notice %}<label class="chk"><input type="checkbox" name="real" id="realChk"{% if form.real %} checked{% endif %}><span><b>내용이 바뀌었어요, 본 분께 다시 알리기</b><span>일시·장소·대상·준비물을 바꾸면 켜져요. 켜면 먼저 본 분께만 바뀐 부분을 알리고, 끄면 알리지 않고 저장해요. 확인 필수 공지는 내용을 바꾸면 항상 켜져요.</span></span></label>{% endif %}

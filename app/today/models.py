@@ -23,7 +23,10 @@ BODY_MAX, COMMENT_MAX = 10000, 1000
 
 
 def my_range_q(me):
-    """오늘 화면·바뀐 것·일반 회원의 일정: 학교 전체, 내 그룹, 내가 쓴 것."""
+    """오늘 화면·바뀐 것·일반 회원의 일정: 학교 전체, 내 그룹, 내가 쓴 것.
+    기관(T2): 그룹 줄은 공간 전원이 본다. 남의 '나'만 막는다(관리자 판정 reachable_q와 같아진다)."""
+    if me.space.is_org:
+        return ~Q(scope=ME) | Q(by=me)
     q = Q(scope=ALL) | Q(by=me)
     return q | Q(scope=me.group) if me.group else q
 
@@ -33,9 +36,26 @@ def reachable_q(me):
     return ~Q(scope=ME) | Q(by=me) if me.is_manager else my_range_q(me)
 
 
+def org_lines(space):
+    """기관 일정의 줄(scope 값): 그룹 키들. 그룹이 아직 없으면 '기관 전체' 한 줄(T2: 첫 그룹을 만들 때 그 그룹으로 옮긴다)."""
+    return space.group_keys or [ALL]
+
+
+def default_scope(me):
+    """기관에서 한 줄 입력·붙여넣기의 기본 줄: 내 그룹, 미배정이면 첫 줄."""
+    lines = org_lines(me.space)
+    return me.group if me.group in lines else lines[0]
+
+
 def scope_choices(me):
-    """대상 고르기. 맨 앞이 기본값: 학교 전체. 쓸 수 있는 범위는 학교 전체·나·내 소속뿐(today.views._cell_scopes)."""
-    return [(ALL, f"{me.space.word} 전체"), (ME, "개인(나만)"), *([(me.group, me.get_group_display())] if me.group else [])]
+    """대상 고르기. 맨 앞이 기본값. 학교: 학교 전체·나·내 소속(today.views._cell_scopes).
+    기관(T2): 모든 그룹 줄(기본 = 내 그룹이 맨 앞) + 나. 누구나 아무 줄에나 쓴다."""
+    space = me.space
+    if space.is_org:
+        names = {**space.group_names, ALL: "기관 전체"}
+        first = default_scope(me)
+        return [(k, names[k]) for k in [first, *(x for x in org_lines(space) if x != first)]] + [(ME, "개인(나만)")]
+    return [(ALL, f"{space.word} 전체"), (ME, "개인(나만)"), *([(me.group, space.group_label(me.group))] if me.group else [])]
 
 
 class Event(models.Model):
@@ -77,12 +97,14 @@ class Event(models.Model):
     def scope_label(self):
         if self.scope == ALL:  # 학교 전체 / 기관 전체(T1). 판을 읽을 때 space를 함께 읽는다(select_related)
             return f"{self.space.word} 전체"
-        return "나만" if self.scope == ME else Member.Group(self.scope).label
+        return "나만" if self.scope == ME else self.space.group_label(self.scope) or "지운 그룹"
 
     def reachable_by(self, me):
         """reachable_q와 같은 판정을 이미 읽은 행에(장소 겹침 문구)."""
         if self.scope == ALL or self.by_id == me.pk or self.scope == me.group:
             return True
+        if me.space.is_org:  # 기관 그룹 줄은 전원이 본다(T2)
+            return self.scope != ME
         return me.is_manager and self.scope != ME
 
     def writable_by(self, me):

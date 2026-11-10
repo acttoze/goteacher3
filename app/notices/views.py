@@ -122,12 +122,13 @@ def _clean(data, name):
     return data.get(name, "").replace("\x00", "").replace("\r\n", "\n").strip()
 
 
-def _read_form(data):
-    """제출 값 → (폼 값, 오류). 저장할 값도 이 폼 값이다."""
+def _read_form(data, space):
+    """제출 값 → (폼 값, 오류). 저장할 값도 이 폼 값이다. 받는 그룹은 이 공간의 소속 값만(기관은 그 기관 그룹 키만, T2)."""
+    keys = space.group_keys if space.is_org else Member.Group.values
     form = {"title": _clean(data, "title"), "body": _clean(data, "body"), "must": "must" in data, "real": "real" in data,
             "items": [{"name": k, "value": _clean(data, k)} for k in ITEMS],
             "aud": "groups" if data.get("aud") == "groups" else "all",
-            "groups": [g for g in Member.Group.values if g in data.getlist("groups")]}
+            "groups": [g for g in keys if g in data.getlist("groups")]}
     errors = {}
     if not form["title"]:
         errors["title"] = "제목을 적어 주세요."
@@ -225,7 +226,8 @@ def _form_ctx(request, form):
     picked = set(form["groups"])
     return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
             "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
-            "group_opts": [] if request.space.is_org else [{"id": g, "label": label, "on": g in picked} for g, label in Member.Group.choices]}  # 기관 그룹은 T2
+            "group_opts": [{"id": g, "label": label, "on": g in picked}
+                           for g, label in (request.space.group_choices if request.space.is_org else Member.Group.choices)]}
 
 
 def _form_page(request, form, status=200, **extra):
@@ -240,7 +242,7 @@ def _blank_form():
 # ---------------------------------------------------------------- 화면
 def _list_page(request, form=None, status=200, **extra):
     """목록. 판 번호는 한 쿼리로 함께 가져온다(건수와 무관). 쓰기 대화상자가 함께 그려지고, open_form이면 열린 채로."""
-    rows = (Notice.objects.in_space(request.space).visible_to(request.member)
+    rows = (Notice.objects.in_space(request.space).visible_to(request.member).select_related("space")  # 받는 곳 이름(space.group_names)
             .annotate(v=Max("versions__v")).order_by("-updated_at", "-pk"))
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
     me = request.member
@@ -276,7 +278,7 @@ def new(request):
     must = _must(request)
     if must is None:
         return HttpResponseForbidden(MUST_ONLY)
-    form, errors = _read_form(request.POST)
+    form, errors = _read_form(request.POST, request.space)
     files, error, status = _uploads(request)
     if error:
         errors["files"] = error
@@ -335,7 +337,7 @@ def edit(request, key):
     must = _must(request, n.must)
     if must is None:
         return HttpResponseForbidden(MUST_ONLY)
-    form, errors = _read_form(request.POST)
+    form, errors = _read_form(request.POST, request.space)
     if _aud_locked(request, n):  # 잠긴 칸은 제출되지 않는다. 다른 값을 보내면 거부
         if "aud" in request.POST and audience_value(form["groups"] if form["aud"] == "groups" else []) != n.audience:
             return HttpResponseForbidden(AUD_ONLY)

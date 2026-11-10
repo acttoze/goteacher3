@@ -36,7 +36,7 @@
 <div class="title">
   <div class="grow">
     <h1 class="ntitle">{{ title }} {% if ver.v > 1 %}<span class="pill acc" style="vertical-align:middle">{{ ver.label }}</span>{% endif %}{% if n.must %} <span class="pill" style="vertical-align:middle">확인 필수</span>{% endif %}</h1>
-    <p class="sub">{% if n.group %}{{ n.get_group_display }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }} · 받는 곳 {{ audience }}</p>
+    <p class="sub">{% if n.group %}{{ n.group_label }} {% endif %}{{ n.by_name }} · 최종 수정 {{ n.updated_at|date:"n/j H:i" }} · 받는 곳 {{ audience }}</p>
   </div>
   <button class="btn sec" type="button" data-text="{{ note_text }}" data-done="쪽지용 링크를 복사했어요.">쪽지용 링크 복사</button>
   {% if needs_ack and acked %}<span class="pill pos">확인함</span>{% endif %}

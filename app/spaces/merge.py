@@ -81,6 +81,8 @@ def open_school(school, until, manager=None, applicant=None, identity_checked=Fa
     manager: 관리자로 세울 이 학교 회원. applicant: 첫 관리자로 세울 신청(PlanRequest).
     끊겼던 플랜을 다시 켜면 옛 업체 링크는 해제한다(재발급해야 한다). 켜져 있는 동안의 기한 연장은 그대로 둔다. TV 주소는 학교 공유 화면이라 유지.
     끝났을 때 학교에 관리자가 없으면 ValueError(모두 되돌린다). 이 학교의 대기 신청은 처리한 것으로 닫는다."""
+    if school.is_org:  # 기관(NEIS 코드 없음)은 org_plan으로 켠다. 동학년 합치기는 학교에만(T1·T2)
+        raise ValueError("기관은 학교 플랜으로 켤 수 없습니다. org_plan을 써 주세요.")
     with transaction.atomic():
         School.objects.select_for_update().filter(pk=school.pk).first()
         olds = list(Space.objects.select_for_update(no_key=True).filter(school=school, kind=Space.Kind.GRADE))

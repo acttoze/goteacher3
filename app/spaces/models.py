@@ -1,5 +1,6 @@
 """School · Space(동학년·학교) · Member. 공간 소속 모델은 SpaceQuerySet.in_space()로만 조회한다."""
 import secrets
+from itertools import cycle
 
 from django.conf import settings
 from django.db import models
@@ -128,7 +129,9 @@ class Space(models.Model):
     # Q2 학교 공간의 소속 순서(Member.Group 값을 쉼표로). 비면 기본 순서. 빠진 소속은 뒤에 기본 순서로 붙는다.
     group_order = models.CharField("소속 순서", max_length=100, blank=True, default="", db_default="")  # db_default: 옛 상태 이관 테스트가 넣는 행
     # U1 학교 공간의 소속 색(소속=팔레트 키를 쉼표로). 비면 기본(소속 차례대로 GROUP_PALETTE). 관리자가 학교 화면에서 바꾼다.
-    group_color = models.CharField("소속 색", max_length=200, blank=True, default="", db_default="")
+    group_color = models.CharField("소속 색", max_length=800, blank=True, default="", db_default="")  # 기관 그룹 30개(키 9자) 기준
+    # T2 기관 그룹(= 일정 줄) [{"k": "t1a2b3c4", "n": "학교혁신팀"}, …]. 순서가 곧 줄 순서. 학교·동학년은 비어 있다
+    org_groups = models.JSONField("기관 그룹", default=list, blank=True, db_default=[])
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -167,17 +170,31 @@ class Space(models.Model):
 
     @property
     def group_choices(self):
-        """[(소속 값, 이름)] 이 학교의 소속 순서(Q2). 학교 화면·취합 소속순이 같이 쓴다. 기관은 그룹이 아직 없다(T2에서 org_groups)."""
+        """[(소속 값, 이름)] 이 학교의 소속 순서(Q2), 기관은 관리자가 만든 그룹 순서(T2). 학교 화면·취합 소속순·일정 줄이 같이 쓴다."""
         if self.is_org:
-            return []
+            return [(g["k"], g["n"]) for g in self.org_groups]
         keys = [k for k in self.group_order.split(",") if k in Member.Group.values]
         keys = list(dict.fromkeys(keys + Member.Group.values))
         return [(k, Member.Group(k).label) for k in keys]
 
     @property
+    def group_keys(self):
+        return [k for k, _ in self.group_choices]
+
+    @property
+    def group_names(self):
+        """{소속 값: 이름}. 화면 표시는 이것(또는 group_label)으로만 읽는다(고정 choices 없음, T2)."""
+        return dict(self.group_choices)
+
+    def group_label(self, key):
+        return self.group_names.get(key, "")
+
+    @property
     def group_colors(self):
-        """{소속: 팔레트 키}. 저장한 값이 기본(소속 차례대로)을 덮는다. 바꿀 때 서로 맞바꾸므로(spaces.school.group_color) 겹치지 않는다."""
-        out = dict(zip(Member.Group.values, GROUP_PALETTE))
+        """{소속: 팔레트 키}. 저장한 값이 기본(소속 차례대로)을 덮는다. 바꿀 때 서로 맞바꾸므로(spaces.school.group_color) 겹치지 않는다.
+        기관 그룹은 10개를 넘을 수 있어 팔레트를 돌려 쓴다."""
+        base = self.group_keys if self.is_org else Member.Group.values
+        out = dict(zip(base, cycle(GROUP_PALETTE)))
         for pair in self.group_color.split(","):
             g, _, k = pair.partition("=")
             if g in out and k in GROUP_PALETTE:
@@ -227,7 +244,7 @@ class Member(models.Model):
     name = models.CharField("이름", max_length=40)
     cls = models.CharField("반", max_length=20, help_text="예: 4-1, 4-전담")
     position = models.CharField("직위", max_length=40, blank=True)
-    group = models.CharField("소속", max_length=10, choices=Group.choices, blank=True, default="")
+    group = models.CharField("소속", max_length=10, blank=True, default="")  # 학교: Group 값, 기관: org_groups 키(T2). 이름은 space.group_label
     is_manager = models.BooleanField("학교 관리자", default=False)
     can_duty = models.BooleanField("복무 입력자", default=False)
     can_repair = models.BooleanField("수리 담당자", default=False)
@@ -236,6 +253,8 @@ class Member(models.Model):
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
     # Q1 설정 > 표시 요일: 일정 주·월 보기에 보일 요일(월=0~일=6 숫자를 이어서). 기본 월~금.
     days_on = models.CharField("표시 요일", max_length=7, default="01234")
+    # T2 설정 > 보이는 그룹 줄: 끈 기관 그룹 키(쉼표로). 비면 모두 켬(새 그룹은 처음부터 보인다). 보기 필터일 뿐 권한이 아니다
+    lines_off = models.CharField("끈 그룹 줄", max_length=320, blank=True, default="", db_default="")
     # Q2 소속 안 순서(관리자가 끌어서 정함). 비면 직책 순(school._order).
     order = models.PositiveIntegerField("소속 안 순서", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
@@ -256,6 +275,10 @@ class Member(models.Model):
         return {int(c) for c in self.days_on if c in "0123456"} or set(range(5))
 
     @property
+    def off_lines(self):
+        return {k for k in self.lines_off.split(",") if k}
+
+    @property
     def in_grade(self):
         """학년 반·전담인가(교무실·행정실 등이 아니라)."""
         return bool(cls_group(self.cls))
@@ -266,6 +289,9 @@ class Member(models.Model):
         if self.position and not self.in_grade:
             return f"{self.cls} · {self.position}"
         return cls_text(self.cls)
+
+
+SCHOOL_GROUPS = dict(Member.Group.choices)  # 학교 소속 이름(학교 전용 화면: 복무·업무분장 짝짓기)
 
 
 def cls_group(cls):
@@ -353,7 +379,7 @@ class Attendance(models.Model):
 
     @property
     def group_label(self):
-        return self.member.get_group_display() if self.member else ""
+        return SCHOOL_GROUPS.get(self.member.group, "") if self.member else ""
 
 
 class PlanRequest(models.Model):

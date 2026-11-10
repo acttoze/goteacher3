@@ -1,0 +1,69 @@
+{# T2 채널(기관 관리자 화면) 본문. 학교 화면(_school.html)과 같은 id·끌기 속성(school_arrange.js)을 쓴다. 관리자는 늘 바꾸는 상태. 값은 자동 이스케이프. #}
+<div id="schoolMain" data-err-swap{% if arrange %} data-arr-url="/s/{{ space.token }}/school/arrange" data-arr-back="/s/{{ space.token }}/channels?err=1"{% endif %}>
+  {% if toast %}<span class="sr" data-toast-now="{{ toast }}"></span>{% endif %}
+  <div class="title"><div class="grow"><h1>{{ space.name }}</h1><p class="sub"><b class="num">{{ rows|length }}</b>명 · 그룹 <b class="num">{{ group_cards|length }}</b>개 · 그룹마다 일정에 줄이 생기고, 모두가 모든 줄을 봐요{% if plan_left is not None %} · <a href="/school-plan">{% if space.school.org_unconfirmed %}체험{% else %}기관 플랜{% endif %} {% if plan_left %}{{ plan_left }}일 남음{% else %}오늘까지{% endif %}</a>{% endif %}</p></div>
+    {% if link %}{% if writable %}<button class="btn pri" type="button" data-open="#inviteDlg">초대하기</button>{% else %}<button class="btn sec" type="button" data-open="#inviteDlg">초대 링크 재발급</button>{% endif %}{% endif %}</div>
+  {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
+  {% if arrange %}
+  {% if not group_cards %}<div class="well steps-w"><b>먼저 그룹을 만들어 주세요.</b>
+    <ol class="steps">
+      <li><b>그룹 만들기</b><span>팀·부서 이름으로 만들면 일정에 그룹마다 줄이 생겨요. 지금 '기관 전체' 줄의 일정은 첫 그룹으로 옮겨져요.</span></li>
+      <li><b>초대 링크 보내기</b><span>함께 쓸 분들이 로그인하고 이름만 쓰면 '미배정'으로 들어와요.</span><button class="btn sec sm" type="button" data-open="#inviteDlg">초대 링크 보기</button></li>
+      <li><b>배정하기</b><span>미배정 카드의 사람을 그룹 카드로 끌어다 놓아요.</span></li>
+    </ol></div>{% endif %}
+  <form class="gnew" method="post" action="/s/{{ space.token }}/school/groups" hx-post="/s/{{ space.token }}/school/groups" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="act" value="new">
+    <label class="sr" for="gnewName">새 그룹 이름</label><input class="input" id="gnewName" name="name" maxlength="30" placeholder="새 그룹 이름 (예: 학교혁신팀)" autocomplete="off" required>
+    <button class="btn pri" type="submit">그룹 만들기</button>
+    <span class="aux">카드·사람을 끌어다 놓으면 바로 저장돼요. 끌기 어려우면 ↑·↓·옮기기 단추를 쓰세요.</span></form>
+  {% elif not group_cards %}<p class="notice" style="margin-bottom:20px">아직 그룹이 없어요. 관리자가 그룹을 만들면 일정에 그룹마다 줄이 생겨요.</p>
+  {% else %}<form class="myrole" style="margin-bottom:20px" method="post" action="/s/{{ space.token }}/school/me">{% csrf_token %}<label for="myPos" class="aux">내 직위</label><input class="input" id="myPos" name="position" value="{{ me.position }}" maxlength="40" placeholder="예: 장학사"><button class="btn sec sm" type="submit"{% if not writable %} disabled{% endif %}>저장</button><span class="aux">그룹은 관리자가 정해요.</span></form>{% endif %}
+  <div class="gcols org">
+    {% with g=none_card %}<section class="card gcard none" aria-labelledby="gc0"{% if arrange %} data-arr-card{% endif %}>
+      <div class="card-h"><h2 id="gc0">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span></div>
+      <div class="card-b"><ul class="rows"{% if arrange %} data-arr-box="members" data-arr-in=""{% endif %}>
+        {% if not g.rows %}<li class="arr-empty aux">모두 그룹에 배정됐어요</li>{% endif %}
+        {% for r in g.rows %}{% include "spaces/_channel_person.html" %}{% endfor %}
+      </ul></div></section>{% endwith %}
+    <div{% if arrange %} data-arr-box="groups"{% endif %} style="display:contents">
+    {% for g in group_cards %}<section class="card gcard" aria-labelledby="gc{{ forloop.counter }}"{% if arrange %} data-arr-key="{{ g.g }}" data-arr-card draggable="true"{% endif %}>
+      <div class="card-h"><i class="gdot" style="--gc:{{ g.hex }}" aria-hidden="true"></i><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span>{% if arrange %}{% include "spaces/_arr_btns.html" with name=g.label %}<button class="btn ghost sm" type="button" data-open="#gm-{{ g.g }}" aria-label="{{ g.label }} 그룹 관리">관리</button>{% endif %}</div>
+      <div class="card-b"><ul class="rows"{% if arrange %} data-arr-box="members" data-arr-in="{{ g.g }}"{% endif %}>
+        {% if arrange and not g.rows %}<li class="arr-empty aux">여기로 끌어 놓을 수 있어요</li>{% elif not g.rows %}<li class="aux">아직 아무도 없어요</li>{% endif %}
+        {% for r in g.rows %}{% include "spaces/_channel_person.html" %}{% endfor %}
+      </ul></div>
+    </section>{% endfor %}
+    </div>
+  </div>
+  {% if logs %}<section class="card logs" aria-labelledby="lgH">
+    <div class="card-h"><h2 id="lgH">최근 고친 기록</h2><span class="r">관리자에게만 보여요</span></div>
+    <div class="card-b"><table class="tbl"><thead><tr><th>언제</th><th>누가</th><th>누구</th><th>전</th><th>후</th></tr></thead><tbody>
+      {% for l in logs %}<tr><td class="num">{{ l.at|date:"n월 j일 H:i" }}</td><td>{{ l.by }}</td><td>{{ l.name }}</td><td>{{ l.before }}</td><td>{{ l.after }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>{% endif %}
+  {% if arrange %}
+  {% for g in group_cards %}<div class="scrim" id="gm-{{ g.g }}" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="gm-{{ g.g }}-h">
+    <div class="dh"><h2 id="gm-{{ g.g }}-h">{{ g.label }} 그룹</h2></div>
+    <div class="db stack-y" style="gap:20px">
+      <form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/groups" hx-post="/s/{{ space.token }}/school/groups" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="act" value="rename"><input type="hidden" name="key" value="{{ g.g }}">
+        <label class="field"><span>그룹 이름</span><input class="input" name="name" value="{{ g.label }}" maxlength="30" required></label>
+        <div><button class="btn sec sm" type="submit">이름 바꾸기</button></div></form>
+      <form class="gcolor" method="post" action="/s/{{ space.token }}/school/group-color" hx-post="/s/{{ space.token }}/school/group-color" hx-trigger="change" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="group" value="{{ g.g }}"><label for="gcl-{{ g.g }}">일정 점 색</label><select class="select" id="gcl-{{ g.g }}" name="color">{% for k, name in palette %}<option value="{{ k }}"{% if k == g.color %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></form>
+      {% if group_cards|length > 1 %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/groups" hx-post="/s/{{ space.token }}/school/groups" hx-target="#schoolMain" hx-swap="outerHTML" hx-confirm="「{{ g.label }}」 그룹을 지울까요? 이 그룹 회원은 미배정이 돼요.">{% csrf_token %}<input type="hidden" name="act" value="delete"><input type="hidden" name="key" value="{{ g.g }}">
+        <p>지우면 이 그룹 회원 {{ g.n }}명은 미배정이 돼요.{% if g.events %} 이 줄의 일정 {{ g.events }}건은 아래 줄로 옮겨요.{% endif %}</p>
+        {% if g.events %}<label class="field"><span>일정을 옮길 줄</span><select class="select" name="to" required><option value="">고르세요</option>{% for o in group_cards %}{% if o.g != g.g %}<option value="{{ o.g }}">{{ o.label }}</option>{% endif %}{% endfor %}</select></label>{% endif %}
+        <div><button class="btn danger sm" type="submit">그룹 지우기</button></div></form>
+      {% else %}<p class="muted">마지막 그룹은 지울 수 없어요.</p>{% endif %}
+    </div>
+    <div class="df"><button class="btn ghost" type="button" data-close>닫기</button></div>
+  </div></div>{% endfor %}
+  <div class="scrim" id="moveDlg" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="moveH">{% csrf_token %}
+    <div class="dh"><h2 id="moveH">다른 그룹으로 옮기기</h2></div>
+    <div class="db"><p id="moveWho"></p>
+      <label class="field"><span>그룹</span><select class="select" id="moveTo">{% for g in move_cards %}<option value="{{ g.g }}">{{ g.label }}</option>{% endfor %}</select></label></div>
+    <div class="df"><button class="btn ghost" type="button" data-close>그만두기</button><button class="btn pri" type="button" data-arr-go>옮기기</button></div>
+  </div></div>{% endif %}
+  {% if link %}<div class="scrim" id="inviteDlg" hidden><div class="dialog" role="dialog" aria-modal="true" aria-label="초대하기" style="width:min(720px,100%)">
+    {% include "spaces/_invite.html" %}
+    <div class="df"><button class="btn ghost" type="button" data-close>닫기</button></div>
+  </div></div>{% endif %}
+</div>

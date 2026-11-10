@@ -31,7 +31,7 @@ from accounts.models import is_guest
 from collect.paste import FILLER, MAX_GRID_COLS, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, html_to_tsv, tsv_lines
 
 from .gates import manager_required, no_org, school_required, school_write_required
-from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
+from .models import SCHOOL_GROUPS, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .school import TOAST, _person, _school_ctx, school_body, split_people
 from .views import _space_ctx
 
@@ -380,7 +380,7 @@ def preview(request):
     rows = []
     for r in d["rows"]:
         seat = _one(roster, r["name"])
-        rows.append({**r, "day": date.fromisoformat(r["date"]), "group": seat.get_group_display() if seat else "",
+        rows.append({**r, "day": date.fromisoformat(r["date"]), "group": SCHOOL_GROUPS.get(seat.group, "") if seat else "",
                      "note": "동명이인" if _bare(r["name"]) in roster and not seat else ""})
     days = {r["date"] for r in d["rows"]}
     return render(request, "spaces/_attendance_out.html", {

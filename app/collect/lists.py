@@ -150,7 +150,7 @@ def again(request, src):
         c = Collection.objects.create(space=request.space, created_by=request.member, title=src.title,
                                       source=src.source, unit_head=src.unit_head, multi=src.multi,
                                       allow_outside=src.allow_outside, footer_on=src.footer_on, budget=src.budget,
-                                      audience=stored_audience(aud, rows))
+                                      audience=stored_audience(aud, rows, request.space))
         Field.objects.bulk_create([Field(collection=c, pos=f.pos, name=f.name, kind=f.kind, options=f.options)
                                    for f in Field.objects.in_space(request.space).filter(collection=src)])
         make_rows(c, rows)

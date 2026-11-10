@@ -9,6 +9,8 @@ import re
 import secrets
 
 from django.db import transaction
+from django.db.models import Count
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -21,8 +23,11 @@ from collect.paste import PasteError, html_to_tsv
 from .duty_paste import EMPTY, TOO_BIG, read_duties
 from .gates import manager_required, no_org, school_required, school_write_required
 from .merge import remove_manager
-from .models import GROUP_PALETTE, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
-from .views import GROUP_ROLES, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values, read_place
+from today.models import ALL, ME, Event
+
+from .models import GROUP_PALETTE, SCHOOL_GROUPS, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
+from .views import (GROUP_ROLES, ORG_NONE, _clean_name, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values,
+                    read_place)
 
 LOG_N = 20  # 관리자에게 보이는 최근 이력
 NAMES = re.compile(r"[,，、/\n]+")  # 담당 칸 하나에 여러 이름
@@ -90,8 +95,8 @@ def _name_groups(space):
     found = {}
     for m in Member.objects.in_space(space).only("name", "group"):
         labels = found.setdefault(_person(m.name), [])
-        if m.get_group_display() not in labels:
-            labels.append(m.get_group_display())
+        if SCHOOL_GROUPS.get(m.group, "") not in labels:
+            labels.append(SCHOOL_GROUPS.get(m.group, ""))
     return found
 
 
@@ -112,7 +117,41 @@ def _dept_cards(space, me):
             for dept, rows in depts.items()]
 
 
+ORG_GROUPS_MAX = 30
+GROUP_NAME_MAX = 30
+
+
+def _org_ctx(request, **extra):
+    """채널(기관 관리자 화면, T2): 미배정 카드 + 그룹 카드(관리자 순서). 관리자는 늘 바꾸는 상태(끌기·단추·만들기·이름·지우기)."""
+    space, me = request.space, request.member
+    writable = space.school.writable
+    arrange = me.is_manager and writable
+    ctx = _space_ctx(request, page="school", writable=writable, arrange=arrange, **extra)
+    ctx.update(_invite(space, me))
+    colors, rows = space.group_colors, ctx["rows"]
+    counts = dict(Event.objects.in_space(space).exclude(scope=ME).values_list("scope").annotate(n=Count("pk")))
+
+    def card(g, label, color=None):
+        mine = sorted((r for r in rows if r["m"].group == g), key=lambda r: _in_group(r["m"]))
+        return {"g": g, "label": label, "n": len(mine), "rows": [{**r, "pos": r["m"].position} for r in mine],
+                "color": color, "hex": GROUP_PALETTE[color][0] if color else "", "events": counts.get(g, 0)}
+    groups = [card(g, n, colors[g]) for g, n in space.group_choices]
+    ctx["none_card"] = card("", ORG_NONE)
+    ctx["group_cards"] = groups
+    ctx["move_cards"] = [ctx["none_card"], *groups]  # 옮기기 창의 고르기(미배정 포함)
+    if arrange:
+        ctx["palette"] = [(k, name) for k, (_, name) in GROUP_PALETTE.items()]
+    if me.is_manager:
+        ctx["logs"] = MemberLog.objects.in_space(space).order_by("-at", "-pk")[:LOG_N]
+    ctx["plan_left"] = space.school.days_left if me.is_manager else None
+    if request.GET.get("err") == "1":
+        ctx.setdefault("error", "저장하지 못해 원래 자리로 돌렸어요. 다시 해 주세요.")
+    return ctx
+
+
 def _school_ctx(request, **extra):
+    if request.space.is_org:
+        return _org_ctx(request, **extra)
     space, me = request.space, request.member
     tab = "duty" if request.GET.get("tab") == "duty" else "grade"
     arrange = me.is_manager and space.school.writable and request.GET.get("arrange") == "1"
@@ -144,14 +183,14 @@ def _school_ctx(request, **extra):
 
 
 def school_body(request, status=200, **extra):
-    """학교 화면 본문만(htmx). 관리자 지정·내보내기 뒤에 버튼과 초대 카드까지 함께 맞도록 통째로 준다."""
-    return render(request, "spaces/_school.html", _school_ctx(request, **extra), status=status)
+    """학교 화면 본문만(htmx). 관리자 지정·내보내기 뒤에 버튼과 초대 카드까지 함께 맞도록 통째로 준다. 기관은 채널 본문(T2)."""
+    tpl = "spaces/_channels.html" if request.space.is_org else "spaces/_school.html"
+    return render(request, tpl, _school_ctx(request, **extra), status=status)
 
 
 @never_cache
 @require_GET
 @school_required
-@no_org
 def school(request):
     if request.headers.get("HX-Request"):  # 바꾸기 저장이 실패하면 본문을 다시 받아 원래 자리로(Q2)
         return school_body(request)
@@ -180,9 +219,11 @@ def _move_member(request, group, keys):
         raise ValueError("한 번에 한 선생님씩 옮겨 주세요.")
     done = "순서를 바꿨어요."
     if moved:
-        m, label = moved[0], Member.Group(group).label
+        m, label = moved[0], space.group_label(group) or ORG_NONE
         before = m.cls_text
-        if group[1:].isdigit():
+        if space.is_org:  # 기관: 반 고르기 없이 cls = 그룹 이름(미배정이면 '미배정'), 직위는 그대로(T2)
+            m.cls = label
+        elif group[1:].isdigit():
             cls = request.POST.get("cls", "")
             if cls not in _grade_choices(space.school, int(group[1:])):
                 raise ValueError("몇 반인지 골라 주세요. 반이 없는 교과 선생님은 「전담」이에요.")
@@ -195,8 +236,8 @@ def _move_member(request, group, keys):
         if m.pk != me.pk:
             Notification.objects.create(
                 space=space, member=m, kind=Notification.Kind.SEAT, day=timezone.localdate(), pushed=True,
-                text=f"{me.name} 선생님(관리자)이 내 소속을 {m.cls_text}{_josa(m.cls_text, '으로', '로')} 옮겼어요.",
-                link=f"/s/{space.token}/school")
+                text=f"{me.name} 선생님(관리자)이 내 {'그룹' if space.is_org else '소속'}을 {m.cls_text}{_josa(m.cls_text, '으로', '로')} 옮겼어요.",
+                link=f"/s/{space.token}/" + ("channels" if space.is_org else "school"))
         done = f"{m.name} 선생님을 {label}{_josa(label, '으로', '로')} 옮겼어요."
     rest = sorted(Member.objects.in_space(space).filter(group=group).exclude(pk__in=[m.pk for m in picked]), key=_in_group)
     for i, m in enumerate(picked + rest):
@@ -243,7 +284,6 @@ def _move_duty(space, what, target, keys):
 @never_cache
 @require_POST
 @school_required
-@no_org
 @manager_required
 @school_write_required
 def arrange(request):
@@ -251,12 +291,19 @@ def arrange(request):
     duties(부서 안, group=부서). 응답은 본문 통째로: 실패해도 서버 상태(= 원래 자리)와 안내가 그려진다."""
     space, what, keys = request.space, request.POST.get("what", ""), _keys(request)
     target = request.POST.get("group", "")
-    if keys is None or what not in ("groups", "members", "depts", "duties") or (what == "members" and target not in Member.Group.values):
+    kinds, places = (("groups", "members"), [*space.group_keys, ""]) if space.is_org else (("groups", "members", "depts", "duties"), Member.Group.values)
+    if keys is None or what not in kinds or (what == "members" and target not in places):
         return school_body(request, status=400, error="저장하지 못했어요. 화면을 새로 고쳐 다시 해 주세요.")
     try:
         with transaction.atomic():
             Space.objects.select_for_update(no_key=True).filter(pk=space.pk).first()  # 관리자 둘이 동시에 바꿔도 순서가 섞이지 않게
-            if what == "groups":
+            if what == "groups" and space.is_org:  # 기관 그룹 순서 = 일정 줄 순서(T2)
+                space.refresh_from_db(fields=["org_groups"])
+                by_key = {g["k"]: g for g in space.org_groups}
+                order = [k for k in keys if k in by_key] + [k for k in by_key if k not in keys]
+                Space.objects.filter(pk=space.pk).update(org_groups=[by_key[k] for k in order])
+                done = "그룹 순서를 바꿨어요."
+            elif what == "groups":
                 space.group_order = ",".join(k for k in keys if k in Member.Group.values)
                 Space.objects.filter(pk=space.pk).update(group_order=space.group_order)
                 done = "소속 순서를 바꿨어요."
@@ -272,13 +319,12 @@ def arrange(request):
 @never_cache
 @require_POST
 @school_required
-@no_org
 @manager_required
 @school_write_required
 def group_color(request):
     """U1 소속 색 바꾸기(관리자). 이미 다른 소속이 쓰던 색이면 그 소속은 이 소속의 옛 색을 받는다(학교 안에서 겹치지 않게)."""
     space, g, color = request.space, request.POST.get("group", ""), request.POST.get("color", "")
-    if g not in Member.Group.values or color not in GROUP_PALETTE:
+    if g not in (space.group_keys if space.is_org else Member.Group.values) or color not in GROUP_PALETTE:
         return school_body(request, status=400, error="저장하지 못했어요. 화면을 새로 고쳐 다시 해 주세요.")
     with transaction.atomic():
         space = Space.objects.select_for_update(no_key=True).get(pk=space.pk)  # 관리자 둘이 동시에 바꿔도 겹치지 않게
@@ -289,18 +335,25 @@ def group_color(request):
         colors[g] = color
         Space.objects.filter(pk=space.pk).update(group_color=",".join(f"{k}={v}" for k, v in colors.items()))
     request.space.refresh_from_db(fields=["group_color"])
-    label, name = Member.Group(g).label, GROUP_PALETTE[color][1]
+    label, name = space.group_label(g), GROUP_PALETTE[color][1]
     return school_body(request, toast=f"{label} 색을 {name}{_josa(name, '으로', '로')} 바꿨어요.")
 
 
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
-@no_org
 @school_write_required
 def edit_me(request):
     """내 그룹·직책(승인 없음, 학교 입장과 같은 검증). 그룹을 바꾸면 cls·position도 함께 맞춘다. 실제로 바뀌면 이력."""
     me, post = request.member, request.method == "POST"
+    if request.space.is_org:  # 기관: 그룹은 관리자가 정하고 본인은 직위만 고친다(T2)
+        if post:
+            before = me.cls_text
+            me.position = _clean_name(request.POST.get("position"))
+            me.save(update_fields=["position"])
+            log_place(me, before)
+            request.session[TOAST] = "직위를 저장했어요."
+        return redirect(f"/s/{request.space.token}/channels")
     if post:
         data = request.POST
     elif "group" in request.GET:
@@ -329,7 +382,6 @@ def edit_me(request):
 @never_cache
 @require_POST
 @school_required
-@no_org
 @manager_required
 @school_write_required
 def set_manager(request, key):
@@ -364,13 +416,14 @@ def set_manager(request, key):
 @never_cache
 @require_POST
 @school_required
-@no_org
 @manager_required
 def temp_password(request, key):
     """임시 비밀번호 발급(P1, 리드 결정): 메일이 없어 학교 관리자가 명부에서 준다. 아이디 회원만, 관리자 대상은 거부.
     화면에 한 번만 보이고 저장하지 않는다. 받은 회원은 다음 로그인 때 바꾸기를 강제하고(PasswordChangeRequired), 🔔로 알린다. 그 회원의 기기 토큰을 모두 지우고(세션은 비밀번호 해시가 바뀌어 끊긴다) 이력에 남긴다.
     학교 플랜이 끝나도 막지 않는다(학교 자료 쓰기가 아니라 계정 되찾기)."""
     m = get_in_space_or_404(Member, request, key=key)
+    if request.space.school.org_unconfirmed:  # 가짜 체험 기관으로 초대한 아이디 회원의 계정을 빼앗지 못하게(T2 보안)
+        return HttpResponseForbidden("운영자 확인 뒤 쓸 수 있어요.")
     ctx = {"space": request.space, "m": m}
     if m.is_manager or m.user_id is None or not is_id_member(m.user):
         ctx["error"] = "아이디로 가입한 선생님(관리자 제외)만 임시 비밀번호를 줄 수 있어요."
@@ -447,3 +500,74 @@ def duties_preview(request):
         ctx.update(tsv=tsv, rows=rows, unknown=unknown, skipped=d["skipped"], dropped=d["dropped"],
                    n_depts=len({r["dept"] for r in rows}), n_now=Duty.objects.in_space(request.space).count())
     return render(request, "spaces/_duty_out.html", ctx)
+
+
+def _group_name(request, groups, skip=""):
+    """새 그룹 이름: (이름, 오류). 같은 이름 그룹은 둘 수 없다(cls가 곧 그룹 이름이라 화면에서 구분이 안 된다)."""
+    name = _clean_name(request.POST.get("name"))[:GROUP_NAME_MAX]
+    if not name:
+        return name, "그룹 이름을 써 주세요. 예: 학교혁신팀"
+    if name == ORG_NONE or any(g["n"] == name for g in groups if g["k"] != skip):
+        return name, f"「{name}」 그룹이 이미 있어요. 다른 이름을 써 주세요."
+    return name, ""
+
+
+@never_cache
+@require_POST
+@school_required
+@manager_required
+@school_write_required
+def org_group(request):
+    """기관 그룹 만들기·이름 바꾸기·지우기(관리자, T2). 그룹 = 일정 줄. 공간 행을 잠가 관리자 둘이 동시에 바꿔도 목록이 섞이지 않게.
+    - 첫 그룹을 만들면 그동안 '기관 전체' 줄에 있던 일정을 그 그룹 줄로 옮긴다(그룹이 있는 기관에는 '기관 전체' 줄이 없다).
+    - 이름을 바꾸면 그 그룹 회원의 cls(= 그룹 이름)도 고친다.
+    - 지우기(사용자 결정 11/10): 마지막 그룹은 못 지우고, 그 줄에 일정이 있으면 옮길 줄(to)을 골라야 한다. 회원은 미배정이 된다."""
+    space, me, act = request.space, request.member, request.POST.get("act", "")
+    if not space.is_org:
+        raise Http404
+    with transaction.atomic():
+        space = Space.objects.select_for_update(no_key=True).get(pk=space.pk)
+        groups, key = list(space.org_groups), request.POST.get("key", "")
+        mine = next((g for g in groups if g["k"] == key), None)
+        if act == "new":
+            name, error = _group_name(request, groups)
+            if not error and len(groups) >= ORG_GROUPS_MAX:
+                error = f"그룹은 {ORG_GROUPS_MAX}개까지 만들 수 있어요."
+            if error:
+                return school_body(request, status=400, error=error)
+            known = {g["k"] for g in groups}
+            new = next(k for k in ("t" + secrets.token_hex(4) for _ in range(10)) if k not in known)
+            Space.objects.filter(pk=space.pk).update(org_groups=[*groups, {"k": new, "n": name}])
+            if not groups:
+                Event.objects.in_space(space).filter(scope=ALL).update(scope=new)
+            done = f"「{name}」 그룹을 만들었어요. 일정에 이 그룹 줄이 생겼어요."
+        elif act == "rename" and mine:
+            name, error = _group_name(request, groups, skip=key)
+            if error:
+                return school_body(request, status=400, error=error)
+            before, mine["n"] = mine["n"], name
+            Space.objects.filter(pk=space.pk).update(org_groups=groups)
+            Member.objects.in_space(space).filter(group=key).update(cls=name)
+            MemberLog.objects.create(space=space, by=me.name, name="그룹 이름", before=before, after=name)
+            done = f"「{before}」 그룹 이름을 「{name}」{_josa(name, '으로', '로')} 바꿨어요."
+        elif act == "delete" and mine:
+            n_events = Event.objects.in_space(space).filter(scope=key).count()
+            to = request.POST.get("to", "")
+            if len(groups) == 1:
+                return school_body(request, status=400, error="마지막 그룹은 지울 수 없어요. 새 그룹을 먼저 만들어 주세요.")
+            if n_events and (to == key or to not in {g["k"] for g in groups}):
+                return school_body(request, status=400, error=f"이 줄의 일정 {n_events}건을 옮길 줄을 골라 주세요.")
+            if n_events:
+                Event.objects.in_space(space).filter(scope=key).update(scope=to)
+            Member.objects.in_space(space).filter(group=key).update(group="", cls=ORG_NONE, order=None)
+            left = {g["k"] for g in groups} - {key}
+            for m in Member.objects.in_space(space).exclude(lines_off=""):  # 남은 줄을 다 꺼 둔 회원은 모두 켬으로(최소 1개 켬)
+                if left <= m.off_lines:
+                    Member.objects.filter(pk=m.pk).update(lines_off="")
+            Space.objects.filter(pk=space.pk).update(org_groups=[g for g in groups if g["k"] != key])
+            MemberLog.objects.create(space=space, by=me.name, name="그룹 지움", before=mine["n"], after=ORG_NONE)
+            done = f"「{mine['n']}」 그룹을 지웠어요. 회원은 미배정이 됐어요." + (f" 일정 {n_events}건은 옮겼어요." if n_events else "")
+        else:
+            return school_body(request, status=400, error="저장하지 못했어요. 화면을 새로 고쳐 다시 해 주세요.")
+    request.space.refresh_from_db(fields=["org_groups"])
+    return school_body(request, toast=done)

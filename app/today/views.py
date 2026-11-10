@@ -30,7 +30,7 @@ from spaces.models import Attendance, Member
 from spaces.views import _josa, _space_ctx
 
 from . import schedule
-from .models import ALL, ME, Event, my_range_q, reachable_q, scope_choices, with_counts
+from .models import ALL, ME, Event, default_scope, my_range_q, org_lines, reachable_q, scope_choices, with_counts
 from .parse import ROOMS, SLOT_KEYS, SLOTS, parse, slot_idx, slot_text
 
 WD = "월화수목금토일"
@@ -107,20 +107,20 @@ def _now_slot(now):
     return None, None
 
 
-def who_of(m, hexes):
-    """U1 카드 아래 줄의 사람: ('이름 · 소속', 소속 색). 소속이 없으면(동학년) 이름만, 점 없음."""
+def who_of(m, hexes, names):
+    """U1 카드 아래 줄의 사람: ('이름 · 소속', 소속 색). 소속이 없으면(동학년·기관 미배정) 이름만, 점 없음. names: space.group_names."""
     if m is None:
         return "", ""
-    return " · ".join(x for x in (m.name, m.get_group_display()) if x), hexes.get(m.group, "")
+    return " · ".join(x for x in (m.name, names.get(m.group, "")) if x), hexes.get(m.group, "")
 
 
-def _ev_item(e, me, today, hexes):
+def _ev_item(e, me, today, hexes, names):
     """카드 아래 줄: 쓴 사람 · 소속(who, 점 색 gc), 그 뒤 기간·블록·장소·대상(meta). 볼 사람 범위는 줄·탭으로 알 수 있어 쓰지 않는다(U1)."""
     multi_day = e.end and e.end != e.date
     meta = [_dates(e.date, e.end) if multi_day else "",
             slot_text(e.slot, e.slot_end) if e.slot and e.slot_end and e.slot_end != e.slot else "",
             e.place, e.target]
-    who, gc = who_of(e.by, hexes)
+    who, gc = who_of(e.by, hexes, names)
     return {"e": e, "mine": e.by_id == me.pk, "who": who, "gc": gc, "meta": " · ".join(x for x in meta if x),
             "can_write": e.writable_by(me), "slot_label": slot_text(e.slot, e.slot_end) if e.slot else "종일", "dates": _dates(e.date, e.end)}
 
@@ -128,7 +128,7 @@ def _ev_item(e, me, today, hexes):
 def _feed(space, me, now, colors):
     today = timezone.localdate(now)
     since = datetime.combine(today - timedelta(days=1), time(0), tzinfo=timezone.get_current_timezone())
-    qs = (Event.objects.in_space(space).filter(my_range_q(me), updated_at__gte=since)
+    qs = (Event.objects.in_space(space).filter(my_range_q(me), updated_at__gte=since).exclude(scope__in=me.off_lines)
           .filter(Q(end__gte=today) | Q(end__isnull=True, date__gte=today))
           .select_related("by", "changed_by").order_by("-updated_at")[:6])
     out = []
@@ -171,9 +171,9 @@ def _live_ctx(request, now):
     """오늘 일과 + 동학년 바뀐 것(htmx로 다시 그리는 부분)."""
     space, me = request.space, request.member
     today = timezone.localdate(now)
-    hexes = space.group_hex
-    events = [_ev_item(e, me, today, hexes) for e in
-              _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me))), today)
+    hexes, names = space.group_hex, space.group_names
+    events = [_ev_item(e, me, today, hexes, names) for e in
+              _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me)).exclude(scope__in=me.off_lines)), today)
               .select_related("by", "changed_by", "space").order_by("slot", "created_at")]
     now_slot, pct = _now_slot(timezone.localtime(now))
     cols = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
@@ -284,15 +284,20 @@ def _read_scope(request):
     if not request.space.is_school:
         return ALL
     raw = request.POST.get("scope")
-    return raw if raw in _cell_scopes(me) else (me.group or ME)
+    if raw in _cell_scopes(me):
+        return raw
+    return default_scope(me) if request.space.is_org else (me.group or ME)
 
 
-def _scope_ok(raw):
-    return raw in (ALL, ME, *Member.Group.values)
+def _scope_ok(raw, space):
+    """주간계획 붙여넣기의 대상: 학교는 학교 전체·나·소속, 기관은 그 기관의 줄·나(다른 공간 그룹 키는 거부, T2)."""
+    return raw in ((*org_lines(space), ME) if space.is_org else (ALL, ME, *Member.Group.values))
 
 
 def _cell_scopes(me):
-    """일정 칸이 저장할 수 있는 볼 사람: 학교 탭 전체, 그룹 탭 내 소속, 개인 탭 나."""
+    """일정 칸이 저장할 수 있는 볼 사람: 학교 탭 전체, 그룹 탭 내 소속, 개인 탭 나. 기관은 모든 그룹 줄과 나(T2)."""
+    if me.space.is_org:
+        return [*org_lines(me.space), ME]
     return [ALL, ME, *([me.group] if me.group else [])]
 
 

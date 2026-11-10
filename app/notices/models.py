@@ -9,7 +9,7 @@
 from django.db import models
 from django.db.models import Q
 
-from spaces.models import Member, Space, SpaceQuerySet, new_token
+from spaces.models import SCHOOL_GROUPS, Member, Space, SpaceQuerySet, new_token
 
 ALL = "all"
 TITLE, AUDIENCE, FILES, MUST = "제목", "받는 곳", "첨부", "확인 필수"
@@ -23,11 +23,12 @@ def audience_value(groups):
     return f",{','.join(groups)}," if groups else ALL
 
 
-def audience_text(value):
+def audience_text(value, labels=None):
+    """labels: 공간의 {소속 값: 이름}(space.group_names, 없으면 학교 소속 이름). 지운 기관 그룹은 이름 대신 '지운 그룹'."""
+    labels = SCHOOL_GROUPS if labels is None else labels
     if value == ALL:
         return "전체"
-    labels = dict(Member.Group.choices)
-    return "·".join(labels.get(g, g) for g in value.split(",") if g)
+    return "·".join(labels.get(g, "지운 그룹") for g in value.split(",") if g)
 
 
 def version_label(v):
@@ -38,12 +39,12 @@ def version_label(v):
 GRADE_GROUPS = ("g1", "g2", "g3", "g4", "g5", "g6")
 
 
-def audience_short(value):
+def audience_short(value, labels=None):
     """목록 칸에 들어가게: 여섯 학년이 다 있으면 '전 학년'으로. 판에 저장하는 audience_text는 그대로 둔다."""
+    labels = SCHOOL_GROUPS if labels is None else labels
     groups = [g for g in value.split(",") if g]
     if value == ALL or not set(GRADE_GROUPS) <= set(groups):
-        return audience_text(value)
-    labels = dict(Member.Group.choices)
+        return audience_text(value, labels)
     return "·".join(["전 학년", *(labels.get(g, g) for g in groups if g not in GRADE_GROUPS)])
 
 
@@ -66,7 +67,7 @@ class Notice(models.Model):
     title = models.CharField("제목", max_length=200)
     by = models.ForeignKey(Member, on_delete=models.SET_NULL, null=True, blank=True, related_name="notices")
     by_name = models.CharField("쓴 사람", max_length=40)
-    group = models.CharField("쓴 사람 소속", max_length=10, choices=Member.Group.choices, blank=True, default="")
+    group = models.CharField("쓴 사람 소속", max_length=10, blank=True, default="")  # 이름은 group_label(공간의 소속 이름, T2)
     audience = models.CharField("받는 곳", max_length=120, default=ALL)
     must = models.BooleanField("확인 필수", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -79,11 +80,15 @@ class Notice(models.Model):
 
     @property
     def audience_text(self):
-        return audience_text(self.audience)
+        return audience_text(self.audience, self.space.group_names)
 
     @property
     def audience_short(self):
-        return audience_short(self.audience)
+        return audience_short(self.audience, self.space.group_names)
+
+    @property
+    def group_label(self):
+        return self.space.group_label(self.group)
 
 
 class NoticeVersionQuerySet(SpaceQuerySet):

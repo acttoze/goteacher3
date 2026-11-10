@@ -11,7 +11,7 @@ from django.contrib.auth import logout, update_session_auth_hash
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.sessions.models import Session
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseForbidden
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -67,6 +67,7 @@ def settings_page(request):
     ctx = _ctx(request, _this_pc(request), area=area, area_label=areas[area], areas=areas.items())
     if area == "prefs":
         ctx["days"] = _days(request.member)
+        ctx["lines"] = _lines(request)
     elif area == "me":
         ctx["classes"] = class_choices(request.space)
     elif area == "alerts":
@@ -129,6 +130,32 @@ def days(request):
         return redirect(f"/s/{request.space.token}/settings?a=prefs")
     saved = "일정에 보일 요일을 바꿨어요" if on else "요일을 하나는 켜 두어야 해요"
     return render(request, "accounts/_days.html", _space_ctx(request, days=_days(me), saved=saved))
+
+
+def _lines(request):
+    """[(그룹 키, 이름, 켬)] 기관만(T2). 학교·동학년은 빈 목록."""
+    space, off = request.space, request.member.off_lines
+    return [(k, n, k not in off) for k, n in space.group_choices] if space.is_org else []
+
+
+@never_cache
+@require_POST
+def lines(request):
+    """보이는 그룹 줄(기관, T2): 체크된 그룹만 켠다. 저장은 끈 줄(새 그룹은 처음부터 보이게). 다 끄면 저장하지 않는다.
+    보기 필터일 뿐 권한이 아니다(주소로 열면 보인다)."""
+    space, me = request.space, request.member
+    if not space.is_org:
+        raise Http404
+    on = set(request.POST.getlist("on"))
+    keys = space.group_keys
+    saved = "그룹 줄을 하나는 켜 두어야 해요"
+    if on & set(keys):
+        me.lines_off = ",".join(k for k in keys if k not in on)
+        me.save(update_fields=["lines_off"])
+        saved = "일정에 보일 그룹 줄을 바꿨어요"
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{space.token}/settings?a=prefs")
+    return render(request, "accounts/_lines.html", _space_ctx(request, lines=_lines(request), saved=saved))
 
 
 @never_cache

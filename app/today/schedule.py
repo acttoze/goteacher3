@@ -54,13 +54,17 @@ def _d(d):
     return f"{d.month}/{d.day}({WD[d.weekday()]})"
 
 
-def _channels(space):
+def _channels(space, me):
     """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음), post: 칸 추가 주소(복무).
-    go: 칸 추가가 대신 여는 취합 만들기 주소(그 날을 마감으로, 학교 탭은 전 교직원)."""
+    go: 칸 추가가 대신 여는 취합 만들기 주소(그 날을 마감으로, 학교 탭은 전 교직원).
+    기관(T2): 그룹마다 줄(관리자 순서, 내가 끈 줄은 뺌) + 취합. 그룹이 아직 없으면 '기관 전체' 한 줄. 복무 줄은 없다."""
     go = f"/s/{space.token}/c/new?" + ("aud=all&" if space.is_school else "")
-    if not space.is_school or space.is_org:  # 기관은 복무 줄이 없다(T1). 기관 전원 일정은 기본 줄 하나(그룹 줄은 T2)
-        return [{"k": "school", "label": "기관 전체" if space.is_org else space.word, "scope": ALL},
-                {"k": "collect", "label": "취합", "scope": "", "go": go}]
+    collect = {"k": "collect", "label": "취합", "scope": "", "go": go}
+    if space.is_org:
+        groups = [{"k": k, "label": n, "scope": k} for k, n in space.group_choices if k not in me.off_lines]
+        return [*(groups if space.org_groups else [{"k": "school", "label": "기관 전체", "scope": ALL}]), collect]
+    if not space.is_school:
+        return [{"k": "school", "label": space.word, "scope": ALL}, collect]
     return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go},
             {"k": "duty", "label": "복무", "scope": "duty", "post": f"/s/{space.token}/today/duty"}]
 
@@ -70,7 +74,9 @@ def tabs(request):
     me = request.member
     if not request.space.is_school:
         return []
-    return [("school", request.space.name if request.space.is_org else "학교"), *([("group", me.get_group_display())] if me.group else []), ("me", "개인")]
+    if request.space.is_org:  # 그룹 줄이 학교 탭에 다 보여서 그룹 탭은 없다(T2)
+        return [("school", request.space.name), ("me", "개인")]
+    return [("school", "학교"), *([("group", request.space.group_label(me.group))] if me.group else []), ("me", "개인")]
 
 
 def read_tab(request):
@@ -184,10 +190,13 @@ def _collect_tab(space, c):
 
 
 def _dialog_scopes(me, e):
-    """수정 대화상자의 볼 사람: 학교 전체 · 내 그룹 · 개인(나만). 지금 값이 다른 그룹이면 그 값도 남긴다."""
-    out = [(ALL, f"{me.space.word} 전체"), *([(me.group, me.get_group_display())] if me.group else []), (ME, "개인(나만)")]
+    """수정 대화상자의 볼 사람: 학교 전체 · 내 그룹 · 개인(나만). 지금 값이 다른 그룹이면 그 값도 남긴다.
+    기관(T2): 모든 그룹 줄 + 개인(줄을 옮길 수 있다)."""
+    if me.space.is_org:
+        return [*(me.space.group_choices or [(ALL, "기관 전체")]), (ME, "개인(나만)")]
+    out = [(ALL, f"{me.space.word} 전체"), *([(me.group, me.space.group_label(me.group))] if me.group else []), (ME, "개인(나만)")]
     if e.scope not in [k for k, _ in out]:
-        out.insert(-1, (e.scope, e.scope_label))
+        out.insert(-1, (e.scope, me.space.group_label(e.scope) or "지운 그룹"))
     return out
 
 
@@ -205,19 +214,25 @@ def board_ctx(request, mode, raw):
     if mode != "day":
         days = [d for d in days if d.weekday() in on]
     colors = _colors(space)
-    hexes = space.group_hex  # U1 카드 점 색: 쓴 사람(복무는 당사자, 취합은 만든 사람)의 소속
+    hexes, names = space.group_hex, space.group_names  # U1 카드 점 색: 쓴 사람(복무는 당사자, 취합은 만든 사람)의 소속
     tab_list = tabs(request)
     tab = read_tab(request)
     channeled = tab == "school"  # 학교 탭·동학년: 채널 줄. 그룹·개인 탭: 블록 줄(월간은 달력 칸)
     tab_scope = {"group": me.group, "me": ME}.get(tab, ALL)
-    channels = _channels(space) if channeled else []
+    channels = _channels(space, me) if channeled else []
+    shown_lines = {c["scope"] for c in channels}
 
     def on_tab(e):
         if not space.is_school:
             return True
         if tab == "me":
             return e.scope == ME and e.by_id == me.pk
+        if space.is_org:  # 그룹 줄 = 일정 줄. 끈 줄은 내 판에서만 빠진다(보기 필터, T2)
+            return e.scope in shown_lines
         return e.scope == tab_scope
+
+    def line_of(e):  # 학교 탭 칸의 줄 키: 기관은 그룹 키, 그 밖은 학교(전체) 줄
+        return e.scope if space.is_org and e.scope != ALL else "school"
 
     # 일정: 보고 있는 기간에 걸치는 것. 바뀐 것 목록은 탭과 무관하게 내가 볼 수 있는 전부.
     seen_evs = list(with_counts(Event.objects.in_space(space).filter(reachable_q(me), date__lte=last))
@@ -225,11 +240,11 @@ def board_ctx(request, mode, raw):
                     .select_related("by", "changed_by", "space").order_by("date", "slot", "created_at"))
     evs = [e for e in seen_evs if on_tab(e)]
     cells = defaultdict(list)  # (날짜, 채널, 블록) → 칸 안 항목. 블록 줄 화면은 채널이 ""
-    ch = "school" if channeled else ""
     dialogs = []
     clashes = week_conflicts(space, me, evs)
     for e in evs:
-        x = _ev_item(e, me, today, hexes)
+        x = _ev_item(e, me, today, hexes, names)
+        ch = line_of(e) if channeled else ""
         x["kind"], x["ch"], x["scopes"] = "ev", ch, _dialog_scopes(me, e)
         x["fresh"] = x["mine"] and not e.changed_from and now - e.created_at < timedelta(minutes=1)
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
@@ -291,14 +306,16 @@ def board_ctx(request, mode, raw):
             href = f"/s/{space.token}/c/{c.key}/"
         else:
             href = "" if space.is_school else f"/c/{c.link_token}"  # 학교 공간의 대상 아닌 사람에게는 받는 링크를 싣지 않는다
-        who, gc = who_of(c.created_by, hexes)
+        who, gc = who_of(c.created_by, hexes, names)
         x = {"kind": "due", "c": c, "href": href, "who": who or by, "gc": gc, "mine": mine,
              "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
              "day": _d(at.date()), "today": at.date() == today, "ch": "collect" if channeled else ""}
         if list_first <= at.date() <= list_last and (mine or row or not space.is_school):
             dues.append(x)
         where = _collect_tab(space, c)
-        if (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
+        if channeled and space.is_org and where is not None:  # 기관: 기관 전체·그룹 고르기·그룹별 1칸 모두 취합 줄(T2)
+            cells[(at.date(), "collect", "")].append(x)
+        elif (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
             cells[(at.date(), "collect", "")].append(x)  # 마감은 날짜만(종일)
 
     if mode == "month":  # 켠 요일이 모두 지난달·다음 달인 주는 뺀다
@@ -340,6 +357,8 @@ def board_ctx(request, mode, raw):
         board = {"mweeks": mweeks, "dow": [(w, w in "일토") for i, w in enumerate(MONTH_DOW) if (i + 6) % 7 in on]}
     else:
         wrows = [{"label": ln["label"], "ch": ln.get("ch", ""), "time": ln.get("time", ""), "cells": [cell(d, ln) for d in days]} for ln in lines]
+        for r in wrows:  # 기관: 일정이 하나도 없는 줄은 낮게 접는다(그룹 8줄을 한눈에, 리드 결정)
+            r["empty"] = space.is_org and channeled and not any(c["items"] for c in r["cells"])
         board = {"wrows": wrows, "days": [{"md": f"{d.month}/{d.day}", "wd": WD[d.weekday()], "today": d == today} for d in days]}
 
     changed = sorted((e for e in seen_evs if e.changed_from and e.date <= list_last and e.last_day >= list_first),
@@ -363,7 +382,7 @@ def board_ctx(request, mode, raw):
             "nav_words": v["nav_words"], "period": v["period"], "period_short": v.get("period_short", v["period"]),
             "focus": v["focus"].isoformat(), "print_view": "month" if mode == "month" else "week",
             "paste_w": (v["focus"] if mode == "month" else v["w"]).isoformat(),
-            "tabs": tab_list, "tab": tab, "tab_label": tab_label, "channeled": channeled,
+            "tabs": tab_list, "tab": tab, "tab_label": tab_label, "channeled": channeled, "my_group_label": names.get(me.group, ""),
             "board_title": tab_label if tab != "school" or space.is_org else space.label + ("" if space.is_school else " · 학교"),
             "n_items": n_items, "dialogs": dialogs, "duty_dialogs": duty_dialogs,
             "neis_empty": channeled and not seen and not space.is_org, "neis_fail": channeled and neis.failed(sched),

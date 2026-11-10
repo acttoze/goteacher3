@@ -127,7 +127,8 @@ def audience_rows(space, aud):
     if mode is None:
         return roster_rows(space, "class")
     if mode == "pergroup":
-        return [{"unit": GROUPS[g], "who": "", "member": None, "group": g} for g in aud["groups"]]
+        names = space.group_names
+        return [{"unit": names.get(g, g), "who": "", "member": None, "group": g} for g in aud["groups"]]
     if mode == "dept":
         return _dept_rows(space, aud["depts"])
     members = _members(space)
@@ -149,30 +150,33 @@ def audience_head(aud):
     return {"pergroup": ["그룹", "작성"], "dept": ["부서", "담당"]}.get(mode, list(PEOPLE_HEAD))
 
 
-def audience_text(aud, n):
-    """prototype TR.audText: 받는 곳 설명 한 줄."""
+def audience_text(aud, n, space=None):
+    """prototype TR.audText: 받는 곳 설명 한 줄. space: 소속 이름(기관 그룹, T2). 없으면 학교 소속 이름."""
     mode = aud.get("mode")
     order = " · 부서별" if aud.get("sort") == "dept" else ""
+    org = space is not None and space.is_org
+    labels = space.group_names if space is not None else GROUPS
     if mode == "all":
-        return f"전 교직원 {n}명 · 사람별 1칸{order}"
+        return f"{'기관 전체' if org else '전 교직원'} {n}명 · 사람별 1칸{order}"
     if mode == "people":
         return f"개인 {n}명 · 사람별 1칸{order}"
     if mode == "dept":
         return f"부서 {len(aud['depts'])}곳 담당 {n}명 · 사람별 1칸"
     groups = aud.get("groups", [])
-    names = [GROUPS[g] for g in groups]
-    if set(GRADES) <= set(groups):
-        names = ["1~6학년"] + [GROUPS[g] for g in groups if g not in GRADES]
-    gl = "전 소속" if len(groups) == len(GROUPS) else "·".join(names[:3]) + (f" 외 {len(names) - 3}" if len(names) > 3 else "")
+    names = [labels.get(g, g) for g in groups]
+    if not org and set(GRADES) <= set(groups):
+        names = ["1~6학년"] + [labels.get(g, g) for g in groups if g not in GRADES]
+    word = "그룹" if org else "소속"
+    gl = f"전 {word}" if len(groups) == len(labels) else "·".join(names[:3]) + (f" 외 {len(names) - 3}" if len(names) > 3 else "")
     if mode == "pergroup":
-        return f"소속 {n}곳({gl}) · 소속별 1칸"
+        return f"{word} {n}곳({gl}) · {word}별 1칸"
     return f"{gl} 담임 {n}명 · 반별 1칸" if aud.get("hr") else f"{gl} {n}명 · 사람별 1칸"
 
 
-def audience_where(aud):
+def audience_where(aud, space=None):
     """쪽지 문구의 '…만 채워 주세요'."""
     if aud.get("mode") == "pergroup":
-        return "우리 소속 칸"
+        return "우리 그룹 칸" if space is not None and space.is_org else "우리 소속 칸"
     return "우리 반 칸" if aud.get("mode") is None or aud.get("hr") else "내 칸"
 
 
@@ -181,11 +185,14 @@ def audience_form(space, aud):
     members = _members(space)
     picked = set(aud.get("people", []))
     groups, mode = aud.get("groups", []), aud.get("mode")
-    n = {g: sum(m.group == g for m in members) for g in GROUPS}
+    choices = space.group_choices
+    n = {g: sum(m.group == g for m in members) for g, _ in choices}
     by_dept = aud.get("sort") == "dept"
-    packs = _by_dept(space, members) if by_dept else [(label, [m for m in members if m.group == g]) for g, label in space.group_choices if n[g]]
+    packs = _by_dept(space, members) if by_dept else [(label, [m for m in members if m.group == g]) for g, label in choices if n[g]]
+    if space.is_org and not by_dept and any(not m.group for m in members):  # 기관 미배정 회원도 고를 수 있게(T2)
+        packs.append(("미배정", [m for m in members if not m.group]))
     return {"aud_mode": mode, "aud_sort": "dept" if by_dept else "group", "aud_has_duty": Duty.objects.in_space(space).exists(),
-            "aud_groups": [{"id": g, "label": label, "n": n[g], "pon": g in groups and mode == "pergroup"} for g, label in space.group_choices],
+            "aud_groups": [{"id": g, "label": label, "n": n[g], "pon": g in groups and mode == "pergroup"} for g, label in choices],
             "aud_people": [{"label": label, "members": [{"key": m.key, "name": m.name, "pos": m.position or m.cls_text, "on": m.key in picked}
                                                         for m in ms]} for label, ms in packs]}
 
@@ -195,9 +202,9 @@ def unmatched_count(aud, rows):
     return sum(r["member"] is None for r in rows) if aud.get("mode") == "dept" else 0
 
 
-def stored_audience(aud, rows):
+def stored_audience(aud, rows, space=None):
     """저장할 범위: 다시 걷기에 쓸 값 + 만들 때의 설명·짝 못 지은 수. 동학년은 비어 있다."""
-    return {**aud, "text": audience_text(aud, len(rows)), "unmatched": unmatched_count(aud, rows)} if aud else {}
+    return {**aud, "text": audience_text(aud, len(rows), space), "unmatched": unmatched_count(aud, rows)} if aud else {}
 
 
 def make_rows(collection, rows):
