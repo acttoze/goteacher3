@@ -166,16 +166,6 @@ class SeatAlertQa(MergeBase):
         self.assertFalse(Notification.objects.filter(kind="seat", text__contains="손님").exists())
 
 
-class SettingsLeadQa(MergeBase):
-    def test_lead_badge_follows_manager_not_join_order(self):
-        hub = open_school(self.school, UNTIL, self.m5)  # 관리자는 나중에 들어온 김도윤, 가장 먼저 들어온 사람은 송민재
-        self.client.force_login(self.u5)
-        r = self.client.get(f"/s/{hub.token}/settings?a=space")
-        html = r.content.decode()
-        first_row = html[html.index("송민재"):html.index("정하은")]
-        self.assertNotIn("학년 대표", first_row)
-
-
 class HwpAfterMergeQa(MergeBase):
     def form(self, base, sf, title):
         f = self.client.get(f"{base}/c/new/hwp/{sf.key}").context["hwpf"]

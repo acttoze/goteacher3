@@ -302,7 +302,7 @@ class SourceRowTests(Base):
     def test_range_event_starting_on_weekend_shows_on_start_day(self):
         e = self.ev(self.t4, "주말 시작", ALL, d=date(2026, 11, 7), end=date(2026, 11, 9))  # 토~월
         grid = grid_of(self.page(self.t4, "month", w="2026-11-01"))
-        self.assertEqual(grid.count(f'data-open="#ev-{e.key}"'), 2)  # 토(시작)·월, 일 뺌
+        self.assertEqual(grid.count(f'data-open="#ev-{e.key}"'), 1)  # 월만(Q1: 토·일 칸은 기본으로 없음)
 
     def test_month_outside_day_item_is_kept(self):
         e = self.ev(self.t4, "달 밖 일", ALL, d=date(2026, 10, 2))

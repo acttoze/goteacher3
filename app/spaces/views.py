@@ -295,13 +295,6 @@ def class_choices(space):
     return [(c, cls_text(c)) for c in slots]
 
 
-def _role(m):
-    """설정 > 선생님 오른쪽 표시: 담임 / 전담 / 학년 밖 교직원은 직책."""
-    if m.cls.rpartition("-")[2] == "전담":
-        return "전담"
-    return m.position if m.group and not m.in_grade else "담임"
-
-
 def _roster(space, me=None):
     """들어온 선생님(들어온 순서, 사람 색)과 아직 안 들어온 칸."""
     members = list(Member.objects.in_space(space).select_related("user").order_by("joined_at", "pk"))
@@ -318,7 +311,7 @@ def _roster(space, me=None):
             via += " · 관리자"
         elif not space.is_school and i == 0:
             via += " · 만든 사람"
-        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not account, "id_member": id_member, "role": _role(m),
+        rows.append({"m": m, "label": m.cls_text if space.is_school else _cls_label(m.cls), "color": color, "ink": ink, "via": via, "guest": not account, "id_member": id_member,
                      "at": timezone.localtime(m.joined_at), "me": me is not None and m.pk == me.pk})
     waiting = [_cls_label(c) for c in slots if c not in taken]
     # prototype: 칸(NEIS 반 + 전담) 중 채워진 칸. 칸 밖 반은 칸을 하나씩 더한다. NEIS가 없으면 들어온 사람 수.

@@ -474,25 +474,6 @@ class SettingsTests(JoinBase):
         self.client.force_login(self.u5)
         self.base = f"/s/{self.hub.token}"
 
-    def test_specialist_is_not_shown_as_homeroom(self):
-        Member.objects.create(space=self.hub, user=google("s1"), name="전담샘", cls="4-전담", group="g4", position="전담")
-        Member.objects.create(space=self.hub, user=google("s2"), name="교무샘", cls="교무실", group="office", position="교무")
-        html = self.client.get(f"{self.base}/settings?a=space").content.decode()
-        row = html[html.index("4학년 전담 전담샘"):]
-        self.assertIn("전담</span>", row[:row.index("</div></div>") + 80])
-        self.assertLess(html.index("전담샘"), html.index("교무샘"))
-        row = html[html.index("5학년 1반 김도윤"):]
-        self.assertIn("담임</span>", row[:row.index("</div></div>") + 80])
-
-    def test_grade_space_specialist_too(self):
-        c = Client()
-        u = google("s3")
-        Member.objects.create(space=self.far, user=u, name="먼전담", cls="4-전담")
-        c.force_login(self.far_user)
-        html = c.get(f"/s/{self.far.token}/settings?a=space").content.decode()
-        row = html[html.index("전담 먼전담"):]
-        self.assertIn(">전담</span>", row[:row.index("</div></div>") + 80])
-
     def test_office_member_can_rename_without_class_picks(self):
         u = google("o1")
         m = Member.objects.create(space=self.hub, user=u, name="교무샘", cls="교무실", group="office", position="교무")

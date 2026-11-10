@@ -584,22 +584,12 @@ class SettingsLabelTests(MergeBase):
     def test_school_labels_manager_not_grade_lead(self):
         r = self.space_tab(self.u5)
         self.assertNotContains(r, "학년 대표")
-        self.assertContains(r, '<span class="pill acc">관리자</span>', count=1)
-        html = r.content.decode()
-        self.assertIn("pill acc", html[html.index("김도윤"):])
-        self.assertNotIn("pill acc", html[html.index("송민재"):html.index("정하은")])
 
     def test_school_leave_text_says_manager_takes_over(self):
         r = self.space_tab(self.u4)
         self.assertNotContains(r, "먼저 들어온 선생님이 넘겨받아요")
         self.assertNotContains(r, "학년 대표")
         self.assertContains(r, "내가 만든 취합은 관리자가 넘겨받아요")
-
-    def test_grade_space_labels_stay(self):
-        self.client.force_login(self.far_user)
-        r = self.client.get(f"/s/{self.far.token}/settings?a=space")
-        self.assertContains(r, '<span class="pill acc">학년 대표</span>', count=1)
-        self.assertContains(r, "학년 대표는 가장 먼저 들어온 선생님이 맡아요")
 
 
 class ScreensAfterMergeTests(MergeBase):

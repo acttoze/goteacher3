@@ -64,6 +64,7 @@ urlpatterns = [
     path("s/<str:space_token>/settings", device.settings_page),
     path("s/<str:space_token>/settings/remember", device.remember),
     path("s/<str:space_token>/settings/slots", device.slots),
+    path("s/<str:space_token>/settings/days", device.days),
     path("s/<str:space_token>/settings/logout-all", device.logout_all),
     path("s/<str:space_token>/settings/me", spaces.update_me),
     path("s/<str:space_token>/settings/password", device.change_password),  # P1 아이디 회원

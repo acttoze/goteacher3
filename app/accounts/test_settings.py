@@ -1,11 +1,12 @@
 """설정 화면 완성(design/settings.html): 내 정보 · 알림 · 동학년 · 이 PC.
 
 불변식
-- 영역은 ?a=me|alerts|space|device. 기본은 내 정보(design #me). 다른 공간 주소는 모두 404.
+- 영역은 ?a=prefs|me|alerts|space|device. 기본은 내 정보(design #me). 다른 공간 주소는 모두 404.
+- 설정(Q1): 표시 요일 7개 스위치, 회원마다 저장, 하나는 켜 두어야 한다.
 - 내 정보: 이름·반을 바꾸면 바로 저장. 반은 그 학년 반(NEIS 또는 1~4반)+전담만. 같은 반·같은 이름 선생님이 이미 있으면 거부
   (초대 입장은 반·이름으로 같은 사람을 찾으므로 겹치면 남의 자리로 들어가게 된다).
 - 알림: 묶음 시각 3개 안내 + 이 PC 브라우저 알림 켜기·끄기(VAPID 키가 있을 때만).
-- 동학년: 선생님 목록, 초대 링크·QR(새로 만들기는 만든 사람만), 회원 내보내기는 동학년 화면으로.
+- 동학년: 초대 링크·QR(선생님 목록은 Q1에서 뺐다)(새로 만들기는 만든 사람만), 회원 내보내기는 동학년 화면으로.
 - 나가기: 동학년 이름을 써야 나간다. 내가 만든 취합은 남은 선생님 중 가장 먼저 들어온 분(새 학년 대표)이 넘겨받는다.
   마지막 한 명이 나가면 동학년을 지운다(같은 학년을 새로 만들 수 있게). 손님은 계정도 지우고 로그아웃.
 - 이 PC 스위치는 실제 상태를 따른다(기기 쿠키 없으면 꺼짐).
@@ -45,8 +46,10 @@ class AreaTests(SettingsBase):
     def test_default_area_is_me_with_tabs(self):
         r = self.client.get(self.url)
         self.assertContains(r, "내 정보 설정")
-        for a in ("me", "alerts", "space", "device"):
+        for a in ("prefs", "me", "alerts", "space", "device"):
             self.assertContains(r, f'href="?a={a}"')
+        html = r.content.decode()
+        self.assertLess(html.index('href="?a=prefs">설정</a>'), html.index('href="?a=me"'))  # 내 정보 왼쪽
         self.assertContains(r, 'href="?a=me" aria-current="page"')
         self.assertContains(r, 'value="송민재"')
         self.assertContains(r, 'data-v="4-1" aria-pressed="true"')
@@ -80,8 +83,8 @@ class AreaTests(SettingsBase):
 
     def test_space_area_members_invite_qr(self):
         r = self.client.get(self.url + "?a=space")
-        self.assertContains(r, "정하은")
-        self.assertContains(r, "학년 대표")
+        self.assertNotContains(r, "<h2>선생님</h2>")  # Q1: 선생님 목록 섹션 없음
+        self.assertNotContains(r, 'class="mem"')
         self.assertContains(r, f"{SITE}/j/{self.space.invite_token}")
         self.assertContains(r, 'class="qr-img"')
         self.assertContains(r, f'action="/s/{self.space.token}/invite"')  # 만든 사람: 새로 만들기
@@ -302,3 +305,58 @@ class QaSettingsEdgeTests(SettingsBase):
         self.assertEqual(c.post(f"{self.url}/leave", {"confirm": "새솔초 4학년"}).status_code, 403)
         self.assertEqual(c.post(f"{self.url}/me", {"name": "x"}).status_code, 403)
         self.assertTrue(Member.objects.filter(pk=self.me.pk).exists())
+
+
+class DaysTests(SettingsBase):
+    """설정 > 표시 요일(Q1): POST(CSRF)·즉시 저장·내 회원만·다 끄기 막음·다른 공간 404."""
+
+    def post(self, on, client=None, space=None, hx=True):
+        headers = {"HX-Request": "true"} if hx else {}
+        return (client or self.client).post(f"/s/{(space or self.space).token}/settings/days", {"on": on}, headers=headers)
+
+    def test_prefs_area_shows_seven_switches_default_mon_to_fri(self):
+        r = self.client.get(self.url + "?a=prefs")
+        self.assertContains(r, "내 화면 설정")
+        self.assertContains(r, "표시 요일")
+        self.assertContains(r, f'hx-post="/s/{self.space.token}/settings/days"')
+        for k in "01234":
+            self.assertContains(r, f'name="on" value="{k}" checked')
+        for k in "56":
+            self.assertContains(r, f'name="on" value="{k}" aria-label')
+        self.assertContains(r, "토요일")
+        self.assertContains(r, "일요일")
+
+    def test_turn_saturday_on_only_for_me(self):
+        r = self.post(["0", "1", "2", "3", "4", "5"])
+        self.assertContains(r, 'id="dayPanel"')
+        self.assertContains(r, 'name="on" value="5" checked')
+        self.me.refresh_from_db()
+        self.g.refresh_from_db()
+        self.assertEqual(self.me.days_on, "012345")
+        self.assertEqual(self.g.days_on, "01234")
+
+    def test_turn_sunday_off_and_all_off_blocked(self):
+        self.post(["0", "1", "2", "3", "4", "5", "6"])
+        self.post(["0", "1", "2", "3", "4", "5"])  # 일요일 끄기
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.days_on, "012345")
+        r = self.post(["9", "<b>"])  # 모르는 값만 = 다 끄기
+        self.assertContains(r, "요일을 하나는 켜 두어야 해요")
+        self.assertContains(r, 'name="on" value="0" checked')  # 스위치는 그대로 돌아온다
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.days_on, "012345")
+
+    def test_without_htmx_redirects_and_csrf_required(self):
+        self.assertRedirects(self.post(["2"], hx=False), self.url + "?a=prefs", fetch_redirect_response=False)
+        self.assertEqual(self.client.get(f"/s/{self.space.token}/settings/days").status_code, 405)
+        c = Client(enforce_csrf_checks=True)
+        c.force_login(self.owner)
+        self.assertEqual(self.post(["0"], client=c).status_code, 403)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.days_on, "2")
+
+    def test_other_space_404(self):
+        self.assertEqual(self.post(["0"], space=self.other).status_code, 404)
+        self.assertEqual(self.client.post("/s/nope/settings/days", {"on": ["0"]}).status_code, 404)
+        self.me.refresh_from_db()
+        self.assertEqual(self.me.days_on, "01234")

@@ -279,10 +279,3 @@ class GradeWordsUnchangedQa(MergeBase):
     def test_leave_text_is_the_same_as_before(self):
         html = self.settings_html(self.u4, self.g4)
         self.assertIn("동학년은 다른 선생님들에게 그대로 남아요", html)
-
-    def test_class_with_word_name_still_reads_homeroom(self):
-        """나이스 반 이름이 숫자가 아닌 학교(가·나반): 전담 수정 뒤 '담임'이 빈칸이 됐다."""
-        Member.objects.create(space=self.g4, user=google("gaban"), name="가반샘", cls="4-가")
-        html = self.settings_html(self.u4, self.g4)
-        row = html[html.index("가반샘"):]
-        self.assertIn('muted">담임</span>', row[:row.index("</div></div>") + 80])

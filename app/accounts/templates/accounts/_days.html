@@ -1,0 +1,8 @@
+{# 표시 요일 스위치(Q1). 바꾸면 바로 저장하고 이 패널만 다시 받는다. 다 끄면 서버가 저장하지 않고 지금 값으로 되돌린다. #}
+<form class="panel" id="dayPanel" method="post" action="/s/{{ space.token }}/settings/days" hx-post="/s/{{ space.token }}/settings/days" hx-trigger="change" hx-target="this" hx-swap="outerHTML">
+  {% csrf_token %}
+  {% for k, w, on in days %}<div class="sw"><div><b>{{ w }}요일</b>{% if not on %}<div class="d">꺼짐 · 일정 주·월 보기에 이 요일 칸이 없어요</div>{% endif %}</div>
+    <label class="toggle"><input type="checkbox" name="on" value="{{ k }}"{% if on %} checked{% endif %} aria-label="{{ w }}요일 보이기"><i></i></label></div>{% endfor %}
+  <noscript><div class="sw"><span></span><button class="btn sec sm" type="submit">저장</button></div></noscript>
+  {% if saved %}<span class="sr" data-toast-now="{{ saved }}"></span>{% endif %}
+</form>

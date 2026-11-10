@@ -77,10 +77,10 @@ def read_tab(request):
     return raw if raw in [k for k, _ in tabs(request)] else "school"
 
 
-def this_monday(today):
-    """이번 주 월요일. 주말이면 다음 주(다가올 주를 본다)."""
+def this_monday(today, last=4):
+    """이번 주 월요일. 켠 마지막 요일(기본 금)이 지났으면 다음 주(다가올 주를 본다)."""
     mon = today - timedelta(days=today.weekday())
-    return mon + timedelta(days=7) if today.weekday() >= 5 else mon
+    return mon + timedelta(days=7) if today.weekday() > last else mon
 
 
 def _shown_date(raw):
@@ -92,10 +92,10 @@ def _shown_date(raw):
     return d if d and 2000 <= d.year <= 2100 else None
 
 
-def shown_monday(raw, today):
+def shown_monday(raw, today, last=4):
     """w → 그 주 월요일. 형식이 틀리거나 범위 밖이면 이번 주."""
     d = _shown_date(raw)
-    return d - timedelta(days=d.weekday()) if d else this_monday(today)
+    return d - timedelta(days=d.weekday()) if d else this_monday(today, last)
 
 
 def month_grid(first):
@@ -109,14 +109,15 @@ def read_mode(request):
     return raw if raw in MODES else "week"
 
 
-def _label(mon):
-    fri = mon + timedelta(days=4)
-    return f"{mon.month}월 {mon.day}일 ~ " + (f"{fri.day}일" if fri.month == mon.month else f"{fri.month}월 {fri.day}일")
+def _label(mon, on=range(5)):
+    """주 이름: 켠 첫 요일 ~ 켠 마지막 요일(기본 월~금)."""
+    a, b = mon + timedelta(days=min(on)), mon + timedelta(days=max(on))
+    return f"{a.month}월 {a.day}일" + ("" if a == b else " ~ " + (f"{b.day}일" if b.month == a.month else f"{b.month}월 {b.day}일"))
 
 
-def _heading(mon, this_mon):
+def _heading(mon, this_mon, on):
     rel = (mon - this_mon).days // 7
-    return {0: "이번 주 일정", -1: "지난주 일정", 1: "다음 주 일정"}.get(rel, f"{_label(mon)} 일정")
+    return {0: "이번 주 일정", -1: "지난주 일정", 1: "다음 주 일정"}.get(rel, f"{_label(mon, on)} 일정")
 
 
 def _at(dt, today):
@@ -125,7 +126,7 @@ def _at(dt, today):
     return f"{day} {at:%H:%M}"
 
 
-def _day_view(raw, today):
+def _day_view(raw, today, on):
     d = _shown_date(raw) or today
     label = f"{d.month}월 {d.day}일 {WD[d.weekday()]}요일"
     heading = {0: "오늘 일정", -1: "어제 일정", 1: "내일 일정"}.get((d - today).days, f"{label} 일정")
@@ -134,16 +135,17 @@ def _day_view(raw, today):
             "nav_words": ("전날", "오늘", "다음 날"), "period": "이 날"}
 
 
-def _week_view(raw, today):
-    mon, this_mon = shown_monday(raw, today), this_monday(today)
-    fri = mon + timedelta(days=4)
-    return {"first": mon, "last": fri, "list_first": mon, "list_last": fri, "focus": today if mon <= today <= fri else mon, "w": mon,
-            "heading": _heading(mon, this_mon), "label": _label(mon), "is_this": mon == this_mon,
+def _week_view(raw, today, on):
+    """판에는 켠 요일 칸만(board_ctx가 거른다). 기간은 켠 첫 요일 ~ 마지막 요일."""
+    mon, this_mon = shown_monday(raw, today, max(on)), this_monday(today, max(on))
+    a, b = mon + timedelta(days=min(on)), mon + timedelta(days=max(on))
+    return {"first": a, "last": b, "list_first": a, "list_last": b, "focus": today if a <= today <= b and today.weekday() in on else a, "w": mon,
+            "heading": _heading(mon, this_mon, on), "label": _label(mon, on), "is_this": mon == this_mon,
             "prev_w": mon - timedelta(days=7), "this_w": this_mon, "next_w": mon + timedelta(days=7),
             "nav_words": ("지난주", "이번 주", "다음 주"), "period": "이번 주", "period_short": "이 주"}
 
 
-def _month_view(raw, today):
+def _month_view(raw, today, on):
     d = _shown_date(raw) or today
     first, this_first = d.replace(day=1), today.replace(day=1)
     end = first.replace(day=monthrange(first.year, first.month)[1])
@@ -195,9 +197,12 @@ def board_ctx(request, mode, raw):
     space, me = request.space, request.member
     now = timezone.now()
     today = timezone.localdate(now)
-    v = VIEWS[mode](raw, today)
+    on = me.shown_days  # Q1 표시 요일: 주·월 보기 모두 켠 요일 칸만(기간 일정도 켠 요일 칸에만 이어진다)
+    v = VIEWS[mode](raw, today, on)
     first, last, list_first, list_last = v["first"], v["last"], v["list_first"], v["list_last"]
     days = [first + timedelta(days=i) for i in range((last - first).days + 1)]
+    if mode != "day":
+        days = [d for d in days if d.weekday() in on]
     colors = _colors(space)
     tab_list = tabs(request)
     tab = read_tab(request)
@@ -236,8 +241,8 @@ def board_ctx(request, mode, raw):
         one_block = e.slot_end in ("", e.slot)
         x["tag"] = blk if mode == "month" or (channeled and one_block) else ""
         dialogs.append(x)
-        for d in days:  # 월간의 기간 일정은 이어지는 주말을 뺀다(prototype)
-            if e.date <= d <= e.last_day and (mode != "month" or e.date == d or d.weekday() < 5):
+        for d in days:
+            if e.date <= d <= e.last_day:
                 cells[(d, ch, e.slot)].append(x)
 
     seen = set()
@@ -292,7 +297,11 @@ def board_ctx(request, mode, raw):
         if (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
             cells[(at.date(), "collect", "")].append(x)  # 마감은 날짜만(종일)
 
-    n_items = sum(len(v) for v in cells.values())
+    if mode == "month":  # 켠 요일이 모두 지난달·다음 달인 주는 뺀다
+        weeks = [w for w in (days[i:i + len(on)] for i in range(0, len(days), len(on))) if any(list_first <= d <= list_last for d in w)]
+        days = [d for w in weeks for d in w]
+    shown = set(days)
+    n_items = sum(len(v) for (d, _, _), v in cells.items() if d in shown)
 
     def by_slot(d, k):  # 한 칸 안: 종일 먼저, 그다음 블록 순
         return [x for s in ["", *SLOT_KEYS] for x in cells[(d, k, s)]]
@@ -320,12 +329,11 @@ def board_ctx(request, mode, raw):
 
     if mode == "month":
         mweeks = []
-        for i in range(0, len(days), 7):
-            week = days[i:i + 7]
+        for week in weeks:
             flags = [{"n": d.day, "out": not list_first <= d <= list_last, "today": d == today, "weekend": d.weekday() >= 5} for d in week]
             mweeks.append({"heads": flags, "rows": [{"ch": ln.get("ch", ""), "label": ln["label"],
                                                     "cells": [{**f, **cell(d, ln)} for d, f in zip(week, flags)]} for ln in lines]})
-        board = {"mweeks": mweeks, "dow": MONTH_DOW}
+        board = {"mweeks": mweeks, "dow": [(w, w in "일토") for i, w in enumerate(MONTH_DOW) if (i + 6) % 7 in on]}
     else:
         wrows = [{"label": ln["label"], "ch": ln.get("ch", ""), "time": ln.get("time", ""), "cells": [cell(d, ln) for d in days]} for ln in lines]
         board = {"wrows": wrows, "days": [{"md": f"{d.month}/{d.day}", "wd": WD[d.weekday()], "today": d == today} for d in days]}
@@ -373,13 +381,14 @@ def index(request):
 
 
 def _paste_toast(request):
-    """표 붙여넣기(week_paste) 뒤 돌아온 주소의 added·same·weekend → 한 줄 알림. 주소를 고쳐도 500이 나지 않게 짧은 숫자만 받는다."""
+    """표 붙여넣기(week_paste) 뒤 돌아온 주소의 added·same·weekend(주 보기에서 빠지는 건수) → 한 줄 알림. 주소를 고쳐도 500이 나지 않게 짧은 숫자만 받는다."""
     n = [request.GET.get(k, "") for k in ("added", "same", "weekend")]
     if not all(x.isdecimal() and len(x) <= 4 for x in n):
         return ""
     added, same, weekend = map(int, n)
+    off = "주말" if request.member.shown_days == set(range(5)) else "꺼 둔 요일"  # Q1: 주 보기에서 빠지는 요일
     return (f"주간계획 {added}건을 넣었어요." + (f" 이미 있던 {same}건은 건너뛰었어요." if same else "")
-            + (f" 주말 {weekend}건은 월중행사표에만 나와요." if weekend else ""))
+            + (f" {off} {weekend}건은 월중행사표에만 나와요." if weekend else ""))
 
 
 def reply(request, toast):
@@ -391,7 +400,7 @@ def reply(request, toast):
 def back_url(request):
     """htmx 없이 저장했을 때 돌아갈 주소: 지금 탭·모드·날짜."""
     mode = read_mode(request)
-    w = VIEWS[mode](request.POST.get("w"), timezone.localdate())["w"]
+    w = VIEWS[mode](request.POST.get("w"), timezone.localdate(), request.member.shown_days)["w"]
     tail = f"&mode={mode}" if request.POST.get("mode") in MODES else ""
     tail += f"&tab={read_tab(request)}" if request.POST.get("tab") else ""
     return f"/s/{request.space.token}/schedule?w={w:%Y-%m-%d}{tail}"

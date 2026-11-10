@@ -162,6 +162,8 @@ class Member(models.Model):
     can_meal = models.BooleanField("급식 담당자", default=False)
     # G2 설정 > 알림: 끈 웹 푸시 묶음 키(collect.push.SLOTS의 am·noon·pm, 쉼표로). 비면 다 켜짐. 🔔은 그대로 쌓인다.
     push_off = models.CharField("끈 알림 묶음", max_length=20, blank=True, default="")
+    # Q1 설정 > 표시 요일: 일정 주·월 보기에 보일 요일(월=0~일=6 숫자를 이어서). 기본 월~금.
+    days_on = models.CharField("표시 요일", max_length=7, default="01234")
     joined_at = models.DateTimeField(auto_now_add=True)
 
     objects = SpaceQuerySet.as_manager()
@@ -173,6 +175,11 @@ class Member(models.Model):
 
     def __str__(self):
         return f"{self.name}({self.cls})"
+
+    @property
+    def shown_days(self):
+        """켠 요일(월=0~일=6) 집합. 값이 비거나 틀리면 월~금."""
+        return {int(c) for c in self.days_on if c in "0123456"} or set(range(5))
 
     @property
     def in_grade(self):

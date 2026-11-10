@@ -5,13 +5,13 @@
       {% if channeled %}<span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ space_word }}</span><span><i class="sw-neis"></i>나이스 학사일정</span><span><i class="sw-due"></i>취합 마감</span></span>
       {% elif tab == "group" %}<span class="r legend"><span><i class="sw-mine"></i>내 일정</span><span><i class="sw-grade"></i>{{ tab_label }}</span></span>
       {% else %}<span class="r">나만 보여요</span>{% endif %}</div>
-    <div class="wk">{% if mode == "month" %}<div class="mgrid{% if not channeled %} plain{% endif %}">
-      {% if channeled %}<div class="mh ml-h"></div>{% endif %}{% for w in dow %}<div class="mh{% if forloop.first or forloop.last %} we{% endif %}">{{ w }}</div>{% endfor %}
-      {% for wk in mweeks %}{% if channeled %}<div class="ml-h mdh-l"></div>{% endif %}{% for f in wk.heads %}<div class="mdh{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
+    <div class="wk">{% if mode == "month" %}<div class="mgrid{% if not channeled %} plain{% endif %}" style="--n:{{ dow|length }}">
+      {% if channeled %}<div class="mh ml-h"></div>{% endif %}{% for w, we in dow %}<div class="mh{% if forloop.first %} c1{% endif %}{% if we %} we{% endif %}">{{ w }}</div>{% endfor %}
+      {% for wk in mweeks %}{% if channeled %}<div class="ml-h mdh-l"></div>{% endif %}{% for f in wk.heads %}<div class="mdh{% if forloop.first %} c1{% endif %}{% if f.out %} out{% endif %}{% if f.weekend %} we{% endif %}{% if f.today %} tcol{% endif %}"><span class="md num">{{ f.n }}{% if f.today %} · 오늘{% endif %}</span></div>{% endfor %}
       {% for r in wk.rows %}{% if channeled %}<div class="ml" data-ch="{{ r.ch }}">{{ r.label }}</div>{% endif %}
-      {% for c in r.cells %}<div class="mc{% if c.today %} tcol{% endif %}"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% elif c.go %} data-go="{{ c.go }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% elif c.go %}<a class="cell-add" href="{{ c.go }}" aria-label="{{ c.add }}" title="{{ c.add }}"><span aria-hidden="true">＋</span></a>{% endif %}</div>{% endfor %}
+      {% for c in r.cells %}<div class="mc{% if forloop.first %} c1{% endif %}{% if c.today %} tcol{% endif %}"{% if r.ch %} data-ch="{{ r.ch }}"{% endif %}{% if c.scope %} data-cell data-date="{{ c.date }}" data-slot="" data-scope="{{ c.scope }}" data-when="{{ c.when }}"{% if c.post %} data-post="{{ c.post }}"{% endif %}{% elif c.go %} data-go="{{ c.go }}"{% endif %}>{% for x in c.items %}{% include "today/_cell_item.html" %}{% endfor %}{% if c.scope %}<button type="button" class="cell-add" aria-label="{{ c.add }}"><span aria-hidden="true">＋</span></button>{% elif c.go %}<a class="cell-add" href="{{ c.go }}" aria-label="{{ c.add }}" title="{{ c.add }}"><span aria-hidden="true">＋</span></a>{% endif %}</div>{% endfor %}
       {% endfor %}{% endfor %}
-    </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}">
+    </div>{% else %}<div class="wgrid{% if mode == "day" %} one{% endif %}" style="--n:{{ days|length }}">
       <div class="lbl hd"></div>
       {% for d in days %}<div class="hd{% if d.today %} today tcol{% endif %}"><b>{{ d.wd }}{% if d.today %} · 오늘{% endif %}</b><span class="num">{{ d.md }}</span></div>{% endfor %}
       {% for r in wrows %}

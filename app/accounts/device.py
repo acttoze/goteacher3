@@ -1,4 +1,6 @@
-"""설정(design/settings.html): 영역마다 한 화면(?a=me|alerts|space|device). 기본은 내 정보.
+"""설정(design/settings.html): 영역마다 한 화면(?a=prefs|me|alerts|space|device). 기본은 내 정보.
+
+설정(Q1): 표시 요일 7개 스위치. 켠 요일만 일정 주·월 보기에 나온다(사람마다). 하나는 켜 두어야 한다.
 
 이 PC: '이 PC 1년 기억' 스위치와 '모든 기기에서 로그아웃'(G3 S2). 내 정보의 비밀번호 바꾸기는 아이디 회원만(P1).
 켜짐 = 이 PC 기기 쿠키가 있고 DB 토큰이 살아 있음. 끄면 이 PC 토큰을 지우고 세션을 브라우저 닫을 때까지로 바꾼다.
@@ -48,7 +50,12 @@ def _slots(member):
     return [(k, t.strftime("%H:%M"), name, k not in off) for k, t, _, name in SLOTS]
 
 
-AREAS = {"me": "내 정보", "alerts": "알림", "space": "동학년", "device": "이 PC"}
+def _days(member):
+    on = member.shown_days
+    return [(str(i), w, i in on) for i, w in enumerate("월화수목금토일")]
+
+
+AREAS = {"prefs": "설정", "me": "내 정보", "alerts": "알림", "space": "동학년", "device": "이 PC"}
 
 
 @never_cache
@@ -58,7 +65,9 @@ def settings_page(request):
     area = area if area in AREAS else "me"
     areas = {**AREAS, "space": request.space.word}
     ctx = _ctx(request, _this_pc(request), area=area, area_label=areas[area], areas=areas.items())
-    if area == "me":
+    if area == "prefs":
+        ctx["days"] = _days(request.member)
+    elif area == "me":
         ctx["classes"] = class_choices(request.space)
     elif area == "alerts":
         ctx.update(slots=_slots(request.member), vapid=settings.VAPID_PUBLIC_KEY)
@@ -105,6 +114,21 @@ def slots(request):
     n = len(SLOTS) - len(off_keys(me))
     saved = f"브라우저 알림을 하루 {n}번 묶어 보내요" if n else "묶음 알림을 모두 껐어요. 종 단추에는 그대로 쌓여요"
     return render(request, "accounts/_slots.html", _space_ctx(request, slots=_slots(me), saved=saved))
+
+
+@never_cache
+@require_POST
+def days(request):
+    """표시 요일 스위치: 체크된 요일(on=0~6)만 켠다. 모르는 값은 버린다. 다 끄면 저장하지 않고 안내. htmx면 패널만."""
+    me = request.member
+    on = "".join(c for c in "0123456" if c in request.POST.getlist("on"))
+    if on:
+        me.days_on = on
+        me.save(update_fields=["days_on"])
+    if not request.headers.get("HX-Request"):
+        return redirect(f"/s/{request.space.token}/settings?a=prefs")
+    saved = "일정에 보일 요일을 바꿨어요" if on else "요일을 하나는 켜 두어야 해요"
+    return render(request, "accounts/_days.html", _space_ctx(request, days=_days(me), saved=saved))
 
 
 @never_cache

@@ -328,7 +328,6 @@ class SchoolFlowTests(IdSchoolBase):
         _, seat = self.enter_by_signup()
         page = self.manager.get(f"{self.base}/school").content.decode()
         self.assertIn(f"/school/members/{seat.key}/password", page)
-        self.assertContains(self.manager.get(f"{self.base}/settings?a=space"), "아이디 가입")
         google_seat = Member.objects.in_space(self.hub).get(user=self.u5)
         self.assertNotIn(f"/school/members/{google_seat.key}/password", page)
 

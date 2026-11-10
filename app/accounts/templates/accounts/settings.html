@@ -1,9 +1,9 @@
 {% extends "shell.html" %}
-{% block title %}{{ area_label }} 설정 · 고티처{% endblock %}
+{% block title %}{% if area == "prefs" %}설정{% else %}{{ area_label }} 설정{% endif %} · 고티처{% endblock %}
 {% block ptitle %}설정{% endblock %}
 {% block head %}
 <style>
-  /* design/settings.html — 영역마다 한 화면(?a=me·alerts·space·device). 한 줄 = 설명 칸 360 + 간격 24 + 패널. */
+  /* design/settings.html — 영역마다 한 화면(?a=prefs·me·alerts·space·device). 한 줄 = 설명 칸 360 + 간격 24 + 패널. */
   .srow { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 24px; padding: 32px 0; border-top: 1px solid var(--line); }
   .srow:first-of-type { border-top: 0; padding-top: 4px; }
   .srow .lab h2 { font-size: 18px; letter-spacing: -0.02em; margin-top: 6px; }
@@ -16,9 +16,6 @@
   .sw b { font-size: 16px; }
   .sw .d { font-size: var(--fs-small); color: var(--muted); margin-top: 2px; }
   .toggle.lock input { cursor: not-allowed; }
-  .mem { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 60px; border-top: 1px solid #e3e6ea; }
-  .mem:first-child { border-top: 0; }
-  .mem .m { font-size: var(--fs-small); color: var(--muted); }
   .danger-zone { box-shadow: inset 0 0 0 1px #f0b7b9; background: #fff; } /* taste-skill-ignore: 위험 영역 외곽선 */
   .dev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; border-top: 1px solid #e3e6ea; }
   .dev:first-child { border-top: 0; }
@@ -30,11 +27,15 @@
 {% endblock %}
 {% block main %}
 <div class="title">
-  <div class="grow"><h1>{{ area_label }} 설정</h1><p class="sub">{% if area == "me" %}{{ space_word }} 선생님들에게 보이는 이름과 {% if space.is_school and not me.in_grade %}소속{% else %}반{% endif %}이에요.{% elif area == "alerts" %}알림은 하루 세 번 묶어서 와요. 수업 중에는 띄우지 않아요.{% elif area == "space" %}{{ space.name }} · 선생님 {{ rows|length }}명{% elif remember %}이 PC 브라우저가 1년 동안 로그인을 기억해요.{% else %}이 PC는 로그인을 기억하지 않아요. 브라우저를 닫으면 로그아웃돼요.{% endif %}</p></div>
+  <div class="grow"><h1>{% if area == "prefs" %}내 화면 설정{% else %}{{ area_label }} 설정{% endif %}</h1><p class="sub">{% if area == "prefs" %}내 화면에만 적용돼요. 다른 선생님 화면은 그대로예요.{% elif area == "me" %}{{ space_word }} 선생님들에게 보이는 이름과 {% if space.is_school and not me.in_grade %}소속{% else %}반{% endif %}이에요.{% elif area == "alerts" %}알림은 하루 세 번 묶어서 와요. 수업 중에는 띄우지 않아요.{% elif area == "space" %}{{ space.name }} · 선생님 {{ rows|length }}명{% elif remember %}이 PC 브라우저가 1년 동안 로그인을 기억해요.{% else %}이 PC는 로그인을 기억하지 않아요. 브라우저를 닫으면 로그아웃돼요.{% endif %}</p></div>
 </div>
 <nav class="tabs" aria-label="설정 영역">{% for k, label in areas %}<a href="?a={{ k }}"{% if k == area %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}</nav>
 
-{% if area == "me" %}
+{% if area == "prefs" %}
+<section class="srow"><div class="lab"><h2>표시 요일</h2><p>켠 요일만 일정 주·월 보기에 칸이 생겨요. 토·일을 켜면 주말 일정·복무·취합 마감도 보여요. 하나는 켜 두어야 해요.</p></div>
+  {% include "accounts/_days.html" %}</section>
+
+{% elif area == "me" %}
 {% include "accounts/_me.html" %}
 {% if id_member %}{% include "accounts/_password.html" %}{% endif %}
 
@@ -47,14 +48,6 @@
     {% else %}<p class="muted">브라우저 알림은 아직 준비 중이에요. 알림은 화면 위 종 단추에서 볼 수 있어요.</p>{% endif %}</div></section>
 
 {% elif area == "space" %}
-<section class="srow"><div class="lab"><h2>선생님</h2><p>들어온 선생님 {{ rows|length }}명{% if waiting %}과 아직 안 들어온 칸{% endif %}이에요. {% if space.is_school %}관리자는 학교 공간을 맡아 보는 선생님이에요.{% else %}학년 대표는 가장 먼저 들어온 선생님이 맡아요.{% endif %}</p></div>
-  <div class="panel">
-    {% for r in rows %}<div class="mem"><span class="av{% if r.ink %} ink-t{% endif %}" style="background:{{ r.color }}">{{ r.m.name|slice:":1" }}</span>
-      <div><b>{{ r.label }} {{ r.m.name }}{% if r.me %} (나){% endif %}</b><div class="m">{{ r.via }}</div></div>
-      {% if space.is_school and r.m.is_manager %}<span class="pill acc">관리자</span>{% elif not space.is_school and forloop.first %}<span class="pill acc">학년 대표</span>{% else %}<span class="small muted">{{ r.role }}</span>{% endif %}</div>{% endfor %}
-    {% for label in waiting %}<div class="mem"><span class="av ghost">{{ label|slice:":1" }}</span><div><b class="muted">{{ label }} · 아직이에요</b><div class="m">초대 링크를 보내 보세요</div></div><span></span></div>{% endfor %}
-    <div class="mem"><span></span><div class="m">{% if is_creator %}선생님 내보내기는 {{ space_word }} 화면에서 할 수 있어요.{% elif space.is_school %}명단은 학교 화면에서도 볼 수 있어요.{% else %}초대·명단은 {{ space_word }} 화면에서도 볼 수 있어요.{% endif %}</div><a class="btn sec sm" href="/s/{{ space.token }}/{% if space.is_school %}school{% endif %}">{{ space_word }} 화면으로</a></div>
-  </div></section>
 {% if link %}<section class="srow"><div class="lab"><h2>초대 링크</h2><p>링크가 밖으로 퍼졌다면 새로 만드세요. 예전 링크와 QR은 바로 닫히고, 이미 들어온 선생님은 그대로예요.{% if not is_creator %} 새로 만들기는 학년 대표가 할 수 있어요.{% endif %}</p></div>
   <div>{% include "spaces/_invite.html" %}</div></section>{% endif %}
 <section class="srow"><div class="lab"><h2>{{ space_word }}에서 나가기</h2><p>전근·학년 이동 때 써요.{% if rows|length > 1 %} {% if space.is_school %}학교 공간은{% else %}동학년은{% endif %} 다른 선생님들에게 그대로 남아요.{% endif %}</p></div>

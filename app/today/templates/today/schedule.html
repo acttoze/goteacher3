@@ -8,7 +8,7 @@
   #week { overflow-anchor: none; } /* htmx가 새 판을 옛 판 앞에 넣는 순간 브라우저가 옛 판을 따라 스크롤하지 않게 */
   .wk { padding: 0 var(--pad) var(--pad); }
   .wk .note { margin: 10px 0 0; font-size: var(--fs-small); color: var(--muted); }
-  .wgrid { display: grid; grid-template-columns: 116px repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .wgrid { display: grid; grid-template-columns: 116px repeat(var(--n, 5), minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .wgrid.one { grid-template-columns: 116px minmax(0, 1fr); }
   .wgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px; min-width: 0; min-height: 64px; position: relative; }
   .sched-tabs { margin-bottom: 16px; }
@@ -50,8 +50,8 @@
   .cell-err { margin: 0; font-size: var(--fs-small); color: var(--negative); font-weight: 600; overflow-wrap: anywhere; }
   .cell-err:empty { display: none; }
 
-  /* 월간: 일~토 달력(prototype), 주마다 날짜 줄 + 채널 줄. 빈 칸은 낮게, 긴 제목은 줄을 바꾼다 */
-  .mgrid { display: grid; grid-template-columns: 56px repeat(7, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  /* 월간: 일~토 달력(prototype) 중 켠 요일 칸만(Q1), 주마다 날짜 줄 + 채널 줄. 빈 칸은 낮게, 긴 제목은 줄을 바꾼다 */
+  .mgrid { display: grid; grid-template-columns: 56px repeat(var(--n, 7), minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
   .mgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 2px 4px; min-width: 0; min-height: 26px; }
   .mgrid > .mh { border-top: 0; min-height: 0; padding: 8px; font-size: var(--fs-small); font-weight: 600; color: var(--muted); text-align: center; }
   .mgrid > .ml-h, .mgrid > .ml { border-left: 0; }
@@ -64,8 +64,8 @@
   .mdh.out .md { color: var(--faint); font-weight: 500; }
   .mc .ev { padding: 6px 8px; margin-bottom: 4px; }
   .mc .ev.fresh { padding-top: 16px; margin-top: 12px; } /* '방금' 이름표가 제목·위 카드를 가리지 않게 */
-  .mgrid.plain { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-  .mgrid.plain > div:nth-child(7n+1) { border-left: 0; } /* 첫 열(날짜 줄·칸이 7개씩 이어진다) */
+  .mgrid.plain { grid-template-columns: repeat(var(--n, 7), minmax(0, 1fr)); }
+  .mgrid.plain > .c1 { border-left: 0; } /* 첫 열(켠 요일 수만큼 이어진다) */
   .mgrid.plain > .mc { min-height: 64px; }
   .mc .cell-add { min-height: 22px; border-color: transparent; font-size: 16px; }
   .mc .cell-add:hover, .mc .cell-add:focus-visible { border-color: var(--control); }
@@ -103,7 +103,7 @@
   .due-list a { text-decoration: none; display: inline-block; padding: 6px 0; }
   .due-list a:hover { color: var(--accent); }
 
-  @media (max-width: 1100px) { .wgrid { grid-template-columns: 100px repeat(5, minmax(0, 1fr)); } .ev { font-size: 14px; } }
+  @media (max-width: 1100px) { .wgrid { grid-template-columns: 100px repeat(var(--n, 5), minmax(0, 1fr)); } .ev { font-size: 14px; } }
 </style>
 {% endblock %}
 {% block main %}

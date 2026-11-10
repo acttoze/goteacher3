@@ -278,7 +278,7 @@ class SchoolTabTests(Base):
         self.assertNotIn("data-cell", rows["취합"])
         self.assertEqual(html.count('<button type="button" class="cell-add"'), 10)
         self.assertEqual(self.page(self.t4, "day").count('<button type="button" class="cell-add"'), 2)
-        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<button type="button" class="cell-add"'), 70)
+        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<button type="button" class="cell-add"'), 50)  # 5주 × 월~금(Q1) × 학교·복무
 
     def test_collect_cells_link_to_new_collect_with_day_and_all(self):
         """QC 2026-11-06: 취합 줄 칸에도 ＋. 입력 카드 대신 그 날 마감·전 교직원으로 취합 만들기."""
@@ -289,7 +289,7 @@ class SchoolTabTests(Base):
         self.assertIn(TODAY.isoformat(), days)
         self.assertIn('data-go="', row)
         self.assertEqual(rows_of(self.page(self.t4, "day"))["취합"].count('<a class="cell-add"'), 1)
-        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<a class="cell-add"'), 35)
+        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<a class="cell-add"'), 25)
         new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "all", "due_d": days[0]}).content.decode()
         self.assertIn(f'name="due_d" value="{days[0]}"', new)
         self.assertNotIn('name="due_t"', new)  # 마감은 날짜만
@@ -530,9 +530,9 @@ class BlockTabTests(Base):
         grid = grid_of(html)
         self.assertIn('class="mgrid plain"', html)
         self.assertEqual(month_labels(html), [])
-        self.assertEqual("".join(re.findall(r'<div class="mh[^"]*">(.)</div>', grid)), "일월화수목금토")
-        self.assertEqual(grid.count('class="mdh'), 35)
-        self.assertEqual(grid.count('data-scope="g4"'), 35)
+        self.assertEqual("".join(re.findall(r'<div class="mh[^"]*">(.)</div>', grid)), "월화수목금")  # Q1 기본 표시 요일
+        self.assertEqual(grid.count('class="mdh'), 25)
+        self.assertEqual(grid.count('data-scope="g4"'), 25)
         self.assertLess(grid.index("종일 일"), grid.index("첫째 일"))
         self.assertLess(grid.index("첫째 일"), grid.index("방과후 일"))
 

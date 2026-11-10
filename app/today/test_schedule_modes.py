@@ -208,14 +208,15 @@ class ModeTests(Base):
         self.assertIn('data-mode="month"', html)
         self.assertIn("이번 달 일정", html)
         self.assertIn('class="mgrid"', html)
-        # 2026년 10월: 9/27(일)부터 10/31(토)까지 5주, 일~토(prototype)
-        self.assertEqual(html.count('<button type="button" class="cell-add"'), 35)
+        # 2026년 10월: 9/27(일)부터 10/31(토)까지 5주, 칸은 켠 요일(Q1 기본 월~금)만
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 25)
         heads = re.findall(r'<div class="mh[^"]*">(.)</div>', html)
-        self.assertEqual("".join(heads), "일월화수목금토")
-        self.assertIn('data-date="2026-09-27" data-slot=""', html)
-        self.assertIn('data-date="2026-10-31" data-slot=""', html)
-        self.assertIn('aria-label="10/31(토) 동학년에 일정 추가"', html)
-        self.assertIn("토요 행사", html)
+        self.assertEqual("".join(heads), "월화수목금")
+        self.assertIn('data-date="2026-09-28" data-slot=""', html)
+        self.assertNotIn('data-date="2026-09-27"', html)
+        self.assertNotIn('data-date="2026-10-31"', html)
+        self.assertIn('aria-label="10/30(금) 동학년에 일정 추가"', html)
+        self.assertNotIn("토요 행사", html.split('id="ev-')[0])  # 토요일 칸이 없어 판에 안 놓인다
         self.assertIn("공백없는아주아주아주긴제목" * 3, html)  # 자르지 않는다
         self.assertEqual([*self.sched.call_args[0][2:]], ["20260927", "20261031"])
         self.assertContains(r, 'name="w" value="2026-09-01"')

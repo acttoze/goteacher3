@@ -181,13 +181,14 @@ def _mark_new(rows, space, me, scope):
         seen.add((r["date"], r["title"]))
 
 
-def _weekend_only(r):
-    """토·일에만 걸치는 일정: 주간판·주간 인쇄(월~금)에 안 나온다."""
-    return r["date"].weekday() >= 5 and ((r["end"] or r["date"]) - r["date"]).days <= 6 - r["date"].weekday()
+def _off_only(r, on):
+    """켠 요일(Q1, 기본 월~금)에 하루도 걸치지 않는 일정: 내 주 보기에 안 나온다. 7일 넘게 이어지면 반드시 걸친다."""
+    n = ((r["end"] or r["date"]) - r["date"]).days
+    return n < 7 and not any((r["date"].weekday() + i) % 7 in on for i in range(n + 1))
 
 
 def _ctx(request, **extra):
-    mon = shown_monday(request.POST.get("w") or request.GET.get("w"), timezone.localdate())
+    mon = shown_monday(request.POST.get("w") or request.GET.get("w"), timezone.localdate(), max(request.member.shown_days))
     chosen = _scope(request)
     choices = sorted(scope_choices(request.member), key=lambda c: c[0] != ALL)
     return _space_ctx(request, page="schedule", w=mon.isoformat(), mon=mon, chosen=chosen, choices=choices, **extra)
@@ -216,7 +217,7 @@ def page(request):
                                         title=r["title"], place=r["place"], target=r["target"], scope=ctx["chosen"]) for r in new)
     first = (new or rows)[0]["date"]
     w = first - timedelta(days=first.weekday())
-    weekend = sum(map(_weekend_only, new))
+    weekend = sum(_off_only(r, me.shown_days) for r in new)
     r = redirect(f"/s/{space.token}/schedule?w={w:%Y-%m-%d}&added={len(new)}&same={len(rows) - len(new)}&weekend={weekend}")
     r.status_code = 303
     return r
@@ -228,7 +229,7 @@ def page(request):
 def preview(request):
     """미리보기(htmx). 저장하지 않는다. html이 오면(한글·엑셀 클립보드) TSV로 바꿔 입력 칸에 넣도록 함께 돌려준다."""
     html, ctx = request.POST.get("html", ""), {}
-    mon = shown_monday(request.POST.get("w"), timezone.localdate())
+    mon = shown_monday(request.POST.get("w"), timezone.localdate(), max(request.member.shown_days))
     try:
         tsv = html_to_tsv(html, too_big=TOO_BIG) if html else ""
         if html and not tsv:
