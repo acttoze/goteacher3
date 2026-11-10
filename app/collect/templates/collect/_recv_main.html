@@ -45,22 +45,16 @@
   {% elif not mine and not done %}<p class="well">{{ row.who|default:"이 칸" }} 선생님 대신 내셔도 돼요. 아래 「내는 사람」에 이름을 남겨 주세요.</p>{% endif %}
   {% if form_error %}<p class="ferr" role="alert">{{ form_error }}</p>{% endif %}
 
-  {% if budget %}
-  {# S1 예산 품목: 상품 주소를 붙이면 그 줄이 채워진다. 합계·남은 금액은 recv.js가 금액 칸을 더해 바로 고친다 #}
-  <p class="lead" style="margin-top:0">쇼핑몰 상품 주소를 붙여넣으면 품명·단가가 채워져요. 수량만 고치면 돼요. 쿠팡처럼 읽을 수 없는 곳은 직접 적어 주세요.</p>
-  <div class="line line-h bl" aria-hidden="true">{% for col in cols %}{% if col.f.kind != "url" %}<span{% if col.calc %} class="amt"{% endif %}>{{ col.label }}</span>{% endif %}{% endfor %}<span></span></div>
-  <div class="lines" id="lines">{% for ln in lines %}{% include "collect/_recv_line_budget.html" %}{% endfor %}</div>
-  <template id="lineT">{% include "collect/_recv_line_budget.html" with ln=blank %}</template>
-  <button class="btn sec lg block" type="button" data-add-line>＋ 줄 추가</button>
-  <div class="bsum num" data-budget="{{ c.budget|default:'' }}" aria-live="polite">
-    <span>합계 <b data-total>0</b>원</span>
-    {% if c.budget %}<span>예산 <b>{{ budget_text }}</b>원</span><span data-left-box>남은 금액 <b data-left>{{ budget_text }}</b>원</span>{% endif %}
-  </div>
-  {% elif c.multi %}
-  <div class="line line-h" aria-hidden="true" style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px">{% for col in cols %}{% if col.f.kind != "url" %}<span{% if col.calc %} class="amt"{% endif %}>{{ col.label }}</span>{% endif %}{% endfor %}<span></span></div>
+  {% if c.multi %}
+  {# S1 예산 품목(budget)은 칸 너비만 다르고(.bl) 아래에 합계·남은 금액(recv.js가 금액 칸을 더해 바로 고친다) #}
+  <div class="line line-h{% if budget %} bl{% endif %}" aria-hidden="true"{% if not budget %} style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px"{% endif %}>{% for col in cols %}{% if col.f.kind != "url" %}<span{% if col.calc %} class="amt"{% endif %}>{{ col.label }}</span>{% endif %}{% endfor %}<span></span></div>
   <div class="lines" id="lines">{% for ln in lines %}{% include "collect/_recv_line.html" %}{% endfor %}</div>
   <template id="lineT">{% include "collect/_recv_line.html" with ln=blank %}</template>
   <button class="btn sec lg block" type="button" data-add-line>＋ 줄 추가</button>
+  {% if budget %}<div class="bsum num" data-budget="{{ c.budget|default:'' }}" aria-live="polite">
+    <span>합계 <b data-total>0</b>원</span>
+    {% if c.budget %}<span>예산 <b>{{ budget_text }}</b>원</span><span data-left-box>남은 금액 <b data-left>{{ budget_text }}</b>원</span>{% endif %}
+  </div>{% endif %}
   {% elif matrix %}{% with ln=lines.0 %}
   <p class="lead" style="margin-top:0">다 못 채워도 저장돼요. 채운 칸만 합본에 들어가요. 대상이 아니면 「해당 없음」을 고르세요.</p>
   <div class="trns">{% for cell in ln.cells %}{% with f=cell.col.f %}

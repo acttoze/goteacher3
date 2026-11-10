@@ -1,4 +1,4 @@
-{# multi 한 줄(prototype itemsForm .itm). 머리글은 위에 한 번만, 링크 칸은 아랫줄. 새 줄 틀(<template>)은 ln=blank #}<div class="line" data-line style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px">
+{# multi 한 줄(prototype itemsForm .itm). 머리글은 위에 한 번만, 링크 칸은 아랫줄. 새 줄 틀(<template>)은 ln=blank #}<div class="line{% if budget %} bl{% endif %}" data-line{% if not budget %} style="grid-template-columns:repeat({{ n_main }}, minmax(0, 1fr)) 40px"{% endif %}>
   <input type="hidden" name="line" value="{{ ln.key }}">
   {% for cell in ln.cells %}{% with f=cell.col.f %}{% if cell.col.calc %}<span class="amt num" data-calc aria-label="{{ cell.col.label }}">0</span>
   {% elif f.kind != "url" %}<span>{% if f.kind == "number" %}<input class="input num{% if cell.err %} bad{% endif %}" name="f{{ f.pos }}" inputmode="decimal" autocomplete="off" value="{{ cell.v }}" data-num aria-label="{{ f.name }}">

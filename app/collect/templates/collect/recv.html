@@ -60,13 +60,9 @@
   .line .lnk { grid-column: 1 / -2; }
   .line-h { background: none; padding: 0 12px; font-size: 15px; font-weight: 600; margin-bottom: -10px; }
 
-  /* S1 예산 품목: 칸이 6개라 이 화면만 넓게(PC 1536). 상품 주소·안내는 한 줄 전체 */
+  /* S1 예산 품목: 칸이 6개라 이 화면만 넓게(PC 1536). 내용·규격은 넓게, 단위·수량·단가는 좁게 */
   .bare:has(.line.bl) { max-width: 1080px; }
   .line.bl { grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.6fr) 76px 84px 120px 110px 40px; }
-  .line.bl .lnk, .line.bl .shop-msg { grid-column: 1 / -1; }
-  .shop-msg { margin: 0; font-size: 15px; font-weight: 600; color: var(--negative); }
-  .shop-msg.ok { color: var(--positive); }
-  .line .lnk .input.htmx-request { border-color: var(--accent); }
   .bsum { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 24px; padding: 14px 16px; border-radius: 12px; background: var(--surface); font-size: 17px; }
   .bsum b { font-weight: 700; }
   .bsum .over { color: var(--negative); font-weight: 700; }

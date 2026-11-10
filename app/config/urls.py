@@ -98,7 +98,6 @@ urlpatterns = [
     path("c/<str:link_token>/outside", submit.outside),
     path("c/<str:link_token>/find", submit.find),  # H4 학교 공간 이름 찾기
     path("c/<str:link_token>/u/<str:key>", submit.unit),
-    path("c/<str:link_token>/shop", submit.shop_fill),  # S1 상품 주소로 품명·단가 채우기
     path("n/<str:token>", notices.link),  # I2 쪽지 링크
     path("v/", vendor.home),  # K2 업체 화면(기기 쿠키)
     path("v/out", vendor.out),

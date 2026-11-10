@@ -40,15 +40,6 @@
       if (line) { calc(line); budget(); }
     }
   });
-  // S1 상품 주소 붙이기: 폼 전체가 아니라 그 줄 칸만 보낸다(htmx는 둘러싼 폼 값을 모두 싣는다).
-  document.addEventListener('htmx:configRequest', function (e) {
-    var line = e.detail.elt.matches('[data-shop]') && e.detail.elt.closest('[data-line]');
-    if (!line) return;
-    var p = e.detail.parameters, csrf = p.csrfmiddlewaretoken;
-    Object.keys(p).forEach(function (k) { delete p[k]; });
-    if (csrf) p.csrfmiddlewaretoken = csrf;
-    line.querySelectorAll('input[name]').forEach(function (i) { p[i.name] = i.value; });
-  });
   // 연수 이수 '해당 없음': 이수번호 칸을 비우고 막는다(prototype matrixForm)
   document.addEventListener('change', function (e) {
     var cb = e.target.closest('[data-na]');
@@ -63,7 +54,6 @@
       var t = document.getElementById('lineT'), box = document.getElementById('lines');
       if (!t || !box) return;
       box.appendChild(t.content.cloneNode(true));
-      if (window.htmx) htmx.process(box.lastElementChild);  // S1 새 줄의 상품 주소 칸(hx-post)도 동작하게
       var first = box.lastElementChild.querySelector('input:not([type=hidden]), select');
       if (first) first.focus();
       return;
@@ -87,9 +77,8 @@
     var first = document.querySelector('#f input:not([type=hidden]), #f select');
     if (first && !first.value) first.focus();
   });
-  document.addEventListener('htmx:afterSwap', function (e) {
+  document.addEventListener('htmx:afterSwap', function () {
     all();
-    if (e.detail.target.id !== 'main') return;  // S1 한 줄 채우기는 그 자리에서(맨 위로 가지 않는다)
     var ok = document.getElementById('ok');
     if (ok) ok.focus();
     window.scrollTo(0, 0);
