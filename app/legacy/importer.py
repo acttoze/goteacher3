@@ -8,6 +8,7 @@
 """
 import csv
 import json
+import secrets
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
@@ -25,6 +26,7 @@ from notices.views import MAX_FILE, MAX_FILES
 
 from notices.models import AUDIENCE, FILE_LIST, FILES, ITEMS, TITLE, Notice, NoticeFile, NoticeSeen, NoticeVersion
 from spaces.models import Attendance, Member, School, Space
+from spaces.views import ORG_NONE
 from today.models import ALL, ME, Event, EventComment, EventFile
 from today.more import COMMENT_FILES
 
@@ -37,6 +39,8 @@ ACTIVE_SINCE = "2026-03-01"  # D1
 BOT = "neis_sync_bot"
 BATCH = 2000
 NO_TITLE = "(제목 없음)"
+ORG_GRADE = "기관"  # T3: school.grade가 이 값이면 기관 공간으로(이관 대상 중 9000003뿐)
+ORG_COMMON = "공통"  # 기관 첫 그룹: 구 학교 전체 채널(wr_4 0·1)
 ACCOUNT, SCHOOL, SEAT, MANAGER = "계정", "학교", "자리", "관리자"
 EVENT, DUTY, DUTY_DAYS, COMMENT, EFILE, CFILE = "일정", "복무", "복무 날짜 행", "댓글", "첨부(일정)", "첨부(댓글)"
 NOTICE, NFILE, NCOMMENT = "게시글", "첨부(게시판)", "게시판 댓글"
@@ -73,7 +77,8 @@ class Dump:
         self.members = list(_rows(folder, "g5_member"))
         self.groups = {g["group_id"]: g for g in _rows(folder, "contact_group")}
         self.schools = {s["id"]: s for s in _rows(folder, "school")}
-        self.channels = {c["wr_id"]: c["wr_subject"].strip() for c in _rows(folder, "g5_write_channel")}
+        self.channel_rows = {c["wr_id"]: (c["wr_3"], c["wr_subject"].strip()) for c in _rows(folder, "g5_write_channel")}
+        self.channels = {k: name for k, (_, name) in self.channel_rows.items()}
         self.admins = defaultdict(set)
         for a in _rows(folder, "g5_write_go_admin"):
             if not a["wr_is_comment"]:
@@ -208,8 +213,12 @@ class Importer:
             self.report.add(code, SCHOOL, drop("덤프의 school 표에 없음"), code)
             return
         self.report.names[code] = row["name"].strip()
+        self.org = row["grade"].strip() == ORG_GRADE
+        self.org_keys = {}  # 기관: {채널 wr_id 또는 ORG_COMMON: 그룹 키}
         with transaction.atomic():
             space = self._space(code, row)
+            if space is not None and self.org:
+                self.org_keys = self._org_groups(code, space)
             if space is None:
                 return
             seats = self._seats(code, space)
@@ -224,6 +233,13 @@ class Importer:
         if code in self.done["school"]:
             self.report.add(code, SCHOOL, DONE)
             return Space.objects.get(school_id=self.done["school"][code], grade=0)
+        if self.org:  # 기관은 NEIS 코드가 없어 이관 기록으로만 다시 돌림을 판단한다(T3)
+            school = School.objects.create(neis_atpt=row["code_sido"], neis_code="", name=row["name"].strip()[:100],
+                                           plan=School.Plan.SCHOOL, paid_until=PAID_UNTIL, org_checked_at=timezone.now())
+            space = Space.objects.create(school=school, kind=Space.Kind.ORG, grade=0, name=school.name)
+            self._map("school", code, school.pk)
+            self.report.add(code, SCHOOL, f"{IN}·기관", code)
+            return space
         school = School.objects.filter(neis_atpt=row["code_sido"], neis_code=code).first()
         if school is not None and school.spaces.exists():
             self.report.add(code, SCHOOL, drop("이미 공간이 있는 학교(멈춤)"), code)
@@ -235,6 +251,24 @@ class Importer:
         self._map("school", code, school.pk)
         self.report.add(code, SCHOOL, IN, code)
         return space
+
+    def _org_groups(self, code, space):
+        """기관 그룹: 맨 앞 '공통' + 그 학교의 사용자 채널(wr_id 순). 이미 만든 그룹은 이관 기록으로 다시 찾고 새 채널만 뒤에 더한다."""
+        groups, keys = list(space.org_groups), {}
+        known = {g["k"] for g in groups}
+        channels = [(f"{code}:{ORG_COMMON}", ORG_COMMON, ORG_COMMON)] + [
+            (str(wid), wid, name) for wid, (school, name) in sorted(self.dump.channel_rows.items()) if school == code]
+        for lid, ref, name in channels:
+            if lid in self.done["org_group"]:
+                keys[ref] = f"t{self.done['org_group'][lid]:08x}"
+                continue
+            key = next(k for k in ("t" + secrets.token_hex(4) for _ in range(10)) if k not in known)
+            known.add(key)
+            groups.append({"k": key, "n": (name or "채널")[:40]})
+            keys[ref] = key
+            self._map("org_group", lid, int(key[1:], 16))
+        Space.objects.filter(pk=space.pk).update(org_groups=groups)
+        return keys
 
     def _seats(self, code, space):
         """이관 학교의 가입 회원(D2) → 자리. 돌려주는 값: {구 아이디: Member}(이전 실행에서 넣은 자리 포함)."""
@@ -265,6 +299,9 @@ class Importer:
             if fields is None:
                 self.report.add(code, SEAT, drop("전출·휴직 그룹"), lid)
                 continue
+            if self.org:  # 기관: 관리자가 채널 화면에서 그룹에 배정한다
+                fields = {"group": "", "cls": ORG_NONE, "position": m["mb_4"].strip()[:40]}
+                gname = ""
             name = unique_name(m["mb_name"], fields["cls"], taken)
             note = "·".join(x for x in ("그룹 없음(기타/지원)" if gname is None else "",
                                         "같은 반·이름이라 번호 붙임" if name != (m["mb_name"].strip()[:40] or "이름 없음") else "") if x)
@@ -314,6 +351,8 @@ class Importer:
         end = day(r["wr_2"])
         end = end if end and end > start else None
         ch = r["wr_4"].strip()
+        if ch == "2" and self.org:
+            return ("drop", "기관은 복무 없음")
         if ch == "2":
             parsed, why = duty_of(r["wr_subject"])
             if parsed is None:
@@ -323,7 +362,10 @@ class Importer:
             return ("drop", "채널 모름")
         ch, prefix = int(ch), ""
         mine = author.group if author else None
-        if r["wr_8"].strip():
+        if self.org:  # T3: 0·1 → 공통, 3·4·읽기 제한 → 나, 채널 → 그 채널 줄(접두 없음)
+            common = self.org_keys[ORG_COMMON]
+            scope = ME if r["wr_8"].strip() or ch in (3, 4) else common if ch in (0, 1) else self.org_keys.get(ch, common)
+        elif r["wr_8"].strip():
             scope = ME
         elif ch in (0, 1):
             scope = ALL
@@ -560,7 +602,7 @@ class Importer:
             by_name = seat.name if seat else (r["wr_name"].strip()[:40] or "이름 없음")
             at = moment(r["wr_datetime"]) or timezone.now()
             n = Notice.objects.create(space=space, title=r["wr_subject"].strip()[:200] or NO_TITLE, by=seat, by_name=by_name,
-                                      group=seat.group if seat else "", audience=ALL)
+                                      group=seat.group if seat and not self.org else "", audience=ALL)
             self.report.add(code, NOTICE, IN, lid)
             kept = []
             for f in files:

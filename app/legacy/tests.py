@@ -467,3 +467,73 @@ class StopTests(ImportBase):
         self.run_import("--school", B)
         self.assertEqual(list(School.objects.values_list("neis_code", flat=True)), [B])
 
+
+
+ORG = "9000009"
+
+
+class OrgTests(ImportBase):
+    """T3 기관(school.grade='기관') → 기관 공간. 채널 = 그룹 줄, 맨 앞 '공통', 복무 없음, 회원은 미배정."""
+
+    def setUp(self):
+        super().setUp()
+        d = self.data
+        d["school"].append({"id": ORG, "code_sido": "E10", "name": "가상협력과", "grade": "기관"})
+        d["contact_group"].append({"group_id": 90, "group_name": "1학년", "school_id": ORG, "sort_order": 0, "is_active": 1,
+                                   "created_at": "", "updated_at": ""})
+        d["g5_member"] += [member(20, "org_lead", "가상팀장", ORG, 90, "장학사"), member(21, "org_two", "가상팀원", ORG, 90, "주무관")]
+        d["g5_write_go_admin"].append({"wr_id": 9, "wr_3": ORG, "mb_id": "org_lead", "wr_is_comment": 0})
+        d["g5_write_channel"] += [{"wr_id": 52, "wr_3": ORG, "wr_subject": "가상2팀"}, {"wr_id": 51, "wr_3": ORG, "wr_subject": "가상1팀"}]
+        d["g5_write_goteacher"] += [
+            write(500, ORG, 0, "기관 행사", "org_lead"),
+            write(501, ORG, 1, "기관 업무", "org_two"),
+            write(502, ORG, 51, "1팀 협의", "org_two"),
+            write(503, ORG, 52, "2팀 협의", "org_lead"),
+            write(504, ORG, 51, "2팀 협의", "org_lead"),  # 다른 채널 복사본은 각 줄에 남김
+            write(505, ORG, 2, "가상팀원 | 출장", "org_two"),
+            write(506, ORG, 4, "내 그룹", "org_two", wr_7=90),
+            write(507, ORG, 3, "개인", "org_lead"),
+        ]
+        d["g5_write_free_school"].append(write(510, ORG, "", "기관 안내", "org_lead", "", "", "본문"))
+        dump_to(self.dir, d)
+        self.out = self.run_import()
+        self.space_ = Space.objects.get(school__name="가상협력과")
+
+    def keys(self):
+        return {g["n"]: g["k"] for g in self.space_.org_groups}
+
+    def test_org_space_like_operator_opened(self):
+        s = self.space_.school
+        self.assertEqual((self.space_.kind, self.space_.grade, s.neis_code, s.neis_atpt, s.plan, s.paid_until, s.trial_by),
+                         ("org", 0, "", "E10", "school", date(2027, 2, 28), None))
+        self.assertIsNotNone(s.org_checked_at)
+        self.assertFalse(s.org_unconfirmed)
+        self.assertEqual([g["n"] for g in self.space_.org_groups], ["공통", "가상1팀", "가상2팀"])  # 공통 + wr_id 순
+        self.assertTrue(all(len(k) == 9 and k.startswith("t") for k in self.keys().values()))
+        self.assertEqual(Space.objects.filter(kind="school", grade=0).count(), 2)  # 다른 학교는 그대로 학교
+
+    def test_members_unassigned_and_manager(self):
+        rows = set(Member.objects.in_space(self.space_).values_list("name", "group", "cls", "position", "is_manager"))
+        self.assertEqual(rows, {("가상팀장", "", "미배정", "장학사", True), ("가상팀원", "", "미배정", "주무관", False)})
+
+    def test_event_rows_map_to_group_lines(self):
+        k = self.keys()
+        got = set(Event.objects.in_space(self.space_).values_list("title", "scope"))
+        self.assertEqual(got, {("기관 행사", k["공통"]), ("기관 업무", k["공통"]), ("1팀 협의", k["가상1팀"]), ("2팀 협의", k["가상2팀"]),
+                               ("2팀 협의", k["가상1팀"]), ("내 그룹", "me"), ("개인", "me")})  # 다른 채널 복사본은 각 줄에
+        self.assertFalse(Attendance.objects.in_space(self.space_).exists())
+        self.assertIn("버림: 기관은 복무 없음 1", self.out)
+        self.assertEqual(Notice.objects.in_space(self.space_).get().group, "")
+
+    def test_rerun_idempotent_and_new_channel_appended(self):
+        before = (list(self.space_.org_groups), Event.objects.count(), Member.objects.count(), School.objects.count())
+        self.run_import()
+        self.space_.refresh_from_db()
+        self.assertEqual((list(self.space_.org_groups), Event.objects.count(), Member.objects.count(), School.objects.count()), before)
+        self.data["g5_write_channel"].append({"wr_id": 53, "wr_3": ORG, "wr_subject": "가상3팀"})
+        self.data["g5_write_goteacher"].append(write(520, ORG, 53, "3팀 협의", "org_two"))
+        dump_to(self.dir, self.data)
+        self.run_import()
+        self.space_.refresh_from_db()
+        self.assertEqual([g["n"] for g in self.space_.org_groups], ["공통", "가상1팀", "가상2팀", "가상3팀"])
+        self.assertEqual(Event.objects.get(title="3팀 협의").scope, self.keys()["가상3팀"])
