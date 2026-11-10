@@ -11,10 +11,13 @@
 import csv
 import io
 import re
+from decimal import Decimal
 from urllib.parse import urlparse
 
+import xlwt
+
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.html import escape
 from django.utils.http import content_disposition_header
@@ -23,6 +26,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .access import owner_view
 from .models import Collection
+from .presets import EDUFINE
 from .views import _board
 
 FORMULA = ("=", "+", "-", "@", "\t", "\r")
@@ -86,6 +90,85 @@ def export_csv(request, c):
     r = HttpResponse("﻿" + buf.getvalue(), content_type="text/csv; charset=utf-8")
     name = BAD_NAME.sub("_", c.title).strip() or "취합"
     r["Content-Disposition"] = content_disposition_header(True, f"{name}_합본.csv")
+    r["X-Content-Type-Options"] = "nosniff"
+    return r
+
+
+def edufine_rows(c):
+    """S1 에듀파인 줄: 합본 순서대로 물품마다 [내용, 규격, 단위, 수량, 예상단가]. 빈 줄은 뺀다. 받는 곳·주소·꼬리말은 넣지 않는다."""
+    b = _board(c)
+    at = [next((i for i, f in enumerate(b["fields"]) if f.name == name), None) for name in EDUFINE]
+    out = []
+    for u in b["units"]:
+        for cells in u["lines"]:
+            vals = [cells[i]["v"].strip() if i is not None else "" for i in at]
+            if any(vals):
+                out.append(vals)
+    return out
+
+
+XLS_NUM_MAX = Decimal(10) ** 15  # 엑셀이 정확히 다루는 자릿수 안만 숫자 칸으로
+
+
+def _xls_num(v):
+    """수량·예상단가는 숫자 칸으로(정수면 int). 숫자가 아니거나 너무 크면 글자 그대로(제출 때 막지만 옛 값 방어)."""
+    try:
+        n = Decimal(v.replace(",", ""))
+        if not n.is_finite() or abs(n) >= XLS_NUM_MAX:
+            return v
+        return int(n) if n == n.to_integral_value() else float(n)
+    except ArithmeticError:
+        return v
+
+
+def _edufine_styles():
+    """품목내역(통합).xls(에듀파인 내려받기 양식) 머리글 서식: 돋움 9pt 흰 글자, 회색 바탕, 가운데·줄바꿈, 얇은 회색 테두리."""
+    def style(head, left):
+        st = xlwt.XFStyle()
+        st.font.name, st.font.height = "Dotum", 180
+        b = st.borders
+        b.top = b.bottom = b.right = xlwt.Borders.THIN
+        b.left = xlwt.Borders.THIN if left else xlwt.Borders.NO_LINE
+        b.top_colour = b.bottom_colour = b.right_colour = 10
+        b.left_colour = 10 if left else 8
+        if head:
+            st.font.colour_index = 9
+            st.font._weight = 700  # 원본 FONT 레코드: weight 700, bold 비트 0(xlwt bold=True는 비트도 켠다)
+            st.alignment.horz, st.alignment.vert, st.alignment.wrap = xlwt.Alignment.HORZ_CENTER, xlwt.Alignment.VERT_CENTER, 1
+            st.pattern.pattern = xlwt.Pattern.SOLID_PATTERN
+            st.pattern.pattern_fore_colour, st.pattern.pattern_back_colour = 8, 64
+        return st
+    return [style(True, i == 0) for i in range(len(EDUFINE))], [style(False, i == 0) for i in range(len(EDUFINE))]
+
+
+def edufine_xls(c):
+    """진짜 .xls(BIFF8). 시트 이름·머리글·서식·칸 너비는 원본 양식과 같게(테스트가 원본 파일과 비교한다)."""
+    wb = xlwt.Workbook(encoding="utf-8")
+    wb.set_colour_RGB(8, 89, 89, 91)  # 원본 팔레트(8 = 머리글 바탕, 10 = 테두리)
+    wb.set_colour_RGB(10, 164, 164, 165)
+    ws = wb.add_sheet("품목내역")
+    head, body = _edufine_styles()
+    for i, name in enumerate(EDUFINE):
+        ws.col(i).width = 3600
+        ws.write(0, i, name, head[i])
+    for r, vals in enumerate(edufine_rows(c), start=1):
+        for i, v in enumerate(vals):
+            ws.write(r, i, _xls_num(v) if i >= 3 and v else v, body[i])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+@never_cache
+@require_GET
+@owner_view(Collection)
+def export_xls(request, c):
+    """S1 에듀파인 엑셀(예산 품목 취합만). 권한은 CSV와 같다."""
+    if c.source != Collection.Source.BUDGET:
+        raise Http404
+    r = HttpResponse(edufine_xls(c), content_type="application/vnd.ms-excel")
+    name = BAD_NAME.sub("_", c.title).strip() or "취합"
+    r["Content-Disposition"] = content_disposition_header(True, f"{name}_품목내역.xls")
     r["X-Content-Type-Options"] = "nosniff"
     return r
 

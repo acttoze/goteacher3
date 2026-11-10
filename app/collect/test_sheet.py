@@ -37,7 +37,7 @@ class SheetPresetTests(TestCase):
         for label in ("표 붙여넣기", "직접 입력", "자주 쓰는 양식", "한글 양식 올리기"):
             self.assertContains(r, label)
         self.assertNotContains(r, 'data-src="hwp" disabled')  # E5에서 켬
-        self.assertContains(r, "2학기 학습준비물 신청")
+        self.assertContains(r, "학급 예산 품목 취합")  # S1 강조 카드(옛 학습준비물 양식 자리)
         self.assertContains(r, "법정의무연수")
 
     # ---- 직접 입력
@@ -76,11 +76,13 @@ class SheetPresetTests(TestCase):
 
     # ---- 자주 쓰는 양식
     def test_preset_supplies(self):
+        """S1: 옛 학습준비물 양식 자리(preset=supplies)는 예산 품목 취합을 만든다."""
         self.post(src="preset", preset="supplies")
         c = Collection.objects.get()
-        self.assertEqual((c.source, c.title, c.multi, c.unit_head), ("preset", "2학기 학습준비물 신청", True, ["학년반", "담임"]))
+        self.assertEqual((c.source, c.title, c.multi, c.unit_head, c.budget), ("budget", "학급 예산 품목 취합", True, ["학년반", "담임"], None))
         self.assertEqual([(f.name, f.kind) for f in c.fields.all()],
-                         [("물품명", "text"), ("수량", "number"), ("단가", "number"), ("금액", "calc"), ("구입 링크", "url")])
+                         [("내용", "text"), ("규격", "text"), ("단위", "text"), ("수량", "number"), ("예상단가", "number"),
+                          ("금액", "calc"), ("상품 주소", "url")])
         self.assertFalse(Cell.objects.exists())
 
     def test_preset_training(self):
@@ -143,10 +145,12 @@ class SheetCalcAndEmptyRosterTests(TestCase):
     def test_empty_roster_blocks_all_sources(self):
         self.me.cls = "4-전담"  # 반별 명부가 비는 경우
         self.me.save()
-        for data in ({"src": "sheet", "title": "x", "col_name_0": "a"}, {"src": "preset", "preset": "supplies"},
+        for data in ({"src": "sheet", "title": "x", "col_name_0": "a"},
                      {"src": "paste", "title": "x", "paste": "반\t참가(명)\n4-1\t"}):
             r = self.post(**data)
             self.assertContains(r, "받을 사람이나 그룹을 골라 주세요", status_code=400)
+        r = self.post(src="preset", preset="supplies")  # S1 예산 품목 취합(담임 반별)
+        self.assertContains(r, "받을 반이 없어요", status_code=400)
         self.assertFalse(Collection.objects.exists())
         self.assertEqual(self.post(src="preset", preset="training").status_code, 302)  # 사람별은 전담 포함
 

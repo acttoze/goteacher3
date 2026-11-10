@@ -9,8 +9,26 @@
     var v = 1;
     nums.forEach(function (n) { v *= parseFloat(n.value.replace(/,/g, '')) || 0; });
     out.textContent = v.toLocaleString('ko-KR');
+    out.dataset.v = v;
   }
-  function all() { document.querySelectorAll('[data-line]').forEach(calc); }
+  // S1 예산 품목: 줄 금액 합계와 남은 금액(예산이 있으면). 넘으면 '예산 초과'로 바꾼다. 저장 값은 서버가 다시 계산한다.
+  function budget() {
+    var box = document.querySelector('[data-budget]');
+    if (!box) return;
+    var sum = 0;
+    document.querySelectorAll('#lines [data-calc]').forEach(function (x) { sum += +x.dataset.v || 0; });
+    box.querySelector('[data-total]').textContent = sum.toLocaleString('ko-KR');
+    var left = box.querySelector('[data-left-box]');
+    if (!left || !box.dataset.budget) return;
+    var rest = +box.dataset.budget - sum;
+    left.className = rest < 0 ? 'over' : '';
+    left.innerHTML = '';
+    left.append(rest < 0 ? '예산 초과 ' : '남은 금액 ');
+    var b = document.createElement('b');
+    b.textContent = Math.abs(rest).toLocaleString('ko-KR');
+    left.append(b, '원');
+  }
+  function all() { document.querySelectorAll('[data-line]').forEach(calc); budget(); }
 
   document.addEventListener('input', function (e) {
     var el = e.target;
@@ -19,8 +37,17 @@
       if (x !== el.value) el.value = x;
       el.classList.remove('bad');
       var line = el.closest('[data-line]');
-      if (line) calc(line);
+      if (line) { calc(line); budget(); }
     }
+  });
+  // S1 상품 주소 붙이기: 폼 전체가 아니라 그 줄 칸만 보낸다(htmx는 둘러싼 폼 값을 모두 싣는다).
+  document.addEventListener('htmx:configRequest', function (e) {
+    var line = e.detail.elt.matches('[data-shop]') && e.detail.elt.closest('[data-line]');
+    if (!line) return;
+    var p = e.detail.parameters, csrf = p.csrfmiddlewaretoken;
+    Object.keys(p).forEach(function (k) { delete p[k]; });
+    if (csrf) p.csrfmiddlewaretoken = csrf;
+    line.querySelectorAll('input[name]').forEach(function (i) { p[i.name] = i.value; });
   });
   // 연수 이수 '해당 없음': 이수번호 칸을 비우고 막는다(prototype matrixForm)
   document.addEventListener('change', function (e) {
@@ -36,6 +63,7 @@
       var t = document.getElementById('lineT'), box = document.getElementById('lines');
       if (!t || !box) return;
       box.appendChild(t.content.cloneNode(true));
+      if (window.htmx) htmx.process(box.lastElementChild);  // S1 새 줄의 상품 주소 칸(hx-post)도 동작하게
       var first = box.lastElementChild.querySelector('input:not([type=hidden]), select');
       if (first) first.focus();
       return;
@@ -45,6 +73,7 @@
       var lines = document.querySelectorAll('#lines [data-line]');
       if (lines.length > 1) del.closest('[data-line]').remove();
       else del.closest('[data-line]').querySelectorAll('input:not([type=hidden]), select').forEach(function (i) { i.value = ''; });
+      all();
     }
   });
   // 칸 오류(400)·마감(403)·너무 잦음(429)도 서버가 그린 화면으로 바꾼다(htmx는 4xx를 기본으로 버린다)
@@ -58,8 +87,9 @@
     var first = document.querySelector('#f input:not([type=hidden]), #f select');
     if (first && !first.value) first.focus();
   });
-  document.addEventListener('htmx:afterSwap', function () {
+  document.addEventListener('htmx:afterSwap', function (e) {
     all();
+    if (e.detail.target.id !== 'main') return;  // S1 한 줄 채우기는 그 자리에서(맨 위로 가지 않는다)
     var ok = document.getElementById('ok');
     if (ok) ok.focus();
     window.scrollTo(0, 0);

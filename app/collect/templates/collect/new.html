@@ -104,6 +104,19 @@
   .due-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 16px 0; }
   .due-row .field { margin: 0; }
   .due-row .small { padding-bottom: 12px; }
+  /* S1 예산 품목 취합: 취합의 핵심 기능이라 맨 위 강조 카드. 칸 4개(제목·예산·단추)를 한 줄로 */
+  .budget-card { border-color: var(--accent); background: var(--accent-soft); }
+  .budget-card .card-b { padding-top: 20px; }
+  .budget-card .bh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .budget-card .bh h2 { font-size: var(--fs-section); font-weight: 700; letter-spacing: -0.02em; }
+  .budget-card .bh .pill { background: var(--bg); }
+  .budget-card .bd { margin-top: 6px; color: var(--muted); }
+  .budget-card .brow { display: grid; grid-template-columns: minmax(0, 1fr) 220px auto; gap: 12px; align-items: end; margin-top: 14px; }
+  .budget-card .brow .field { margin: 0; }
+  .budget-card .brow .btn { height: var(--control-h); }
+  .budget-card .unitbox { position: relative; }
+  .budget-card .unitbox .input { padding-right: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+  .budget-card .unitbox i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); pointer-events: none; }
 </style>
 {% endblock %}
 {% block main %}
@@ -115,8 +128,19 @@
   <a class="btn ghost" href="/s/{{ space.token }}/c/">취소</a>
 </div>
 <form id="newForm" method="post" action="/s/{{ space.token }}/c/new" novalidate data-upload-form data-max-body="{{ max_body }}">{% csrf_token %}
+<button class="sr" type="submit" tabindex="-1" aria-hidden="true"></button>{# Enter는 아래 「만들고 링크 받기」와 같게(첫 제출 단추가 예산 카드가 되지 않게) #}
 <div class="grid">
   <div class="s8 stack-y">
+    <section class="card budget-card" aria-labelledby="budgetH"><div class="card-b">
+      <div class="bh"><h2 id="budgetH">{{ budget_spec.title }}</h2><span class="pill acc">에듀파인 엑셀</span><span class="pill">담임 {{ roster|length }}반</span></div>
+      <p class="bd">{{ budget_spec.desc }} 칸: {{ budget_spec.cols }}</p>
+      <div class="brow">
+        <label class="field"><span>제목</span><input class="input" name="budget_title" value="{{ budget_title }}" maxlength="200" placeholder="{{ budget_spec.title }}" autocomplete="off"></label>
+        <label class="field"><span>한 반 예산 <span class="hint">선택</span></span><span class="unitbox"><input class="input" name="budget" value="{{ budget_raw }}" inputmode="numeric" maxlength="20" placeholder="예: 150,000" autocomplete="off"{% if errors.budget %} aria-invalid="true" aria-describedby="eBudget"{% endif %}><i>원</i></span></label>
+        <button class="btn pri" type="submit" name="budget_go" value="1">예산 취합 만들기</button>
+      </div>
+      {% if errors.budget %}<p class="field-err" id="eBudget" role="alert">{{ errors.budget }}</p>{% endif %}
+    </div></section>
     <section class="card" aria-labelledby="formH">
       <div class="card-b pt">
         <div class="sec-h"><h2 id="formH">무엇을 받나요</h2><span class="r">교직원 정보만 받아요 · 학생 개인정보는 받지 않아요</span></div>
@@ -171,7 +195,7 @@
             <li><div class="grow"><div class="t">{{ p.title }}</div><div class="m">{{ p.desc }}</div><div class="m">{{ p.cols }}</div></div>
               <button class="btn sec sm" type="submit" name="preset" value="{{ k }}">이걸로 만들기</button></li>{% endfor %}</ul>
           {% if errors.preset %}<p class="msg-inline" role="alert">{{ errors.preset }}</p>{% endif %}
-          <p class="small muted" style="margin-top:8px">학교에서 구글 시트로 가장 많이 돌리는 두 가지예요. 누르면 바로 만들어져요.</p>
+          <p class="small muted" style="margin-top:8px">누르면 바로 만들어져요. 학급 예산 품목은 맨 위 카드에서 만들어요.</p>
         </div>
       </div>
     </section>
@@ -179,7 +203,7 @@
       {% if space.is_school %}
       <div data-pane="paste sheet hwp"{% if src == "preset" %} hidden{% endif %}>{% include "collect/_aud_school.html" %}</div>
       <div data-pane="preset"{% if src != "preset" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2></div>
-        <p class="muted">자주 쓰는 양식은 받는 사람이 정해져 있어요. 학습준비물은 담임 {{ roster|length }}반, 연수 이수는 전 교직원 {{ roster_all }}명이에요.</p></div>
+        <p class="muted">자주 쓰는 양식은 받는 사람이 정해져 있어요. 연수 이수는 전 교직원 {{ roster_all }}명이에요.</p></div>
       {% else %}
       <div data-pane="paste"{% if src != "paste" %} hidden{% endif %}>{% include "collect/_aud.html" %}</div>
       <div data-pane="sheet preset hwp"{% if src == "paste" %} hidden{% endif %}><div class="sec-h"><h2>누구에게서 받나요</h2><span class="r num">{{ space_word }} {{ roster|length }}반</span></div>

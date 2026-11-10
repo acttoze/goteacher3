@@ -33,6 +33,7 @@ from .hwpform import _bare, _class_of
 from .paste import clean_text
 from .presets import PRESETS
 from .recipients import OutsideClosed, add_outside_row, pick_row
+from . import shop
 
 SESSION_BY = "gt_by"  # 이 브라우저에서 마지막으로 쓴 내는 사람 이름
 SESSION_SENT = "gt_sent"  # {줄 키: 이 브라우저가 낸 뒤의 마지막 Cell.at}. 같을 때만 고칠 값을 미리 채움
@@ -41,11 +42,14 @@ RECIPIENT_AGE = 2 * 3600  # 공용 PC에서 브라우저를 안 닫아도 다음
 SENT_MAX = 200
 LINES_MAX = 50  # multi: 한 번에 내는 줄 상한
 VALUE_MAX = 1000
+NUM_DIGITS, NUM_DECIMALS = 12, 4  # 숫자 칸 상한(1조 원 미만)
 NA = "해당 없음"  # 연수 이수(prototype matrixForm) 체크
 ASK = {Field.Kind.NUMBER: "숫자로 써 주세요. 없으면 0이에요.", Field.Kind.SELECT: "골라 주세요.", Field.Kind.DATE: "골라 주세요."}
 SUBMIT_PER_MIN = 120  # 같은 IP·같은 링크로 낸 횟수(한 학교가 IP 하나를 같이 쓴다). 오류 난 제출은 세지 않는다
 OUTSIDE_PER_HOUR = 60  # 같은 IP·같은 링크로 명부 밖 줄 만들기(취합당 60줄 상한과 함께)
 FIND_PER_HOUR = 300  # 같은 IP·같은 링크로 이름 찾기(학교 하나가 IP 하나: 전 교직원이 한 번씩 + 여유, 명단 긁어내기는 막는다)
+SHOP_PER_HOUR = 300  # 같은 IP·같은 링크로 상품 주소 읽기(한 학교 IP 하나: 담임 25명 × 품목 10개 + 여유)
+SHOP_PER_MIN = 20  # 같은 IP·같은 링크로 분당(한꺼번에 쏟아 서버 자리를 잡지 않게, 시간당 상한과 함께)
 NOT_FOUND = "이름을 찾지 못했어요."
 UNIT_RE = re.compile(r"^(.*?)\s*\(([^()]{1,6})\)$")  # '참가(명)' → 참가 / 명
 
@@ -97,7 +101,12 @@ def _clean(field, raw):
         return "", None
     if field.kind == Field.Kind.NUMBER:
         n = v.replace(",", "").replace(" ", "")
-        return (n, None) if re.fullmatch(r"\d+(\.\d+)?", n) else ("", "숫자로 써 주세요. 없으면 0이에요.")
+        if not re.fullmatch(r"\d+(\.\d+)?", n):
+            return "", "숫자로 써 주세요. 없으면 0이에요."
+        whole, _, frac = n.partition(".")
+        if len(whole.lstrip("0")) > NUM_DIGITS or len(frac) > NUM_DECIMALS:  # S1: 엑셀·계산이 다룰 수 있는 크기
+            return "", f"숫자가 너무 커요. 정수 {NUM_DIGITS}자리, 소수 {NUM_DECIMALS}자리까지 써 주세요."
+        return n, None
     if field.kind == Field.Kind.SELECT:
         return (v, None) if v in field.options else ("", "보기에서 골라 주세요.")
     if field.kind == Field.Kind.DATE:
@@ -118,6 +127,8 @@ def _matrix(c):
 def _required(c, f):
     """prototype 규칙: 모든 칸 필수, 이름이 '비고'인 칸만 예외. 여러 줄은 구입 링크(url)만 선택. 연수 이수는 모두 선택."""
     if _matrix(c) or f.name.strip() == "비고":
+        return False
+    if c.source == Collection.Source.BUDGET and f.name == "규격":  # S1: 규격 없는 물품이 많다
         return False
     return not (c.multi and f.kind == Field.Kind.URL)
 
@@ -327,6 +338,10 @@ def _line_values(group, inputs, sent):
     return lines or [{"key": group[0].key, "vals": {}}]
 
 
+def _cols(fields):
+    return [{"f": f, "label": _label(f)[0], "unit": _label(f)[1], "calc": f.kind == Field.Kind.CALC} for f in fields]
+
+
 def _form_ctx(request, c, row, group, inputs, lines, errors=None, by=None):
     member, name = _me(request, c)
     fields = list(c.fields.all())
@@ -335,7 +350,7 @@ def _form_ctx(request, c, row, group, inputs, lines, errors=None, by=None):
     done = Cell.objects.filter(row__in=group).count() >= _need(c)
     last = Cell.objects.filter(row__in=group).aggregate(m=Max("at"))["m"]
     mine = _mine(head_row, member, name)
-    cols = [{"f": f, "label": _label(f)[0], "unit": _label(f)[1], "calc": f.kind == Field.Kind.CALC} for f in fields]
+    cols = _cols(fields)
     for ln in lines:
         ln["cells"] = [{"col": col, "v": ln["vals"].get(col["f"].pk, ""),
                         "err": (errors or {}).get((ln["key"], col["f"].pk))} for col in cols]
@@ -343,7 +358,8 @@ def _form_ctx(request, c, row, group, inputs, lines, errors=None, by=None):
     return {**_head(c), "view": "form", "row": head_row, "cols": cols, "lines": lines, "blank": blank,
             "n_main": sum(col["f"].kind != Field.Kind.URL for col in cols), "done": done,
             "last": last, "sent": sent, "changed": changed, "mine": mine, "by": name if by is None else by,
-            "find_box": mine and bool(member) and _by_name(c), "matrix": _matrix(c), "na": NA, "errors": errors or {}, "form_error": (errors or {}).get("form"), "n_inputs": len(inputs)}
+            "find_box": mine and bool(member) and _by_name(c), "budget": c.source == Collection.Source.BUDGET,
+            "budget_text": f"{c.budget:,}" if c.budget else "", "matrix": _matrix(c), "na": NA, "errors": errors or {}, "form_error": (errors or {}).get("form"), "n_inputs": len(inputs)}
 
 
 @never_cache
@@ -438,3 +454,46 @@ def unit(request, c, key):
            "late": bool(c.due and at > c.due), "proxy": bool(by) and by != row.who and not row.group,
            "partial": Cell.objects.filter(row=group[0]).count() < _need(c)}
     return _page(request, ctx)
+
+
+SHOP_FILL = {"내용": "name", "규격": "spec", "단위": "unit", "예상단가": "price"}  # S1 칸 이름 → shop 결과
+SHOP_DEFAULT = {"수량": "1", "단위": "개"}  # 비어 있을 때만
+
+
+@never_cache
+@sensitive_post_parameters()
+@require_POST
+@link_view
+def shop_fill(request, c):
+    """S1 상품 주소 붙이기(htmx): 그 줄 값 + 상품 주소 → 품명·규격·단위·예상단가를 채운 줄(_recv_line.html).
+    저장하지 않는다(내기는 unit). 예산 품목 취합만, 받는 링크 안에서만, IP·링크당 SHOP_PER_HOUR."""
+    if c.source != Collection.Source.BUDGET:
+        raise Http404
+    fields = list(c.fields.all())
+    vals = {f.pk: clean_text(request.POST.get(f"f{f.pos}", ""))[:VALUE_MAX] for f in fields if f.kind != Field.Kind.CALC}
+    url_f = next((f for f in fields if f.kind == Field.Kind.URL), None)
+    url = vals.get(url_f.pk, "") if url_f else ""
+    item, msg = None, ""
+    if not url:
+        msg = ""
+    elif c.closed_at:  # 줄 안에 안내만(내기는 unit이 막는다)
+        msg = "마감돼서 이 링크로는 더 낼 수 없어요."
+    elif not (allow("shop_min", f"{client_ip(request)}:{c.link_token}", SHOP_PER_MIN, 60)
+              and allow("shop", f"{client_ip(request)}:{c.link_token}", SHOP_PER_HOUR, 3600)):
+        msg = TOO_MANY
+    else:
+        item, msg = shop.lookup(url)
+    for f in fields:
+        if f.pk not in vals:
+            continue
+        if item and f.name in SHOP_FILL and item[SHOP_FILL[f.name]] != "":
+            vals[f.pk] = str(item[SHOP_FILL[f.name]])
+        elif item and not vals[f.pk] and f.name in SHOP_DEFAULT:
+            vals[f.pk] = SHOP_DEFAULT[f.name]
+    key = request.POST.get("line", "")[:64]
+    if key and not c.rows.filter(key=key).exists():
+        key = ""
+    cols = _cols(fields)
+    ln = {"key": key, "cells": [{"col": col, "v": vals.get(col["f"].pk, ""), "err": None} for col in cols]}
+    return render(request, "collect/_recv_line_budget.html", {"c": c, "ln": ln, "shop_msg": msg, "shop_ok": bool(item),
+                                                       "n_main": sum(col["f"].kind != Field.Kind.URL for col in cols)})

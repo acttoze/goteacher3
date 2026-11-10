@@ -25,6 +25,9 @@ from .presets import PRESETS
 from .submit import save_cell
 
 FIX = Path(__file__).parent / "fixtures" / "paste"
+# S1 전 '2학기 학습준비물 신청' 양식(PRESETS["supplies"]는 예산 품목 취합으로 바뀜). 이미 만든 옛 취합이 그대로 내보내져야 한다.
+OLD_SUPPLIES = {"unit_head": ["학년반", "담임"],
+                "fields": [("물품명", "text"), ("수량", "number"), ("단가", "number"), ("금액", "calc"), ("구입 링크", "url")]}
 
 
 @override_settings(SITE_URL="https://t.goteacher.xyz")
@@ -141,7 +144,7 @@ class ExportTests(TestCase):
 
     # ---- 여러 줄·자동 계산, 연수 이수
     def test_multi_items_and_calc(self):
-        spec = PRESETS["supplies"]
+        spec = OLD_SUPPLIES
         c = Collection.objects.create(space=self.a, created_by=self.owner, title="준비물", source=Collection.Source.PRESET,
                                       unit_head=spec["unit_head"], multi=True)
         fs = [Field.objects.create(collection=c, pos=i, name=n, kind=k) for i, (n, k) in enumerate(spec["fields"])]
@@ -304,7 +307,7 @@ class ExportTests(TestCase):
         self.assertIn("&lt;script&gt;x&lt;/script&gt;_합본.csv", body)
 
     def test_multi_partial_item_line_kept(self):
-        spec = PRESETS["supplies"]
+        spec = OLD_SUPPLIES
         c = Collection.objects.create(space=self.a, created_by=self.owner, title="준비물2", source=Collection.Source.PRESET,
                                       unit_head=spec["unit_head"], multi=True)
         fs = [Field.objects.create(collection=c, pos=i, name=n, kind=k) for i, (n, k) in enumerate(spec["fields"])]

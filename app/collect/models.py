@@ -17,6 +17,7 @@ class Collection(models.Model):
         SHEET = "sheet", "직접 입력"
         PRESET = "preset", "자주 쓰는 양식"
         HWP = "hwp", "한글 양식"
+        BUDGET = "budget", "예산 품목"  # S1: 에듀파인 엑셀·상품 주소 채우기·예산 합계
 
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="collections")
     created_by = models.ForeignKey(
@@ -32,6 +33,7 @@ class Collection(models.Model):
     multi = models.BooleanField("받는 사람이 줄을 여러 개 추가", default=False)
     allow_outside = models.BooleanField("명부 밖 사람도 링크로 제출", default=False)
     footer_on = models.BooleanField("꼬리말 넣기", default=True)
+    budget = models.PositiveIntegerField("한 곳당 예산(원)", null=True, blank=True)  # S1 예산 품목 취합만, 비우면 합계만
     # 학교 공간에서 고른 받는 사람 범위(recipients.read_audience + 만들 때의 설명 text). 다시 걷기와 합본 표시에 쓴다. 동학년·양식은 비어 있다.
     audience = models.JSONField("받는 사람 범위", default=dict, blank=True)
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)

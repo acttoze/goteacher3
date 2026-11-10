@@ -629,7 +629,7 @@ class ScreensAfterMergeTests(MergeBase):
     def test_create_collection_and_event_in_school_space(self):
         r = self.client.post(f"{self.base}/c/new", {"src": "preset", "preset": "supplies"})
         self.assertEqual(r.status_code, 302)
-        c = Collection.objects.in_space(self.hub).get(source="preset")
+        c = Collection.objects.in_space(self.hub).get(source="budget")  # S1: 옛 학습준비물 자리는 예산 품목 취합
         self.assertEqual(list(c.rows.values_list("unit", flat=True)), ["4-1", "4-2", "5-1"])
         self.client.post(f"{self.base}/today/events", {"line": "내일 회의"})
         self.assertTrue(Event.objects.in_space(self.hub).filter(title__contains="회의").exists())

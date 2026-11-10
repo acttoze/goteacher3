@@ -16,6 +16,7 @@ dependencies = [
     "rq>=3.0,<4",  # 작업 큐(D3 리마인드·E2 한글 변환). redis 클라이언트는 rq가 함께 설치
     "pywebpush>=2.0,<3",
     "pillow>=11,<13",
+    "xlwt>=1.3.0",
 ]
 
 [tool.uv]
@@ -27,3 +28,8 @@ include = ["app/**/*.py", "hwp/**/*.py", "ops/**/*.py"]
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F"]
+
+[dependency-groups]
+dev = [
+    "xlrd>=2.0.2",
+]

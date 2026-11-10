@@ -107,13 +107,32 @@ def new(request):
             c.save(update_fields=["due"])
         return redirect(f"/s/{space.token}/c/{c.key}/")
 
+    budget, budget_raw = None, ""
     if request.method == "POST":
         src = request.POST.get("src", "paste")
+        if request.POST.get("budget_go") or (src == "preset" and request.POST.get("preset") == "supplies"):
+            src = "budget"  # S1: 옛 학습준비물 양식 자리(preset=supplies)도 예산 품목 취합으로
         title = clean_text(request.POST.get("title", ""))[:200]
         rows = audience_rows(space, aud)
         no_one = ("받을 사람이나 소속을 골라 주세요." if space.is_school else
                   f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요.")  # prototype #create
-        if src == "preset":
+        if src == "budget":
+            # S1 예산 품목 취합(강조 카드). 받는 사람은 옛 학습준비물 양식과 같이 담임 반별.
+            spec, budget_raw = PRESETS["supplies"], request.POST.get("budget", "").strip()[:20]
+            budget, bad = _read_budget(budget_raw)
+            if bad:
+                errors["budget"] = bad
+            elif not roster_rows(space, spec["roster"]):
+                errors["budget"] = f"받을 반이 없어요. {space.word} 명부에 반을 고른 담임 선생님이 없어요."
+            else:
+                c = _create_cols(request, clean_text(request.POST.get("budget_title", ""))[:200] or spec["title"],
+                                 Collection.Source.BUDGET, spec["fields"], spec["unit_head"], spec["multi"],
+                                 roster_rows(space, spec["roster"]))
+                c.budget = budget
+                c.save(update_fields=["budget"])
+                return made(c)
+            src = request.POST.get("src", "paste")
+        elif src == "preset":
             spec = PRESETS.get(request.POST.get("preset", ""))
             if spec and not roster_rows(space, spec["roster"]):
                 errors["aud"] = no_one
@@ -190,7 +209,8 @@ def new(request):
                            ("preset", "자주 쓰는 양식")],
                      hwp=pick_ctx(sf) if sf else None, hwpf=hwpf,
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
-                     presets=PRESETS.items(), multi=request.POST.get("multi") == "on", outside=_outside(request),
+                     presets=[(k, p) for k, p in PRESETS.items() if k != "supplies"], budget_spec=PRESETS["supplies"],
+                     budget_raw=budget_raw, budget_title=request.POST.get("budget_title", "")[:200], multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")),
                      due_d=due_d)
     ctx.update(_paste_ctx(p, error))
@@ -199,6 +219,19 @@ def new(request):
     resp = render(request, "collect/new.html", ctx, status=400 if errors else 200)
     resp["Content-Security-Policy"] = PREVIEW_CSP  # 한글 쪽 미리보기(WASM)를 이 화면에서 그린다
     return resp
+
+
+BUDGET_MAX = 1_000_000_000  # 한 곳당 예산 상한(원). 학급 예산은 이보다 훨씬 작다
+
+
+def _read_budget(raw):
+    """(예산 원 또는 None, 오류 문구). 비우면 예산 없이(합계만). 쉼표·'원'은 떼고 읽는다."""
+    n = raw.replace(",", "").replace(" ", "").removesuffix("원")
+    if not n:
+        return None, None
+    if not n.isdigit() or not 0 < int(n) <= BUDGET_MAX:
+        return None, "예산은 원 단위 숫자로 써 주세요. 예: 150000"
+    return int(n), None
 
 
 def due_at(d):
@@ -372,12 +405,13 @@ def _board(c):
     groups = {}
     for r in c.rows.all():
         groups.setdefault((r.unit, r.who, r.member_id) if c.multi else r.pk, []).append(r)
+    budget = c.source == Collection.Source.BUDGET
     sums = {f.pk: Decimal(0) for f in fields if f.kind in (Field.Kind.NUMBER, Field.Kind.CALC)}
     for u in ctx["units"]:
         r0 = u["row"]
         group = groups[(r0.unit, r0.who, r0.member_id) if c.multi else r0.pk]
         lines = [r for r in group if r.pk in vals] or group[:1]
-        u["lines"] = []
+        u["lines"], total = [], Decimal(0)
         for r in lines:
             rv, cells = vals.get(r.pk, {}), []
             for f in fields:
@@ -394,6 +428,8 @@ def _board(c):
                     n = None
                 if n is not None and f.pk in sums:
                     sums[f.pk] += n
+                if n is not None and f.kind == Field.Kind.CALC:
+                    total += n
                 # x: 내보내기 값(D4). 자동 계산은 쉼표 없는 수(prototype itemVals), 나머지는 낸 값 그대로
                 x = f"{n.normalize():f}" if f.kind == Field.Kind.CALC and n is not None else "" if f.kind == Field.Kind.CALC else v
                 cell = {"v": v, "x": x, "r": f.pk in sums, "show": _fmt(n) if f.pk in sums else v}
@@ -402,14 +438,27 @@ def _board(c):
                 if matrix:
                     cell["mark"] = "na" if v == NA else "ok" if v else "no"
                 cells.append(cell)
+            if budget:  # S1 합본 화면: 상품 주소 칸 대신 내용을 그 주소로 잇는다(칸이 많아 폭이 모자라다). 내보내기 값은 그대로
+                link = next((x.get("href") for x in cells if "href" in x), None)
+                cells[0]["link"] = link
+                for x in cells:
+                    x["hide"] = "href" in x
             u["lines"].append(cells)
+        if budget:  # S1 곳별 합계·남은 금액·예산 초과
+            u["total"] = _fmt(total) if u["done"] else ""
+            left = c.budget - total if c.budget and u["done"] else None
+            u["left"], u["over"] = (_fmt(abs(left)), left < 0) if left is not None else ("", False)
         at_by = max((last[r.pk] for r in group if r.pk in last), default=None, key=lambda x: x[0])
         u["by"] = at_by[1] if at_by else ""
         u["proxy"] = bool(u["by"]) and u["by"] != r0.who and not r0.group
         u["n_cells"] = sum(len(vals.get(r.pk, {})) for r in group)
         u["just"] = bool(u["at"]) and (now - u["at"]).total_seconds() < 6  # 방금 들어온 줄 한 번 깜빡임
     miss = [u for u in ctx["units"] if not u["done"]]
-    ctx.update(fields=fields, matrix=matrix, need=need, sums=[_fmt(sums[f.pk]) if f.pk in sums else "" for f in fields],
+    sum_row = [_fmt(sums[f.pk]) if f.pk in sums and (not budget or f.kind == Field.Kind.CALC) else "" for f in fields]  # 예산: 금액만 더한다
+    ctx.update(budget=budget, budget_text=f"{c.budget:,}" if c.budget else "",
+               n_over=sum(u.get("over", False) for u in ctx["units"]),
+               cols=[(f, s) for f, s in zip(fields, sum_row) if not (budget and f.kind == Field.Kind.URL)],
+               fields=fields, matrix=matrix, need=need, sums=sum_row,
                has_sum=bool(sums) and not matrix, miss=miss[:MISS_SHOW], miss_more=len(miss) - len(miss[:MISS_SHOW]),
                **_nudge(c, miss, vals, fields, ctx["per"]))
     ctx["miss_groups"] = _miss_groups(c, miss) if c.space.is_school and len(miss) > MISS_SHOW else []
