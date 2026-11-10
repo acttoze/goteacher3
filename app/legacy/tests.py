@@ -293,7 +293,7 @@ class ImportTests(ImportBase):
         self.assertEqual(self.event(105).scope, "g3")  # 옛 학년 코드
         self.assertEqual(self.event(106).scope, "office")  # 모르는 그룹 → 작성자 소속
         e = self.event(107)
-        self.assertEqual((e.scope, e.title), ("support", "[특별실] 과학실 예약"))
+        self.assertEqual((e.scope, e.title), ("all", "[특별실] 과학실 예약"))  # D5: 채널은 학교 전체
         self.assertEqual(self.event(112).scope, "me")  # 읽기 제한
         for wr_id in (103, 111, 113):
             self.assertFalse(LegacyMap.objects.filter(kind="event", legacy_id=str(wr_id)).exists())

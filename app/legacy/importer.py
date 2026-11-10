@@ -333,7 +333,7 @@ class Importer:
             scope = self._group_scope(r["wr_7"], code) or mine or ME
         else:
             prefix = f"[{self.dump.channels.get(ch) or '채널'}] "
-            scope = mine or ME
+            scope = ALL  # D5(리드 결정): 구독자가 대부분이라 채널은 사실상 학교 공용 달력
         if scope == ME and author is None:
             return ("drop", "개인 일정인데 작성자 자리 없음")
         title = (prefix + (r["wr_subject"].strip() or NO_TITLE))[:200]
