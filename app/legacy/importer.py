@@ -23,7 +23,7 @@ from accounts.models import ID_RE
 from hwpfiles.models import storage_room
 from notices.views import MAX_FILE, MAX_FILES
 
-from notices.models import AUDIENCE, FILE_LIST, FILES, ITEMS, TITLE, Notice, NoticeFile, NoticeVersion
+from notices.models import AUDIENCE, FILE_LIST, FILES, ITEMS, TITLE, Notice, NoticeFile, NoticeSeen, NoticeVersion
 from spaces.models import Attendance, Member, School, Space
 from today.models import ALL, ME, Event, EventComment, EventFile
 from today.more import COMMENT_FILES
@@ -531,7 +531,17 @@ class Importer:
                         self.counts[("e", target[1])] += 1
 
     # 게시판 ---------------------------------------------------------------------------------------
+    def _seen(self, notice_id, readers, at):
+        """옮긴 글은 이관 자리 전원이 본 것으로(구버전에서 이미 지난 글이라 '안 읽음'이 쌓이지 않게). 빠진 것만 더한다. 🔔은 만들지 않는다."""
+        have = set(NoticeSeen.objects.filter(notice_id=notice_id, v=1).values_list("member_id", flat=True))
+        rows = NoticeSeen.objects.bulk_create([NoticeSeen(notice_id=notice_id, member_id=m, v=1) for m in readers if m not in have])
+        for x in rows:
+            x.at = at
+        NoticeSeen.objects.bulk_update(rows, ["at"])
+
     def _notices(self, code, space, seats):
+        mapped = set(self.done["member"].values())
+        readers = [pk for pk in Member.objects.in_space(space).values_list("pk", flat=True) if pk in mapped]
         for r in self.dump.board.get(code, []):
             lid = str(r["wr_id"])
             for c in self.dump.board_comments.get(r["wr_id"], []):
@@ -541,6 +551,7 @@ class Importer:
             files = self.dump.files.get(("free_school", r["wr_id"]), [])
             if lid in self.done["notice"]:
                 self.report.add(code, NOTICE, DONE)
+                self._seen(self.done["notice"][lid], readers, moment(r["wr_datetime"]) or timezone.now())
                 for f in files:
                     flid = f"free_school:{f['wr_id']}:{f['bf_no']}"
                     self.report.add(code, NFILE, DONE if flid in self.done["file"] else drop("글을 이미 옮김(새 첨부는 안 더함)"), flid)
@@ -563,6 +574,7 @@ class Importer:
             v = NoticeVersion.objects.create(notice=n, v=1, fields=fields, body=body_of(r), by=by_name)
             NoticeVersion.objects.filter(pk=v.pk).update(at=at)
             Notice.objects.filter(pk=n.pk).update(created_at=at, updated_at=at)
+            self._seen(n.pk, readers, at)
             self._map("notice", lid, n.pk)
 
 

@@ -24,6 +24,7 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from accounts.hashers import G5PBKDF2PasswordHasher
 from hwpfiles.tests import sample_hwpx
+from collect.models import Notification
 from notices.models import Notice
 from spaces.models import Attendance, Member, School, Space
 from today.models import Event, reachable_q
@@ -354,6 +355,20 @@ class ImportTests(ImportBase):
         self.assertEqual((v.v, v.body, v.fields["첨부"]), (1, "안내 본문", "안내.docx"))
         at = datetime(2025, 3, 2, 8, 0, tzinfo=KST)
         self.assertEqual((n.created_at, v.at, n.files.get().at), (at, at, at))
+        seen = list(n.seen.order_by("member__pk").values_list("member", "v", "acked", "at"))  # 이관 자리 전원이 본 것으로
+        self.assertEqual(seen, [(m, 1, False, at) for m in Member.objects.in_space(self.space(A)).order_by("pk").values_list("pk", flat=True)])
+        self.assertFalse(Notification.objects.exists())  # 🔔 없음
+
+    def test_rerun_fills_only_missing_seen(self):
+        n = Notice.objects.in_space(self.space(A)).get()
+        gone = n.seen.order_by("pk").first()
+        gone.delete()
+        other = Member.objects.create(space=self.space(A), name="가상새손님", cls="4-3")  # 이관하지 않은 자리는 채우지 않음
+        before = n.seen.count()
+        self.run_import()
+        self.assertEqual(n.seen.count(), before + 1)
+        self.assertTrue(n.seen.filter(member=gone.member_id).exists())
+        self.assertFalse(n.seen.filter(member=other).exists())
 
     def test_report_counts_and_no_personal_data(self):
         text = self.report.read_text(encoding="utf-8-sig")
