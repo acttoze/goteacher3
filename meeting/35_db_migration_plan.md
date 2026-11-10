@@ -118,7 +118,7 @@
 | P2 ★ | gt-web(+gt-ops 업로드 라우터) | 일정 본문·첨부·댓글 | **끝**(28eb8f6). `EventFile`·`EventComment`, 본문 1만 자·댓글 1천 자·첨부 일정당 5개·개당 20MB |
 | M1 추출 | gt-ops | **끝(11/9 리허설본 `~/.config/troad/legacy/20261109-1630/`, 3분 20초, 행 수 운영 DB와 일치, 첨부 2,012개·1.39GB, 디스크에 없는 첨부 5개는 P3에서 건너뛰고 보고).** `ops/legacy_extract.sh`가 한 스냅샷에서 표별 JSON Lines로 받는다. `g5_member`는 필요한 칸만(전화·FCM·세션·PIN 제외). 그 밖에 `contact_group`, `school`(대상), `g5_write_goteacher`, `g5_write_free_school`, `g5_board_file`, `g5_write_channel`(id·이름만), `g5_write_go_admin`. 첨부는 rsync. 저장소 밖 `~/.config/troad/legacy/`(권한 600) | |
 | P4 ★ | gt-web | 첨부 형식 넓히기: 한글·PDF + 엑셀(xlsx·xls)·워드(docx·doc)·파워포인트(pptx·ppt)·오픈문서(odt·ods·odp)·그림(jpg·png·gif)을 매직 바이트·내부 구조로 판별. 매크로 문서(xlsm·docm·pptm)·zip·글꼴·음성·실행 파일은 거부. 공지·일정 첨부 공통 | 진행 |
-| P3 이관 도구 | gt-web | `manage.py import_legacy <폴더> [--school 코드…] [--since 날짜] [--dry-run]`, 아래 4-1 | P1·P2 다음 |
+| P3 이관 도구 | gt-web | `manage.py import_legacy <폴더> [--school 코드…] [--dry-run]`, 아래 4-1 | P1·P2 다음 |
 | M5 검증 | gt-qa | 5절 | |
 | M6 보안 ★ | gt-security | 해시 이관·학교 간 섞임·개인 일정·첨부 형식·덤프 보관 | |
 | M7 전환 | gt-ops | 6절(G7과 함께) | |
