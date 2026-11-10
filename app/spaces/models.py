@@ -73,6 +73,14 @@ class School(models.Model):
         return (self.paid_until - timezone.localdate()).days
 
 
+# U1 소속 색: 흰 바탕에서 점으로 구분되는 중간 채도 10가지. 소속(Member.Group)도 10개라 학교 안에서 겹치지 않는다.
+GROUP_PALETTE = {
+    "red": ("#e5534b", "빨강"), "orange": ("#e8833a", "주황"), "yellow": ("#d4a017", "노랑"), "green": ("#2f9e5b", "초록"),
+    "teal": ("#1a9aa0", "청록"), "blue": ("#3b7dd8", "파랑"), "indigo": ("#5b5bd6", "남색"), "purple": ("#9a4fc9", "보라"),
+    "pink": ("#d14d8f", "분홍"), "brown": ("#9b6b43", "갈색"),
+}
+
+
 class Space(models.Model):
     """동학년 공간 또는 학교 공간(kind=school, grade=0, 학교당 하나).
 
@@ -96,6 +104,8 @@ class Space(models.Model):
     merged_into = models.ForeignKey("self", on_delete=models.CASCADE, null=True, blank=True, related_name="merged_spaces")
     # Q2 학교 공간의 소속 순서(Member.Group 값을 쉼표로). 비면 기본 순서. 빠진 소속은 뒤에 기본 순서로 붙는다.
     group_order = models.CharField("소속 순서", max_length=100, blank=True, default="", db_default="")  # db_default: 옛 상태 이관 테스트가 넣는 행
+    # U1 학교 공간의 소속 색(소속=팔레트 키를 쉼표로). 비면 기본(소속 차례대로 GROUP_PALETTE). 관리자가 학교 화면에서 바꾼다.
+    group_color = models.CharField("소속 색", max_length=200, blank=True, default="", db_default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -125,6 +135,21 @@ class Space(models.Model):
         keys = [k for k in self.group_order.split(",") if k in Member.Group.values]
         keys = list(dict.fromkeys(keys + Member.Group.values))
         return [(k, Member.Group(k).label) for k in keys]
+
+    @property
+    def group_colors(self):
+        """{소속: 팔레트 키}. 저장한 값이 기본(소속 차례대로)을 덮는다. 바꿀 때 서로 맞바꾸므로(spaces.school.group_color) 겹치지 않는다."""
+        out = dict(zip(Member.Group.values, GROUP_PALETTE))
+        for pair in self.group_color.split(","):
+            g, _, k = pair.partition("=")
+            if g in out and k in GROUP_PALETTE:
+                out[g] = k
+        return out
+
+    @property
+    def group_hex(self):
+        """{소속: 색 값}. 학교 공간만(동학년은 소속이 없어 점을 찍지 않는다)."""
+        return {g: GROUP_PALETTE[k][0] for g, k in self.group_colors.items()} if self.is_school else {}
 
     @property
     def word(self):

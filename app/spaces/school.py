@@ -1,5 +1,6 @@
 """H3 학교 화면(prototype school·editMe): 학년분장·그룹 카드, 내 그룹·직책 고치기, 관리자 지정, 업무분장 붙여넣기. L1 요약 카드는 summary.py.
 Q2 관리자 순서·소속 바꾸기(arrange): 소속·부서 카드 순서, 카드 안 순서, 다른 소속·부서로 옮기기.
+U1 소속 색(group_color): 바꾸기 화면의 소속 카드에서 관리자가 팔레트 중 하나를 고른다. 일정 카드의 점 색이 된다.
 
 모든 교직원이 같은 화면을 본다. 권한은 Member.is_manager로만 판단하고, 그룹·직책 글자는 표시에만 쓴다.
 """
@@ -20,7 +21,7 @@ from collect.paste import PasteError, html_to_tsv
 from .duty_paste import EMPTY, TOO_BIG, read_duties
 from .gates import manager_required, school_required, school_write_required
 from .merge import remove_manager
-from .models import Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
+from .models import GROUP_PALETTE, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .views import GROUP_ROLES, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values, read_place
 
 LOG_N = 20  # 관리자에게 보이는 최근 이력
@@ -55,12 +56,13 @@ def sort_members(space, members):
 def _group_cards(space, rows, arrange=False):
     """사람이 있는 그룹의 카드, 빈 그룹 이름. rows: _roster의 줄. 바꾸기 화면(arrange)은 빈 소속도 카드로(옮겨 넣을 곳)."""
     cards, empty = [], []
+    colors = space.group_colors
     for g, label in space.group_choices:
         mine = sorted((r for r in rows if r["m"].group == g), key=lambda r: _in_group(r["m"]))
         if not mine and not arrange:
             empty.append(label)
             continue
-        cards.append({"g": g, "label": label, "n": len(mine),
+        cards.append({"g": g, "label": label, "n": len(mine), "color": colors[g], "hex": GROUP_PALETTE[colors[g]][0],
                       "rows": [{**r, "pos": _cls_label(r["m"].cls) if r["m"].in_grade else r["m"].position} for r in mine]})
     return cards, empty
 
@@ -131,6 +133,8 @@ def _school_ctx(request, **extra):
         ctx["n_tasks"] = sum(len(c["rows"]) for c in ctx["dept_cards"])
     else:
         ctx["group_cards"], ctx["empty_groups"] = _group_cards(space, ctx["rows"], arrange)
+        if arrange:
+            ctx["palette"] = [(k, name) for k, (_, name) in GROUP_PALETTE.items()]
         if arrange:  # 학년으로 옮길 때 고를 반
             ctx["grade_classes"] = [(g, [(c, _cls_label(c)) for c in _grade_choices(space.school, int(g[1:]))])
                                     for g, _ in space.group_choices if g[1:].isdigit()]
@@ -261,6 +265,29 @@ def arrange(request):
     except ValueError as e:  # 안에서 바꾼 것은 모두 되돌린다
         return school_body(request, status=400, error=str(e))
     return school_body(request, toast=done)
+
+
+@never_cache
+@require_POST
+@school_required
+@manager_required
+@school_write_required
+def group_color(request):
+    """U1 소속 색 바꾸기(관리자). 이미 다른 소속이 쓰던 색이면 그 소속은 이 소속의 옛 색을 받는다(학교 안에서 겹치지 않게)."""
+    space, g, color = request.space, request.POST.get("group", ""), request.POST.get("color", "")
+    if g not in Member.Group.values or color not in GROUP_PALETTE:
+        return school_body(request, status=400, error="저장하지 못했어요. 화면을 새로 고쳐 다시 해 주세요.")
+    with transaction.atomic():
+        space = Space.objects.select_for_update(no_key=True).get(pk=space.pk)  # 관리자 둘이 동시에 바꿔도 겹치지 않게
+        colors = space.group_colors
+        other = next((k for k, v in colors.items() if v == color), None)  # 저장값이 어긋나 아무도 안 쓰는 색이면 맞바꿀 상대 없음
+        if other:
+            colors[other] = colors[g]
+        colors[g] = color
+        Space.objects.filter(pk=space.pk).update(group_color=",".join(f"{k}={v}" for k, v in colors.items()))
+    request.space.refresh_from_db(fields=["group_color"])
+    label, name = Member.Group(g).label, GROUP_PALETTE[color][1]
+    return school_body(request, toast=f"{label} 색을 {name}{_josa(name, '으로', '로')} 바꿨어요.")
 
 
 @never_cache

@@ -1,4 +1,4 @@
-{# 오늘 일과 + 동학년 바뀐 것. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다. #}
+{# 오늘 일과 + 동학년 바뀐 것. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다. 나이스 학사일정은 종일 줄에 함께(U1). #}
 <div class="grid stretch" id="live"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
   <section class="card s8" aria-labelledby="dayH">
     <div class="card-h"><h2 id="dayH">오늘 일과</h2><span class="n num">{{ n_events }}</span><span class="r">{% if space.is_school %}내가 쓴 일정을{% else %}일정을{% endif %} 누르면 날짜·블록·장소를 바꿔요 <a class="tlink" href="/s/{{ space.token }}/schedule">더보기</a></span></div>
@@ -7,12 +7,10 @@
       {% for s in cols %}<div class="hd{% if s.now %} now col-now{% endif %}"><b>{{ s.label }}{% if s.now %} · 지금{% endif %}</b><span class="num">{{ s.time }}</span>{% if s.now and pct is not None %}<div class="bprog" title="블록 진행"><i><b style="width:{{ pct }}%"></b></i><span class="num">{{ now_hm }}</span></div>{% endif %}</div>{% endfor %}
       <div class="lbl">{% if space.is_school %}내 일정{% else %}{{ space.label }} 일정{% endif %}</div>
       {% for s in cols %}<div class="{% if s.now %}col-now{% endif %}">{% for x in s.events %}{% include "today/_ev.html" %}{% endfor %}</div>{% endfor %}
-      <div class="lbl">학사일정</div>
-      <div class="span4">{% if neis_names %}<span>{{ neis_names|join:" · " }}</span><span class="k">{% if space.is_school %}나이스{% else %}NEIS{% endif %}</span>{% elif neis_fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% else %}<span class="muted">오늘 학사일정이 없어요</span>{% endif %}</div>
       <div class="lbl">점심 12:20</div>
       <div class="span4 lunch">{% if meal.fail %}<span class="muted">나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요</span>{% elif meal %}<b>급식</b><span class="dish">{{ meal.dishes|join:" · " }}</span><span class="k num">{{ meal.kcal }}kcal</span>{% if meal.allergy %}<span class="alg">알레르기 {{ meal.allergy|join:" · " }}</span>{% endif %}{% else %}<span class="muted">오늘 급식 정보가 없어요</span>{% endif %}</div>
       <div class="lbl">종일</div>
-      <div class="untimed">{% for x in untimed %}<div>{% include "today/_ev.html" %}</div>{% empty %}<span class="muted">블록 없이 올린 일정이 여기 모여요</span>{% endfor %}</div>
+      <div class="untimed"><div class="neis-row">{% for n in neis_names %}<div class="ev neis"><span class="t">{{ n }}</span>{% include "today/_sync.html" %}</div>{% empty %}<span class="muted">{% if neis_fail %}나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요{% else %}오늘 학사일정이 없어요{% endif %}{% if not untimed %} · 블록 없이 올린 일정이 여기 모여요{% endif %}</span>{% endfor %}</div>{% for x in untimed %}<div>{% include "today/_ev.html" %}</div>{% endfor %}</div>
     </div><!-- /dgrid --></div>
     {% for x in events %}
     <div class="scrim" id="ev-{{ x.e.key }}" hidden>

@@ -36,7 +36,7 @@ from collect.models import Collection, Row
 from spaces import neis
 from spaces.attendance import DAYS_MAX, LINE_ERROR, _one, _roster, read_line
 from spaces.gates import school_required, school_write_required
-from spaces.models import Attendance
+from spaces.models import Attendance, Member
 from spaces.views import _space_ctx
 
 from .models import ALL, ME, Event, reachable_q, with_counts
@@ -192,7 +192,7 @@ def _dialog_scopes(me, e):
 
 def board_ctx(request, mode, raw):
     """판 하나의 컨텍스트. 모드는 보는 기간(first~last, 빠진 날 없이 이어짐)과 칸 모양, 탭은 담는 것과 줄 모양만 다르다."""
-    from .views import _conf_text, _ev_item, week_conflicts  # views가 이 모듈을 부르므로 안에서 가져온다
+    from .views import _conf_text, _ev_item, week_conflicts, who_of  # views가 이 모듈을 부르므로 안에서 가져온다
 
     space, me = request.space, request.member
     now = timezone.now()
@@ -204,6 +204,7 @@ def board_ctx(request, mode, raw):
     if mode != "day":
         days = [d for d in days if d.weekday() in on]
     colors = _colors(space)
+    hexes = space.group_hex  # U1 카드 점 색: 쓴 사람(복무는 당사자, 취합은 만든 사람)의 소속
     tab_list = tabs(request)
     tab = read_tab(request)
     channeled = tab == "school"  # 학교 탭·동학년: 채널 줄. 그룹·개인 탭: 블록 줄(월간은 달력 칸)
@@ -227,7 +228,7 @@ def board_ctx(request, mode, raw):
     dialogs = []
     clashes = week_conflicts(space, me, evs)
     for e in evs:
-        x = _ev_item(e, me, today)
+        x = _ev_item(e, me, today, hexes)
         x["kind"], x["ch"], x["scopes"] = "ev", ch, _dialog_scopes(me, e)
         x["fresh"] = x["mine"] and not e.changed_from and now - e.created_at < timedelta(minutes=1)
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
@@ -260,9 +261,10 @@ def board_ctx(request, mode, raw):
     # 복무(J1, 학교 공간): '이름 유형'. 모든 회원에게 같게. 지우기는 넣은 사람·당사자·관리자·복무 입력자.
     # 남이 넣은 줄(넣은 사람 ≠ 당사자)에는 넣은 사람을 함께 보인다(이름 위조를 알아보게).
     if channeled and space.is_school:
-        for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("by").order_by("pk"):
+        for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("by", "member").order_by("pk"):
             x = {"kind": "duty", "a": a, "title": a.title, "time": a.time_text, "ch": "duty", "can_del": _duty_deletable(a, me),
-                 "by_other": a.by.name if a.by_id and a.by_id != a.member_id else ""}
+                 "by_other": a.by.name if a.by_id and a.by_id != a.member_id else "", "mine": a.by_id == me.pk,
+                 "who": a.group_label, "gc": hexes.get(a.member.group, "") if a.member else ""}  # 당사자 소속(명부로 못 맞추면 비움)
             cells[(a.date, "duty", "")].append(x)
             if x["can_del"]:
                 duty_dialogs.append(x)
@@ -288,7 +290,8 @@ def board_ctx(request, mode, raw):
             href = f"/s/{space.token}/c/{c.key}/"
         else:
             href = "" if space.is_school else f"/c/{c.link_token}"  # 학교 공간의 대상 아닌 사람에게는 받는 링크를 싣지 않는다
-        x = {"kind": "due", "c": c, "href": href, "who": by,
+        who, gc = who_of(c.created_by, hexes)
+        x = {"kind": "due", "c": c, "href": href, "who": who or by, "gc": gc, "mine": mine,
              "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
              "day": _d(at.date()), "today": at.date() == today, "ch": "collect" if channeled else ""}
         if list_first <= at.date() <= list_last and (mine or row or not space.is_school):
@@ -303,8 +306,8 @@ def board_ctx(request, mode, raw):
     shown = set(days)
     n_items = sum(len(v) for (d, _, _), v in cells.items() if d in shown)
 
-    def by_slot(d, k):  # 한 칸 안: 종일 먼저, 그다음 블록 순
-        return [x for s in ["", *SLOT_KEYS] for x in cells[(d, k, s)]]
+    def by_slot(d, k):  # 한 칸 안: 나이스 학사일정, 종일, 그다음 블록 순
+        return [x for s in ["", *SLOT_KEYS] for x in sorted(cells[(d, k, s)], key=lambda x: x["kind"] != "neis")]
 
     # 가로 줄: 채널(학교 탭·동학년) 또는 블록(그룹·개인 탭의 일간·주간). 그룹·개인 탭의 월간은 이름 없는 한 줄.
     if channeled:
@@ -350,6 +353,10 @@ def board_ctx(request, mode, raw):
                     "b": " · ".join(p[2] for p in parts), "at": _at(e.updated_at, today)})
 
     tab_label = dict(tab_list).get(tab, "")
+    legend = []  # U1 범례: 이 학교에 사람이 있는 소속의 점 색(학교 탭·그룹 탭)
+    if space.is_school and tab != "me":
+        have = set(Member.objects.in_space(space).values_list("group", flat=True))
+        legend = [(label, hexes[g]) for g, label in space.group_choices if g in have]
     return {"mode": mode, "w": v["w"].isoformat(), "heading": v["heading"], "label": v["label"], "is_this": v["is_this"],
             "prev_w": v["prev_w"].isoformat(), "this_w": v["this_w"].isoformat(), "next_w": v["next_w"].isoformat(),
             "nav_words": v["nav_words"], "period": v["period"], "period_short": v.get("period_short", v["period"]),
@@ -359,7 +366,7 @@ def board_ctx(request, mode, raw):
             "board_title": tab_label if tab != "school" else space.label + ("" if space.is_school else " · 학교"),
             "n_items": n_items, "dialogs": dialogs, "duty_dialogs": duty_dialogs,
             "neis_empty": channeled and not seen, "neis_fail": channeled and neis.failed(sched),
-            "chg": chg, "dues": dues, "slot_choices": SLOTS, "filter_channels": channels, **board}
+            "chg": chg, "dues": dues, "slot_choices": SLOTS, "filter_channels": channels, "legend": legend, **board}
 
 
 def _set_cookies(request, r):

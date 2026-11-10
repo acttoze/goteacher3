@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>일정 카드 시안</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../../design/assets/gt.css">
+<style>
+  body { background: #fff; }
+  .wrap { width: 1304px; padding: 28px 28px 32px; box-sizing: border-box; }
+  .vhead { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+  .vhead h1 { font-size: 26px; margin: 0; }
+  .vtag { font: 700 14px/1 var(--font); background: var(--ink); color: #fff; padding: 7px 10px; border-radius: 6px; }
+  .vdesc { color: var(--muted); font-size: 15px; margin: 6px 0 16px; }
+  .vtabs { display: flex; gap: 4px; margin-left: auto; }
+  .vtabs span { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 15px; color: var(--muted); }
+  .vtabs span.on { background: var(--ink); color: #fff; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+  .legend .g { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sep { width: 1px; height: 16px; background: var(--line); }
+  .legend .set { margin-left: auto; color: var(--faint); font-size: 13px; }
+
+  .cal { display: grid; grid-template-columns: 108px repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .cal > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px; min-width: 0; min-height: 70px; }
+  .cal > .corner { border-left: 0; border-top: 0; min-height: 0; }
+  .cal > .hd { border-top: 0; min-height: 0; padding: 10px 12px; }
+  .hd b { font-size: 17px; margin-right: 6px; }
+  .hd span { font-size: 14px; color: var(--muted); }
+  .cal > .lbl { border-left: 0; font-weight: 700; font-size: 15px; color: var(--muted); }
+  .lbl small { display: block; font-weight: 400; font-size: 13px; color: var(--faint); margin-top: 2px; }
+
+  .ev { position: relative; display: block; background: #fff; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; font-size: 15px; line-height: 1.35; }
+  .va .ev.mine, .vd .ev.mine, .ve .ev.mine { padding-right: 30px; }
+  .vd .ev.mine { padding-right: 52px; }
+  .ev:last-child { margin-bottom: 0; }
+  .ev .t { display: block; font-weight: 600; color: var(--ink); }
+  .ev .m { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: 13.5px; color: var(--faint); flex-wrap: wrap; }
+  .ev .k { font-weight: 700; color: var(--muted); margin-right: 4px; }
+  .ev .time { color: var(--muted); white-space: nowrap; }
+  .ev .m > span { white-space: nowrap; }
+  .auto { display: inline-flex; align-items: center; gap: 3px; font: 700 12px/1 var(--font); color: var(--muted); background: var(--surface); padding: 3px 6px; border-radius: 5px; }
+  .auto svg { width: 12px; height: 12px; }
+  .mine-tag { font: 700 12px/1 var(--font); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; background: var(--gc); }
+  .pill { display: inline-block; font: 700 12.5px/1 var(--font); padding: 4px 7px; border-radius: 5px; background: var(--gs); color: var(--gi); }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; background: var(--gc); }
+
+  /* ---------- A 왼쪽 색띠 ---------- */
+  .va .hd, .va .corner { background: #f5f6f8; border-bottom: 1px solid var(--control); }
+  .va .lbl { background: #f5f6f8; border-right: 1px solid var(--control); color: var(--ink); }
+  .va .cal > div:not(.lbl):not(.hd):not(.corner) { border-left-color: var(--line); }
+  .va .hd.today { background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); }
+  .va .hd.today b { color: var(--accent-ink); }
+  .va .ev { box-shadow: inset 0 0 0 1px #dfe2e7, inset 4px 0 0 var(--gc); padding-left: 14px; }
+  .va .ev.mine { box-shadow: inset 0 0 0 1.5px #4b5059, inset 4px 0 0 var(--gc); }
+  .va .ev.mine .mine-tag { position: absolute; top: 7px; right: 8px; color: var(--muted); }
+  .va .ev.neis { box-shadow: inset 0 0 0 1px #dfe2e7; border: 0; outline: 1px dashed var(--control); outline-offset: -1px; padding-left: 10px; box-shadow: none; }
+
+  /* ---------- B 소속 점 ---------- */
+  .vb .cal { border-color: var(--control); }
+  .vb .hd, .vb .corner { background: #fff; border-bottom: 2px solid var(--ink); }
+  .vb .hd.today { background: var(--accent-soft); border-bottom-color: var(--accent); }
+  .vb .hd.today b { color: var(--accent-ink); }
+  .vb .lbl { background: #fafbfc; color: var(--ink); border-right: 1px solid var(--control); }
+  .vb .ev { box-shadow: inset 0 0 0 1px #e3e6eb; }
+  .vb .ev.mine { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .vb .ev.mine .mine-tag { color: var(--accent-ink); margin-left: auto; }
+  .vb .ev.neis { box-shadow: none; background: transparent; padding: 4px 2px 6px; border-bottom: 1px solid var(--rule); border-radius: 0; }
+  .vb .ev.neis .t { font-weight: 600; }
+
+  /* ---------- F = B 카드 + C 헤더 ---------- */
+  .vf .cal { border-color: var(--line); }
+  .vf .hd, .vf .corner, .vf .lbl { background: #eef1f5; border-bottom: 0; }
+  .vf .cal > .hd, .vf .cal > .lbl, .vf .cal > .corner { border-color: #dde1e8; }
+  .vf .lbl { color: #2b3038; border-right: 0; }
+  .vf .hd.today { background: #dfe7ff; border-bottom: 0; }
+
+  /* ---------- C 소속 태그 ---------- */
+  .vc .hd, .vc .corner, .vc .lbl { background: #eef1f5; }
+  .vc .cal > .hd, .vc .cal > .lbl, .vc .cal > .corner { border-color: #dde1e8; }
+  .vc .lbl { color: #2b3038; }
+  .vc .hd.today { background: #dfe7ff; }
+  .vc .hd.today b { color: var(--accent-ink); }
+  .vc .cal > div.cell { background: #fff; }
+  .vc .ev { box-shadow: 0 0 0 1px #e3e6eb, 0 1px 2px rgba(13,13,13,.06); }
+  .vc .ev.mine { box-shadow: 0 0 0 1.5px #0d0d0d, 0 1px 2px rgba(13,13,13,.06); }
+  .vc .ev.mine .mine-tag { margin-left: auto; color: var(--ink); display: inline-flex; align-items: center; gap: 3px; }
+  .vc .ev.neis { box-shadow: none; outline: 1px dashed #b9bec7; outline-offset: -1px; }
+
+  /* ---------- D 위쪽 색선 ---------- */
+  .vd .hd, .vd .corner { background: #f3f4f6; }
+  .vd .lbl { background: #f7f8fa; color: var(--ink); box-shadow: inset -3px 0 0 #e1e4e9; }
+  .vd .hd.today { background: var(--ink); }
+  .vd .hd.today b, .vd .hd.today span { color: #fff; }
+  .vd .ev { box-shadow: inset 0 0 0 1px #e1e4e9, inset 0 3px 0 var(--gc); padding-top: 10px; }
+  .vd .ev.mine { box-shadow: inset 0 0 0 1px #8b919b, inset 0 3px 0 var(--gc); }
+  .vd .ev.mine .mine-tag { position: absolute; top: 9px; right: 8px; background: var(--ink); color: #fff; padding: 3px 6px; border-radius: 4px; }
+  .vd .ev.neis { box-shadow: inset 0 0 0 1px #e1e4e9, inset 0 3px 0 #c9cdd4; }
+
+  /* ---------- E 목록형 ---------- */
+  .ve .cal { border-color: #dde1e8; }
+  .ve .hd, .ve .corner { background: #f3f4f6; border-bottom: 1px solid #d5d9e0; }
+  .ve .lbl { background: #f3f4f6; color: var(--ink); border-right: 1px solid #d5d9e0; }
+  .ve .cal > .row-alt { background: #fbfbfc; }
+  .ve .hd.today { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+  .ve .hd.today b { color: var(--accent-ink); }
+  .ve .cal > div { padding: 8px; }
+  .ve .ev { background: transparent; border-radius: 6px; padding: 6px 8px 6px 12px; margin-bottom: 2px; box-shadow: inset 3px 0 0 var(--gc); }
+  .ve .ev.mine { background: #fff; box-shadow: inset 3px 0 0 var(--gc), inset 0 0 0 1px #c9cdd4; }
+  .ve .ev.mine .mine-tag { position: absolute; top: 6px; right: 8px; color: var(--muted); }
+  .ve .ev.neis { box-shadow: inset 3px 0 0 #c9cdd4; }
+  .ve .ev .t { font-weight: 600; }
+
+  .note { margin-top: 14px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .note div { background: var(--surface); border-radius: 8px; padding: 10px 12px; font-size: 14px; color: var(--muted); }
+  .note b { color: var(--ink); display: block; margin-bottom: 2px; font-size: 14.5px; }
+</style></head>
+<body><div class="wrap" id="app"></div>
+<script>
+const G = {
+  "1학년": ["#e5534b", "#fdecea", "#9b2c26"],
+  "4학년": ["#2f9e5b", "#e3f4ea", "#1a5c35"],
+  "5학년": ["#1a9aa0", "#e0f3f4", "#0e5a5e"],
+  "6학년": ["#d4a017", "#fbf3d6", "#6e5200"],
+  "교무기획부": ["#5b5bd6", "#ececfb", "#33338a"],
+  "생활안전부": ["#9a4fc9", "#f3eafa", "#5e2a80"],
+  "정보부": ["#d14d8f", "#fbe7f1", "#852a59"],
+  "방과후부": ["#e8833a", "#fdeee2", "#8a4510"],
+};
+const ICON_SYNC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></svg>';
+const PEN = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const DAYS = [["9", "월"], ["10", "화", 1], ["11", "수"], ["12", "목"], ["13", "금"]];
+// [제목, 이름, 소속, mine, kind, 시간]
+const ROWS = [
+  ["학교", "", [
+    [["학부모 상담주간", "", "", 0, "neis"], ["교직원 회의", "박정우", "교무기획부", 0, "", "15:00"]],
+    [["학부모 상담주간", "", "", 0, "neis"], ["4학년 현장체험학습 사전답사", "김하늘", "4학년", 1], ["방과후 강사 간담회", "최수진", "방과후부", 0, "", "14:30"]],
+    [["학부모 상담주간", "", "", 0, "neis"], ["학교폭력 예방교육", "정은영", "생활안전부", 0, "", "2교시"]],
+    [["6학년 수학여행 안전점검", "이도현", "6학년"], ["개인정보 보호 점검의 날", "한지민", "정보부"], ["4학년 학년협의회", "김하늘", "4학년", 1, "", "15:30"]],
+    [["독서의 날", "", "", 0, "neis"], ["1학년 학부모 공개수업", "송유리", "1학년", 0, "", "3~4교시"]],
+  ]],
+  ["취합", "마감", [
+    [],
+    [["2학기 방과후 수요조사", "최수진", "방과후부", 0, "due", "18/24 제출"]],
+    [],
+    [["학년별 체험학습 계획서", "김하늘", "4학년", 1, "due", "3/6 제출"]],
+    [["교원능력개발평가 참여 확인", "박정우", "교무기획부", 0, "due", "41/52 제출"]],
+  ]],
+  ["복무", "", [
+    [["이민호 출장", "이민호", "5학년", 0, "duty", "13:00~16:30"]],
+    [["김하늘 연가", "김하늘", "4학년", 1, "duty", "종일"], ["송유리 조퇴", "송유리", "1학년", 0, "duty", "14:00~"]],
+    [["한지민 출장", "한지민", "정보부", 0, "duty", "09:00~12:00"]],
+    [],
+    [["정은영 병가", "정은영", "생활안전부", 0, "duty", "종일"]],
+  ]],
+];
+const V = {
+  a: ["A", "왼쪽 색띠", "카드 왼쪽 4px 띠가 작성자 그룹 색. 내 글은 테두리가 진하고 오른쪽 위 연필. 머리줄·옆 칸은 연회색 바탕 + 진한 경계선."],
+  b: ["B", "소속 점", "색은 이름 옆 작은 점 하나만. 내 글은 파란 테두리 + '내 글'. 나이스 일정은 카드 없이 한 줄로. 머리줄은 흰 바탕 + 굵은 아래선."],
+  c: ["C", "소속 태그", "소속을 연한 색 태그로(색과 글자가 함께 보임). 내 글은 검정 테두리 + 연필. 머리줄·옆 칸은 연한 청회색 띠."],
+  d: ["D", "위쪽 색선", "카드 위 3px 선이 그룹 색. 내 글은 '내 글' 검정 딱지. 오늘 날짜 머리 칸은 검정으로 반전."],
+  f: ["B+C", "소속 점 + 청회색 머리줄", "B안 카드(이름 앞 그룹 색 점, 내 글 파란 테두리, 나이스는 상자 없이 한 줄)에 C안 머리줄·옆 칸(연한 청회색 띠)."],
+  e: ["E", "목록형", "카드 상자를 없애고 왼쪽 3px 띠만. 내 글만 흰 상자로 떠오름. 칸이 촘촘해 한 화면에 많이 보임. 머리줄·옆 칸 회색 + 줄무늬."],
+};
+const hv = (location.hash || "#a").slice(1); const v = hv === "f" ? "b" : hv;
+const [vid, vname, vdesc] = V[hv];
+document.body.className = "v" + v + (hv === "f" ? " vf" : "");
+
+function meta(e, kind) {
+  const [, name, grp, mine, , time] = e;
+  const parts = [];
+  if (kind === "neis") return `<span class="auto">${ICON_SYNC}나이스 자동</span>`;
+  const who = kind === "duty" ? grp : `${name} · ${grp}`;
+  if (v === "b") parts.push(`<span class="dot"></span><span>${who}</span>`);
+  else if (v === "c") parts.push(kind === "duty" ? `<span class="pill">${grp}</span>` : `<span class="pill">${grp}</span><span>${name}</span>`);
+  else parts.push(`<span>${who}</span>`);
+  if (time) parts.push(`<span class="time">· ${time}</span>`);
+  if (mine) {
+    if (v === "c") parts.push(`<span class="mine-tag">${PEN}</span>`);
+    else if (v === "b") parts.push(`<span class="mine-tag">내 글</span>`);
+  }
+  return parts.join("");
+}
+function card(e) {
+  const [t, , grp, mine, kind] = e;
+  const c = G[grp] || ["#c9cdd4", "#f3f4f6", "#4b5059"];
+  const style = `--gc:${c[0]};--gs:${c[1]};--gi:${c[2]}`;
+  const k = kind === "due" ? '<span class="k">마감</span>' : "";
+  let tag = "";
+  if (mine && (v === "a" || v === "e")) tag = `<span class="mine-tag">${PEN}</span>`;
+  if (mine && v === "d") tag = `<span class="mine-tag">내 글</span>`;
+  const title = kind === "duty" ? t.replace(/^(\S+) /, '<span style="font-weight:700">$1</span> ') : t;
+  return `<div class="ev${mine ? " mine" : ""}${kind === "neis" ? " neis" : ""}" style="${style}">${tag}<span class="t">${k}${title}</span><span class="m">${meta(e, kind)}</span></div>`;
+}
+let h = `<div class="vhead"><span class="vtag">시안 ${vid}</span><h1>${vname}</h1><div class="vtabs"><span class="on">학교</span><span>4학년</span><span>개인</span></div></div>
+<p class="vdesc">${vdesc}</p><div class="legend">`;
+for (const [g, c] of Object.entries(G)) {
+  const sw = v === "b" ? `<span class="dot" style="--gc:${c[0]}"></span>` : v === "c" ? `<span class="pill" style="--gs:${c[1]};--gi:${c[2]}">${g}</span>` : `<span class="sw" style="--gc:${c[0]}"></span>`;
+  h += `<span class="g">${sw}${v === "c" ? "" : g}</span>`;
+}
+h += `<span class="sep"></span><span class="g"><span class="auto">${ICON_SYNC}나이스 자동</span></span><span class="set">그룹 색은 설정 › 그룹에서 관리자가 바꿀 수 있어요</span></div>`;
+h += `<div class="cal"><div class="corner"></div>`;
+for (const [d, w, today] of DAYS) h += `<div class="hd${today ? " today" : ""}"><b>11. ${d}</b><span>${w}${today ? " · 오늘" : ""}</span></div>`;
+ROWS.forEach(([lab, sub, cells], i) => {
+  h += `<div class="lbl">${lab}${sub ? `<small>${sub}</small>` : ""}</div>`;
+  const kind0 = lab === "취합" ? "due" : lab === "복무" ? "duty" : "";
+  for (const items of cells) h += `<div class="cell${i === 1 ? " row-alt" : ""}">${items.map(e => card(e)).join("")}</div>`;
+});
+h += `</div>`;
+document.getElementById("app").innerHTML = h;
+</script></body></html>

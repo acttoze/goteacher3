@@ -462,7 +462,7 @@ class WordingTests(JoinBase):
         c.force_login(self.far_user)
         base = f"/s/{self.far.token}"
         self.assertContains(c.get(f"{base}/today"), "동학년 바뀐 것")
-        self.assertContains(c.get(f"{base}/schedule"), '<i class="sw-grade"></i>동학년')
+        self.assertContains(c.get(f"{base}/schedule"), '<div class="lbl" data-ch="school">동학년')  # U1: 범례는 소속 색 점으로 바뀌어 줄 이름으로 본다
         self.assertContains(c.get(f"{base}/settings?a=space"), "동학년에서 나가기")
         self.assertContains(c.get(f"{base}/c/{self.far_c.key}/"), "동학년 화면으로")
         self.assertContains(c.get(f"{base}/c/new"), "동학년 1반")

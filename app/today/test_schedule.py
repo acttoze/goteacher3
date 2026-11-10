@@ -144,7 +144,7 @@ class ScheduleTests(TestCase):
         self.assertEqual(re.findall(r'<div class="lbl"[^>]*>([^<]+)', html), ["동학년", "취합"])  # 줄은 채널, 동학년은 둘(test_schedule_channels)
         self.assertIn(f'data-open="#ev-{mine.key}"', html)
         self.assertRegex(html, r'class="ev mine[^"]*" data-open="#ev-' + mine.key)
-        self.assertIn("과학실 · 김도윤", html)
+        self.assertRegex(html, r'<span>김도윤</span><span class="rest">· [^<]*과학실</span>')  # U1: 쓴 사람이 아래 줄 맨 앞
         self.assertIn("학예회 소품 확인", html)
         self.assertNotIn("지난주 일", html)
         self.assertIn("4학년 · 학교", html)
@@ -153,11 +153,12 @@ class ScheduleTests(TestCase):
         e = self.ev(title="독서 기간", date=MON - timedelta(days=2), end=MON + timedelta(days=1))
         html = self.client.get(self.url()).content.decode()
         self.assertEqual(html.count(f'data-open="#ev-{e.key}"'), 2)  # 월·화
-        self.assertIn('data-when="10/27(화) · 동학년"><button', html)
+        tue = html.split('data-when="10/27(화) · 동학년">')[1].split("data-when=")[0]
+        self.assertRegex(tue, r'^<div class="ev neis"[^<]*<span class="t">독서주간 골든벨</span>.*data-open="#ev-' + e.key)  # U1: 나이스가 칸 맨 위
 
     def test_neis_in_board(self):
         html = self.client.get(self.url()).content.decode()
-        self.assertRegex(html, r'class="ev neis"[^>]*>독서주간 골든벨')
+        self.assertRegex(html, r'class="ev neis"[^>]*><span class="t">독서주간 골든벨</span><span class="m"><span class="auto"')
         self.sched.assert_called_with("J10", "7530000", "20261026", "20261030")
 
     def test_neis_empty_is_honest(self):
@@ -179,7 +180,7 @@ class ScheduleTests(TestCase):
         self.collection(self.m2, "다음 달 것", NOW + timedelta(days=30))
         r = self.client.get(self.url())
         html = r.content.decode()
-        self.assertRegex(html, r'class="ev due"[^>]*><span class="k">마감</span> 학예회 의상 대여 수량<')
+        self.assertRegex(html, r'class="ev due"[^>]*><span class="t"><span class="k">마감</span> 학예회 의상 대여 수량<')
         mine = next(x for x in rows if x.member_id == self.me.pk)
         self.assertIn(f'href="/c/{c.link_token}/u/{mine.key}"', html)
         self.assertIn(f'href="/s/{self.a.token}/c/{mc.key}/"', html)

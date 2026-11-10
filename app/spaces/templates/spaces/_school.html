@@ -24,14 +24,14 @@
     <a href="/s/{{ space.token }}/school?tab=duty"{% if tab == "duty" %} aria-current="page"{% endif %}>업무분장 · 부서</a>
     <span class="aux tabs-n num">{% if tab == "grade" %}소속 {{ n_groups }}개 · 교직원 {{ rows|length }}명{% else %}부서 {{ dept_cards|length }}개 · 업무 {{ n_tasks }}개{% endif %}</span>
   </nav>
-  {% if arrange %}<div class="well acc arr-bar"><p><b>바꾸는 중</b> · 카드나 줄을 끌어다 놓으면 바로 저장돼요. 끌기 어려우면 ↑·↓·옮기기 단추를 쓰세요.{% if tab == "grade" %} 다른 소속으로 옮긴 선생님에게는 알림이 가요.{% endif %}</p>
+  {% if arrange %}<div class="well acc arr-bar"><p><b>바꾸는 중</b> · 카드나 줄을 끌어다 놓으면 바로 저장돼요. 끌기 어려우면 ↑·↓·옮기기 단추를 쓰세요.{% if tab == "grade" %} 다른 소속으로 옮긴 선생님에게는 알림이 가요. 소속마다 일정 점 색도 고를 수 있어요.{% endif %}</p>
     <a class="btn pri sm" href="/s/{{ space.token }}/school{% if tab == "duty" %}?tab=duty{% endif %}">다 바꿨어요</a></div>{% endif %}
   {% if tab == "grade" %}
   {% if empty_groups %}<p class="aux gnone">아직 없는 소속: {{ empty_groups|join:"·" }}</p>{% endif %}
   <div class="gcols"{% if arrange %} data-arr-box="groups"{% endif %}>
     {% for g in group_cards %}<section class="card gcard" aria-labelledby="gc{{ forloop.counter }}"{% if arrange %} data-arr-key="{{ g.g }}" data-arr-card draggable="true"{% endif %}>
-      <div class="card-h"><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span>{% if arrange %}{% include "spaces/_arr_btns.html" with name=g.label %}{% endif %}</div>
-      <div class="card-b"><ul class="rows"{% if arrange %} data-arr-box="members" data-arr-in="{{ g.g }}"{% endif %}>
+      <div class="card-h"><i class="gdot" style="--gc:{{ g.hex }}" aria-hidden="true"></i><h2 id="gc{{ forloop.counter }}">{{ g.label }}</h2><span class="r num">{{ g.n }}명</span>{% if arrange %}{% include "spaces/_arr_btns.html" with name=g.label %}{% endif %}</div>
+      <div class="card-b">{% if arrange %}<form class="gcolor" method="post" action="/s/{{ space.token }}/school/group-color?tab=grade&amp;arrange=1" hx-post="/s/{{ space.token }}/school/group-color?tab=grade&amp;arrange=1" hx-trigger="change" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}<input type="hidden" name="group" value="{{ g.g }}"><label for="gcl-{{ g.g }}">일정 점 색</label><select class="select" id="gcl-{{ g.g }}" name="color">{% for k, name in palette %}<option value="{{ k }}"{% if k == g.color %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></form>{% endif %}<ul class="rows"{% if arrange %} data-arr-box="members" data-arr-in="{{ g.g }}"{% endif %}>
         {% if arrange and not g.rows %}<li class="arr-empty aux">여기로 끌어 놓을 수 있어요</li>{% endif %}
         {% for r in g.rows %}<li class="who{% if r.me %} mine{% endif %}"{% if arrange %} data-arr-key="{{ r.m.key }}" draggable="true"{% endif %}>{% if arrange %}<span class="arr-t">{% endif %}<span class="pos">{{ r.pos }}</span><b>{{ r.m.name }}</b>{% if r.me %}<span>(나)</span>{% endif %}{% if r.m.is_manager %}<span class="pill acc">관리자</span>{% endif %}{% if r.m.can_duty %}<span class="pill">복무 입력</span>{% endif %}{% if r.m.can_repair %}<span class="pill">수리 담당</span>{% endif %}{% if r.m.can_meal %}<span class="pill">급식 담당</span>{% endif %}{% if arrange %}</span>{% endif %}
           {% if arrange %}{% include "spaces/_arr_btns.html" with name=r.m.name|add:" 선생님" move="다른 소속으로" %}

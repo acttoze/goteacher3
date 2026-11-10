@@ -107,13 +107,22 @@ def _now_slot(now):
     return None, None
 
 
-def _ev_item(e, me, today):
+def who_of(m, hexes):
+    """U1 카드 아래 줄의 사람: ('이름 · 소속', 소속 색). 소속이 없으면(동학년) 이름만, 점 없음."""
+    if m is None:
+        return "", ""
+    return " · ".join(x for x in (m.name, m.get_group_display()) if x), hexes.get(m.group, "")
+
+
+def _ev_item(e, me, today, hexes):
+    """카드 아래 줄: 쓴 사람 · 소속(who, 점 색 gc), 그 뒤 기간·블록·장소·대상(meta). 볼 사람 범위는 줄·탭으로 알 수 있어 쓰지 않는다(U1)."""
     multi_day = e.end and e.end != e.date
     meta = [_dates(e.date, e.end) if multi_day else "",
             slot_text(e.slot, e.slot_end) if e.slot and e.slot_end and e.slot_end != e.slot else "",
-            e.place, e.target, e.scope_label if me.space.is_school else "", e.by.name if e.by else ""]
-    return {"e": e, "mine": e.by_id == me.pk, "meta": " · ".join(x for x in meta if x), "can_write": e.writable_by(me),
-            "slot_label": slot_text(e.slot, e.slot_end) if e.slot else "종일", "dates": _dates(e.date, e.end)}
+            e.place, e.target]
+    who, gc = who_of(e.by, hexes)
+    return {"e": e, "mine": e.by_id == me.pk, "who": who, "gc": gc, "meta": " · ".join(x for x in meta if x),
+            "can_write": e.writable_by(me), "slot_label": slot_text(e.slot, e.slot_end) if e.slot else "종일", "dates": _dates(e.date, e.end)}
 
 
 def _feed(space, me, now, colors):
@@ -160,7 +169,8 @@ def _live_ctx(request, now):
     """오늘 일과 + 동학년 바뀐 것(htmx로 다시 그리는 부분)."""
     space, me = request.space, request.member
     today = timezone.localdate(now)
-    events = [_ev_item(e, me, today) for e in
+    hexes = space.group_hex
+    events = [_ev_item(e, me, today, hexes) for e in
               _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me))), today)
               .select_related("by", "changed_by").order_by("slot", "created_at")]
     now_slot, pct = _now_slot(timezone.localtime(now))

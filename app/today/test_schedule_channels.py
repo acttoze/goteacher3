@@ -334,7 +334,7 @@ class CollectRowTests(Base):
         self.assertIn(f'href="/s/{self.hub.token}/c/{self.c.key}/"', self.page(self.t5, "week"))  # 만든 사람
         self.assertIn(f'href="/s/{self.hub.token}/c/{self.c.key}/"', self.page(self.boss, "week"))  # 관리자는 관리 화면
         html = self.page(self.t4, "week")  # 대상 아님
-        self.assertIn('<div class="ev due" data-ch="collect"><span class="k">마감</span> 오학년 조사', html)
+        self.assertIn('<div class="ev due" data-ch="collect"><span class="t"><span class="k">마감</span> 오학년 조사', html)
         for s in (self.c.key, self.c.link_token, self.r.key):
             self.assertNotIn(s, html)
         boss = self.page(self.boss, "week")
@@ -437,7 +437,7 @@ class CollectScopeTests(Base):
         self.assertIn(f"/c/{row.link_token}/u/{row.rows.get().key}", html)
         self.assertNotIn(self.g4.link_token, html)  # 내 줄이 없는 4학년 취합: 링크 없는 카드
         self.assertNotIn(self.g4.key, html)
-        self.assertRegex(html, r'<div class="ev due"><span class="k">마감</span> 사학년조사')
+        self.assertRegex(html, r'<div class="ev due"><span class="t"><span class="k">마감</span> 사학년조사')
         boss4 = self.member("사부장", "4-부", "g4", is_manager=True)  # 4학년 관리자: 관리 화면
         bhtml = self.page(boss4, "week", tab="group")
         self.assertIn(f'href="/s/{self.hub.token}/c/{self.g4.key}/"', bhtml)
@@ -693,10 +693,11 @@ class DutyTests(Base):
         pasted = Attendance.objects.create(space=self.hub, member=None, date=TODAY, name="명부밖", kind="출장", by=None)
         unmatched = Attendance.objects.create(space=self.hub, member=None, date=TODAY, name="동명", kind="출장", by=self.boss)
         row = rows_of(self.page(self.t4, "week"))["복무"]
-        self.assertIn('오일 출장<span class="p">넣은 사람 사일</span>', row)
-        self.assertNotIn("사일 연가<span", row)
-        self.assertIn("명부밖 출장</", row)
-        self.assertIn('동명 출장<span class="p">넣은 사람 부장</span>', row)
+        cards = {re.search(r'<span class="t">([^<]+)</span>', c).group(1): c for c in row.split('class="ev duty')[1:]}
+        self.assertIn('<span class="p">넣은 사람 사일</span>', cards["오일 출장"])
+        self.assertNotIn("넣은 사람", cards["사일 연가"])
+        self.assertNotIn("넣은 사람", cards["명부밖 출장"])
+        self.assertIn('<span class="p">넣은 사람 부장</span>', cards["동명 출장"])
         self.assertEqual(row.count("넣은 사람"), 2, (forged, own, pasted, unmatched))
 
     def test_dialog_only_for_those_who_can_delete(self):
@@ -707,7 +708,7 @@ class DutyTests(Base):
         self.assertIn(f"/today/duty/{a.key}/delete", mine)
         other = self.page(self.member("삼일", "3-1", "g3"), "week")
         self.assertNotIn(a.key, other)
-        self.assertIn('<div class="ev duty" data-ch="duty"><span class="k">복무</span> 오일 출장', other)
+        self.assertIn('<div class="ev duty" data-ch="duty"><span class="t">오일 출장', other)
         self.assertIn(f'id="duty-{a.key}"', self.page(self.t5, "week"))  # 당사자
         self.assertIn(f'id="duty-{a.key}"', self.page(self.boss, "week"))
 

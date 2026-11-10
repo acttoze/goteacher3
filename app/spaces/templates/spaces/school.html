@@ -58,5 +58,9 @@
   [data-arr-key][draggable] { cursor: grab; }
   .dragging { opacity: .45; }
   .arr-empty { display: flex; align-items: center; min-height: 40px; }
+  /* U1 소속 색: 일정 카드의 점과 같은 색. 바꾸기 화면에서 관리자가 고른다. */
+  .gdot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--gc); }
+  .gcolor { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-size: 15px; color: var(--muted); }
+  .gcolor .select { height: var(--control-h-sm); flex: 1; min-width: 0; }
 </style>{% endblock %}
 {% block main %}{% include "spaces/_school.html" %}{% endblock %}
