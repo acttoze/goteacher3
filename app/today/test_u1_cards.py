@@ -92,7 +92,7 @@ class CardTests(Base):
     def test_legend_groups_with_people(self):
         html = self.page(self.t4, "week")
         legend = html[html.index('<div class="legend">'):html.index('class="wgrid')]
-        self.assertEqual(re.findall(r'</i>([^<]+)</span>', legend), ["4학년", "5학년", "교무실"])
+        self.assertEqual(re.findall(r'</i>([^<]+)</button>', legend), ["4학년", "5학년", "교무실"])  # U4: 범례 점이 소속 필터 단추
         self.assertIn("나이스 자동", legend)
         self.assertNotIn("sw-mine", html)
         self.assertIn("학년분장", legend)

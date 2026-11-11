@@ -18,6 +18,7 @@ from unittest import mock
 from zoneinfo import ZoneInfo
 
 from django.apps import apps
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import connection
 from django.test import Client, TestCase
@@ -351,13 +352,68 @@ class NoCollectTests(Base):
         self.assertEqual(n(before), n(after))
 
 
+class GroupFilterTests(Base):
+    """U4(2026-11-11 사용자 결정): 범례의 소속 점이 필터 단추. 맨 앞 '전체'(기본 눌림), 소속 단추는 여러 개 고르기(schedule.js).
+    카드 data-g: 일정은 쓴 사람 소속, 복무는 당사자 소속, 나이스는 없음(늘 보임), 소속 없는 사람은 빈 값('전체'일 때만)."""
+
+    def buttons(self, html):
+        return re.findall(r'<button type="button" class="gf" data-gf="(\w*)" aria-pressed="(true|false)">(?:<i class="dot" style="--gc:#\w+" aria-hidden="true"></i>)?([^<]+)</button>', html)
+
+    def test_buttons_school_and_group_tab_every_mode(self):
+        for tab in ("school", "group"):
+            for mode in ("day", "week", "month"):
+                html = self.page(self.t4, mode, tab=tab)
+                self.assertIn('<div class="gfl" role="group" aria-label="소속으로 거르기">', html, (tab, mode))
+                got = self.buttons(html)
+                self.assertEqual(got[0], ("", "true", "전체"), (tab, mode))
+                self.assertEqual({k for k, _, _ in got[1:]}, {"g4", "g5", "office"}, (tab, mode))  # 사람이 있는 소속만
+                self.assertTrue(all(p == "false" for _, p, _ in got[1:]), (tab, mode))
+
+    def test_no_buttons_on_personal_tab(self):
+        self.assertNotIn('class="gf"', self.page(self.t4, "week", tab="me"))
+
+    def test_card_group_keys(self):
+        lone = self.member("무소속", "", "")
+        a = self.ev(self.t5, "오학년 씀")
+        b = self.ev(lone, "소속 없음 씀")
+        self.duty(self.t4, by=self.t5)  # 넣은 사람(5학년)이 아니라 당사자(4학년)
+        for mode in ("day", "week", "month"):
+            grid = grid_of(self.page(self.t4, mode))
+            self.assertRegex(grid, rf'data-open="#ev-{a.key}"[^>]*data-g="g5"', mode)
+            self.assertRegex(grid, rf'data-open="#ev-{b.key}"[^>]*data-g=""', mode)
+            self.assertRegex(grid, r'class="ev duty[^"]*"[^>]*data-g="g4"', mode)
+            self.assertRegex(grid, r'<div class="ev neis" data-ch="school">', mode)
+            self.assertNotRegex(grid, r'class="ev neis"[^>]*data-g', mode)
+
+    def test_group_tab_cards_use_writer_group(self):
+        e = self.ev(self.boss, "교무실이 4학년에", "g4")
+        self.assertRegex(self.page(self.t4, "week", tab="group"), rf'data-open="#ev-{e.key}"[^>]*data-g="office"')
+
+    def test_htmx_redraw_keeps_buttons(self):
+        r = self.add(self.t4, "새 일", scope=ALL)
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertEqual(self.buttons(html)[0], ("", "true", "전체"))
+        self.assertIn('data-g="g4"', html)
+
+    def test_script_and_style(self):
+        html = self.page(self.t4, "week")
+        self.assertIn(".g-off { display: none !important; }", html)
+        self.assertIn('.gf[aria-pressed="true"]', html)
+        self.assertIn("height: var(--control-h-sm)", html[html.index(".gf {"):])
+        js = (settings.BASE_DIR.parent / "web/static/js/schedule.js").read_text()
+        self.assertIn("'gt_sched_grp:' + location.pathname", js)
+        self.assertIn("localStorage.setItem(GROUP_KEY", js)
+
+
 class AudienceNoteTests(Base):
     def test_notes_on_each_mode(self):
         html = self.as_(self.t4).get(f"{self.base}/c/new").content.decode()
         box = html[html.index('id="audBox"'):]
         notes = re.findall(r'value="(\w+)"[^>]*><b>[^<]+</b><span>[^<]+</span><em class="anote">([^<]+)</em>', box)
-        self.assertEqual(notes, [("all", "학교 일정에 보여요"), ("pergroup", "고른 소속의 일정에 보여요"),
-                                 ("people", "일정에는 안 보이고 받는 사람의 마감에만 떠요")])  # 선택지 셋(QC 취합 받는 사람)
+        self.assertEqual(notes, [("people", "받는 사람의 마감에만 떠요")])  # U4: '일정에 보여요'는 사실이 아니라 뺐다
+        self.assertNotIn("일정에 보여요", box)
+        self.assertNotIn("일정 취합 줄", box)
         self.assertIn(".amode .anote { margin-left: auto; font-style: normal; font-size: 16px;", html)
 
 
@@ -606,7 +662,7 @@ class DutyTests(Base):
         self.assertIn(f"/today/duty/{a.key}/delete", mine)
         other = self.page(self.member("삼일", "3-1", "g3"), "week")
         self.assertNotIn(a.key, other)
-        self.assertIn('<div class="ev duty" data-ch="duty"><span class="t">오일 출장', other)
+        self.assertIn('<div class="ev duty" data-ch="duty" data-g="g5"><span class="t">오일 출장', other)
         self.assertIn(f'id="duty-{a.key}"', self.page(self.t5, "week"))  # 당사자
         self.assertIn(f'id="duty-{a.key}"', self.page(self.boss, "week"))
 

@@ -127,7 +127,41 @@
     } catch (e) { return {}; }
   }
   function filterInputs() { return document.querySelectorAll('.flt input[data-flt]'); }
+  // U4 소속 필터: 고른 소속(여러 개)의 카드만. 비면 '전체'. 나이스 카드는 data-g가 없어 늘 보인다, 소속 없는 카드(data-g="")는 '전체'일 때만.
+  // 고른 값은 이 페이지 동안(htmx로 판을 다시 그려도) 그대로, 브라우저에도 공간별로 기억한다(못 읽거나 못 써도 동작).
+  var GROUP_KEY = 'gt_sched_grp:' + location.pathname;
+  var groups = (function () {
+    try {
+      var v = JSON.parse(localStorage.getItem(GROUP_KEY));
+      return Array.isArray(v) ? v.filter(function (k) { return typeof k === 'string' && k; }) : [];
+    } catch (e) { return []; }
+  })();
+  function shownGroups() {  // 이 판에 단추가 있는 소속만(개인 탭·동학년은 단추가 없어 거르지 않는다)
+    var have = [].map.call(document.querySelectorAll('.gf[data-gf]'), function (b) { return b.dataset.gf; });
+    return groups.filter(function (k) { return have.indexOf(k) >= 0; });
+  }
+  function applyGroups() {
+    var sel = shownGroups();
+    document.querySelectorAll('#week .ev[data-g]').forEach(function (el) {
+      el.classList.toggle('g-off', sel.length > 0 && sel.indexOf(el.dataset.g) < 0);
+    });
+    document.querySelectorAll('.gf[data-gf]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.gf ? sel.indexOf(b.dataset.gf) >= 0 : sel.length === 0));
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('.gf[data-gf]');
+    if (!b) return;
+    var k = b.dataset.gf, sel = shownGroups(), i = sel.indexOf(k);
+    if (!k) sel = [];  // 전체
+    else if (i >= 0) sel.splice(i, 1);  // 고른 소속을 다시 누르면 빠진다. 다 빠지면 전체
+    else sel.push(k);
+    groups = sel;
+    try { localStorage.setItem(GROUP_KEY, JSON.stringify(groups)); } catch (err) { /* 저장만 못 한다 */ }
+    applyGroups();
+  });
   function applyFilters() {
+    applyGroups();
     var off = {};
     filterInputs().forEach(function (i) { if (!i.checked) off[i.value] = true; });
     document.querySelectorAll('#week [data-ch]').forEach(function (el) {

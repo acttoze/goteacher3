@@ -225,6 +225,7 @@ def board_ctx(request, mode, raw):
         x = _ev_item(e, me, today, hexes, names)
         ch = line_of(e) if channeled else ""
         x["kind"], x["ch"], x["scopes"] = "ev", ch, _dialog_scopes(me, e)
+        x["g"] = e.by.group if e.by else ""  # U4 소속 필터: 쓴 사람 소속
         x["fresh"] = x["mine"] and not e.changed_from and now - e.created_at < timedelta(minutes=1)
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
         conf = clashes.get(e.pk)
@@ -259,7 +260,8 @@ def board_ctx(request, mode, raw):
         for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("by", "member").order_by("pk"):
             x = {"kind": "duty", "a": a, "title": a.title, "time": a.time_text, "ch": "duty", "can_del": _duty_deletable(a, me),
                  "by_other": a.by.name if a.by_id and a.by_id != a.member_id else "", "mine": a.by_id == me.pk,
-                 "who": a.group_label, "gc": hexes.get(a.member.group, "") if a.member else ""}  # 당사자 소속(명부로 못 맞추면 비움)
+                 "who": a.group_label, "gc": hexes.get(a.member.group, "") if a.member else "",  # 당사자 소속(명부로 못 맞추면 비움)
+                 "g": a.member.group if a.member else ""}  # U4 소속 필터: 당사자 소속
             cells[(a.date, "duty", "")].append(x)
             if x["can_del"]:
                 duty_dialogs.append(x)
@@ -316,10 +318,10 @@ def board_ctx(request, mode, raw):
                     "b": " · ".join(p[2] for p in parts), "at": _at(e.updated_at, today)})
 
     tab_label = dict(tab_list).get(tab, "")
-    legend = []  # U1 범례: 이 학교에 사람이 있는 소속의 점 색(학교 탭·그룹 탭)
+    legend = []  # U1 범례 = U4 소속 필터 단추: 이 학교에 사람이 있는 소속의 (키, 이름, 점 색)(학교 탭·그룹 탭)
     if space.is_school and tab != "me":
         have = set(Member.objects.in_space(space).values_list("group", flat=True))
-        legend = [(label, hexes[g]) for g, label in space.group_choices if g in have]
+        legend = [(g, label, hexes[g]) for g, label in space.group_choices if g in have]
     return {"mode": mode, "w": v["w"].isoformat(), "heading": v["heading"], "label": v["label"], "is_this": v["is_this"],
             "prev_w": v["prev_w"].isoformat(), "this_w": v["this_w"].isoformat(), "next_w": v["next_w"].isoformat(),
             "nav_words": v["nav_words"], "period": v["period"], "period_short": v.get("period_short", v["period"]),

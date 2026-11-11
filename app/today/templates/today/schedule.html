@@ -79,11 +79,17 @@
   .flt-pop label:hover { background: var(--surface); }
   .flt-pop input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 
-  /* U1 범례: 소속 색 점 + 나이스 자동. 판 위 한 줄 */
+  /* U1 범례: 소속 색 점 + 나이스 자동. 판 위 한 줄. U4: 소속 점은 필터 단추(전체 + 소속, 여러 개 고르기) */
   .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-size: var(--fs-small); color: var(--muted); margin: 0 0 12px; }
   .legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .legend .sep { width: 1px; height: 16px; background: var(--line); }
   .legend .set { margin-left: auto; color: var(--faint); white-space: normal; }
+  .gfl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .gf { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 12px; border: 1px solid transparent; border-radius: 999px; background: none; font: 500 15px/1 var(--font); color: var(--muted); cursor: pointer; white-space: nowrap; transition: background-color .15s, border-color .15s, color .15s; }
+  .gf:hover { background: var(--hover); }
+  .gf[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-track); color: var(--accent-ink); font-weight: 700; }
+  .gf:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .g-off { display: none !important; }
 
   /* 공백 없는 긴 제목이 카드를 넘지 않게 */
   .ev, .chg-list .t, .chg-list .m, .dh h2 { overflow-wrap: anywhere; min-width: 0; }
