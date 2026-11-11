@@ -348,7 +348,8 @@ class NoCollectTests(Base):
         before = self.page(self.t4, "week")
         self.fill()
         after = self.page(self.t4, "week")
-        n = lambda h: re.search(r'<h2 id="wkH">[^<]*</h2><span class="n num">(\d+)</span>', h).group(1)
+        def n(h):
+            return re.search(r'<h2 id="wkH">[^<]*</h2><span class="n num">(\d+)</span>', h).group(1)
         self.assertEqual(n(before), n(after))
 
 
