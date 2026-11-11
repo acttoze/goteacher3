@@ -2,7 +2,7 @@
 
 - 쓰기 뒤 탭·모드·날짜(w): 일정 고치기·지우기, 복무 넣기·지우기를 세 모드에서. htmx 없이 저장해도.
 - 칸 추가 범위: 소속 없는 사람의 그룹 값, 다른 그룹 사람의 그룹 값.
-- 취합 링크: 대상 아닌 회원은 세 탭·세 모드·htmx 응답·오늘·인쇄 어디에도 받는 링크 토큰이 없다. 그룹 칸 줄은 그 그룹에만.
+- 취합 링크: 대상 아닌 회원은 세 탭·세 모드·htmx 응답·오늘·인쇄 어디에도 받는 링크 토큰이 없다. U3부터 일정에는 취합 자체가 없다.
 - 복무: 과거 31일 경계, 이름 일부·없는 유형 거절, 다른 공간 회원 404, 로그에 사유·지우기 key 없음.
 - 남의 개인 일정: 칸 추가(블록 칸) 토스트·그룹·개인 탭에서도 흔적 없음.
 - 블록 이름 두 번 안 나옴: 일간 학교 탭, 그룹·개인 탭 세 모드.
@@ -175,7 +175,7 @@ class GroupTabContentTests(Base):
 
 
 class CollectLinkTests(Base):
-    """기준 6: 대상 아닌 회원 응답 어디에도 받는 링크 토큰이 없다."""
+    """기준 6: 대상 아닌 회원 응답 어디에도 받는 링크 토큰이 없다. U3(2026-11-11): 일정에는 취합 제목·링크가 아예 없다."""
 
     def setUp(self):
         super().setUp()
@@ -197,8 +197,7 @@ class CollectLinkTests(Base):
                 self.assertEqual(r.status_code, 200)
                 html = r.content.decode()
                 self.clean(html, (tab, mode))
-                if tab == "school":
-                    self.assertIn("오학년 조사", grid_of(html), mode)
+                self.assertNotIn("오학년 조사", grid_of(html), (tab, mode))
         for path in ("/today", "/schedule/print?view=week&d=2026-10-26", "/schedule/print?view=month&d=2026-10-01"):
             self.clean(c.get(self.base + path).content.decode(), path)
 
@@ -210,16 +209,18 @@ class CollectLinkTests(Base):
             self.clean(r.content.decode(), ("add", mode))
             r = c.post(f"{self.base}/today/duty", {**state, "line": "오일 출장", "date": TODAY.isoformat(), "slot": ""}, headers=HX)
             self.clean(r.content.decode(), ("duty", mode))
-            self.assertIn("오학년 조사", r.content.decode(), mode)
+            self.assertNotIn("오학년 조사", r.content.decode(), mode)
 
-    def test_group_cell_row_link_only_for_that_group(self):
-        # QC 일정 취합 범위: 소속별 1칸은 고른 소속(4학년)의 그룹 탭에만, 다른 소속에는 제목도 없다
+    def test_group_cell_collect_not_in_any_group_tab(self):
+        # U3: 소속별 1칸도 일정에 없다(고른 소속에게도). 다른 소속에는 당연히 제목도 없다
         c = Collection.objects.create(space=self.hub, created_by=self.t5, title="사학년 칸", source=Collection.Source.SHEET,
                                       unit_head=["학년반"], due=datetime(2026, 10, 29, 16, 0, tzinfo=KST), audience={"mode": "pergroup", "groups": ["g4"]})
         Field.objects.create(collection=c, pos=0, name="칸", kind="number")
         r = Row.objects.create(collection=c, pos=0, unit="4학년", who="4학년", group="g4")
         for m in (self.t4, self.t4b):
-            self.assertIn(f"/c/{c.link_token}/u/{r.key}", self.page(m, "week", tab="group"), m.name)
+            html = self.page(m, "week", tab="group")
+            self.assertNotIn(c.link_token, html, m.name)
+            self.assertNotIn("사학년 칸", html, m.name)
         other = self.member("육일", "6-1", "g6")
         for mode in MODES:
             for tab in ("school", "group", "me"):
@@ -227,10 +228,10 @@ class CollectLinkTests(Base):
                 for s in ("사학년 칸", c.link_token, r.key, c.key):
                     self.assertNotIn(s, html, (mode, tab))
 
-    def test_manager_gets_manage_link_every_mode(self):
+    def test_manager_gets_no_collect_link_either(self):
         for mode in MODES:
             html = self.page(self.boss, mode)
-            self.assertIn(f'href="/s/{self.hub.token}/c/{self.c.key}/"', html, mode)
+            self.assertNotIn(self.c.key, html, mode)  # U3
             self.assertNotIn(self.c.link_token, html, mode)
 
 

@@ -2,14 +2,13 @@
 - 공간 격리: 다른 학교 공간의 사람 키·업무분장은 정렬·줄에 끼지 않는다.
 - 옛 범위(groups·dept)를 요약 주소로 보내도 전 교직원으로 읽는다.
 - 동학년 공간은 aud_sort·aud를 보내도 반별 명부 그대로.
-- 정렬이 붙어도 일정 탭 규칙(전 교직원→학교, 개인→없음)은 그대로.
+- 정렬이 붙어도 받는 범위(전 교직원·개인·소속별 1칸)는 그대로(일정 탭 규칙은 U3에 일정에서 취합이 빠지며 없어짐).
 - 상자 다시 그리기(part=box) 응답에 템플릿 주석·코드 글자가 새지 않는다.
 """
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
 from spaces.models import Duty, Member, School, Space
-from today.schedule import _collect_tab
 
 from .models import Collection, Row
 from .test_school_aud import UNTIL, SchoolBase
@@ -97,12 +96,11 @@ class GradeSpaceSortQa(TestCase):
 
 
 class ScheduleTabWithSortQa(SchoolBase):
-    def test_sort_does_not_change_schedule_tab(self):
+    def test_sort_does_not_change_audience_mode(self):
         Duty.objects.create(space=self.hub, dept="가", task="일", who="사일", order=0)
         c_all = self.make(aud="all", aud_sort="dept")
         c_people = self.make(aud="people", aud_people=[self.t41.key], aud_sort="dept")
         c_pg = self.make(aud="pergroup", aud_pgroups=["g4", "g5"], aud_sort="dept")
         self.assertEqual(c_all.audience["sort"], "dept")
-        self.assertEqual(_collect_tab(self.hub, c_all), "school")
-        self.assertIsNone(_collect_tab(self.hub, c_people))
-        self.assertEqual(_collect_tab(self.hub, c_pg), ["g4", "g5"])
+        self.assertEqual([c_all.audience["mode"], c_people.audience["mode"], c_pg.audience["mode"]], ["all", "people", "pergroup"])
+        self.assertEqual(c_pg.audience["groups"], ["g4", "g5"])

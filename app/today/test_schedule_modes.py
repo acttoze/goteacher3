@@ -89,7 +89,7 @@ class CellAddTests(Base):
         for i in range(6):
             Event.objects.create(space=self.a, by=self.me, date=MON + timedelta(days=1), slot="b1", title=f"꽉 찬 일 {i}")
         html = self.client.get(self.url(), {"mode": "week"}).content.decode()
-        self.assertEqual(html.count('<button type="button" class="cell-add"'), 5)  # 5일 × 일정 줄(취합 줄 ＋는 링크)
+        self.assertEqual(html.count('<button type="button" class="cell-add"'), 5)  # 5일 × 일정 줄
         self.assertIn('aria-label="10/27(화) 동학년에 일정 추가"', html)
         day = self.client.get(self.url(), {"mode": "day", "w": "2026-10-27"}).content.decode()
         self.assertEqual(day.count('<button type="button" class="cell-add"'), 1)  # QC 2026-11-06: 일간도 채널 줄(동학년 일정 줄 하나)
@@ -248,7 +248,7 @@ class ModeTests(Base):
             html = cl.get(f"/s/{hub.token}/schedule", {"mode": mode}).content.decode()
             self.assertIn("학교 일정", html, mode)
             self.assertIn("부장 출장", html, mode)
-            self.assertIn("걷을 표", html, mode)
+            self.assertNotIn("걷을 표", html, mode)  # U3: 취합은 일정에 없다
             self.assertIn("독서주간 골든벨", html, mode)
 
     def test_print_and_paste_buttons_follow_mode(self):
@@ -347,7 +347,7 @@ class ModeTests(Base):
         self.assertIn("오늘 바뀐 일", lst)
         self.assertNotIn("다음 달 바뀐 일", lst)
         self.assertIn("이 달 바뀐 것", html)
-        self.assertIn("이 달 마감", html)
+        self.assertNotIn("이 달 마감", html)  # U3
         self.assertIn("이 날 바뀐 것", self.client.get(self.url(), {"mode": "day"}).content.decode())
 
     def test_neis_empty_note_per_mode(self):

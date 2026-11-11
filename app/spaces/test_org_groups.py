@@ -197,6 +197,15 @@ class ScheduleTests(Base):
         self.assertNotIn("tab=group", html)
         self.assertNotIn("기관 전체", re.sub(r"<select.*?</select>|<template.*?</template>", "", html, flags=re.S))
 
+    def test_no_collect_line_u3(self):
+        """U3(2026-11-11): 기관 일정에도 취합 줄·마감 카드가 없다. 줄은 그룹뿐."""
+        for mode in ("day", "week", "month"):
+            html = as_(self.lee.user).get(self.base + "/schedule", {"mode": mode}).content.decode()
+            self.assertNotIn('data-ch="collect"', html, mode)
+            self.assertNotIn("/c/new", html, mode)
+            labels = re.findall(r'<div class="(?:lbl|ml)[^"]*" data-ch="[^"]*">([^<]+)', html)
+            self.assertEqual(set(labels), {"가팀", "나팀"}, mode)
+
     def test_lines_off_hides_only_for_me(self):
         self.ev(self.kim, "가팀회의", self.a)
         c = as_(self.lee.user)

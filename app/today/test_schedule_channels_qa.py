@@ -259,7 +259,8 @@ class SourceRowTests(Base):
         rows = rows_of(self.page(self.t4, "week"))
         self.assertNotIn("그룹일", "".join(rows.values()))  # 그룹·개인 일정은 학교 탭에 없다(QC 2026-11-06)
         self.assertNotIn("혼자일", "".join(rows.values()))
-        want = {"학교": ("학교일", "독서주간"), "복무": ("오일 출장",), "취합": ("낼표",)}
+        self.assertNotIn("낼표", "".join(rows.values()))  # U3: 취합은 일정에 없다
+        want = {"학교": ("학교일", "독서주간"), "복무": ("오일 출장",)}
         for k, words in want.items():
             for w in words:
                 self.assertIn(w, rows[k], k)
@@ -273,7 +274,8 @@ class SourceRowTests(Base):
         grid = grid_of(self.page(self.t4, "month"))
         self.assertNotIn("그룹일", grid)
         self.assertNotIn("혼자일", grid)
-        want = {"school": ("학교일", "독서주간"), "duty": ("오일 출장",), "collect": ("낼표",)}
+        self.assertNotIn("낼표", grid)  # U3
+        want = {"school": ("학교일", "독서주간"), "duty": ("오일 출장",)}
         for ch, words in want.items():
             html = self.month_row(grid, ch)
             for w in words:
@@ -286,7 +288,7 @@ class SourceRowTests(Base):
     def test_day_pm_due_and_group_event(self):
         self.fill()
         rows = rows_of(self.page(self.t4, "day"))  # 학교 탭 일간도 채널 줄(QC 2026-11-06)
-        self.assertIn("낼표", rows["취합"])
+        self.assertEqual(list(rows), ["학교", "복무"])
         self.assertIn("오일 출장", rows["복무"])
         self.assertIn("그룹일", rows_of(self.page(self.t4, "day", tab="group"))["3블록"])
         self.assertIn("혼자일", rows_of(self.page(self.t4, "day", tab="me"))["방과후"])
@@ -364,10 +366,10 @@ class GradeSpaceEdgeTests(TestCase):
     def page(self, mode):
         return self.client.get(f"{self.base}/schedule", {"mode": mode}).content.decode()
 
-    def test_every_mode_has_only_two_channels_and_no_group_filter(self):
+    def test_every_mode_has_one_channel_and_no_filter(self):
         for mode in ("day", "week", "month"):
             html = self.page(mode)
-            self.assertEqual(re.findall(r'data-flt="ch" value="(\w+)"', html), ["school", "collect"], mode)
+            self.assertNotIn('data-flt="ch"', html, mode)  # U3: 줄이 하나라 필터 없음
             self.assertNotIn('data-flt="grp"', html, mode)
             self.assertNotIn("data-group", html, mode)
             self.assertNotIn('data-scope="me"', html, mode)
@@ -387,13 +389,13 @@ class GradeSpaceEdgeTests(TestCase):
         for mode in ("day", "week", "month"):
             self.assertNotIn("나 출장", self.page(mode), mode)
 
-    def test_month_two_rows_per_week_and_due_in_collect_row(self):
+    def test_month_one_row_per_week_and_no_due(self):
         c = Collection.objects.create(space=self.g, created_by=self.me, title="학년표", source=Collection.Source.SHEET, unit_head=["학년반"],
                                       due=datetime(2026, 10, 29, 11, 0, tzinfo=KST))
         Field.objects.create(collection=c, pos=0, name="칸", kind="number")
         grid = grid_of(self.page("month"))
-        self.assertEqual(re.findall(r'<div class="ml"[^>]*>([^<]+)</div>', grid), ["동학년", "취합"] * 5)
-        self.assertRegex(grid, r'data-ch="collect"[^>]*>(?:(?!data-ch="school").)*학년표')
+        self.assertEqual(re.findall(r'<div class="ml"[^>]*>([^<]+)</div>', grid), ["동학년"] * 5)
+        self.assertNotIn("학년표", grid)  # U3
 
     def test_queries_flat(self):
         def count(mode):

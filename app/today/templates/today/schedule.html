@@ -37,8 +37,7 @@
   .cell-add { display: block; flex: 1 0 auto; width: 100%; min-height: 40px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: transparent; font: 600 18px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
   .cell-add:hover, .cell-add:focus-visible { background: var(--hover); border-color: var(--control); color: var(--ink); }
   .cell-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  a.cell-add { display: flex; align-items: center; justify-content: center; text-decoration: none; } /* 취합 칸: 만들기 화면으로 가는 링크 */
-  [data-cell], [data-go] { cursor: pointer; }
+  [data-cell] { cursor: pointer; }
   [data-cell].adding { cursor: auto; }
   [data-cell].adding .cell-add { display: none; }
   .cell-card { display: grid; gap: 6px; }
@@ -87,18 +86,13 @@
   .legend .set { margin-left: auto; color: var(--faint); white-space: normal; }
 
   /* 공백 없는 긴 제목이 카드를 넘지 않게 */
-  .ev, .chg-list .t, .chg-list .m, .due-list .t, .dh h2 { overflow-wrap: anywhere; min-width: 0; }
-  .chg-list .grow, .due-list .grow { min-width: 0; }
-  .due-list a { max-width: 100%; }
+  .ev, .chg-list .t, .chg-list .m, .dh h2 { overflow-wrap: anywhere; min-width: 0; }
+  .chg-list .grow { min-width: 0; }
 
-  .chg-list li, .due-list li { align-items: flex-start; }
-  .chg-list li.none, .due-list li.none { display: block; border: 0; }
+  .chg-list li { align-items: flex-start; }
+  .chg-list li.none { display: block; border: 0; }
   .chg-list del { color: var(--muted); }
   .chg-list .to { color: var(--ink); }
-  .due-list .d { margin-left: auto; font-weight: 600; white-space: nowrap; text-align: right; font-size: 15px; }
-  .due-list .d.today { color: var(--accent-ink); }
-  .due-list a { text-decoration: none; display: inline-block; padding: 6px 0; }
-  .due-list a:hover { color: var(--accent); }
 
   @media (max-width: 1100px) { .wgrid { grid-template-columns: 100px repeat(var(--n, 5), minmax(0, 1fr)); } .ev { font-size: 14px; } }
 </style>

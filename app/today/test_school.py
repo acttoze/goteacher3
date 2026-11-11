@@ -333,33 +333,26 @@ class MergeTests(TestCase):
 
 
 class WeekDueTests(Base):
-    """이번 주 마감: 내가 만든 것·내 줄·내 그룹 칸만."""
+    """U3(2026-11-11): 일정 화면에는 취합이 없다. 내가 만든 것·내 줄·내 그룹 칸·남의 것 모두 제목·링크가 없다."""
 
     def coll(self, by, title, due=NOW + timedelta(hours=1), **row):
         c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"],
-                                      audience={"mode": "all"})  # 학교 탭 취합 줄은 전 교직원 취합만(QC 일정 취합 범위)
+                                      audience={"mode": "all"})
         Field.objects.create(collection=c, pos=0, name="칸")
         if row:
             Row.objects.create(collection=c, pos=0, unit="칸", **row)
         return c
 
-    def test_week_shows_only_mine_my_row_my_group(self):
-        other = self.coll(self.t41, "사학년비밀조사", member=self.t42, who="사이")
-        made = self.coll(self.t51, "내가만든조사", member=self.t41, who="사일")
-        myrow = self.coll(self.t41, "내줄조사", member=self.t51, who="오일")
-        mygrp = self.coll(self.t41, "내그룹칸조사", who="오학년", group="g5")
-        for m in (self.t51, self.boss):  # QC 2026-11-06: 제목은 취합 줄에 모두에게, 받는 링크는 대상만. 아래 마감 목록은 자기 것만
-            r = self.as_(m).get(f"{self.base}/schedule")
-            self.assertContains(r, "사학년비밀조사")
-            self.assertNotIn("사학년비밀조사", r.content.decode().split('id="due"')[1])
-            self.assertNotContains(r, other.link_token)
-            if not m.is_manager:
-                self.assertNotContains(r, other.key)
-        r = self.as_(self.t51).get(f"{self.base}/schedule")
-        self.assertContains(r, f"/c/{made.key}/")
-        self.assertContains(r, f"/c/{myrow.link_token}/u/")
-        self.assertContains(r, f"/c/{mygrp.link_token}/u/")
-        self.assertNotContains(r, made.link_token)
+    def test_week_has_no_collections_at_all(self):
+        cs = [self.coll(self.t41, "사학년비밀조사", member=self.t42, who="사이"),
+              self.coll(self.t51, "내가만든조사", member=self.t41, who="사일"),
+              self.coll(self.t41, "내줄조사", member=self.t51, who="오일"),
+              self.coll(self.t41, "내그룹칸조사", who="오학년", group="g5")]
+        for m in (self.t51, self.boss):
+            html = self.as_(m).get(f"{self.base}/schedule").content.decode()
+            for c in cs:
+                for s in (c.title, c.key, c.link_token):
+                    self.assertNotIn(s, html, (m.name, c.title))
 
 
 class ToggleTests(Base):

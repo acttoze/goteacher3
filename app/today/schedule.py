@@ -1,24 +1,21 @@
 """일정(일간·주간·월간, Q3). 모습은 design/schedule.html, 동작은 prototype/assets/app.js cal().
 
 - 탭(학교 공간, QC 2026-11-06): 학교·그룹(내 소속, 없으면 탭 없음)·개인. ?tab=, 마지막 탭은 쿠키(gt_sched_tab). 탭을 바꿔도 모드·날짜는 그대로.
-  - 학교 탭: 채널 줄 학교(scope=all + NEIS)·취합(이 공간의 모든 마감)·복무. 일간·주간·월간 모두 가로 줄이 채널, 칸 안은 종일 → 블록 순.
+  - 학교 탭: 채널 줄 학교(scope=all + NEIS)·복무. 일간·주간·월간 모두 가로 줄이 채널, 칸 안은 종일 → 블록 순.
   - 그룹 탭(scope=내 소속)·개인 탭(scope=me, 내가 쓴 것): 일간·주간은 종일·1~3블록·방과후 줄, 월간은 달력 칸에 시간순.
-  - 동학년 공간: 탭 없음. 채널 줄 동학년(일정 + NEIS)·취합.
+  - 동학년 공간: 탭 없음. 채널 줄 동학년(일정 + NEIS) 하나.
 - 칸이 곧 볼 사람: 학교 탭 all, 그룹 탭 내 소속, 개인 탭 me(today.views.add가 확인). 복무 칸은 누구나 '이름 유형 [시간]'(duty_add).
-- 취합(QC 일정 취합 범위 2026-11-06): 받는 사람이 전 교직원(audience all)이면 학교 탭 취합 줄, 소속 고르기·소속별 1칸이면
-  고른 소속의 그룹 탭 맨 위 취합 줄(월간은 칸 맨 위)에만. 부서·사람 고르기·범위 모름은 일정 탭에 없고 아래 마감 목록에만.
-  취합 줄 칸의 ＋는 입력 카드 대신 취합 만들기로 간다: 그 날 마감, 학교 탭은 전 교직원·그룹 탭은 내 소속(QC 2026-11-06).
-  카드는 제목·마감·만든 사람. 링크는 만든 사람(관리), 내 줄(받는 링크), 관리자(관리)에게만. 받는 링크를 대상 아닌 사람에게 싣지 않는다.
+- 취합은 일정에 없다(U3, 2026-11-11 사용자 결정): 취합 줄·마감 카드·마감 수·마감 목록 모두 없음. 마감은 오늘 화면·취합 메뉴에서 본다.
 - 필터(학교 탭·동학년 채널만)는 schedule.js가 data-ch를 보고 숨긴다(서버는 표시만).
 - 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
 - 칸 안 추가·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 지금 탭·모드·날짜의 판(_week.html)을 돌려준다.
-- 바뀐 것·마감 목록: 보고 있는 날·주·달의 것만(탭과 무관). 마감 목록은 내가 만든 것·내 줄만.
+- 바뀐 것 목록: 보고 있는 날·주·달의 것만(탭과 무관).
 - 인쇄는 print_view, 주간계획 표 붙여넣기는 week_paste(둘 다 학교 공간만, H6). 블록 끌기는 R3.
 조회는 모두 in_space()를 거친다.
 """
 from calendar import monthrange
 from collections import defaultdict
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 from math import ceil
 
 from django.conf import settings
@@ -30,9 +27,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from collect.access import can_open
-from collect.lists import _colors, _mine_q
-from collect.models import Collection, Row
+from collect.lists import _colors
 from spaces import neis
 from spaces.attendance import DAYS_MAX, LINE_ERROR, _one, _roster, read_line
 from spaces.gates import no_org, school_required, school_write_required
@@ -55,17 +50,14 @@ def _d(d):
 
 
 def _channels(space, me):
-    """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람(비면 칸 추가 없음), post: 칸 추가 주소(복무).
-    go: 칸 추가가 대신 여는 취합 만들기 주소(그 날을 마감으로, 학교 탭은 전 교직원).
-    기관(T2): 그룹마다 줄(관리자 순서, 내가 끈 줄은 뺌) + 취합. 그룹이 아직 없으면 '기관 전체' 한 줄. 복무 줄은 없다."""
-    go = f"/s/{space.token}/c/new?" + ("aud=all&" if space.is_school else "")
-    collect = {"k": "collect", "label": "취합", "scope": "", "go": go}
+    """학교 탭·동학년의 채널 줄. scope: 칸 추가가 저장할 볼 사람, post: 칸 추가 주소(복무).
+    기관(T2): 그룹마다 줄(관리자 순서, 내가 끈 줄은 뺌). 그룹이 아직 없으면 '기관 전체' 한 줄. 복무 줄은 없다."""
     if space.is_org:
         groups = [{"k": k, "label": n, "scope": k} for k, n in space.group_choices if k not in me.off_lines]
-        return [*(groups if space.org_groups else [{"k": "school", "label": "기관 전체", "scope": ALL}]), collect]
+        return groups if space.org_groups else [{"k": "school", "label": "기관 전체", "scope": ALL}]
     if not space.is_school:
-        return [{"k": "school", "label": space.word, "scope": ALL}, collect]
-    return [{"k": "school", "label": space.word, "scope": ALL}, {"k": "collect", "label": "취합", "scope": "", "go": go},
+        return [{"k": "school", "label": space.word, "scope": ALL}]
+    return [{"k": "school", "label": space.word, "scope": ALL},
             {"k": "duty", "label": "복무", "scope": "duty", "post": f"/s/{space.token}/today/duty"}]
 
 
@@ -176,19 +168,6 @@ def _duty_deletable(a, me):
     return me.is_manager or me.can_duty or me.pk in (a.by_id, a.member_id)
 
 
-def _collect_tab(space, c):
-    """취합 카드가 놓일 탭: 'school'(전 교직원, 동학년은 언제나), 고른 소속 목록(소속 고르기·소속별 1칸), 그 밖에는 None(일정에 없음)."""
-    if not space.is_school:
-        return "school"
-    aud = c.audience if isinstance(c.audience, dict) else {}
-    mode = aud.get("mode")
-    if mode == "all":
-        return "school"
-    if mode in ("groups", "pergroup") and isinstance(aud.get("groups"), list):
-        return aud["groups"]
-    return None
-
-
 def _dialog_scopes(me, e):
     """수정 대화상자의 볼 사람: 학교 전체 · 내 그룹 · 개인(나만). 지금 값이 다른 그룹이면 그 값도 남긴다.
     기관(T2): 모든 그룹 줄 + 개인(줄을 옮길 수 있다)."""
@@ -202,7 +181,7 @@ def _dialog_scopes(me, e):
 
 def board_ctx(request, mode, raw):
     """판 하나의 컨텍스트. 모드는 보는 기간(first~last, 빠진 날 없이 이어짐)과 칸 모양, 탭은 담는 것과 줄 모양만 다르다."""
-    from .views import _conf_text, _ev_item, week_conflicts, who_of  # views가 이 모듈을 부르므로 안에서 가져온다
+    from .views import _conf_text, _ev_item, week_conflicts  # views가 이 모듈을 부르므로 안에서 가져온다
 
     space, me = request.space, request.member
     now = timezone.now()
@@ -214,7 +193,7 @@ def board_ctx(request, mode, raw):
     if mode != "day":
         days = [d for d in days if d.weekday() in on]
     colors = _colors(space)
-    hexes, names = space.group_hex, space.group_names  # U1 카드 점 색: 쓴 사람(복무는 당사자, 취합은 만든 사람)의 소속
+    hexes, names = space.group_hex, space.group_names  # U1 카드 점 색: 쓴 사람(복무는 당사자)의 소속
     tab_list = tabs(request)
     tab = read_tab(request)
     channeled = tab == "school"  # 학교 탭·동학년: 채널 줄. 그룹·개인 탭: 블록 줄(월간은 달력 칸)
@@ -285,39 +264,6 @@ def board_ctx(request, mode, raw):
             if x["can_del"]:
                 duty_dialogs.append(x)
 
-    # 취합 마감(첫날 0시 ~ 끝날 다음 날 0시). 칸은 학교 탭에 모두, 아래 목록은 내가 만든 것·내 줄만.
-    tz = timezone.get_current_timezone()
-    start = datetime.combine(first, time(0), tzinfo=tz)
-    cs = list(Collection.objects.in_space(space).filter(due__gte=start, due__lt=datetime.combine(last + timedelta(days=1), time(0), tzinfo=tz))
-              .select_related("created_by").order_by("due"))
-    dues = []
-    my_rows = {}
-    for r in Row.objects.in_space(space).filter(collection__in=[c.pk for c in cs if c.created_by_id != me.pk]).filter(_mine_q(me)).order_by("-pos"):
-        my_rows[r.collection_id] = r  # 내림차순이라 맨 앞 줄이 남는다
-    for c in cs:
-        at = timezone.localtime(c.due)
-        mine, row = c.created_by_id == me.pk, my_rows.get(c.pk)
-        by = c.created_by.name if c.created_by else "알 수 없음"
-        if mine:
-            href = f"/s/{space.token}/c/{c.key}/"
-        elif row:
-            href = f"/c/{c.link_token}/u/{row.key}"
-        elif can_open(request, c.created_by_id) and space.is_school:  # 관리자
-            href = f"/s/{space.token}/c/{c.key}/"
-        else:
-            href = "" if space.is_school else f"/c/{c.link_token}"  # 학교 공간의 대상 아닌 사람에게는 받는 링크를 싣지 않는다
-        who, gc = who_of(c.created_by, hexes, names)
-        x = {"kind": "due", "c": c, "href": href, "who": who or by, "gc": gc, "mine": mine,
-             "meta": "내가 걷는 것" if mine else f"내가 낼 것 · {by}",
-             "day": _d(at.date()), "today": at.date() == today, "ch": "collect" if channeled else ""}
-        if list_first <= at.date() <= list_last and (mine or row or not space.is_school):
-            dues.append(x)
-        where = _collect_tab(space, c)
-        if channeled and space.is_org and where is not None:  # 기관: 기관 전체·그룹 고르기·그룹별 1칸 모두 취합 줄(T2)
-            cells[(at.date(), "collect", "")].append(x)
-        elif (channeled and where == "school") or (tab == "group" and isinstance(where, list) and me.group in where):
-            cells[(at.date(), "collect", "")].append(x)  # 마감은 날짜만(종일)
-
     if mode == "month":  # 켠 요일이 모두 지난달·다음 달인 주는 뺀다
         weeks = [w for w in (days[i:i + len(on)] for i in range(0, len(days), len(on))) if any(list_first <= d <= list_last for d in w)]
         days = [d for w in weeks for d in w]
@@ -329,14 +275,12 @@ def board_ctx(request, mode, raw):
 
     # 가로 줄: 채널(학교 탭·동학년) 또는 블록(그룹·개인 탭의 일간·주간). 그룹·개인 탭의 월간은 이름 없는 한 줄.
     if channeled:
-        lines = [{"label": c["label"], "ch": c["k"], "slot": "", "scope": c["scope"], "post": c.get("post", ""), "go": c.get("go", ""),
+        lines = [{"label": c["label"], "ch": c["k"], "slot": "", "scope": c["scope"], "post": c.get("post", ""),
                   "items": lambda d, k=c["k"]: by_slot(d, k)} for c in channels]
     elif mode == "month":
-        lines = [{"label": "", "slot": "", "items": lambda d: by_slot(d, "collect") + by_slot(d, "")}]  # 취합 카드가 칸 맨 위
+        lines = [{"label": "", "slot": "", "items": lambda d: by_slot(d, "")}]
     else:
-        lines = [*([{"label": "취합", "slot": "", "scope": "", "go": f"/s/{space.token}/c/new?aud=pergroup&aud_pgroups={me.group}&",
-                     "items": lambda d: by_slot(d, "collect")}] if tab == "group" else []),
-                 {"label": "종일", "slot": "", "items": lambda d: cells[(d, "", "")]},
+        lines = [{"label": "종일", "slot": "", "items": lambda d: cells[(d, "", "")]},
                  *[{"label": s["label"], "slot": s["k"], "time": f"{s['from']}~" + ("" if s["k"] == "pm" else s["to"]),
                     "items": lambda d, k=s["k"]: cells[(d, "", k)]} for s in SLOTS]]
 
@@ -345,8 +289,7 @@ def board_ctx(request, mode, raw):
         name = line["label"] or "일정"
         return {"items": line["items"](d), "today": d == today, "date": d.isoformat(), "slot": line["slot"], "scope": scope,
                 "post": line.get("post", ""), "when": f"{_d(d)} · {name}",
-                "go": f"{line['go']}due_d={d.isoformat()}" if line.get("go") else "",
-                "add": f"{_d(d)} 복무 추가" if line.get("post") else f"{_d(d)} 마감 취합 만들기" if line.get("go") else f"{_d(d)} " + (f"{line['label']}에 " if line["label"] else "") + "일정 추가"}
+                "add": f"{_d(d)} 복무 추가" if line.get("post") else f"{_d(d)} " + (f"{line['label']}에 " if line["label"] else "") + "일정 추가"}
 
     if mode == "month":
         mweeks = []
@@ -386,7 +329,8 @@ def board_ctx(request, mode, raw):
             "board_title": tab_label if tab != "school" or space.is_org else space.label + ("" if space.is_school else " · 학교"),
             "n_items": n_items, "dialogs": dialogs, "duty_dialogs": duty_dialogs,
             "neis_empty": channeled and not seen and not space.is_org, "neis_fail": channeled and neis.failed(sched),
-            "chg": chg, "dues": dues, "slot_choices": SLOTS, "filter_channels": channels, "legend": legend, **board}
+            "chg": chg, "slot_choices": SLOTS, "filter_channels": channels if len(channels) > 1 else [],  # 줄이 하나면 필터가 쓸모없다(U3: 동학년·그룹 없는 기관)
+            "legend": legend, **board}
 
 
 def _set_cookies(request, r):

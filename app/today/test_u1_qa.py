@@ -3,7 +3,7 @@
 - 일간·월간 모드와 그룹 탭에서도 '학교 전체'·'복무' 머리글자가 없다.
 - 동학년 공간: 색 저장 주소 404, 오늘 화면에 학사일정 따로 줄 없음.
 - 쓴 사람이 없어진 일정, 이름의 HTML은 안전하게.
-- 여러 번 바꿔도 소속 색이 겹치지 않고, 바꾼 색이 복무·마감 카드 점에도 간다.
+- 여러 번 바꿔도 소속 색이 겹치지 않고, 바꾼 색이 복무 카드 점에도 간다(마감 카드는 U3에 일정에서 빠짐).
 """
 import re
 from datetime import date
@@ -24,7 +24,6 @@ class ModesTests(Base):
         super().setUp()
         self.ev(self.t4, "학년 협의회", slot="b2")
         self.duty(self.t5, by=self.t4)
-        self.due(self.t5, "오학년 조사")
 
     def test_day_mode_cards(self):
         rows = rows_of(self.page(self.t4, "day"))
@@ -32,19 +31,16 @@ class ModesTests(Base):
         self.assertIn("<span>4학년 · 사일</span>", cards_in(rows["학교"])["학년 협의회"])
         self.assertNotIn('<span class="k">복무</span>', rows["복무"])
         self.assertIn("<span>5학년</span>", cards_in(rows["복무"])["오일 출장"])
-        self.assertIn("<span>5학년 · 오일</span>", cards_in(rows["취합"])["오학년 조사"])
 
     def test_month_mode_no_scope_or_kind_word(self):
         grid = grid_of(self.page(self.t4, "month"))
         self.assertNotIn("학교 전체", grid)
         self.assertNotIn('<span class="k">복무</span>', grid)
 
-    def test_group_tab_legend_and_due(self):
-        self.due(self.t5, "오학년만", aud={"mode": "groups", "groups": ["g5"], "hr": False})
+    def test_group_tab_legend(self):
         html = self.page(self.t5, "week", tab="group")
         self.assertIn('<div class="legend">', html)
         self.assertNotIn("학교 전체", grid_of(html))
-        self.assertIn("<span>5학년 · 오일</span>", cards_in(html)["오학년만"])
 
     def test_me_tab_has_no_legend(self):
         self.assertNotIn('<div class="legend">', self.page(self.t4, "week", tab="me"))
@@ -71,7 +67,7 @@ class EdgeTests(Base):
         self.assertNotIn("<b>악</b>", html)
         self.assertIn("4학년 · &lt;b&gt;악&lt;/b&gt;", html)
 
-    def test_colors_stay_unique_and_reach_duty_and_due(self):
+    def test_colors_stay_unique_and_reach_duty(self):
         c = self.as_(self.boss)
         url = f"{self.base}/school/group-color?tab=grade&arrange=1"
         for g, k in [("g4", "red"), ("g5", "red"), ("office", "teal"), ("g4", "brown"), ("g1", "brown"), ("g5", "pink")]:
@@ -81,10 +77,8 @@ class EdgeTests(Base):
             self.assertEqual(len(set(v.values())), len(v), (g, k, v))
             self.assertEqual(v[g], k)
         self.duty(self.t5)
-        self.due(self.t5, "색 마감")
         rows = rows_of(self.page(self.t4, "week"))
         self.assertIn(f'--gc:{HEX["pink"]}', cards_in(rows["복무"])["오일 출장"])
-        self.assertIn(f'--gc:{HEX["pink"]}', cards_in(rows["취합"])["색 마감"])
 
 
 class GradeSpaceTests(Base):

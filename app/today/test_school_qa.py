@@ -277,7 +277,7 @@ class MergeCommandQa(TestCase):
 class LeakQa(Base):
     def coll(self, by, title, due=NOW + timedelta(hours=1), **row):
         c = Collection.objects.create(space=self.hub, created_by=by, title=title, source="sheet", due=due, unit_head=["직위", "성명"],
-                                      audience={"mode": "all"})  # 학교 탭 취합 줄은 전 교직원 취합만(QC 일정 취합 범위)
+                                      audience={"mode": "all"})
         f = Field.objects.create(collection=c, pos=0, name="칸")
         if row:
             r = Row.objects.create(collection=c, pos=0, unit="칸", **row)
@@ -286,21 +286,19 @@ class LeakQa(Base):
 
     def test_week_for_group_less_member_has_no_others_collection(self):
         """그룹 없는 회원: 빈 그룹 값이 그룹 없는 줄과 맞아 버리지 않아야 한다(링크 없음).
-        QC 2026-11-06: 학교 탭 취합 줄은 제목·마감·만든 사람을 모두에게 보인다. 링크·토큰은 여전히 대상만."""
+        U3(2026-11-11): 일정에는 취합 제목도 없다."""
         m = self.seat("지원", "무소속", "")
         c = self.coll(self.t41, "남의조사", who="이름만")  # group="" member=None
         html = self.as_(m).get(f"{self.base}/schedule").content.decode()
-        self.assertIn(c.title, html)
-        for s in (c.key, c.link_token):
+        for s in (c.title, c.key, c.link_token):
             self.assertNotIn(s, html)
 
     def test_week_raw_response_has_no_others_tokens_for_member_and_manager(self):
         other = self.coll(self.t41, "사학년비밀조사", member=self.t42, who="사이")
         row = other.rows.get()
-        for m in (self.t51, self.boss):  # QC 2026-11-06: 제목은 학교 공개, 받는 링크·제출값은 아니다. 관리자는 관리 화면 링크(key)
+        for m in (self.t51, self.boss):  # U3: 일정에는 취합 제목·링크·관리 key 모두 없다
             html = self.as_(m).get(f"{self.base}/schedule").content.decode()
-            self.assertIn(other.title, html, m.name)
-            for s in (other.link_token, row.key, "제출값값", *([] if m.is_manager else [other.key])):
+            for s in (other.title, other.link_token, row.key, "제출값값", other.key):
                 self.assertNotIn(s, html, m.name)
 
     def test_toggle_raw_response_has_no_tokens_for_member(self):

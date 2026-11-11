@@ -3,10 +3,10 @@
 불변식
 - 탭: 학교 · 내 소속 이름 · 개인. 소속이 없으면 그룹 탭 없음, 동학년 공간은 탭 없음. ?tab=, 마지막 탭은 쿠키.
   탭·모드·기간을 바꿔도, 칸에 쓰고 나서 판을 다시 그려도 탭·모드·날짜가 그대로.
-- 학교 탭: 일간·주간·월간 모두 채널 줄 학교·취합·복무. 학교 줄은 scope=all + NEIS만. 칸 안은 종일 → b1 → b2 → b3 → pm.
+- 학교 탭: 일간·주간·월간 모두 채널 줄 학교·복무. 학교 줄은 scope=all + NEIS만. 칸 안은 종일 → b1 → b2 → b3 → pm.
 - 그룹 탭(scope=내 소속)·개인 탭(scope=me, 내가 쓴 것): 일간·주간은 종일·1~3블록·방과후 줄, 월간은 달력 칸에 시간순. 필터 없음.
 - 칸이 곧 볼 사람: 학교 all, 그룹 내 소속(다른 그룹은 400), 개인 me. 안내 문구는 범위를 앞에.
-- 취합 줄은 이 공간의 모든 마감을 모두에게(제목·시각·만든 사람). 링크는 만든 사람·내 줄·관리자만, 받는 링크는 대상에게만.
+- 취합은 일정에 없다(U3, 2026-11-11): 취합 줄·마감 카드·마감 수·마감 목록·취합 만들기 링크 모두 없음.
 - 복무 줄은 누구나 '이름 유형 [시간]'. 명부 이름·KINDS만, 시각 낱말만 저장. 못 읽으면 원문 없이 짧은 안내. 지우기는 넣은 사람·관리자·복무 입력자.
 - 남의 개인 일정은 겹침 판정에서도 뺀다. 같은 블록 이름은 제목에 있으면 카드 아래에 다시 쓰지 않는다.
 - 격리: 다른 공간은 404. 쿼리 수는 건수와 무관.
@@ -240,13 +240,13 @@ class SchoolTabTests(Base):
         self.fill()
         for mode in ("day", "week"):
             rows = rows_of(self.page(self.t4, mode))
-            self.assertEqual(list(rows), ["학교", "취합", "복무"], mode)
+            self.assertEqual(list(rows), ["학교", "복무"], mode)
             self.assertIn("모두 일", rows["학교"])
             self.assertIn("독서주간 골든벨", rows["학교"])
-            self.assertIn("낼 표", rows["취합"])
             self.assertIn("오일 출장", rows["복무"])
+            self.assertNotIn("낼 표", "".join(rows.values()), mode)  # U3: 취합은 일정에 없다
         self.assertIn('wgrid one', self.page(self.t4, "day"))
-        self.assertEqual(month_labels(self.page(self.t4, "month")), ["학교", "취합", "복무"] * 5)
+        self.assertEqual(month_labels(self.page(self.t4, "month")), ["학교", "복무"] * 5)
 
     def test_only_school_wide_events(self):
         self.fill()
@@ -275,23 +275,19 @@ class SchoolTabTests(Base):
         self.assertEqual(rows["학교"].count('data-slot="" data-scope="all"'), 5)
         self.assertEqual(rows["복무"].count('data-scope="duty"'), 5)
         self.assertEqual(rows["복무"].count(f'data-post="/s/{self.hub.token}/today/duty"'), 5)
-        self.assertNotIn("data-cell", rows["취합"])
         self.assertEqual(html.count('<button type="button" class="cell-add"'), 10)
         self.assertEqual(self.page(self.t4, "day").count('<button type="button" class="cell-add"'), 2)
         self.assertEqual(grid_of(self.page(self.t4, "month")).count('<button type="button" class="cell-add"'), 50)  # 5주 × 월~금(Q1) × 학교·복무
 
-    def test_collect_cells_link_to_new_collect_with_day_and_all(self):
-        """QC 2026-11-06: 취합 줄 칸에도 ＋. 입력 카드 대신 그 날 마감·전 교직원으로 취합 만들기."""
-        week = self.page(self.t4, "week")
-        row = rows_of(week)["취합"]
-        days = re.findall(r'<a class="cell-add" href="/s/[^/]+/c/new\?aud=all&amp;due_d=([\d-]+)"', row)
-        self.assertEqual(len(days), 5)
-        self.assertIn(TODAY.isoformat(), days)
-        self.assertIn('data-go="', row)
-        self.assertEqual(rows_of(self.page(self.t4, "day"))["취합"].count('<a class="cell-add"'), 1)
-        self.assertEqual(grid_of(self.page(self.t4, "month")).count('<a class="cell-add"'), 25)
-        new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "all", "due_d": days[0]}).content.decode()
-        self.assertIn(f'name="due_d" value="{days[0]}"', new)
+    def test_no_collect_link_in_any_mode(self):
+        """U3: 빈 칸 ＋로 취합 만들기 링크(data-go)가 없다. 취합 만들기 화면의 미리 채우기(?aud=&due_d=)는 취합 메뉴 기능이라 그대로."""
+        for mode in ("day", "week", "month"):
+            html = self.page(self.t4, mode)
+            self.assertNotIn("/c/new", html, mode)
+            self.assertNotIn("data-go", html, mode)
+            self.assertNotIn('<a class="cell-add"', html, mode)
+        new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "all", "due_d": "2026-10-30"}).content.decode()
+        self.assertIn('name="due_d" value="2026-10-30"', new)
         self.assertNotIn('name="due_t"', new)  # 마감은 날짜만
         self.assertRegex(new, r'value="all" checked><b>전 교직원')
 
@@ -301,7 +297,7 @@ class SchoolTabTests(Base):
         self.assertEqual(r.status_code, 302, r.content[:300])
         c = Collection.objects.get(title="일정에서")
         self.assertEqual(c.due, datetime(2026, 10, 30, 23, 59, tzinfo=KST))  # 날짜만: 그날 끝
-        self.assertIn("일정에서<", rows_of(self.page(self.t4, "week"))["취합"])
+        self.assertNotIn("일정에서", grid_of(self.page(self.t4, "week")))  # U3: 마감이 있어도 일정 판에 없다
         r = self.as_(self.t4).post(f"{self.base}/c/new", {"src": "sheet", "title": "마감 비움", "col_name_0": "참가(명)",
                                                           "aud": "all", "due_d": ""})
         self.assertEqual(r.status_code, 302)
@@ -311,148 +307,48 @@ class SchoolTabTests(Base):
         self.assertNotIn('type="time"', plain)
 
 
-class CollectRowTests(Base):
-    """취합 줄: 모두에게 제목·시각·만든 사람. 링크는 열 수 있는 사람에게만."""
+class NoCollectTests(Base):
+    """U3(2026-11-11 사용자 결정 "취합은 일정에서 제거"): 받는 범위·탭·모드와 무관하게 일정 화면에 취합 줄·마감 카드·마감 수·마감 목록이 없다."""
 
-    def setUp(self):
-        super().setUp()
-        self.c = self.due(self.t5, "오학년 조사", hour=11)  # 오일이 만들고 오일 줄만
-        self.r = self.c.rows.get()
+    def fill(self):
+        self.due(self.t4, "전체 표")
+        self.due(self.boss, "사학년 표", aud={"mode": "groups", "groups": ["g4"], "hr": False}, row_for=self.t4)
+        self.due(self.boss, "소속칸 표", aud={"mode": "pergroup", "groups": ["g4"]}, row_for=self.t4)
+        self.due(self.t5, "사람 표", aud={"mode": "people"}, row_for=self.t4)
 
-    def due_card(self, html):
-        row = rows_of(html)["취합"]
-        i = row.index("오학년 조사")
-        return row[row.rindex("<", 0, row.rindex('class="ev due"', 0, i)):i + 40]
-
-    def test_everyone_sees_title_time_and_maker(self):
+    def test_no_collect_anywhere_on_schedule(self):
+        self.fill()
         for m in (self.t4, self.t5, self.boss):
-            row = rows_of(self.page(m, "week"))["취합"]
-            self.assertIn("오학년 조사<", row, m.name)
-            self.assertIn("오일", row, m.name)
-
-    def test_link_only_for_those_who_can_open(self):
-        self.assertIn(f'href="/s/{self.hub.token}/c/{self.c.key}/"', self.page(self.t5, "week"))  # 만든 사람
-        self.assertIn(f'href="/s/{self.hub.token}/c/{self.c.key}/"', self.page(self.boss, "week"))  # 관리자는 관리 화면
-        html = self.page(self.t4, "week")  # 대상 아님
-        self.assertIn('<div class="ev due" data-ch="collect"><span class="t"><span class="k">마감</span> 오학년 조사', html)
-        for s in (self.c.key, self.c.link_token, self.r.key):
-            self.assertNotIn(s, html)
-        boss = self.page(self.boss, "week")
-        self.assertNotIn(self.c.link_token, boss)  # 관리자에게도 받는 링크는 싣지 않는다
-
-    def test_my_row_gets_my_row_link(self):
-        c = self.due(self.t5, "사일도 냄", row_for=self.t4)
-        html = self.page(self.t4, "week")
-        self.assertIn(f"/c/{c.link_token}/u/{c.rows.get().key}", html)
-
-    def test_due_list_is_still_mine_only(self):
-        html = self.page(self.t4, "week")
-        self.assertNotIn("오학년 조사", html[html.index('id="due"'):])
-        self.assertIn("오학년 조사", self.page(self.t5, "week").split('id="due"')[1])
-
-    def test_not_in_group_or_personal_tab(self):
-        for tab in ("group", "me"):
-            self.assertNotIn("오학년 조사", grid_of(self.page(self.t5, "week", tab=tab)), tab)
-
-
-class CollectScopeTests(Base):
-    """QC 일정 취합 범위(2026-11-06): 전 교직원 → 학교 탭, 소속 고르기·소속별 1칸 → 고른 소속의 그룹 탭, 그 밖 → 마감 목록에만."""
-
-    def setUp(self):
-        super().setUp()
-        self.all = self.due(self.boss, "전체조사", hour=9)
-        self.g4 = self.due(self.boss, "사학년조사", hour=15, aud={"mode": "groups", "groups": ["g4"], "hr": False})
-        self.pg = self.due(self.t5, "소속칸조사", hour=10, aud={"mode": "pergroup", "groups": ["g4", "g5"]})
-        self.dept = self.due(self.boss, "부서조사", aud={"mode": "dept", "depts": ["교무부"]}, row_for=self.t4)
-        self.people = self.due(self.boss, "사람조사", aud={"mode": "people", "people": [self.t4.key]}, row_for=self.t4)
-        self.empty = self.due(self.boss, "옛조사", aud={}, row_for=self.t4)
-        self.odd = self.due(self.boss, "이상조사", aud={"mode": "x", "groups": ["g4"]}, row_for=self.t4)
-        self.bad = self.due(self.boss, "깨진조사", aud={"mode": "groups", "groups": "g4"}, row_for=self.t4)
-
-    def grids(self, m, tab):
-        return {mode: grid_of(self.page(m, mode, tab=tab)) for mode in ("day", "week", "month")}
-
-    def test_school_tab_only_all(self):
-        for m in (self.t4, self.t5, self.boss):
-            for mode, g in self.grids(m, "school").items():
-                self.assertIn("전체조사", g, (m.name, mode))
-                for t in ("사학년조사", "소속칸조사", "부서조사", "사람조사", "옛조사", "이상조사", "깨진조사"):
-                    self.assertNotIn(t, g, (m.name, mode, t))
-
-    def test_group_tab_only_chosen_groups(self):
-        for mode, g in self.grids(self.t4, "group").items():
-            self.assertIn("사학년조사", g, mode)
-            self.assertIn("소속칸조사", g, mode)
-            for t in ("전체조사", "부서조사", "사람조사", "옛조사", "이상조사", "깨진조사"):
-                self.assertNotIn(t, g, (mode, t))
-        g5 = self.grids(self.t5, "group")
-        for mode, g in g5.items():
-            self.assertIn("소속칸조사", g, mode)
-            self.assertNotIn("사학년조사", g, mode)
-
-    def test_other_group_member_and_manager_never_get_title(self):
-        """다른 소속(오일)·관리자(교무실)에게 4학년 취합 제목은 응답 어디에도 없다(만든 사람 아님)."""
-        g4 = self.due(self.t4, "사학년만비밀", aud={"mode": "groups", "groups": ["g4"], "hr": False})
-        for m in (self.t5, self.boss):
             for tab in ("school", "group", "me"):
                 for mode in ("day", "week", "month"):
                     html = self.page(m, mode, tab=tab)
-                    for s_ in ("사학년만비밀", g4.key, g4.link_token):
-                        self.assertNotIn(s_, html, (m.name, tab, mode))
-            r = self.as_(m).post(f"{self.base}/today/events", {"view": "week", "mode": "week", "w": "2026-10-26", "tab": "group",
-                                                              "line": "다시 그리기", "date": "2026-10-27", "slot": "", "scope": m.group}, headers=HX)
-            self.assertNotIn("사학년만비밀", r.content.decode(), m.name)
+                    k = (m.name, tab, mode)
+                    for w in ("전체 표", "사학년 표", "소속칸 표", "사람 표"):
+                        self.assertNotIn(w, html, k)
+                    self.assertNotIn("ev due", html, k)
+                    self.assertNotIn('data-ch="collect"', html, k)
+                    self.assertNotIn('value="collect"', html, k)
+                    self.assertNotIn("취합", html[html.index('id="week"'):], k)  # 판·바뀐 것 목록(사이드 메뉴의 '취합'은 그대로)
+                    self.assertNotIn('id="due"', html, k)
+                    self.assertNotIn("마감", html[html.index('id="sub"'):html.index('id="cellTpl"')], k)  # 머리말 '마감 N건' 없음
+                    self.assertNotIn("/c/new", html, k)
+                    self.assertNotIn("/c/", grid_of(html), k)
 
-    def test_personal_tab_has_none(self):
-        for mode, g in self.grids(self.t4, "me").items():
-            for t in ("전체조사", "사학년조사", "소속칸조사", "부서조사"):
-                self.assertNotIn(t, g, (mode, t))
+    def test_htmx_redraw_has_none(self):
+        self.fill()
+        r = self.add(self.t4, "새 일", tab="group", scope="g4")
+        html = r.content.decode()
+        self.assertIn("새 일", html)
+        for w in ("전체 표", "사학년 표", "소속칸 표", "ev due", 'id="due"', "/c/new"):
+            self.assertNotIn(w, html, w)
 
-    def test_other_modes_only_in_due_list(self):
-        html = self.page(self.t4, "week")
-        due = html.split('id="due"')[1]
-        for t in ("부서조사", "사람조사", "옛조사"):
-            self.assertIn(t, due, t)  # 내 줄이 있으니 아래 마감 목록에는 그대로
-        self.assertNotIn("사학년조사", due)  # 마감 목록 규칙은 그대로(내가 만든 것·내 줄만)
-
-    def test_group_tab_collect_row_on_top_without_add(self):
-        for mode in ("day", "week"):
-            rows = rows_of(self.page(self.t4, mode, tab="group"))
-            self.assertEqual(list(rows), ["취합", *BLOCK_ROWS], mode)
-            self.assertIn("사학년조사", rows["취합"])
-            self.assertNotIn("data-cell", rows["취합"])
-            self.assertNotIn("사학년조사", rows["방과후"])
-
-    def test_month_collect_card_first_in_cell(self):
-        self.ev(self.t4, "사학년 종일", "g4")
-        g = grid_of(self.page(self.t4, "month", tab="group"))
-        self.assertLess(g.index("사학년조사"), g.index("사학년 종일"))
-        self.assertLess(g.index("소속칸조사"), g.index("사학년 종일"))
-
-    def test_links_in_group_tab(self):
-        mine = self.due(self.t4, "내가만든사학년", aud={"mode": "groups", "groups": ["g4"], "hr": False})
-        row = self.due(self.boss, "내줄사학년", aud={"mode": "groups", "groups": ["g4"], "hr": False}, row_for=self.t4)
-        html = self.page(self.t4, "week", tab="group")
-        self.assertIn(f'href="/s/{self.hub.token}/c/{mine.key}/"', html)
-        self.assertIn(f"/c/{row.link_token}/u/{row.rows.get().key}", html)
-        self.assertNotIn(self.g4.link_token, html)  # 내 줄이 없는 4학년 취합: 링크 없는 카드
-        self.assertNotIn(self.g4.key, html)
-        self.assertRegex(html, r'<div class="ev due"><span class="t"><span class="k">마감</span> 사학년조사')
-        boss4 = self.member("사부장", "4-부", "g4", is_manager=True)  # 4학년 관리자: 관리 화면
-        bhtml = self.page(boss4, "week", tab="group")
-        self.assertIn(f'href="/s/{self.hub.token}/c/{self.g4.key}/"', bhtml)
-        self.assertNotIn(self.g4.link_token, bhtml)
-
-    def test_grade_space_unchanged(self):
-        s = School.objects.create(neis_atpt="J10", neis_code="7537100", name="동학년초2")
-        g = Space.objects.create(school=s, grade=4, name="4학년")
-        u = User.objects.create(username="google:동")
-        m = Member.objects.create(space=g, user=u, name="동", cls="4-1")
-        Collection.objects.create(space=g, created_by=m, title="동학년표", source=Collection.Source.SHEET, unit_head=["학년반"],
-                                  due=datetime(2026, 10, 29, 11, 0, tzinfo=KST))
-        c = Client()
-        c.force_login(u)
-        self.assertIn("동학년표", rows_of(c.get(f"/s/{g.token}/schedule", {"mode": "week"}).content.decode())["취합"])
+    def test_item_count_ignores_collections(self):
+        self.ev(self.t4, "모두 일")
+        before = self.page(self.t4, "week")
+        self.fill()
+        after = self.page(self.t4, "week")
+        n = lambda h: re.search(r'<h2 id="wkH">[^<]*</h2><span class="n num">(\d+)</span>', h).group(1)
+        self.assertEqual(n(before), n(after))
 
 
 class AudienceNoteTests(Base):
@@ -478,7 +374,7 @@ class BlockTabTests(Base):
         self.duty(self.t4)
         for mode in ("day", "week"):
             rows = rows_of(self.page(self.t4, mode, tab="group"))
-            self.assertEqual(list(rows), ["취합", *BLOCK_ROWS], mode)  # 그룹 탭은 취합 줄이 맨 위(QC 일정 취합 범위)
+            self.assertEqual(list(rows), BLOCK_ROWS, mode)  # U3: 취합 줄 없음
             self.assertIn("사학년 둘째", rows["2블록"])
             self.assertIn("사학년 종일", rows["종일"])
             whole = "".join(rows.values())
@@ -508,9 +404,11 @@ class BlockTabTests(Base):
                 self.assertIn(f'data-cell data-date="{d}" data-slot="{slot}" data-scope="{scope}"', html)
             self.assertEqual(self.page(self.t4, "week", tab=tab).count('<button type="button" class="cell-add"'), 25, tab)
 
-    def test_group_tab_collect_cells_link_with_my_group(self):
-        row = rows_of(self.page(self.t4, "week", tab="group"))["취합"]
-        self.assertEqual(row.count('/c/new?aud=pergroup&amp;aud_pgroups=g4&amp;due_d='), 10)  # 칸 5 × (data-go, 링크)
+    def test_group_tab_has_no_collect_row_or_link(self):
+        """U3: 그룹 탭에 취합 줄·만들기 링크가 없다. 취합 만들기 화면의 소속 미리 채우기는 취합 메뉴 기능이라 그대로."""
+        html = self.page(self.t4, "week", tab="group")
+        self.assertNotIn("/c/new", html)
+        self.assertNotIn("취합", rows_of(html))
         new = self.as_(self.t4).get(f"{self.base}/c/new", {"aud": "pergroup", "aud_pgroups": "g4", "due_d": TODAY.isoformat()}).content.decode()
         self.assertRegex(new, r'value="pergroup" checked><b>소속')
         self.assertRegex(new, r'name="aud_pgroups" value="g4" checked>')
@@ -839,7 +737,7 @@ class FilterMarkupTests(Base):
             html = self.page(self.t4, mode)
             title = html[html.index('class="title"'):html.index('id="cellTpl"')]
             self.assertEqual(title.count('class="btn sec flt-btn"'), 1, mode)
-            self.assertEqual(re.findall(r'data-flt="ch" value="(\w+)"', title), ["school", "collect", "duty"], mode)
+            self.assertEqual(re.findall(r'data-flt="ch" value="(\w+)"', title), ["school", "duty"], mode)
             self.assertNotIn('data-flt="grp"', html, mode)
             self.assertNotIn("data-group", html, mode)
 
@@ -887,19 +785,20 @@ class GradeSpaceTests(TestCase):
             html = self.page(mode, tab="me")
             self.assertNotIn('class="tabs sched-tabs"', html, mode)
             rows = rows_of(html)
-            self.assertEqual(list(rows), ["동학년", "취합"], mode)
+            self.assertEqual(list(rows), ["동학년"], mode)  # U3: 취합 줄 없음
             self.assertIn("협의", rows["동학년"])
             self.assertIn("독서주간 골든벨", rows["동학년"])
-            self.assertNotIn("data-cell", rows["취합"])
         self.assertEqual(self.page("week").count('<button type="button" class="cell-add"'), 5)
         self.assertEqual(self.page("day").count('<button type="button" class="cell-add"'), 1)
-        self.assertEqual(rows_of(self.page("week"))["취합"].count(f'<a class="cell-add" href="{self.base}/c/new?due_d='), 5)
-        self.assertEqual(month_labels(self.page("month")), ["동학년", "취합"] * 5)
+        self.assertNotIn("/c/new", self.page("week"))
+        self.assertEqual(month_labels(self.page("month")), ["동학년"] * 5)
 
-    def test_filter_is_two_channels(self):
+    def test_no_filter_with_one_channel(self):
+        """U3: 취합 줄이 빠져 줄이 하나뿐이라 채널 필터가 없다."""
         for mode in ("day", "week", "month"):
             html = self.page(mode)
-            self.assertEqual(re.findall(r'data-flt="ch" value="(\w+)"', html), ["school", "collect"], mode)
+            self.assertNotIn('class="btn sec flt-btn"', html, mode)
+            self.assertNotIn('data-flt="ch"', html, mode)
             self.assertNotIn('data-flt="grp"', html)
             self.assertNotIn("data-group", html)
 
@@ -917,10 +816,12 @@ class GradeSpaceTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertNotContains(r, "에 보여요")
 
-    def test_collection_link_for_everyone_as_before(self):
+    def test_collection_not_on_schedule(self):
         peer = Member.objects.create(space=self.g, user=User.objects.create(username="google:나"), name="나", cls="4-2")
         c = Collection.objects.create(space=self.g, created_by=peer, title="학년표", source=Collection.Source.SHEET, unit_head=["학년반"],
                                       due=datetime(2026, 10, 29, 11, 0, tzinfo=KST))
-        html = self.page("week")
-        self.assertIn(f'href="/c/{c.link_token}"', html)
-        self.assertIn("학년표", html.split('id="due"')[1])
+        for mode in ("day", "week", "month"):
+            html = self.page(mode)
+            self.assertNotIn(c.link_token, html, mode)
+            self.assertNotIn("학년표", html, mode)
+            self.assertNotIn('id="due"', html, mode)

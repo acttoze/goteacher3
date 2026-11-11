@@ -2,7 +2,7 @@
 일간·월간과 칸 안 추가는 test_schedule_modes.
 
 불변식
-- 공간 격리: 일정·취합 마감은 request.space 안의 것만. 다른 공간 주소·다른 공간 일정 key는 404.
+- 공간 격리: 일정은 request.space 안의 것만. 취합은 일정에 없다(U3). 다른 공간 주소·다른 공간 일정 key는 404.
 - 쓰기(칸 안 추가·고치기·지우기)는 G1 뷰를 그대로 쓰고(view=week면 일정 판을 돌려줌) POST + CSRF. 캐시 금지.
 - 일정 제목·장소는 이스케이프(XSS). 인라인 스크립트 없음(CSP).
 - NEIS 학사일정이 비거나 실패하면 정직하게 알린다. NEIS는 테스트에서 목.
@@ -141,7 +141,7 @@ class ScheduleTests(TestCase):
         for d in ("10/26", "10/27", "10/28", "10/29", "10/30"):
             self.assertIn(d, html)
         self.assertIn("금 · 오늘", html)
-        self.assertEqual(re.findall(r'<div class="lbl"[^>]*>([^<]+)', html), ["동학년", "취합"])  # 줄은 채널, 동학년은 둘(test_schedule_channels)
+        self.assertEqual(re.findall(r'<div class="lbl"[^>]*>([^<]+)', html), ["동학년"])  # 줄은 채널, 동학년은 하나(U3: 취합 줄 없음)
         self.assertIn(f'data-open="#ev-{mine.key}"', html)
         self.assertRegex(html, r'class="ev mine[^"]*" data-open="#ev-' + mine.key)
         self.assertRegex(html, r'<span>김도윤</span><span class="rest">· [^<]*과학실</span>')  # U1: 쓴 사람이 아래 줄 맨 앞
@@ -174,20 +174,14 @@ class ScheduleTests(TestCase):
         self.assertContains(r, "나이스에서 불러오지 못했어요. 잠시 뒤 다시 볼게요.")
         self.assertNotContains(r, "이 주 학사일정이 없어요")
 
-    def test_due_on_board_and_list(self):
+    def test_no_due_on_board_or_list(self):
+        """U3: 내가 걷는 것·내가 낼 것 모두 일정 판·머리말·아래 목록에 없다(마감은 오늘·취합 화면에서)."""
         c, rows = self.collection(self.m2, "학예회 의상 대여 수량", NOW.replace(hour=12, minute=0) - timedelta(days=2))
         mc, _ = self.collection(self.me, "반별 참가 인원", NOW.replace(hour=15, minute=0))
-        self.collection(self.m2, "다음 달 것", NOW + timedelta(days=30))
-        r = self.client.get(self.url())
-        html = r.content.decode()
-        self.assertRegex(html, r'class="ev due"[^>]*><span class="t"><span class="k">마감</span> 학예회 의상 대여 수량<')
-        mine = next(x for x in rows if x.member_id == self.me.pk)
-        self.assertIn(f'href="/c/{c.link_token}/u/{mine.key}"', html)
-        self.assertIn(f'href="/s/{self.a.token}/c/{mc.key}/"', html)
-        self.assertIn("내가 걷는 것", html)
-        self.assertIn("내가 낼 것 · 김도윤", html)
-        self.assertNotIn("다음 달 것", html)
-        self.assertIn("마감 <b class=\"num\">2건</b>", html)
+        for mode in ("day", "week", "month"):
+            html = self.client.get(self.url(), {"mode": mode}).content.decode()
+            for w in ("학예회 의상 대여 수량", "반별 참가 인원", "ev due", c.link_token, mc.key, "내가 걷는 것", "내가 낼 것", 'id="due"', "마감"):
+                self.assertNotIn(w, html[html.index('id="sub"'):], (mode, w))
 
     def test_week_navigation(self):
         self.ev(title="다음 주 협의", date=MON + timedelta(days=8))

@@ -53,8 +53,9 @@ class ShowDaysTests(Base):
         self.assertIn('style="--n:6"', html)
         self.assertIn("10월 26일 ~ 31일", html)
         board = html.split('id="ev-')[0]
-        for t in ("토요 체험학습", "토요 마감 취합", "사일 출장"):
+        for t in ("토요 체험학습", "사일 출장"):
             self.assertIn(t, board)
+        self.assertNotIn("토요 마감 취합", board)  # U3: 취합은 일정에 없다
         self.assertNotIn("일요 행사", board)
         other = self.page(self.t5, "week")  # 다른 선생님은 그대로
         self.assertFalse(has_day(other, "토"))

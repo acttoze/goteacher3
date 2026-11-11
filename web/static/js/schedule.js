@@ -74,8 +74,6 @@
   document.addEventListener('click', function (e) {
     if (open && open.contains(e.target)) return;
     commit(false);  // focusout을 못 받은 경우(포커스가 이미 카드 밖). 받았으면 아무 일도 없다
-    var go = e.target.closest('[data-go]');  // 취합 칸: 빈 곳을 눌러도 ＋처럼 취합 만들기로
-    if (go && !open && !e.target.closest('.ev, a, button')) { location.href = go.dataset.go; return; }
     var cell = blankCell(e.target);
     if (!cell) return;
     if (saving) next = keyOf(cell);

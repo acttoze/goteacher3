@@ -2,7 +2,7 @@
 
 - 카드 아래 줄은 볼 사람 범위('학교 전체')가 아니라 쓴 사람 이름 · 소속, 점 색은 쓴 사람 소속 색(학교 공간만).
 - 복무 카드: '복무' 머리글자 없이 당사자 소속 · 시간(명부로 못 맞추면 소속 비움, 점 없음). 넣은 사람 표시는 그대로.
-- 취합 마감 카드: '마감' 머리글자 + 만든 사람 · 소속.
+- 취합 마감 카드는 U3(2026-11-11)에 일정에서 빠졌다.
 - 내 글(내가 쓴 것)만 ev mine + '내 글'. 관리자가 남의 글을 고칠 수 있어도 내 글이 아니다.
 - 나이스 학사일정: '나이스 자동' 표시. 오늘 화면은 학사일정 줄 없이 종일 줄 안에.
 - 범례: 사람이 있는 소속의 점 색 + 나이스 자동. 동학년은 점 없음.
@@ -25,7 +25,7 @@ def cards_in(row):
     """줄 HTML → {제목: 카드 HTML}."""
     out = {}
     for c in re.split(r'class="ev[ "]', row)[1:]:
-        t = re.search(r'<span class="t">(?:<span class="k">마감</span> )?([^<]+)</span>', c)
+        t = re.search(r'<span class="t">([^<]+)</span>', c)
         if t:
             out[t.group(1).strip()] = re.split(r"</button>|</a>|</div>", c)[0]
     return out
@@ -73,13 +73,6 @@ class CardTests(Base):
         self.assertNotIn("--gc", cs["명부밖 출장"])
         self.assertIn('<span class="rest">09:00~12:00</span>', cs["명부밖 출장"])
         self.assertIn("내 글", cs["오일 출장"])  # 내가 넣은 줄
-
-    def test_due_card_shows_maker_and_group(self):
-        self.due(self.t5, "오학년 조사")
-        c = cards_in(rows_of(self.page(self.t4, "week"))["취합"])["오학년 조사"]
-        self.assertIn('<span class="k">마감</span>', c)
-        self.assertIn("<span>5학년 · 오일</span>", c)
-        self.assertIn(f'--gc:{HEX["teal"]}', c)
 
     def test_neis_marked_auto(self):
         row = rows_of(self.page(self.t4, "week"))["학교"]
