@@ -189,12 +189,14 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 .well { background: var(--surface); border-radius: var(--radius-in); padding: 14px 16px; }
 .well.acc { background: var(--accent-soft); color: var(--accent-ink); }
 
-/* ---------- 탭(밑줄) ---------- */
-.tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 24px; overflow-x: auto; scrollbar-width: none; }
-.tabs a, .tabs button { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 48px; border: 0; background: none; padding: 0; font: 600 16px/1 var(--font); color: var(--muted); text-decoration: none; cursor: pointer; white-space: nowrap; }
-.tabs a:hover, .tabs button:hover { color: var(--ink); }
-.tabs [aria-selected="true"], .tabs [aria-current] { color: var(--ink); }
-.tabs [aria-selected="true"]::after, .tabs [aria-current]::after { content: ""; position: absolute; left: -4px; right: -4px; bottom: -1px; height: 2px; background: var(--ink); border-radius: 2px; }
+/* ---------- 탭(단추형) ---------- */
+.tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 24px; overflow-x: auto; scrollbar-width: none; }
+/* 탭은 단추처럼 보이게: 안 고른 탭은 회색 면, 고른 탭은 잉크로 채움(파랑 주 버튼과 구분), 아래 선은 강조하지 않음 */
+.tabs a, .tabs button { position: relative; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; border: 1px solid transparent; border-radius: var(--radius-in); background: var(--surface); padding: 0 18px; font: 600 16px/1 var(--font); color: var(--muted); text-decoration: none; cursor: pointer; white-space: nowrap; transition: background .15s, color .15s; }
+.tabs a:hover, .tabs button:hover { background: var(--hover); color: var(--ink); }
+.tabs [aria-selected="true"], .tabs [aria-current] { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.tabs [aria-selected="true"]:hover, .tabs [aria-current]:hover { background: var(--ink); color: #fff; }
+.tabs [aria-selected="true"] .c, .tabs [aria-current] .c { color: rgba(255,255,255,.8); }
 .tabs .c { font-size: var(--fs-small); color: var(--faint); font-weight: 600; }
 
 /* 분할 선택(세그먼트) */
@@ -398,6 +400,6 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
   .bare-top .end .lbl { display: none; }
   .kv { grid-template-columns: 1fr; gap: 2px; }
   .kv dd { margin-bottom: 10px; }
-  .tabs { gap: 20px; }
+  .tabs { gap: 6px; }
   .pop { left: 8px !important; right: 8px !important; min-width: 0; }
 }
