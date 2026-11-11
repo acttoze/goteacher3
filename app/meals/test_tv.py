@@ -27,7 +27,7 @@ from .tests import TUE, Base, meal
 STATIC = Path(__file__).resolve().parents[2] / "web" / "static"
 SAT = date(2026, 11, 7)
 STAFF_WORDS = ("올려", "선생님", "영양사", "담당", "관리자", "플랜", "오류", "실패", "연결", "불러오", "NEIS", "로그인", "고티처")
-ALL_KEYS = {"school", "date", "date_label", "known", "next", "week_title", "days", "hygiene", "slogan", "screens", "photo"}
+ALL_KEYS = {"school", "date", "date_label", "known", "next", "week_title", "days", "hygiene", "slogan", "screens", "photo", "theme"}
 MEAL_KEYS = {"dishes", "kcal", "nutr", "origin", "allergens", "groups"}
 
 
@@ -433,3 +433,52 @@ class FrameTests(TvBase):
         self.assertIn(f'href="{self.url}"', html)
         self.assertIn("js/meals.js", html)
         self.assertIn("<b>F</b> 키", html)
+
+
+class ThemeTests(TvBase):
+    """TV 테마: 설정은 쓰기 권한만, 1~5만, TV 데이터에 실린다. 그림·글꼴 파일은 저장소에 있다(외부 주소 없음)."""
+    def post(self, client, no):
+        return client.post(f"{self.base}/screens", {"theme": no})
+
+    def theme(self):
+        self.row.refresh_from_db()
+        return self.row.theme
+
+    def test_default_is_one_and_data_carries_it(self):
+        self.assertEqual(self.data()["theme"], 1)
+        self.assertEqual(self.post(self.writer, "4").status_code, 200)
+        self.assertEqual(self.data()["theme"], 4)
+
+    def test_only_writer_or_manager_and_only_known_numbers(self):
+        self.assertEqual(self.post(self.teacher, "3").status_code, 403)
+        self.assertEqual(self.post(self.anon, "3").status_code, 302)
+        for bad in ("0", "6", "x", "", "-1"):
+            self.assertEqual(self.post(self.writer, bad).status_code, 400, bad)
+        self.assertEqual(self.theme(), 1)
+        self.assertEqual(self.post(self.manager, "5").status_code, 200)
+        self.assertEqual(self.theme(), 5)
+
+    def test_theme_keeps_screens_and_token(self):
+        MealSettings.objects.in_space(self.hub).update(screens=[{"key": "week", "on": False}])
+        t0 = self.row.tv_token
+        self.post(self.writer, "2")
+        self.row.refresh_from_db()
+        self.assertEqual((self.row.screens, self.row.tv_token), ([{"key": "week", "on": False}], t0))
+
+    def test_page_lists_themes_with_preview_links(self):
+        html = self.writer.get(f"{self.base}/screens").content.decode()
+        for t in content.THEMES:
+            self.assertIn(t["name"], html)
+            self.assertIn(f"/tv/{self.row.tv_token}?theme={t['no']}", html)
+
+    def test_hygiene_key_for_pictures(self):
+        self.assertEqual(self.data()["hygiene"]["key"], content.hygiene_of(TUE)["key"])
+
+    def test_theme_assets_are_local(self):
+        css = (STATIC / "css" / "tv-themes.css").read_text()
+        self.assertNotIn("http", css.replace("http://www.w3.org", ""))
+        import re
+        for ref in re.findall(r'url\("\.\./([^"]+)"\)', css):
+            self.assertTrue((STATIC / ref).exists(), ref)
+        for no in content.THEME_NOS:
+            self.assertTrue((STATIC / "tv" / "thumb" / f"{no}.jpg").exists())

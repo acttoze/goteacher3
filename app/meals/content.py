@@ -19,6 +19,16 @@ SCREENS = [
 ]
 SCREEN_KEYS = [s["key"] for s in SCREENS]
 
+# TV 테마. 1은 처음 화면 그대로. 2~5는 글씨를 줄이고 사진·그림을 넣는다(web/static/css/tv-themes.css).
+THEMES = [
+    {"no": 1, "name": "기본", "what": "글씨가 가장 크고 그림이 없어요"},
+    {"no": 2, "name": "장바구니", "what": "밝은 바탕 · 재료 사진 · 아래에 큰 시계"},
+    {"no": 3, "name": "도감", "what": "옛 음식 도감 그림 · 바탕체 제목"},
+    {"no": 4, "name": "밤 급식소", "what": "어두운 바탕 · 오늘 식판 사진을 화면 가득"},
+    {"no": 5, "name": "그림책", "what": "화면마다 다른 색 · 둥근 글씨 · 그림"},
+]
+THEME_NOS = [t["no"] for t in THEMES]
+
 HYGIENE = [
     {"key": "wash", "name": "손 씻기", "title": "손을 깨끗이 씻어요", "tag": "흐르는 물에 비누로 30초", "items": [
         ("손바닥", "손바닥과 손바닥을 마주 대고 문질러요"), ("손등", "손등과 손바닥을 마주 대고 문질러요"),

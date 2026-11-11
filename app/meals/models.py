@@ -44,6 +44,7 @@ class MealSettings(models.Model):
     space = models.OneToOneField(Space, on_delete=models.CASCADE, related_name="meal_settings")
     tv_token = models.CharField("TV 주소 토큰", max_length=64, unique=True, default=new_tv_token)
     screens = models.JSONField("TV 화면 순서·켜고 끄기", default=list)  # [{"key": "menu", "on": true}, ...]
+    theme = models.PositiveSmallIntegerField("TV 테마", default=1, choices=[(t["no"], t["name"]) for t in content.THEMES])
 
     objects = SpaceQuerySet.as_manager()
 

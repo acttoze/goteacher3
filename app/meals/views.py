@@ -270,6 +270,14 @@ def screens(request):
     """TV 화면 켜고 끄기·순서(단추 하나에 한 번 저장). 식판 사진 화면은 끌 수 없다."""
     space, toast = request.space, ""
     if request.method == "POST":
+        if "theme" in request.POST:
+            no = request.POST["theme"]
+            if no not in {str(n) for n in content.THEME_NOS}:  # "1"~"5" 글자 그대로만(²·３ 같은 숫자 꼴은 거절)
+                return HttpResponseBadRequest()
+            MealSettings.objects.get_or_create(space=space)
+            MealSettings.objects.in_space(space).update(theme=int(no))
+            name = next(t["name"] for t in content.THEMES if t["no"] == int(no))
+            return _screens_page(request, f"TV 테마를 '{name}'(으)로 바꿨어요. 켜 둔 TV에는 5분 안에 바뀌어요.")
         action, key = next(((a, request.POST[a]) for a in ("up", "down", "toggle") if a in request.POST), (None, None))
         if key not in content.SCREEN_KEYS or (action == "toggle" and key == content.PHOTO):
             return HttpResponseBadRequest()
@@ -297,7 +305,7 @@ def _screens_page(request, toast=""):
     on = [x for x in items if x["on"]]
     ctx = {"space": space, "screens": items, "n_on": len(on), "loop": sum(x["sec"] * x.get("pages", 1) for x in on), "last": len(items) - 1,
            "writable": space.school.writable, "hygiene": content.hygiene_of(today), "slogan": content.slogan_of(today), "toast": toast,
-           "tv_url": tv_url, "tv_path": f"/tv/{row.tv_token}", "tv_qr": segno.make(tv_url, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)}
+           "tv_url": tv_url, "tv_path": f"/tv/{row.tv_token}", "themes": content.THEMES, "theme": row.theme, "tv_qr": segno.make(tv_url, error="m").svg_data_uri(border=0, dark="#0d0d0d", encode_minimal=True)}
     if request.headers.get("HX-Request"):
         return render(request, "meals/_screens.html", ctx)
     return render(request, "meals/screens.html", _space_ctx(request, page="meals", **ctx))

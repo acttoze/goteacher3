@@ -1,4 +1,4 @@
-{# TV 화면 켜고 끄기·순서. 단추를 누르면 이 조각을 통째로 다시 받는다. #}
+{% load static %}{# TV 화면 켜고 끄기·순서. 단추를 누르면 이 조각을 통째로 다시 받는다. #}
 <div id="screensMain">
 {% if toast %}<span hidden data-toast-now="{{ toast }}"></span>{% endif %}
 <div class="title" style="margin-bottom:12px">
@@ -46,5 +46,20 @@
 </aside>
 </div>
 </div>
+<section class="mth" aria-labelledby="mthH">
+  <h2 id="mthH">TV 테마</h2>
+  <p class="sub">모양만 바뀌고 보여 주는 내용은 같아요. 2~5번은 글씨가 조금 작아지는 대신 사진이나 그림이 들어가요.</p>
+  <form class="mth-list" method="post" action="/s/{{ space.token }}/meals/screens" hx-post="/s/{{ space.token }}/meals/screens" hx-target="#screensMain" hx-swap="outerHTML">{% csrf_token %}
+  {% for t in themes %}
+    <div class="mth-item{% if t.no == theme %} on{% endif %}">
+      <img src="{% static 'tv/thumb/' %}{{ t.no }}.jpg" alt="{{ t.name }} 테마 화면 예시" width="240" height="135">
+      <div class="mth-t"><b>{{ t.no }}. {{ t.name }}</b>{% if t.no == theme %} <span class="pill acc">사용 중</span>{% endif %}</div>
+      <p>{{ t.what }}</p>
+      <div class="mth-act">{% if writable and t.no != theme %}<button class="btn sec sm" type="submit" name="theme" value="{{ t.no }}">이 테마로</button>{% endif %}
+        <a class="btn ghost sm" href="{{ tv_path }}?theme={{ t.no }}" target="_blank" rel="noopener">미리보기</a></div>
+    </div>
+  {% endfor %}
+  </form>
+</section>
 <p class="mauto">오늘의 위생 교육 <b>{{ hygiene.title }}</b> · 오늘의 표어 <b>{{ slogan }}</b> (날마다 자동으로 바뀌어요)</p>
 </div>

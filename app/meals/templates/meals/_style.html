@@ -45,6 +45,16 @@
   .mauto { margin: 12px 0 0; font-size: 15px; color: var(--muted); }
   .mauto b { color: var(--ink); }
   .mdel { margin: 0 0 12px; }
+  .mth { margin-top: 24px; }
+  .mth h2 { margin: 0 0 4px; font-size: var(--fs-section); }
+  .mth .sub { margin: 0 0 12px; }
+  .mth-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .mth-item { display: flex; flex-direction: column; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-in); background: var(--bg); }
+  .mth-item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .mth-item img { display: block; width: 100%; height: auto; border-radius: 4px; background: var(--surface); }
+  .mth-t { margin-top: 8px; font-size: 16px; }
+  .mth-item p { flex: 1; margin: 4px 0 8px; font-size: 15px; line-height: 1.35; color: var(--muted); }
+  .mth-act { display: flex; flex-wrap: wrap; gap: 6px; }
   .mtv-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
   .mtv-now { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.4; }
   .mtv-now b { color: var(--ink); }

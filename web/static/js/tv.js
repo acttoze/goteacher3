@@ -185,41 +185,48 @@
     return null;
   }
   function build(d) {
-    if (d.quiet) return [{ html: quietSlide(d), sec: 3600 }];
+    if (d.quiet) return [{ html: quietSlide(d), sec: 3600, k: 'none' }];
     var meal = todayMeal(d), out = [], noMealShown = false;
-    function add(htmls, sec) { htmls.forEach(function (h) { out.push({ html: h, sec: sec }); }); }
+    function add(htmls, sec, k) { htmls.forEach(function (h) { out.push({ html: h, sec: sec, k: k }); }); }
     function noMeal(sec) { // 메뉴가 필요한 화면 자리 중 첫 칸에 한 번만
       if (noMealShown || !d.known || d.photo) return;
       noMealShown = true;
-      add([noMealSlide(d)], sec);
+      add([noMealSlide(d)], sec, 'none');
     }
     d.screens.forEach(function (s) {
       var sec = s.sec;
-      if (s.key === 'hygiene') add([hygieneSlide(d.hygiene)], sec);
-      else if (s.key === 'photo') {
-        if (d.photo) add(photoSlides(d.photo, meal), sec);
-        else if (meal) add(bigMenuSlides(meal), sec);
+      var k = s.key;
+      if (k === 'hygiene') add([hygieneSlide(d.hygiene)], sec, 'hy-' + (d.hygiene.key || 'wash'));
+      else if (k === 'photo') {
+        if (d.photo) add(photoSlides(d.photo, meal), sec, k);
+        else if (meal) add(bigMenuSlides(meal), sec, k);
         else noMeal(sec);
-      } else if (s.key === 'week') {
-        if (d.days.some(function (x) { return x.meal; })) add(weekSlides(d), sec);
+      } else if (k === 'week') {
+        if (d.days.some(function (x) { return x.meal; })) add(weekSlides(d), sec, k);
       } else if (!meal) noMeal(sec);
-      else if (s.key === 'menu') add(menuSlides(meal), sec);
-      else if (s.key === 'allergy') add(allergySlides(meal), sec);
-      else if (s.key === 'cal') { if (meal.kcal || meal.nutr.length) add([calSlide(meal)], sec); }
-      else if (s.key === 'origin') { if (meal.origin.length) add(originSlides(meal), sec); }
-      else if (s.key === 'eat') add(eatSlides(meal, d.slogan), sec);
+      else if (k === 'menu') add(menuSlides(meal), sec, k);
+      else if (k === 'allergy') add(allergySlides(meal), sec, k);
+      else if (k === 'cal') { if (meal.kcal || meal.nutr.length) add([calSlide(meal)], sec, k); }
+      else if (k === 'origin') { if (meal.origin.length) add(originSlides(meal), sec, k); }
+      else if (k === 'eat') add(eatSlides(meal, d.slogan), sec, k);
     });
-    return out.length ? out : [{ html: quietSlide(d), sec: 3600 }];
+    return out.length ? out : [{ html: quietSlide(d), sec: 3600, k: 'none' }];
   }
 
   // ---------- 그리기·돌리기 ----------
+  // 테마 1은 지금 화면 그대로. 2~5는 같은 본문(.pgc)을 줄여 놓고 남는 자리에 그림(.art)과 시계 띠를 둔다(tv-themes.css).
+  // ?theme=N은 미리보기용: 이 화면에서만 바뀌고 저장되지 않는다.
+  var FORCED = /[?&]theme=([1-5])\b/.exec(location.search);
+  function themeOf(d) { var t = FORCED ? +FORCED[1] : +d.theme; return t >= 1 && t <= 5 ? t : 1; }
   function render(d) {
     view = d;
-    stage.className = 'stage' + (d.quiet ? ' quiet' : '');
+    var th = d.quiet ? 1 : themeOf(d);
+    stage.className = 'stage' + (d.quiet ? ' quiet' : '') + (th > 1 ? ' th th' + th : '') + (d.photo ? ' has-today' : '');
+    if (d.photo) stage.style.setProperty('--today', 'url("' + d.photo + '")'); else stage.style.removeProperty('--today');
     $('sch').textContent = d.school;
     $('date').textContent = d.date_label;
     SLIDES = build(d);
-    pagesEl.innerHTML = SLIDES.map(function (s) { return '<section class="pg">' + s.html + '</section>'; }).join('');
+    pagesEl.innerHTML = SLIDES.map(function (s) { return '<section class="pg" data-k="' + s.k + '"><div class="art" aria-hidden="true"></div><div class="pgc">' + s.html + '</div></section>'; }).join('');
     footEl.innerHTML = SLIDES.length > 1 ? SLIDES.map(function (s, i) { return '<div class="seg' + (i ? '' : ' first') + '"><i></i></div>'; }).join('') : '';
     var imgs = pagesEl.getElementsByTagName('img');
     for (var i = 0; i < imgs.length; i++) imgs[i].onerror = photoFailed;
@@ -227,7 +234,7 @@
   }
   function photoFailed() { // 사진을 못 받으면 빈 틀 대신 오늘 메뉴
     var meal = todayMeal(view), pg = this.parentNode;
-    while (pg && pg.className.indexOf('pg ') !== 0 && pg.className !== 'pg') pg = pg.parentNode;
+    while (pg && pg.className !== 'pgc') pg = pg.parentNode;
     if (meal && pg) pg.innerHTML = bigMenuSlides(meal)[0];
   }
   function show(i) {

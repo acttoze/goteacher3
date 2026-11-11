@@ -11,7 +11,9 @@ html, body.tv-body { margin: 0; height: 100%; overflow: hidden; background: var(
 .clock { margin-left: 28px; font-size: 48px; font-weight: 700; color: var(--ink); }
 
 .pages { position: relative; overflow: hidden; }
-.pg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 36px 64px; display: flex; flex-direction: column; opacity: 0; transition: opacity .5s ease; pointer-events: none; }
+.pg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; transition: opacity .5s ease; pointer-events: none; }
+.pgc { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 36px 64px; display: flex; flex-direction: column; }
+.art { display: none; } /* 테마 2~5에서만 그림(tv-themes.css) */
 .pg.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .pg { transition: none; } }
 .pg-h { display: flex; align-items: baseline; flex: none; margin-bottom: 28px; }

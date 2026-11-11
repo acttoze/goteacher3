@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><g fill="none" stroke="#1B1A17" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="300" cy="100" r="48" fill="#FFD23F"/>
+<path d="M300 26v-14M354 46l10-10M374 100h14M246 46l-10-10" />
+<path d="M20 230c90-40 270-40 360 0v150H20z" fill="#6BBF59"/>
+<path d="M70 380l50-140M150 380l30-148M230 380l0-150M300 380l-30-146M360 380l-50-136" stroke-width="8"/>
+<path d="M200 230v-50M200 196c-20-6-28-20-26-36 18 2 26 16 26 36zM200 186c18-8 30-24 28-40-18 4-28 20-28 40z" fill="#6BBF59"/></g></svg>
