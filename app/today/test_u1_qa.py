@@ -29,10 +29,10 @@ class ModesTests(Base):
     def test_day_mode_cards(self):
         rows = rows_of(self.page(self.t4, "day"))
         self.assertNotIn("학교 전체", rows["학교"])
-        self.assertIn("<span>사일 · 4학년</span>", cards_in(rows["학교"])["학년 협의회"])
+        self.assertIn("<span>4학년 · 사일</span>", cards_in(rows["학교"])["학년 협의회"])
         self.assertNotIn('<span class="k">복무</span>', rows["복무"])
         self.assertIn("<span>5학년</span>", cards_in(rows["복무"])["오일 출장"])
-        self.assertIn("<span>오일 · 5학년</span>", cards_in(rows["취합"])["오학년 조사"])
+        self.assertIn("<span>5학년 · 오일</span>", cards_in(rows["취합"])["오학년 조사"])
 
     def test_month_mode_no_scope_or_kind_word(self):
         grid = grid_of(self.page(self.t4, "month"))
@@ -44,7 +44,7 @@ class ModesTests(Base):
         html = self.page(self.t5, "week", tab="group")
         self.assertIn('<div class="legend">', html)
         self.assertNotIn("학교 전체", grid_of(html))
-        self.assertIn("<span>오일 · 5학년</span>", cards_in(html)["오학년만"])
+        self.assertIn("<span>5학년 · 오일</span>", cards_in(html)["오학년만"])
 
     def test_me_tab_has_no_legend(self):
         self.assertNotIn('<div class="legend">', self.page(self.t4, "week", tab="me"))
@@ -69,7 +69,7 @@ class EdgeTests(Base):
         self.ev(bad, "이름 확인")
         html = self.page(self.t5, "week")
         self.assertNotIn("<b>악</b>", html)
-        self.assertIn("&lt;b&gt;악&lt;/b&gt; · 4학년", html)
+        self.assertIn("4학년 · &lt;b&gt;악&lt;/b&gt;", html)
 
     def test_colors_stay_unique_and_reach_duty_and_due(self):
         c = self.as_(self.boss)

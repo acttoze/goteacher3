@@ -293,7 +293,7 @@ class SchoolRegressionTests(TestCase):
         Event.objects.create(space=self.hub, by=self.t4, date=today, title="학교행사", scope=ALL)
         Event.objects.create(space=self.hub, by=self.t4, date=today, title="사학년협의", scope="g4")
         html = as_(self.t5.user).get(f"/s/{self.hub.token}/schedule").content.decode()
-        self.assertIn("사일 · 4학년", html)
+        self.assertIn("4학년 · 사일", html)
         self.assertNotIn("사학년협의", "".join(as_(self.t5.user).get(f"/s/{self.hub.token}/schedule", {"tab": t}).content.decode()
                                           for t in ("school", "group", "me")))
         self.assertIn('data-ph-g5="5학년 · 제목 쓰고 Enter"', html)

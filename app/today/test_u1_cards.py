@@ -36,7 +36,7 @@ class CardTests(Base):
         self.ev(self.t4, "학년 협의회", slot="b2")
         row = rows_of(self.page(self.t5, "week"))["학교"]
         c = cards_in(row)["학년 협의회"]
-        self.assertIn("<span>사일 · 4학년</span>", c)
+        self.assertIn("<span>4학년 · 사일</span>", c)
         self.assertIn(f'--gc:{HEX["green"]}', c)  # g4 기본 색
         self.assertNotIn("학교 전체", row)
         self.assertNotIn("mine", c.split(">")[0])
@@ -45,7 +45,7 @@ class CardTests(Base):
         self.ev(self.t4, "학년 회의", scope="g4")
         self.ev(self.t4, "혼자 할 일", scope=ME)
         g = self.page(self.t4, "week", tab="group")
-        self.assertIn("<span>사일 · 4학년</span>", cards_in(g)["학년 회의"])
+        self.assertIn("<span>4학년 · 사일</span>", cards_in(g)["학년 회의"])
         self.assertNotIn('class="rest">· 4학년', g)  # 범위(4학년)를 따로 찍지 않는다
         m = self.page(self.t4, "week", tab="me")
         self.assertNotIn("개인(나만)", cards_in(m)["혼자 할 일"])
@@ -78,7 +78,7 @@ class CardTests(Base):
         self.due(self.t5, "오학년 조사")
         c = cards_in(rows_of(self.page(self.t4, "week"))["취합"])["오학년 조사"]
         self.assertIn('<span class="k">마감</span>', c)
-        self.assertIn("<span>오일 · 5학년</span>", c)
+        self.assertIn("<span>5학년 · 오일</span>", c)
         self.assertIn(f'--gc:{HEX["teal"]}', c)
 
     def test_neis_marked_auto(self):
@@ -94,7 +94,7 @@ class CardTests(Base):
         self.ev(self.t4, "월간 일정")
         html = self.page(self.t5, "month")
         self.assertRegex(html, r'<span class="t"><i class="dot" style="--gc:' + HEX["green"] + r'"[^>]*></i>월간 일정</span>')
-        self.assertNotIn("<span>사일 · 4학년</span>", html)
+        self.assertNotIn("<span>4학년 · 사일</span>", html)
 
     def test_legend_groups_with_people(self):
         html = self.page(self.t4, "week")
@@ -132,7 +132,7 @@ class TodayTests(Base):
         self.ev(self.t5, "오늘 행사")
         self.ev(self.t4, "내 행사", slot="b1")
         html = self.today(self.t4)
-        self.assertIn("<span>오일 · 5학년</span>", html)
+        self.assertIn("<span>5학년 · 오일</span>", html)
         grid = html[html.index('id="dgrid"'):html.index("<!-- /dgrid -->")]
         self.assertNotIn("학교 전체", grid)
         self.assertIn('<span class="mine-tag">내 글</span>', html)

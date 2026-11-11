@@ -108,10 +108,10 @@ def _now_slot(now):
 
 
 def who_of(m, hexes, names):
-    """U1 카드 아래 줄의 사람: ('이름 · 소속', 소속 색). 소속이 없으면(동학년·기관 미배정) 이름만, 점 없음. names: space.group_names."""
+    """U1 카드 아래 줄의 사람: ('소속 · 이름', 소속 색). 소속이 없으면(동학년·기관 미배정) 이름만, 점 없음. names: space.group_names."""
     if m is None:
         return "", ""
-    return " · ".join(x for x in (m.name, names.get(m.group, "")) if x), hexes.get(m.group, "")
+    return " · ".join(x for x in (names.get(m.group, ""), m.name) if x), hexes.get(m.group, "")
 
 
 def _ev_item(e, me, today, hexes, names):
