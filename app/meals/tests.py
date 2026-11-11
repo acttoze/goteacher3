@@ -153,7 +153,7 @@ class AccessTests(Base):
 
 class MenuLinkTests(Base):
     def test_menu_only_for_manager_and_designated_in_school(self):
-        link = f'href="{self.base}"'
+        link = f'href="{self.base}/screens"'  # 사이드바는 TV 화면 탭부터(11/11)
         today = f"/s/{self.hub.token}/today"
         self.assertContains(self.manager.get(today), link)
         self.assertContains(self.writer.get(today), link)

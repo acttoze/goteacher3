@@ -175,7 +175,7 @@ class AccessQa(QaBase):
 
     def test_menu_shown_when_expired_for_designated_only(self):
         self.expire()
-        link = f'href="{self.base}"'
+        link = f'href="{self.base}/screens"'
         today = f"/s/{self.hub.token}/today"
         self.assertContains(self.writer.get(today), link)
         self.assertNotContains(self.teacher.get(today), link)

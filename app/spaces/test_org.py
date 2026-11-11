@@ -371,7 +371,7 @@ class SchoolRegressionTests(TestCase):
         for path in ("/school", "/school/duties", "/school/attendance", "/it", "/meals"):
             self.assertEqual(c.get(base + path).status_code, 200, path)
         html = c.get(base + "/today").content.decode()
-        for href in ("/school", "/meals", "/it"):
+        for href in ("/school", "/meals/screens", "/it"):
             self.assertIn(f'href="{base}{href}"', html)
         self.assertIn(">학</span>", html)
         self.assertIn("점심 12:20", html)

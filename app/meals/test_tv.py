@@ -482,3 +482,20 @@ class ThemeTests(TvBase):
             self.assertTrue((STATIC / ref).exists(), ref)
         for no in content.THEME_NOS:
             self.assertTrue((STATIC / "tv" / "thumb" / f"{no}.jpg").exists())
+
+
+class DefaultTabTests(TvBase):
+    """11/11: 사이드바 '급식'은 TV 화면 탭으로, 오늘의 식사 줄의 '사진 올리기'는 이번 주 사진 탭으로."""
+    def test_sidebar_opens_tv_tab_first(self):
+        html = self.writer.get(f"/s/{self.hub.token}/today").content.decode()
+        self.assertIn(f'href="{self.base}/screens"><svg', html)
+        html = self.writer.get(f"{self.base}/screens").content.decode()
+        tabs = html[html.index('class="tabs mtabs"'):]
+        self.assertLess(tabs.index("TV 화면"), tabs.index("이번 주 사진"))
+
+    def test_photo_row_has_upload_button_to_photo_tab(self):
+        html = self.writer.get(f"{self.base}/screens").content.decode()
+        row = html[html.index("오늘의 식사"):]
+        row = row[:row.index("</tr>")]
+        self.assertIn(f'href="{self.base}">사진 올리기</a>', row)
+        self.assertEqual(html.count("사진 올리기</a>"), 1)
