@@ -52,22 +52,28 @@ class TodayTests(Base):
         n = self.notice()
         body = login(self.t.user).get(f"{self.base}/today").content.decode()
         self.assertIn(f'<a class="btn pri" href="{self.base}/board/{n.key}/">공지 확인하기</a>', body)
-        self.assertLess(body.index('id="todoH"'), body.index('id="dayH"'))
+        self.assertLess(body.index('data-open="#dlgTodo"'), body.index('id="dayH"'))  # 숫자 단추는 일과 위(2026-11-11)
 
-    def test_nothing_to_do_keeps_day_first(self):
+    def test_count_buttons_above_week_open_lists_with_more(self):
+        """2026-11-11: 바뀐 것·낼 것·걷는 것은 일과 위 숫자 단추, 누르면 목록 창, 창 아래 더보기는 그 페이지로."""
         body = login(self.t.user).get(f"{self.base}/today").content.decode()
-        self.assertLess(body.index('id="dayH"'), body.index('id="todoH"'))
         self.assertIn("오늘 마감 없음", body)
+        for dlg, more in (("dlgFeed", f"{self.base}/schedule"), ("dlgTodo", f"{self.base}/c/?tab=todo"), ("dlgSent", f"{self.base}/c/?tab=sent")):
+            self.assertLess(body.index(f'data-open="#{dlg}"'), body.index('id="dayH"'))
+            box = body[body.index(f'id="{dlg}"'):]
+            box = box[:box.index('class="scrim"') if 'class="scrim"' in box else len(box)]
+            self.assertIn(f'<a class="btn sec" href="{more}">더보기</a>', box)
 
     def _events(self, space, by, n=6):
         for i in range(n):
             Event.objects.create(space=space, date=timezone.localdate(), title=f"일정{i}", scope="all", by=by)
 
-    def test_feed_four_then_more_only_in_school(self):
+    def test_feed_dialog_lists_all_with_count(self):
+        """창 안에서는 4개로 자르지 않고 모두(2026-11-11). 단추 숫자 = 목록 수."""
         self._events(self.hub, self.boss)
         body = login(self.t.user).get(f"{self.base}/today").content.decode()
-        self.assertEqual(body.split('id="feed"')[1].split("</ul>")[0].count("<li"), 4)
-        self.assertIn('class="feed-more"', body)
+        self.assertEqual(body.split('id="feed"')[1].split("</ul>")[0].count("<li"), 6)
+        self.assertRegex(body, r'data-open="#dlgFeed"[^>]*><span>[^<]*</span><b class="num">6</b>')
 
     def test_grade_space_is_unchanged(self):
         grade = Space.objects.create(school=self.school, grade=4, name="4학년")
@@ -75,8 +81,7 @@ class TodayTests(Base):
         self._events(grade, m)
         body = login(m.user).get(f"/s/{grade.token}/today").content.decode()
         self.assertEqual(body.split('id="feed"')[1].split("</ul>")[0].count("<li"), 6)
-        self.assertNotIn("더 보기", body)
-        self.assertLess(body.index('id="dayH"'), body.index('id="todoH"'))
+        self.assertLess(body.index('data-open="#dlgTodo"'), body.index('id="dayH"'))
 
 
 class SchoolTests(Base):

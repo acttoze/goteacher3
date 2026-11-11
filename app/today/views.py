@@ -194,11 +194,19 @@ def _live_ctx(request, now):
     rows = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
              "time": f"{s['from']}~{'' if s['k'] == 'pm' else s['to']}",
              "cells": [{"today": d == today, "events": on_day(d, s["k"])} for d in days]} for s in SLOTS]
-    return {"heads": heads, "untimed_cells": untimed, "slot_rows": rows, "now_slot": now_slot,
+    todo = _todo_items(request, now)
+    must = list(notice_seen.must_todo(space, me)) if space.is_school else []
+    mine = (Collection.objects.in_space(space).filter(created_by=me)
+            .select_related("space__school", "created_by").order_by("-created_at"))
+    colors = _colors(space)
+    sent = [_sent_item(c, now, colors) for c in mine if not _past(c, now)]
+    return {"todo": todo, "n_todo": len(todo), "must_list": must, "n_must": len(must), "n_mine": len(todo) + len(must),
+            "urgent": next((x for x in todo if x["urgent"]), None), "sent": sent,
+            "heads": heads, "untimed_cells": untimed, "slot_rows": rows, "now_slot": now_slot,
             "week_title": "다음 주 일과" if mon > today else "이번 주 일과", "week_label": schedule._label(mon, on),
             "events": events, "n_events": len(events), "meal": _meal(space, today), "has_today": first <= today <= last,
             "neis_empty": not neis.failed(sched) and not neis_by, "neis_fail": neis.failed(sched),
-            "feed": _feed(space, me, now, _colors(space)), "slot_choices": SLOTS, "today_iso": today.isoformat(),
+            "feed": _feed(space, me, now, colors), "slot_choices": SLOTS, "today_iso": today.isoformat(),
             "scope_choices": scope_choices(me)}
 
 
@@ -230,20 +238,11 @@ def _notices_wide(request):
 def _page_ctx(request):
     now = timezone.now()
     local = timezone.localtime(now)
-    todo = _todo_items(request, now)
-    colors = _colors(request.space)
-    mine = (Collection.objects.in_space(request.space).filter(created_by=request.member)
-            .select_related("space__school", "created_by").order_by("-created_at"))
-    sent = [_sent_item(c, now, colors) for c in [c for c in mine if not _past(c, now)][:3]]
     wide = request.space.is_school and request.GET.get("show") == "school"
     duty = wide and not request.space.is_org  # 기관은 복무가 없다(T1)
-    must = list(notice_seen.must_todo(request.space, request.member)) if request.space.is_school else []
-    return _space_ctx(request, page="today", quick=True, todo=todo[:4], n_todo=len(todo),
-                      must_list=must[:4], n_must=len(must), n_mine=len(todo) + len(must),
-                      show_school=wide, school_wide=_school_wide(request, now) if wide else [],
+    return _space_ctx(request, page="today", quick=True, show_school=wide, school_wide=_school_wide(request, now) if wide else [],
                       notices_wide=_notices_wide(request) if wide else [],
                       attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if duty else [],
-                      urgent=next((x for x in todo if x["urgent"]), None), sent=sent,
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",
                       weekend=local.weekday() >= 5, first=SLOTS[0], **_live_ctx(request, now))
 

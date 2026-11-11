@@ -1,6 +1,11 @@
-{# 이번 주 일과 + 동학년 바뀐 것. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다. 나이스 학사일정은 종일 줄에 함께(U1). #}
-<div class="grid stretch" id="live"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
-  <section class="card s12" aria-labelledby="dayH">
+{# 숫자 단추(바뀐 것·낼 것·걷는 것, 누르면 목록 창) + 이번 주 일과. 한 줄 입력·고치기·지우기 뒤 htmx가 통째로 바꾼다. 나이스 학사일정은 종일 줄에 함께(U1). #}
+<div id="live"{% if toast %} data-toast-now="{{ toast }}"{% endif %}>
+  <div class="sum" role="group" aria-label="내 일 요약">
+    <button type="button" class="sum-b" data-open="#dlgFeed" aria-haspopup="dialog"><span>{% if space.is_school %}나와 관련된{% else %}{{ space_word }}{% endif %} 바뀐 것</span><b class="num">{{ feed|length }}</b></button>
+    <button type="button" class="sum-b{% if urgent %} hot{% endif %}" data-open="#dlgTodo" aria-haspopup="dialog"><span>내가 낼 것{% if must_list %} · 확인할 것{% endif %}</span><b class="num">{{ n_mine }}</b></button>
+    <button type="button" class="sum-b" data-open="#dlgSent" aria-haspopup="dialog"><span>내가 걷는 것</span><b class="num">{{ sent|length }}</b></button>
+  </div>
+  <section class="card" aria-labelledby="dayH">
     <div class="card-h"><h2 id="dayH">{{ week_title }}</h2><span class="n num">{{ n_events }}</span><span class="r">{{ week_label }} · {% if space.is_school %}내가 쓴 일정을{% else %}일정을{% endif %} 누르면 날짜·블록·장소를 바꿔요 <a class="tlink" href="/s/{{ space.token }}/schedule">더보기</a></span></div>
     <div class="day"><div class="dgrid" id="dgrid" style="--n:{{ heads|length }}">
       <div class="lbl hd"></div>
@@ -35,13 +40,14 @@
     </div>
     {% endfor %}
   </section>
-  <section class="card s12" aria-labelledby="feedH">
-    <div class="card-h"><h2 id="feedH">{% if space.is_school %}나와 관련된{% else %}{{ space_word }}{% endif %} 바뀐 것</h2><span class="r">어제부터</span></div>
-    <ul class="list feed" id="feed">
-      {% for f in feed %}{% if not space.is_school or forloop.counter <= 4 %}{% include "today/_feed_item.html" %}{% endif %}
+  <div class="scrim" id="dlgFeed" hidden><div class="dialog wide lst" role="dialog" aria-modal="true" aria-labelledby="feedH">
+    <div class="dh"><h2 id="feedH">{% if space.is_school %}나와 관련된{% else %}{{ space_word }}{% endif %} 바뀐 것</h2><span class="n num">{{ feed|length }}</span><span class="muted">어제부터</span></div>
+    <div class="db"><ul class="list feed" id="feed">
+      {% for f in feed %}{% include "today/_feed_item.html" %}
       {% empty %}<li class="none"><p class="empty">어제부터 바뀐 일정이 없어요. 위 칸에 한 줄로 쓰면 {% if space.is_school %}고른 분들에게{% else %}{{ space_word }} 모두에게{% endif %} 보여요.</p></li>{% endfor %}
-    </ul>
-    {% if space.is_school and feed|length > 4 %}<details class="feed-more"><summary class="btn ghost sm">더 보기 <span class="num">{{ feed|length|add:"-4" }}</span></summary><ul class="list feed">{% for f in feed|slice:"4:" %}{% include "today/_feed_item.html" %}{% endfor %}</ul></details>{% endif %}
-  </section>
+    </ul></div>
+    <div class="df"><a class="btn sec" href="/s/{{ space.token }}/schedule">더보기</a><button class="btn pri" type="button" data-close>닫기</button></div>
+  </div></div>
+{% include "today/_mine.html" %}
 </div>
 {% if oob %}<div class="pop qpop" id="qpop" hidden hx-swap-oob="true"></div>{% endif %}
