@@ -7,7 +7,7 @@
 - 칸이 곧 볼 사람: 학교 탭 all, 그룹 탭 내 소속, 개인 탭 me(today.views.add가 확인). 복무 칸은 누구나 '이름 유형 [시간]'(duty_add).
 - 취합은 일정에 없다(U3, 2026-11-11 사용자 결정): 취합 줄·마감 카드·마감 수·마감 목록 모두 없음. 마감은 오늘 화면·취합 메뉴에서 본다.
 - 필터(학교 탭·동학년 채널만)는 schedule.js가 data-ch를 보고 숨긴다(서버는 표시만).
-- 모드는 ?mode=, 마지막 모드는 쿠키(gt_sched_mode). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
+- 모드는 ?mode=. 메뉴에서 열면 늘 주간(마지막 모드를 기억하지 않는다, 2026-11-11 사용자 요청). 보고 있는 날은 ?w=(일간 그날, 주간 월요일, 월간 1일).
 - 칸 안 추가·고치기·지우기는 G1 뷰(today.views)를 그대로 쓴다. view=week로 부르면 지금 탭·모드·날짜의 판(_week.html)을 돌려준다.
 - 바뀐 것 목록: 보고 있는 날·주·달의 것만(탭과 무관).
 - 인쇄는 print_view, 주간계획 표 붙여넣기는 week_paste(둘 다 학교 공간만, H6). 블록 끌기는 R3.
@@ -40,7 +40,6 @@ from .parse import SLOT_KEYS, SLOTS
 WD = "월화수목금토일"
 MONTH_DOW = "일월화수목금토"
 MODES = ("day", "week", "month")
-MODE_COOKIE = "gt_sched_mode"
 TAB_COOKIE = "gt_sched_tab"
 MODE_AGE = 365 * 86400
 
@@ -104,7 +103,7 @@ def month_grid(first):
 
 
 def read_mode(request):
-    raw = request.POST.get("mode") or request.GET.get("mode") or request.COOKIES.get(MODE_COOKIE)
+    raw = request.POST.get("mode") or request.GET.get("mode")
     return raw if raw in MODES else "week"
 
 
@@ -337,8 +336,6 @@ def board_ctx(request, mode, raw):
 
 def _set_cookies(request, r):
     secure = settings.SITE_URL.startswith("https://")
-    if request.GET.get("mode") in MODES:
-        r.set_cookie(MODE_COOKIE, request.GET["mode"], max_age=MODE_AGE, httponly=True, samesite="Lax", secure=secure)
     if request.GET.get("tab") in [k for k, _ in tabs(request)]:
         r.set_cookie(TAB_COOKIE, request.GET["tab"], max_age=MODE_AGE, httponly=True, samesite="Lax", secure=secure)
 

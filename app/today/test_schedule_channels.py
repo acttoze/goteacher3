@@ -205,8 +205,7 @@ class TabTests(Base):
         self.assertEqual(r.cookies["gt_sched_tab"].value, "me")
         html = c.get(f"{self.base}/schedule").content.decode()
         self.assertIn('data-tab="me"', html)
-        self.assertIn('data-mode="month"', html)
-        self.assertIn('class="mgrid plain"', html)
+        self.assertIn('data-mode="week"', html)  # 모드는 기억하지 않는다(메뉴로 열면 주간, 2026-11-11)
 
     def test_redraw_after_write_keeps_tab_mode_date(self):
         for tab, scope in (("group", "g4"), ("me", ME), ("school", ALL)):

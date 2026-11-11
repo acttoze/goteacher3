@@ -146,7 +146,7 @@ class TodayTests(TestCase):
         self.sched.return_value = []
         r = self.client.get(self.url())
         self.assertContains(r, "오늘 급식 정보가 없어요")
-        self.assertContains(r, "오늘 학사일정이 없어요")
+        self.assertContains(r, "이 주 학사일정이 없어요")  # 2026-11-11 오늘 → 주간
         self.assertNotContains(r, "불러오지 못했어요")
 
     def test_neis_failure_differs_from_empty(self):

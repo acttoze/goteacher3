@@ -8,32 +8,26 @@
   h1 .due { color: var(--accent); }
   .title h1 { font-size: 32px; }
 
-  /* 블록 일과판 */
+  /* 이번 주 일과판(2026-11-11 오늘 → 주간): 켠 요일 열 × 종일·블록 줄. 요일 칸이 좁지 않게 가로 전체, 바뀐 것은 그 아래 */
   .day { padding: 0 var(--pad) var(--pad); flex: 1; display: flex; flex-direction: column; }
-  .dgrid { display: grid; grid-template-columns: 96px 1fr 1fr 1fr 1fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 1; }
-  .dgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px 12px; min-width: 0; position: relative; }
-  .dgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--ink); font-weight: 700; }
+  .day .note { margin: 10px 0 0; font-size: var(--fs-small); color: var(--muted); }
+  .dgrid { display: grid; grid-template-columns: 116px repeat(var(--n, 5), minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 1; }
+  .dgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 8px; min-width: 0; min-height: 56px; position: relative; }
+  .dgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--ink); font-weight: 700; padding: 8px 10px; }
+  .dgrid > .lbl span { display: block; font-weight: 400; color: var(--faint); white-space: nowrap; }
+  .dgrid > .lbl.now { color: var(--accent-ink); }
   .dgrid > .lbl, .dgrid > .hd { background: var(--u1-head); border-color: var(--u1-head-line); } /* U1 머리줄·줄 이름 칸 */
-  .dgrid > .hd { border-top: 0; }
+  .dgrid > .hd { border-top: 0; min-height: 0; }
   .hd b { display: block; font-size: 16px; }
   .hd span { font-size: var(--fs-small); color: var(--muted); }
   .hd.now b { color: var(--accent-ink); }
-  .dgrid > .hd.col-now { background: var(--u1-head-today); } /* 지금은 머리 칸만 표시, 칸 바탕은 흰색 그대로 */
-  .span4 { grid-column: 2 / span 4; display: flex; align-items: center; gap: 14px; font-size: 15px; flex-wrap: wrap; }
-  .span4 .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+  .dgrid > .hd.col-now { background: var(--u1-head-today); } /* 오늘은 머리 칸만 표시, 칸 바탕은 흰색 그대로 */
+  .span-all { grid-column: 2 / -1; display: flex; align-items: center; gap: 14px; font-size: 15px; flex-wrap: wrap; }
+  .span-all .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
   .lunch b { font-weight: 700; white-space: nowrap; }
   .lunch .dish { flex: 1 1 0; min-width: 0; }
   .lunch .alg { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); margin-top: -6px; }
-  .untimed { grid-column: 2 / span 4; display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; font-size: 15px; }
-  .untimed > div { flex: 1 1 260px; }
-  .untimed > .neis-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 24px; }
-  .untimed > .neis-row .ev.neis { width: auto; margin: 0; }
-  .untimed > .neis-row .ev.neis .t { display: inline; margin-right: 8px; }
-  .untimed .muted { font-size: var(--fs-small); }
-  .bprog { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-  .bprog i { flex: 1; height: 6px; border-radius: 999px; background: var(--accent-track); overflow: hidden; }
-  .bprog i b { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
-  .bprog span { font-size: var(--fs-small); font-weight: 700; color: var(--accent); }
+  .untimed .ev.neis .t { font-size: var(--fs-small); }
 
   /* 낼 것 */
   .todo { padding: 0 var(--pad) 8px; }

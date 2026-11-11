@@ -4,7 +4,7 @@
 - 격리: 세 모드 모두 reachable_q, 다른 공간은 404. 칸 추가도 공간 안에서만.
 - 칸이 날짜·블록을 이긴다. 장소·대상·제목은 한 줄 파서 결과.
 - 저장·고치기·지우기 뒤 지금 모드·지금 날짜를 그대로 다시 그린다.
-- 마지막 모드는 쿠키(gt_sched_mode, 1년, HttpOnly). 칸 추가는 schedule.js(인라인 금지).
+- 모드는 기억하지 않는다: 메뉴에서 열면 늘 주간(2026-11-11). 칸 추가는 schedule.js(인라인 금지).
 """
 import re
 from datetime import date, datetime, timedelta
@@ -267,25 +267,17 @@ class ModeTests(Base):
         self.assertIn(f"{base}/paste?w=2026-11-02", month)  # 11/1은 일요일 → 그 달 첫 평일
 
     # ---------- 쿠키 ----------
-    def test_cookie_remembers_mode(self):
+    def test_menu_always_opens_week(self):
+        """2026-11-11 사용자 요청: 다른 모드를 보다가도 메뉴(?mode 없음)로 열면 주간. 모드 쿠키는 쓰지 않는다."""
         r = self.client.get(self.url(), {"mode": "month"})
-        c = r.cookies["gt_sched_mode"]
-        self.assertEqual(c.value, "month")
-        self.assertEqual(c["max-age"], 365 * 86400)
-        self.assertTrue(c["httponly"])
-        self.assertEqual(c["samesite"], "Lax")
-        again = self.client.get(self.url())
-        self.assertContains(again, 'data-mode="month"')
-        self.assertNotIn("gt_sched_mode", again.cookies)
-        self.assertContains(self.client.get(self.url(), {"mode": "day"}), 'data-mode="day"')
-        self.assertContains(self.client.get(self.url()), 'data-mode="day"')
+        self.assertContains(r, 'data-mode="month"')
+        self.assertNotIn("gt_sched_mode", r.cookies)
+        self.client.cookies["gt_sched_mode"] = "day"  # 예전에 남은 쿠키도 무시
+        self.assertContains(self.client.get(self.url()), 'data-mode="week"')
 
     def test_bad_mode_and_bad_date(self):
         r = self.client.get(self.url(), {"mode": "<x>"})
         self.assertContains(r, 'data-mode="week"')
-        self.assertNotIn("gt_sched_mode", r.cookies)
-        self.client.cookies["gt_sched_mode"] = "<x>"
-        self.assertContains(self.client.get(self.url()), 'data-mode="week"')
         for mode in ("day", "week", "month"):
             for bad in ("x", "2026-02-30", "99999-01-01", "1800-01-01"):
                 self.assertEqual(self.client.get(self.url(), {"mode": mode, "w": bad}).status_code, 200)

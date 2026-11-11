@@ -1,6 +1,6 @@
 """G1 간이 '오늘'. 모습은 design/today.html, 동작은 prototype/assets/app.js today()·한 줄 입력(TR.parse·TR.conflicts).
 
-- 오늘 일과: 블록(prototype 기본 시간표) × 동학년 일정, NEIS 학사일정·점심(메뉴·알레르기·칼로리), 종일.
+- 이번 주 일과(2026-11-11 오늘 → 주간): 켠 요일 × 종일·블록(prototype 기본 시간표) × 동학년 일정, NEIS 학사일정·점심(메뉴·알레르기·칼로리), 종일.
 - 동학년 바뀐 것: 어제부터 올리거나 바꾼 일정(오늘 이후 것만), 누가 무엇을 바꿨는지.
 - 내가 낼 것·내가 걷는 것: collect.lists의 판정을 그대로 쓴다. 학교 공간은 확인 필수 안 본 공지도 함께(notices.seen, I2).
 - 학교 공간(H5): 일정 대상(models.scope), 고치기·지우기는 쓴 사람과 관리자만, 나에게 온 것 / 학교 전체 토글.
@@ -168,22 +168,36 @@ def _meal(space, today):
 
 
 def _live_ctx(request, now):
-    """오늘 일과 + 동학년 바뀐 것(htmx로 다시 그리는 부분)."""
+    """이번 주 일과(2026-11-11 사용자 요청: 오늘 → 주간) + 동학년 바뀐 것(htmx로 다시 그리는 부분).
+    칸은 켠 요일(Q1) × 종일·블록. 주는 일정 화면 주간과 같다(켠 마지막 요일이 지나면 다음 주)."""
     space, me = request.space, request.member
     today = timezone.localdate(now)
     hexes, names = space.group_hex, space.group_names
+    on = sorted(me.shown_days)
+    mon = schedule.this_monday(today, max(on))
+    days = [mon + timedelta(days=i) for i in on]
+    first, last = days[0], days[-1]
     events = [_ev_item(e, me, today, hexes, names) for e in
-              _on_day(with_counts(Event.objects.in_space(space).filter(my_range_q(me)).exclude(scope__in=me.off_lines)), today)
+              with_counts(Event.objects.in_space(space).filter(my_range_q(me)).exclude(scope__in=me.off_lines))
+              .filter(date__lte=last).filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first))
               .select_related("by", "changed_by", "space").order_by("slot", "created_at")]
-    now_slot, pct = _now_slot(timezone.localtime(now))
-    cols = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
+    sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{first:%Y%m%d}", f"{last:%Y%m%d}")
+    neis_by = {}
+    for x in ([] if neis.failed(sched) else sched):
+        neis_by.setdefault(x["ymd"], []).append(x["name"])
+    now_slot, _ = _now_slot(timezone.localtime(now))
+
+    def on_day(d, k):
+        return [x for x in events if x["e"].date <= d <= x["e"].last_day and x["e"].slot == k]
+    heads = [{"d": d, "wd": WD[d.weekday()], "md": f"{d.month}/{d.day}", "today": d == today} for d in days]
+    untimed = [{"today": d == today, "neis": neis_by.get(f"{d:%Y%m%d}", []), "events": on_day(d, "")} for d in days]
+    rows = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
              "time": f"{s['from']}~{'' if s['k'] == 'pm' else s['to']}",
-             "events": [x for x in events if x["e"].slot == s["k"]]} for s in SLOTS]
-    sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{today:%Y%m%d}", f"{today:%Y%m%d}")
-    return {"cols": cols, "now_slot": now_slot, "pct": pct, "now_hm": f"{timezone.localtime(now):%H:%M}",
-            "events": events, "untimed": [x for x in events if not x["e"].slot],
-            "n_events": len(events), "meal": _meal(space, today),
-            "neis_names": [x["name"] for x in sched], "neis_fail": neis.failed(sched),
+             "cells": [{"today": d == today, "events": on_day(d, s["k"])} for d in days]} for s in SLOTS]
+    return {"heads": heads, "untimed_cells": untimed, "slot_rows": rows, "now_slot": now_slot,
+            "week_title": "다음 주 일과" if mon > today else "이번 주 일과", "week_label": schedule._label(mon, on),
+            "events": events, "n_events": len(events), "meal": _meal(space, today), "has_today": first <= today <= last,
+            "neis_empty": not neis.failed(sched) and not neis_by, "neis_fail": neis.failed(sched),
             "feed": _feed(space, me, now, _colors(space)), "slot_choices": SLOTS, "today_iso": today.isoformat(),
             "scope_choices": scope_choices(me)}
 
