@@ -146,7 +146,7 @@ class TodayTests(TestCase):
         self.sched.return_value = []
         r = self.client.get(self.url())
         self.assertContains(r, "오늘 급식 정보가 없어요")
-        self.assertContains(r, "이 주 학사일정이 없어요")  # 2026-11-11 오늘 → 주간
+        self.assertNotContains(r, "학사일정이 없어요")  # 2026-11-15 오늘 하루 판: 없으면 조용히
         self.assertNotContains(r, "불러오지 못했어요")
 
     def test_neis_failure_differs_from_empty(self):
@@ -343,8 +343,9 @@ class TodayTests(TestCase):
     def test_now_block_marked_in_grid(self):
         self.ev(title="수업공개", slot="b2", slot_end="b2", place="4-2 교실")
         html = self.client.get(self.url()).content.decode()
-        self.assertIn("2블록 · 지금", html)
-        self.assertIn("수업공개", html)
+        self.assertIn("지금 <b>2블록", html)  # 지금 블록은 제목 아래 줄, 판은 채널 줄(2026-11-15)
+        grid = html[html.index('id="dgrid"'):html.index("<!-- /dgrid -->")]
+        self.assertRegex(grid, r'<span class="t">수업공개</span>.*2블록')
 
     def test_timezone_is_seoul(self):
         self.assertEqual(timezone.localdate(), TODAY)

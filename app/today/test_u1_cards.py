@@ -106,9 +106,10 @@ class TodayTests(Base):
 
     def test_neis_inside_untimed_row(self):
         html = self.today(self.t4)
-        self.assertEqual(re.findall(r'<div class="lbl">([^<]+)</div>', html), ["종일", "오늘 점심 12:20"])  # 2026-11-11 주간 판
-        untimed = html[html.index('class="untimed"'):]
-        self.assertRegex(untimed, r'<span class="t">독서주간 골든벨</span><span class="auto"')
+        # 2026-11-15 오늘 하루 판: 일정 화면과 같은 채널 줄 + 내 소속·개인, 맨 아래 점심
+        self.assertEqual(re.findall(r'<div class="lbl"[^>]*>([^<]+)', html), ["학교", "4학년", "개인", "복무", "점심"])
+        school = html[html.index('<div class="row" data-ch="school"'):]
+        self.assertRegex(school[:school.index('<div class="lbl"')], r'<span class="t">독서주간 골든벨</span><span class="m"><span class="auto"')
 
     def test_neis_failure_and_empty_inside_untimed(self):
         from unittest import mock
@@ -116,10 +117,11 @@ class TodayTests(Base):
         from spaces import neis
         with mock.patch("spaces.neis.schedule", return_value=neis.Failed()):
             day = self.today(self.t4).split('id="dgrid"')[1]
-        self.assertIn("나이스에서 불러오지 못했어요", day)  # 주간 판 바로 아래 안내(2026-11-11)
+        self.assertIn("나이스에서 불러오지 못했어요", day)  # 판 바로 아래 안내
         with mock.patch("spaces.neis.schedule", return_value=[]):
             day = self.today(self.t4).split('id="dgrid"')[1]
-        self.assertIn("이 주 학사일정이 없어요", day)
+        self.assertNotIn("학사일정이 없어요", day)  # 오늘 하루 판(2026-11-15): 없으면 조용히
+        self.assertNotIn("불러오지 못했어요", day)
 
     def test_today_card_writer_group(self):
         self.ev(self.t5, "오늘 행사")

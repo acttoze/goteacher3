@@ -58,7 +58,7 @@ class MoreLinkTests(Base):
         html = self.client.get(f"/s/{self.a.token}/today").content.decode()
         head = html[html.index('id="dayH"'):]
         head = head[:head.index('class="day"')]
-        self.assertIn(f'<a class="tlink" href="{self.url()}">더보기</a>', head)
+        self.assertIn(f'<a class="tlink" href="{self.url()}?mode=day">더보기</a>', head)  # 오늘 하루 판 → 일정 일간
 
     def test_link_stays_after_htmx_redraw(self):
         e = Event.objects.create(space=self.a, by=self.me, date=TODAY, title="지울 일")

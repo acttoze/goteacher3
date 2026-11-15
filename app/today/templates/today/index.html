@@ -1,33 +1,44 @@
-{% extends "shell.html" %}
+{% extends "shell.html" %}{% load static %}
 {% block title %}오늘 · 고티처{% endblock %}
 {% block ptitle %}오늘{% endblock %}
 {% block head %}
+<script src="{% static 'js/schedule.js' %}" defer></script>
 <style>
 {% include "today/_ev_css.html" %}
   /* design/today.html — 오늘 내가 놓치면 안 되는 것과, 함께 쓰는 사람들은 지금 무엇을 하나? 위 줄 8/4, 아래 줄 7/5. */
   h1 .due { color: var(--accent); }
   .title h1 { font-size: 32px; }
 
-  /* 이번 주 일과판(2026-11-11 오늘 → 주간): 켠 요일 열 × 종일·블록 줄. 요일 칸이 좁지 않게 가로 전체, 바뀐 것은 그 아래 */
+  /* 오늘 일과판(2026-11-15 주간 → 오늘 하루): 일정 화면 일간과 같은 채널 줄 × 오늘 한 칸. 칸 안 카드는 가로로 늘어서고, 남은 자리는 ＋ */
   .day { padding: 0 var(--pad) var(--pad); flex: 1; display: flex; flex-direction: column; }
   .day .note { margin: 10px 0 0; font-size: var(--fs-small); color: var(--muted); }
-  .dgrid { display: grid; grid-template-columns: 116px repeat(var(--n, 5), minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 1; }
-  .dgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 8px; min-width: 0; min-height: 56px; position: relative; }
-  .dgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--ink); font-weight: 700; padding: 8px 10px; }
+  .dgrid { display: grid; grid-template-columns: 116px minmax(0, 1fr); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .dgrid > div { border-left: 1px solid var(--line); border-top: 1px solid var(--line); padding: 10px; min-width: 0; min-height: 64px; position: relative; }
+  .dgrid > div:nth-child(-n+2) { border-top: 0; }
+  .dgrid > .lbl { border-left: 0; font-size: var(--fs-small); color: var(--ink); font-weight: 700; padding: 10px; background: var(--u1-head); border-color: var(--u1-head-line); display: flex; flex-direction: column; justify-content: center; }
   .dgrid > .lbl span { display: block; font-weight: 400; color: var(--faint); white-space: nowrap; }
-  .dgrid > .lbl.now { color: var(--accent-ink); }
-  .dgrid > .lbl, .dgrid > .hd { background: var(--u1-head); border-color: var(--u1-head-line); } /* U1 머리줄·줄 이름 칸 */
-  .dgrid > .hd { border-top: 0; min-height: 0; }
-  .hd b { display: block; font-size: 16px; }
-  .hd span { font-size: var(--fs-small); color: var(--muted); }
-  .hd.now b { color: var(--accent-ink); }
-  .dgrid > .hd.col-now { background: var(--u1-head-today); } /* 오늘은 머리 칸만 표시, 칸 바탕은 흰색 그대로 */
-  .span-all { grid-column: 2 / -1; display: flex; align-items: center; gap: 14px; font-size: 15px; flex-wrap: wrap; }
-  .span-all .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+  .dgrid > .row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+  .row > .ev { width: 236px; flex: none; margin: 0; }
+  .row > .ev.neis { width: auto; max-width: 236px; align-self: center; border-bottom: 0; padding: 4px 6px; }
+  .row > .ev.neis + .ev:not(.neis) { margin-top: 0; }
+  .row .ev .by { position: absolute; top: -9px; right: 6px; }
+  .row .ev.fresh { padding-top: 16px; }
+  [data-cell] { cursor: pointer; }
+  [data-cell].adding { cursor: auto; }
+  [data-cell].adding .cell-add { display: none; }
+  .cell-add { flex: 1 0 120px; min-height: 44px; border: 1px dashed var(--line); border-radius: 8px; background: none; color: transparent; font: 600 18px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+  .row:not(:has(.ev)) > .cell-add { color: var(--faint); } /* 빈 줄은 ＋를 늘 보인다 */
+  .cell-add:hover, .cell-add:focus-visible { background: var(--hover); border-color: var(--control); color: var(--ink); }
+  .cell-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cell-card { display: grid; gap: 6px; width: 320px; }
+  .cell-card .input { height: var(--control-h-sm); padding: 0 10px; }
+  .cell-err { margin: 0; font-size: var(--fs-small); color: var(--negative); font-weight: 600; overflow-wrap: anywhere; }
+  .cell-err:empty { display: none; }
+  .dgrid > .lunch { display: flex; align-items: center; gap: 6px 14px; font-size: 15px; flex-wrap: wrap; }
   .lunch b { font-weight: 700; white-space: nowrap; }
   .lunch .dish { flex: 1 1 0; min-width: 0; }
-  .lunch .alg { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); margin-top: -6px; }
-  .untimed .ev.neis .t { font-size: var(--fs-small); }
+  .lunch .k { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+  .lunch .alg { flex-basis: 100%; font-size: var(--fs-small); color: var(--muted); }
 
   /* 이번 주 일과 위 숫자 단추(2026-11-11): 누르면 목록 창, 창 아래 더보기 */
   .sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); margin-bottom: var(--gap); }
@@ -65,14 +76,11 @@
   .feed li.new .when { color: var(--accent); font-weight: 600; }
 
   /* 공백 없는 긴 제목이 카드를 넘지 않게 */
-  h1, .ev, .todo .t, .sent .t, .feed .x, .list.wide .t, .dh h2, .qpop .ph { overflow-wrap: anywhere; min-width: 0; }
+  h1, .ev, .todo .t, .sent .t, .feed .x, .list.wide .t, .dh h2 { overflow-wrap: anywhere; min-width: 0; }
   .todo .grow, .sent > div, .feed .x { min-width: 0; }
   .sent .t, .todo .t a, .list.wide a { max-width: 100%; }
 
-  /* 볼 범위 토글·대상 고르기(학교 공간에서만 쓴다) */
-  .quick.scoped { display: flex; gap: 8px; flex-basis: 620px; }
-  .quick.scoped label:first-of-type { flex: 1; min-width: 0; }
-  .quick.scoped select { width: 170px; height: 42px; flex: none; }
+  /* 전체 토글 목록 */
   .list.wide { padding: 0 var(--pad) var(--pad); }
   .list.wide li { display: grid; grid-template-columns: minmax(0, 1fr) 150px 220px 80px; gap: 16px; align-items: center; min-height: 48px; padding: 8px 0; }
   .list.wide li.none { display: block; border: 0; }
@@ -82,26 +90,7 @@
   .list.wide .due.urgent { color: var(--accent-ink); font-weight: 600; }
   .list.wide .cnt { font-weight: 700; text-align: right; }
 
-  /* 한 줄 입력 미리보기(prototype qpop) */
-  .qpop { top: 48px; left: 0; right: 0; padding: 10px 12px; }
-  .qpop .ph { padding: 4px 0 8px; }
-  .qpop .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .qpop .pill .k { color: var(--muted); font-weight: 500; }
-  .qpop .pill.miss { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); } /* taste-skill-ignore: 비어 있는 칩 */
-  .qpop .qwarn { margin-top: 10px; font-size: 15px; color: var(--pill-warn-ink); background: var(--pill-warn-bg); border-radius: 8px; padding: 8px 10px; }
-  .qpop .qerr { font-size: 15px; color: var(--negative); padding: 4px 0; }
-  .qpop .pf { padding: 10px 0 2px; margin-top: 10px; }
 </style>
-{% endblock %}
-{% block quick %}
-<form class="quick{% if space.is_school %} scoped{% endif %}" id="quickForm" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#live" hx-swap="outerHTML" autocomplete="off">
-  {% csrf_token %}
-  <label><span class="sr">한 줄로 일정 추가</span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-  <input id="quick" name="line" maxlength="200" placeholder="한 줄로 일정 추가 (예: 내일 2블록 과학실 안전교육)" aria-describedby="qpop"
-    hx-post="/s/{{ space.token }}/today/parse" hx-trigger="input changed delay:250ms, focus" hx-target="#qpop" hx-swap="outerHTML"></label>
-  {% if space.is_school %}<label><span class="sr">볼 사람</span><select class="select" name="scope">{% for v, t in scope_choices %}<option value="{{ v }}">{{ t }}</option>{% endfor %}</select></label>{% endif %}
-  <div class="pop qpop" id="qpop" hidden></div>
-</form>
 {% endblock %}
 {% block main %}
 <div class="title">
@@ -136,5 +125,7 @@
   </ul>
 </section>
 {% endif %}
+{# 칸 안 추가 카드(일정 화면 cellTpl과 같다). schedule.js가 눌린 칸에 복제해 넣고 date·slot·scope를 채운다(복무 칸은 data-post로 주소도). #}
+<template id="cellTpl"><form class="cell-card" method="post" action="/s/{{ space.token }}/today/events" hx-post="/s/{{ space.token }}/today/events" hx-target="#live" hx-swap="outerHTML" autocomplete="off">{% csrf_token %}<input type="hidden" name="view" value="today"><input type="hidden" name="mode"><input type="hidden" name="w"><input type="hidden" name="tab"><input type="hidden" name="date"><input type="hidden" name="slot">{% if space.is_school %}<input type="hidden" name="scope">{% endif %}<label><span class="sr">일정 내용</span><input class="input" name="line" maxlength="200" spellcheck="false" placeholder="제목 쓰고 Enter (예: 2블록 과학실 안전교육)"{% if space.is_school %} data-ph-all="{{ space_word }} 전체 · 제목 쓰고 Enter" data-ph-me="나만 보기 · 제목 쓰고 Enter"{% if space.is_org %}{% for k, n in space.group_choices %} data-ph-{{ k }}="{{ n }} · 제목 쓰고 Enter"{% endfor %}{% elif me.group %} data-ph-{{ me.group }}="{{ my_group_label }} · 제목 쓰고 Enter"{% endif %} data-ph-duty="예: 김민수 출장 13:00~16:30"{% endif %}></label><p class="cell-err" id="cellErr" role="alert"></p></form></template>
 {% include "today/_live.html" %}
 {% endblock %}

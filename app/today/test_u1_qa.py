@@ -100,10 +100,9 @@ class GradeSpaceTests(Base):
         c = Client()
         c.force_login(self.a.user)
         html = c.get(f"/s/{self.g.token}/today").content.decode()
-        labels = re.findall(r'<div class="lbl">([^<]+)</div>', html)
-        self.assertNotIn("학사일정", labels)
-        self.assertIn("종일", labels)
-        self.assertIn("나이스 자동", html[html.index('class="untimed"'):html.index("<!-- /dgrid -->")])  # 주간 판의 종일 줄(2026-11-11)
+        labels = re.findall(r'<div class="lbl"[^>]*>([^<]+)', html)
+        self.assertEqual(labels, [self.g.word, "점심"])  # 동학년은 채널 한 줄(2026-11-15 오늘 하루 판)
+        self.assertIn("나이스 자동", html[html.index('id="dgrid"'):html.index("<!-- /dgrid -->")])
         Event.objects.create(space=self.g, by=self.a, title="동학년 일", scope="all", date=TODAY)
         self.assertNotIn('style="--gc', c.get(f"/s/{self.g.token}/today").content.decode())
 

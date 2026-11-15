@@ -216,26 +216,7 @@
   document.addEventListener('htmx:afterSwap', function (e) { if (e.target.id === 'bellPop') pushSync(); });
   if (document.querySelector('.pushbox')) pushSync();  // 설정 > 알림(defer라 문서는 이미 읽혔다)
 
-  // 한 줄 일정(오늘): 올리면 칸을 비우고, Esc·바깥을 누르면 미리보기를 닫고, n으로 칸에 들어간다(design shell.js).
-  function hideQ() { var q = document.getElementById('qpop'); if (q) q.hidden = true; }
-  document.addEventListener('htmx:afterRequest', function (e) {
-    var f = e.detail.elt;
-    if (f && f.id === 'quickForm' && e.detail.successful && !e.detail.xhr.getResponseHeader('HX-Retarget')) {
-      var scope = f.elements.scope, kept = scope && scope.value;  // 고른 볼 사람은 다음 줄에도 그대로
-      f.reset();
-      if (scope) scope.value = kept;
-      f.querySelector('input[name=line]').focus();
-    }
-  });
-  document.addEventListener('keydown', function (e) {
-    var q = document.getElementById('quick');
-    if (!q) return;
-    if (e.target === q && e.key === 'Escape') hideQ();
-    else if (e.key === 'n' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector('.scrim:not([hidden])')) { e.preventDefault(); q.focus(); }
-  });
-
   document.addEventListener('click', function (e) {
-    if (!e.target.closest('.quick')) hideQ();
     var pb = e.target.closest('[data-push-btn]');
     if (pb) { pushToggle(pb); return; }
     if (e.target.closest('#bellBtn')) {

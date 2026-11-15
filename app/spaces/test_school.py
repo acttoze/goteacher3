@@ -570,8 +570,11 @@ class ExpiredEntryTests(JoinBase):
     def test_notice_says_what_is_true(self):
         page = self.teacher.get(f"{self.base}/today")
         self.assertContains(page, "새 선생님은 들어올 수 없고")
-        self.assertNotContains(page, "공지")
-        self.assertNotContains(page, "복무")
+        html = page.content.decode()
+        notice = html[html.index('<p class="notice"'):]
+        notice = notice[:notice.index("</p>")]  # 안내 문구만(오늘 판에는 복무 줄이 있다, 2026-11-15)
+        self.assertNotIn("공지", notice)
+        self.assertNotIn("복무", notice)
 
 
 class GradeSpaceGateTests(JoinBase):

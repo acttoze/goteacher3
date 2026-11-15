@@ -30,7 +30,7 @@ from spaces.models import Attendance, Member
 from spaces.views import _josa, _space_ctx
 
 from . import schedule
-from .models import ALL, ME, Event, default_scope, my_range_q, org_lines, reachable_q, scope_choices, with_counts
+from .models import ALL, ME, Event, default_scope, my_range_q, org_lines, reachable_q, scope_choices
 from .parse import ROOMS, SLOT_KEYS, SLOTS, parse, slot_idx, slot_text
 
 WD = "월화수목금토일"
@@ -168,32 +168,12 @@ def _meal(space, today):
 
 
 def _live_ctx(request, now):
-    """이번 주 일과(2026-11-11 사용자 요청: 오늘 → 주간) + 동학년 바뀐 것(htmx로 다시 그리는 부분).
-    칸은 켠 요일(Q1) × 종일·블록. 주는 일정 화면 주간과 같다(켠 마지막 요일이 지나면 다음 주)."""
+    """오늘 일과(2026-11-15 사용자 요청: 주간 → 오늘 하루) + 숫자 단추(htmx로 다시 그리는 부분).
+    판은 일정 화면 일간과 같은 채널 줄(학교·내 소속·개인·복무) × 오늘 한 칸, 칸 안 카드는 가로로 늘어선다. 칸 ＋로 추가."""
     space, me = request.space, request.member
     today = timezone.localdate(now)
-    hexes, names = space.group_hex, space.group_names
-    on = sorted(me.shown_days)
-    mon = schedule.this_monday(today, max(on))
-    days = [mon + timedelta(days=i) for i in on]
-    first, last = days[0], days[-1]
-    events = [_ev_item(e, me, today, hexes, names) for e in
-              with_counts(Event.objects.in_space(space).filter(my_range_q(me)).exclude(scope__in=me.off_lines))
-              .filter(date__lte=last).filter(Q(end__gte=first) | Q(end__isnull=True, date__gte=first))
-              .select_related("by", "changed_by", "space").order_by("slot", "created_at")]
-    sched = neis.schedule(space.school.neis_atpt, space.school.neis_code, f"{first:%Y%m%d}", f"{last:%Y%m%d}")
-    neis_by = {}
-    for x in ([] if neis.failed(sched) else sched):
-        neis_by.setdefault(x["ymd"], []).append(x["name"])
     now_slot, _ = _now_slot(timezone.localtime(now))
-
-    def on_day(d, k):
-        return [x for x in events if x["e"].date <= d <= x["e"].last_day and x["e"].slot == k]
-    heads = [{"d": d, "wd": WD[d.weekday()], "md": f"{d.month}/{d.day}", "today": d == today} for d in days]
-    untimed = [{"today": d == today, "neis": neis_by.get(f"{d:%Y%m%d}", []), "events": on_day(d, "")} for d in days]
-    rows = [{**s, "now": now_slot is not None and s["k"] == now_slot["k"],
-             "time": f"{s['from']}~{'' if s['k'] == 'pm' else s['to']}",
-             "cells": [{"today": d == today, "events": on_day(d, s["k"])} for d in days]} for s in SLOTS]
+    board = schedule.board_ctx(request, "day", today.isoformat(), today_view=True)
     todo = _todo_items(request, now)
     must = list(notice_seen.must_todo(space, me)) if space.is_school else []
     mine = (Collection.objects.in_space(space).filter(created_by=me)
@@ -202,12 +182,8 @@ def _live_ctx(request, now):
     sent = [_sent_item(c, now, colors) for c in mine if not _past(c, now)]
     return {"todo": todo, "n_todo": len(todo), "must_list": must, "n_must": len(must), "n_mine": len(todo) + len(must),
             "urgent": next((x for x in todo if x["urgent"]), None), "sent": sent,
-            "heads": heads, "untimed_cells": untimed, "slot_rows": rows, "now_slot": now_slot,
-            "week_title": "다음 주 일과" if mon > today else "이번 주 일과", "week_label": schedule._label(mon, on),
-            "events": events, "n_events": len(events), "meal": _meal(space, today), "has_today": first <= today <= last,
-            "neis_empty": not neis.failed(sched) and not neis_by, "neis_fail": neis.failed(sched),
-            "feed": _feed(space, me, now, colors), "slot_choices": SLOTS, "today_iso": today.isoformat(),
-            "scope_choices": scope_choices(me)}
+            **board, "now_slot": now_slot, "meal": _meal(space, today),
+            "feed": _feed(space, me, now, colors), "scope_choices": scope_choices(me)}
 
 
 def _school_wide(request, now):
@@ -240,7 +216,7 @@ def _page_ctx(request):
     local = timezone.localtime(now)
     wide = request.space.is_school and request.GET.get("show") == "school"
     duty = wide and not request.space.is_org  # 기관은 복무가 없다(T1)
-    return _space_ctx(request, page="today", quick=True, show_school=wide, school_wide=_school_wide(request, now) if wide else [],
+    return _space_ctx(request, page="today", show_school=wide, school_wide=_school_wide(request, now) if wide else [],
                       notices_wide=_notices_wide(request) if wide else [],
                       attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if duty else [],
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",
@@ -344,8 +320,9 @@ def preview(request):
 @never_cache
 @require_POST
 def add(request):
-    week = request.POST.get("view") == "week"
-    cell = week and "date" in request.POST  # 일정 칸 안 추가: 날짜는 칸이 이기고, 블록은 칸에 있을 때만 이긴다
+    view = request.POST.get("view")
+    week, board = view == "week", view in ("week", "today")  # board: 일정 판(일정 화면 주간·오늘 화면 하루)
+    cell = board and "date" in request.POST  # 일정 칸 안 추가: 날짜는 칸이 이기고, 블록은 칸에 있을 때만 이긴다
     if cell:
         cell_date, cell_slot = _read_cell(request)
         if cell_date is None:
@@ -354,9 +331,9 @@ def add(request):
             return HttpResponseBadRequest("볼 사람을 다시 확인해 주세요.")
     p, error = _read_line(request)
     if p is None:
-        r = render(request, "today/_cell_err.html" if week else "today/_qpop.html",
+        r = render(request, "today/_cell_err.html" if board else "today/_qpop.html",
                    {"error": error or "일정을 한 줄로 써 주세요. 예: 내일 2블록 과학실 안전교육"})
-        r["HX-Retarget"], r["HX-Reswap"] = "#cellErr" if week else "#qpop", "outerHTML"
+        r["HX-Retarget"], r["HX-Reswap"] = "#cellErr" if board else "#qpop", "outerHTML"
         return r
     if cell:
         p.update(date=cell_date, end=None)

@@ -178,8 +178,9 @@ def _dialog_scopes(me, e):
     return out
 
 
-def board_ctx(request, mode, raw):
-    """판 하나의 컨텍스트. 모드는 보는 기간(first~last, 빠진 날 없이 이어짐)과 칸 모양, 탭은 담는 것과 줄 모양만 다르다."""
+def board_ctx(request, mode, raw, today_view=False):
+    """판 하나의 컨텍스트. 모드는 보는 기간(first~last, 빠진 날 없이 이어짐)과 칸 모양, 탭은 담는 것과 줄 모양만 다르다.
+    today_view(오늘 화면, 2026-11-15): 학교 탭 채널 줄에 그룹·개인 탭 것까지 줄로 더해 한 판에 내 하루를 다 담는다."""
     from .views import _conf_text, _ev_item, week_conflicts  # views가 이 모듈을 부르므로 안에서 가져온다
 
     space, me = request.space, request.member
@@ -194,22 +195,33 @@ def board_ctx(request, mode, raw):
     colors = _colors(space)
     hexes, names = space.group_hex, space.group_names  # U1 카드 점 색: 쓴 사람(복무는 당사자)의 소속
     tab_list = tabs(request)
-    tab = read_tab(request)
+    tab = "school" if today_view else read_tab(request)
     channeled = tab == "school"  # 학교 탭·동학년: 채널 줄. 그룹·개인 탭: 블록 줄(월간은 달력 칸)
     tab_scope = {"group": me.group, "me": ME}.get(tab, ALL)
     channels = _channels(space, me) if channeled else []
+    if today_view and space.is_school:  # 학교 · 내 소속 · 개인 · 복무(기관은 그룹 줄 · 개인)
+        mine = [*([{"k": "group", "label": names.get(me.group) or "내 소속", "scope": me.group}] if me.group and not space.is_org else []),
+                {"k": "me", "label": "개인", "scope": ME}]
+        at = next((i for i, c in enumerate(channels) if c["k"] == "duty"), len(channels))
+        channels = channels[:at] + mine + channels[at:]
     shown_lines = {c["scope"] for c in channels}
 
     def on_tab(e):
         if not space.is_school:
             return True
-        if tab == "me":
+        if tab == "me" or (today_view and e.scope == ME):
             return e.scope == ME and e.by_id == me.pk
+        if today_view and not space.is_org and me.group and e.scope == me.group:
+            return True
         if space.is_org:  # 그룹 줄 = 일정 줄. 끈 줄은 내 판에서만 빠진다(보기 필터, T2)
             return e.scope in shown_lines
         return e.scope == tab_scope
 
-    def line_of(e):  # 학교 탭 칸의 줄 키: 기관은 그룹 키, 그 밖은 학교(전체) 줄
+    def line_of(e):  # 학교 탭 칸의 줄 키: 기관은 그룹 키, 그 밖은 학교(전체) 줄. 오늘 화면은 개인·내 소속 줄도
+        if today_view and e.scope == ME:
+            return "me"
+        if today_view and not space.is_org and me.group and e.scope == me.group:
+            return "group"
         return e.scope if space.is_org and e.scope != ALL else "school"
 
     # 일정: 보고 있는 기간에 걸치는 것. 바뀐 것 목록은 탭과 무관하게 내가 볼 수 있는 전부.
@@ -377,9 +389,13 @@ def back_url(request):
 
 
 def _done(request, toast):
+    today_page = request.POST.get("view") == "today"  # 오늘 화면의 복무 칸
     if request.headers.get("HX-Request"):
+        if today_page:
+            from .views import _live
+            return _live(request, toast)
         return reply(request, toast)
-    r = redirect(back_url(request))
+    r = redirect(f"/s/{request.space.token}/today" if today_page else back_url(request))
     r.status_code = 303
     return r
 

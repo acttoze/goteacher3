@@ -604,8 +604,9 @@ class ShownTests(Web):
         Attendance.objects.create(space=self.hub, date=self.today, name="김도윤", kind="외출")
         self.assertEqual(self.teacher.get(f"{self.base}/school").context["n_attendance"], 1)
 
-    def test_today_school_wide_only(self):
-        self.assertNotContains(self.teacher.get(f"{self.base}/today"), "김도윤 조퇴")
+    def test_today_board_and_school_wide(self):
+        html = self.teacher.get(f"{self.base}/today").content.decode()  # 2026-11-15: 오늘 판에 일정 화면과 같은 복무 줄
+        self.assertIn("김도윤 조퇴", html[html.index('<div class="row" data-ch="duty"'):html.index("<!-- /dgrid -->")])
         self.assertContains(self.teacher.get(f"{self.base}/today?show=school"), "김도윤 조퇴")
 
     def _monday(self):

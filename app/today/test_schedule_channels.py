@@ -723,9 +723,8 @@ class ScopeForgeryTests(Base):
 
     def test_today_picker_offers_only_allowed(self):
         html = self.as_(self.t4).get(f"{self.base}/today").content.decode()
-        sel = html[html.index('name="scope"'):]
-        sel = sel[:sel.index("</select>")]
-        self.assertEqual(re.findall(r'<option value="(\w+)"', sel), [ALL, ME, "g4"])
+        self.assertNotIn("<select", html[:html.index('id="dgrid"')])  # 위 한 줄 입력은 없다(2026-11-15). 칸이 볼 사람을 정한다
+        self.assertEqual(re.findall(r'data-scope="(\w+)"', html), [ALL, "g4", ME, "duty"])
 
 
 class ConflictTests(Base):
