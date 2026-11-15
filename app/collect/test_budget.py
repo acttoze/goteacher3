@@ -65,10 +65,29 @@ class BudgetCreateTests(BudgetBase):
 
     def test_card_on_new_screen(self):
         r = self.client.get(f"/s/{self.a.token}/c/new")
-        self.assertContains(r, 'class="card budget-card"')
+        body = r.content.decode()
+        # 자주 쓰는 양식 맨 앞 줄로(11/15). 양식 단추 순서: 자주 쓰는 양식 · 직접 입력 · 표 붙여넣기 · 한글 양식, 첫 화면은 자주 쓰는 양식
+        self.assertNotContains(r, "budget-card")
+        self.assertLess(body.index('<li class="budget">'), body.index('value="training"'))
+        self.assertContains(r, "물품 주문 조사")
         self.assertContains(r, "에듀파인 엑셀")
         self.assertContains(r, 'name="budget_go"')
         self.assertNotContains(r, "모으기")
+        order = [body.index(f'data-src="{k}"') for k in ("preset", "sheet", "paste", "hwp")]
+        self.assertEqual(order, sorted(order))
+        self.assertContains(r, 'data-src="preset" aria-pressed="true"')
+        # 마감일 기본은 '없음'
+        self.assertContains(r, '<span class="due-pick" data-empty>')
+        self.assertContains(r, '<span class="none">없음</span>')
+
+    def test_title_from_main_title(self):
+        self.post(budget_go="1", title="2학기 물품 주문")
+        self.assertEqual(Collection.objects.get().title, "2학기 물품 주문")
+
+    def test_budget_error_stays_on_preset(self):
+        r = self.post(budget_go="1", budget="abc", src="paste")
+        self.assertContains(r, 'data-src="preset" aria-pressed="true"', status_code=400)
+        self.assertContains(r, 'id="eBudget"', status_code=400)
 
     def test_create_with_budget(self):
         r = self.post(budget_go="1", budget="150,000원", budget_title="2학기 학습준비물", src="paste", due_d="2026-11-20")
@@ -82,7 +101,7 @@ class BudgetCreateTests(BudgetBase):
     def test_create_without_budget(self):
         self.post(budget_go="1", budget="")
         c = Collection.objects.get()
-        self.assertEqual((c.budget, c.title), (None, "학급 예산 품목 취합"))
+        self.assertEqual((c.budget, c.title), (None, "물품 주문 조사"))
 
     def test_bad_budget(self):
         for v in ["십만", "-1", "0", "1.5", "99999999999"]:

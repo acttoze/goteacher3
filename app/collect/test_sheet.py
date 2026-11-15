@@ -37,7 +37,7 @@ class SheetPresetTests(TestCase):
         for label in ("표 붙여넣기", "직접 입력", "자주 쓰는 양식", "한글 양식 올리기"):
             self.assertContains(r, label)
         self.assertNotContains(r, 'data-src="hwp" disabled')  # E5에서 켬
-        self.assertContains(r, "학급 예산 품목 취합")  # S1 강조 카드(옛 학습준비물 양식 자리)
+        self.assertContains(r, "물품 주문 조사")  # S1 자주 쓰는 양식 맨 앞(옛 학습준비물 양식 자리)
         self.assertContains(r, "법정의무연수")
 
     # ---- 직접 입력
@@ -79,7 +79,7 @@ class SheetPresetTests(TestCase):
         """S1: 옛 학습준비물 양식 자리(preset=supplies)는 예산 품목 취합을 만든다."""
         self.post(src="preset", preset="supplies")
         c = Collection.objects.get()
-        self.assertEqual((c.source, c.title, c.multi, c.unit_head, c.budget), ("budget", "학급 예산 품목 취합", True, ["학년반", "담임"], None))
+        self.assertEqual((c.source, c.title, c.multi, c.unit_head, c.budget), ("budget", "물품 주문 조사", True, ["학년반", "담임"], None))
         self.assertEqual([(f.name, f.kind) for f in c.fields.all()],
                          [("내용", "text"), ("규격", "text"), ("단위", "text"), ("수량", "number"), ("예상단가", "number"),
                           ("금액", "calc"), ("상품 주소", "url")])

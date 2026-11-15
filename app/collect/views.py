@@ -95,7 +95,7 @@ def _sheet_cols(post):
 @require_http_methods(["GET", "POST"])
 def new(request):
     space = request.space
-    title, text, errors, src = "", "", {}, "paste"
+    title, text, errors, src = "", "", {}, "preset"  # 첫 화면은 맨 앞 '자주 쓰는 양식'
     p = error = sf = hwpf = None
     data = request.POST if request.method == "POST" else request.GET  # 일정 취합 칸 ＋: ?due_d=날짜&aud=…로 미리 채운다
     aud = read_audience(space, data)
@@ -117,7 +117,7 @@ def new(request):
         no_one = ("받을 사람이나 소속을 골라 주세요." if space.is_school else
                   f"받을 사람이나 그룹을 골라 주세요. {request.space.word} 명부에 반을 고른 선생님이 없어요.")  # prototype #create
         if src == "budget":
-            # S1 예산 품목 취합(강조 카드). 받는 사람은 옛 학습준비물 양식과 같이 담임 반별.
+            # S1 예산 품목 취합(자주 쓰는 양식 맨 앞 '물품 주문 조사'). 제목은 위 제목 칸, 비우면 양식 이름. 받는 사람은 옛 학습준비물 양식과 같이 담임 반별.
             spec, budget_raw = PRESETS["supplies"], request.POST.get("budget", "").strip()[:20]
             budget, bad = _read_budget(budget_raw)
             if bad:
@@ -125,13 +125,13 @@ def new(request):
             elif not roster_rows(space, spec["roster"]):
                 errors["budget"] = f"받을 반이 없어요. {space.word} 명부에 반을 고른 담임 선생님이 없어요."
             else:
-                c = _create_cols(request, clean_text(request.POST.get("budget_title", ""))[:200] or spec["title"],
+                c = _create_cols(request, clean_text(request.POST.get("budget_title", "") or title)[:200] or spec["title"],
                                  Collection.Source.BUDGET, spec["fields"], spec["unit_head"], spec["multi"],
                                  roster_rows(space, spec["roster"]))
                 c.budget = budget
                 c.save(update_fields=["budget"])
                 return made(c)
-            src = request.POST.get("src", "paste")
+            src = "preset"  # 오류는 자주 쓰는 양식의 물품 주문 조사 줄에 보인다
         elif src == "preset":
             spec = PRESETS.get(request.POST.get("preset", ""))
             if spec and not roster_rows(space, spec["roster"]):
@@ -205,12 +205,12 @@ def new(request):
         else:
             src, errors["src"] = "paste", "가져오는 방식을 골라 주세요."
     ctx = _space_ctx(request, page="collect", title=title, paste=text, errors=errors, src=src, hwp_max_mb=settings.HWP_MAX_UPLOAD // (1024 * 1024), max_body=settings.MAX_REQUEST_BYTES,
-                     srcs=[("hwp", "한글 양식 올리기"), ("paste", "표 붙여넣기"), ("sheet", "직접 입력"),
-                           ("preset", "자주 쓰는 양식")],
+                     srcs=[("preset", "자주 쓰는 양식"), ("sheet", "직접 입력"), ("paste", "표 붙여넣기"),
+                           ("hwp", "한글 양식 올리기")],
                      hwp=pick_ctx(sf) if sf else None, hwpf=hwpf,
                      sheet_cols=[{"i": i, "name": request.POST.get(f"col_name_{i}", "")} for i in range(SHEET_COLS)],
                      presets=[(k, p) for k, p in PRESETS.items() if k != "supplies"], budget_spec=PRESETS["supplies"],
-                     budget_raw=budget_raw, budget_title=request.POST.get("budget_title", "")[:200], multi=request.POST.get("multi") == "on", outside=_outside(request),
+                     budget_raw=budget_raw, multi=request.POST.get("multi") == "on", outside=_outside(request),
                      roster=roster_rows(space, "class"), roster_all=len(roster_rows(space, "people")),
                      due_d=due_d)
     ctx.update(_paste_ctx(p, error))

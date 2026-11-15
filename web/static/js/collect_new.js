@@ -195,3 +195,18 @@
   box.addEventListener('keydown', function (e) { if (e.target.id === 'psq' && e.key === 'Enter') e.preventDefault(); });
   panes();
 })();
+
+(function () {
+  // 마감일: 비어 있으면 "없음"을 보이고, 칸을 누르면 달력을 연다. "없음으로"는 날짜를 지운다.
+  var due = document.getElementById('dueD'), dueNone = document.getElementById('dueNone');
+  if (due && dueNone) {
+    var dueShow = function () {
+      due.parentNode.toggleAttribute('data-empty', !due.value);
+      dueNone.hidden = !due.value;
+    };
+    due.addEventListener('click', function () { try { due.showPicker(); } catch (e) { /* 지원 안 하는 브라우저는 그대로 */ } });
+    due.addEventListener('input', dueShow);
+    due.addEventListener('change', dueShow);
+    dueNone.addEventListener('click', function () { due.value = ''; dueShow(); });
+  }
+})();
