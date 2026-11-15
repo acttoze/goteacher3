@@ -122,7 +122,8 @@ class ScheduleTests(TestCase):
         html = self.client.get(self.url()).content.decode()
         self.assertIn(f'href="{self.url()}" aria-current="page"', html)
         nav = html[html.index('class="nav"'):]
-        self.assertLess(nav.index(f'href="/s/{self.a.token}/c/"'), nav.index(f'href="{self.url()}"'))
+        self.assertLess(nav.index(f'href="/s/{self.a.token}/today"'), nav.index(f'href="{self.url()}"'))
+        self.assertLess(nav.index(f'href="{self.url()}"'), nav.index(f'href="/s/{self.a.token}/c/"'))
         self.assertLess(nav.index(f'href="{self.url()}"'), nav.index('href="/forms"'))
         today = self.client.get(self.turl("")).content.decode()
         self.assertIn(f'href="{self.url()}"', today)

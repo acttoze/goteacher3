@@ -97,8 +97,8 @@
   // ---------- 셸 ----------
   var NAV = [
     { k: 'today', label: '오늘', href: 'today.html' },
-    { k: 'collect', label: '취합', href: 'collect.html', cnt: function () { return G.todo.length; } },
     { k: 'schedule', label: '일정', href: 'schedule.html' },
+    { k: 'collect', label: '취합', href: 'collect.html', cnt: function () { return G.todo.length; } },
     { k: 'forms', label: '양식 자료실', href: 'forms.html' }
   ];
   var SUB = [
