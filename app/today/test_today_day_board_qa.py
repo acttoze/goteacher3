@@ -1,7 +1,6 @@
 """QA(2026-11-15) 오늘 화면 오늘 일과 판 — 구현 테스트(test_today_day_board)에 없는 경계만.
 기관(그룹 줄·개인, 끈 줄, 남의 개인), 동학년(한 줄), 소속 없는 학교 회원, 기간 일정, 칸 안 순서, 지우기·복무 지우기 → #live,
 htmx 없는 저장, 격리, 일정 화면 대화상자는 그대로 #week."""
-import re
 from datetime import date, timedelta
 from unittest import mock
 
