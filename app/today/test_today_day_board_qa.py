@@ -123,8 +123,9 @@ class OrgTodayBoardTests(TestCase):
         school = School.objects.create(neis_atpt="E10", neis_code="", name="협력과", plan="school", paid_until=date(2099, 2, 28))
         self.space = Space.objects.create(school=school, kind=Space.Kind.ORG, grade=0, name="협력과",
                                           org_groups=[{"k": "ga", "n": "가팀"}, {"k": "na", "n": "나팀"}])
-        mk = lambda n, g: Member.objects.create(space=self.space, user=User.objects.create(username=f"google:{n}", first_name=n),
-                                                name=n, cls="미배정", group=g)
+        def mk(n, g):
+            return Member.objects.create(space=self.space, user=User.objects.create(username=f"google:{n}", first_name=n),
+                                         name=n, cls="미배정", group=g)
         self.kim, self.lee = mk("김", "ga"), mk("이", "na")
         self.base = f"/s/{self.space.token}"
 
