@@ -118,7 +118,7 @@
       '<button class="tlink acc" type="button" id="resend">다시 보내기</button></li>';
   }).join('');
 
-  var msg = '[고티처] ' + G.school + ' ' + G.space.grade + '학년 동학년방이에요.\n아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)\nhttps://' + G.space.invite + '\n\n— ' + G.me.name + ' (' + G.me.cls.replace('-', '학년 ') + '반)';
+  var msg = '[고티처] ' + G.school + ' ' + G.space.grade + '학년 동학년방이에요.\n아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음)\nhttps://' + G.space.invite + '\n\n— ' + G.me.name + ' (' + G.me.cls.replace('-', '학년 ') + '반)';
   $('#msg').textContent = msg;
   $('#lk').value = G.space.invite;
   $('#cpMsg').onclick = function () { U.copy(msg, '쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.'); };

@@ -344,7 +344,7 @@
   }
   function renderPreview() {
     var t = S.title.trim() || '(제목)', ins = inputs().filter(function (f) { return !f.pii; });
-    $('#msg').textContent = '[고티처] ' + t + '\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 30초면 돼요.' +
+    $('#msg').textContent = '[고티처] ' + t + '\n\n아래 링크에서 우리 반 칸만 채워 주세요. 로그인 없이 링크에서 바로 낼 수 있어요.' +
       (ins.length ? '\n받는 칸: ' + ins.map(function (f) { return f.n; }).join(', ') : '') + '\nhttps://' + LINK +
       (S.outside ? '\n\n명부 밖 선생님도 같은 링크로 이름을 적어 내시면 돼요.' : '') + '\n\n보낸 사람: ' + G.me.name + ' (' + G.me.cls + ')';
     $('#mini').innerHTML = '<div class="mt">' + esc(t) + '</div><div class="mm">4-3 · 김도윤 선생님 칸 · 대신 내도 돼요</div>' +
