@@ -2,7 +2,7 @@
 
 스테이징 `https://t.goteacher.xyz` = 서버 `oci_tailscale`의 `/home/ubuntu/prod/goteacher` (이 저장소 clone).
 
-- `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis` · `goteacher-worker`(RQ, 같은 이미지, 작업당 300초·메모리 2.5GB).
+- `compose.yml` — compose 프로젝트 `goteacher`: `goteacher-app`(gunicorn) · `db`(PostgreSQL 17) · `redis` · `goteacher-worker`(RQ, 같은 이미지, 작업당 300초·메모리 2.5GB) · `goteacher-legacy-sync`(V2 구 고티처 동기화, 아래).
 - `Dockerfile` — 빌드 컨텍스트는 저장소 루트(`.dockerignore`).
 - gunicorn은 gthread 워커 2개·스레드 4개(요청 슬롯 8개, DB 연결 최대 8개, 교체 중 16개). 느린 업로드가 슬롯 하나만 쥐므로 다른 요청이 계속 응답한다.
   gthread에서 `--timeout`(30초)은 워커 생존 신호 제한이라 느린 요청을 끊지 않는다. 대신 멈춘 요청도 끊지 않으므로 앱의 외부 호출에는 자체 제한이 있어야 한다.
@@ -129,6 +129,18 @@ Redis 메모리 80% 이하·gunicorn 워커 강제 종료(줄 수)·앱 `oom_kil
 - `review-text-ok <번호>` · `review-text-no <번호> [--reason 까닭]`
 - `review-hide <번호> --reason 까닭 [--note 메모] [--by 이름]` · `review-show <번호> [--reason 까닭]` · `review-delete <번호> --reason 까닭`
 - `<번호>`는 화면의 신고 번호(R-…). 까닭·메모에 개인정보를 적지 않는다
+
+구 고티처 동시 사용(V1–V4). 구 사이트(`goteacher-prod`·공용 `mysql`)는 건드리지 않고 읽기만 한다:
+- `goteacher-legacy-sync` — `manage.py legacy_sync` 상시 1개(5초 증분 · 30초 전체 대조). 로그 한 줄이 한 주기: `docker compose logs --since 5m goteacher-legacy-sync`
+  (`바뀐 행 N · 반영 N · 실패 N`. 안정되면 대조 줄의 바뀐 행이 0). 구 DB는 `gt_sync`(SELECT만, `goteacher.*`, infra 대역 172.19.0.0/16, 동시 접속 3)로만 읽는다.
+  구 첨부 폴더 `/home/ubuntu/prod/goteacher_prod/data/file`을 읽기 전용으로 붙인다. 배포(rollout.sh)는 돌고 있을 때만 새 이미지로 바꾼다.
+- `.env`: `LEGACY_SSO_KEY`(V1 입장권, 구 사이트와 같은 값) · `LEGACY_DB_URL` · `LEGACY_READONLY=1` · `LEGACY_SITE_URL`.
+- 전체 재적재(처음 한 번): 동기화를 내린 채 `legacy_extract.sh` 최신 덤프 → `import_legacy` → **바로** 동기화를 켠다. 동기화 첫 실행은
+  덤프에 있던 행을 덤프 때 그대로라고 보므로 덤프와 첫 실행 사이 간격만큼 고친 행을 놓칠 수 있다(다시 고쳐질 때 잡힘).
+- 잠깐 멈추기: `docker compose stop goteacher-legacy-sync` / 다시: `docker compose up -d --no-deps goteacher-legacy-sync`.
+- 동시 사용 끝낼 때: `.env`에서 `LEGACY_READONLY`·`LEGACY_DB_URL`을 비우고 `docker compose rm -sf goteacher-legacy-sync` → 앱 재기동
+  (`bash ops/rollout.sh`, 이때 동기화는 다시 뜨지 않는다). compose의 서비스 정의는 지우는 커밋이 나갈 때까지 둬도 된다(돌지 않음).
+  구 MySQL 계정은 root로 `DROP USER 'gt_sync'@'172.19.0.0/255.255.0.0'`(공용 DB 변경이므로 승인 뒤).
 
 도메인 전환 체크리스트(G7). 실행은 승인 뒤, 구버전 처리는 사용자 결정:
 - [ ] **운영 라우터 6개 모두 접근 로그 끄기 라벨** — 라우터가 `gt-staging`·`-body`·`-up101`·`-up31`·`-up9`·`-http` 6개다. 운영용으로 같은 구성을 만들 때 하나도 빠짐없이

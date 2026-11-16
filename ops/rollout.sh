@@ -55,3 +55,5 @@ else
   fi
 fi
 docker compose up -d --wait --no-deps goteacher-worker  # --no-deps: 배포가 db·redis를 다시 만들지 않게
+# V2 동기화는 지금 돌고 있을 때만 새 이미지로 바꾼다(동시 사용이 끝나 내려 둔 것은 다시 띄우지 않는다)
+if [ -n "$(docker compose ps -q goteacher-legacy-sync)" ]; then docker compose up -d --no-deps goteacher-legacy-sync; fi

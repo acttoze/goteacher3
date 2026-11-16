@@ -143,6 +143,29 @@ services:
     labels:
       traefik.enable: "false"
 
+  # V2 구 고티처(goteacher.xyz) → 새 동기화. 상시 1개. 구 MySQL(infra의 mysql:3306)을 읽기 전용 계정(gt_sync)으로만 읽는다.
+  # .env의 LEGACY_DB_URL이 비면 한 줄 남기고 끝난다(restart가 다시 띄우지 않게 동시 사용이 끝나면 서비스를 내린다, ops/README.md).
+  # 첨부는 구 사이트 폴더를 읽기 전용으로 붙이고, 새 쪽에는 앱과 같은 media 볼륨에 복사한다.
+  goteacher-legacy-sync:
+    <<: *common
+    image: goteacher-app:latest
+    pull_policy: never
+    env_file: .env
+    working_dir: /srv/app
+    command: ["python", "manage.py", "legacy_sync"]
+    environment:
+      LEGACY_FILES_DIR: /legacy_files
+    volumes:
+      - media:/srv/media
+      - /home/ubuntu/prod/goteacher_prod/data/file:/legacy_files:ro
+    depends_on:
+      db: { condition: service_healthy }
+    mem_limit: 512m
+    memswap_limit: 512m
+    networks: [default, infra]
+    labels:
+      traefik.enable: "false"
+
   db:
     <<: *common
     # 다이제스트 고정(2026-11-03 서버에서 돌던 것과 같은 값). deploy.sh는 db·redis를 다시 만들지 않는다(--no-deps) — 갱신은 ops/README.md
