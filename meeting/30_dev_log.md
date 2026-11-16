@@ -120,7 +120,7 @@
 | V1 ★ | 63d1713 | 입장권 로그인 `/auth/legacy`: 60초 1회용 HMAC(u·m·exp·n), LegacyMap(user, mb_no)로만 계정, 다른 사람 로그인 중이면 확인 화면. qa 통과·보안 필수 없음 |
 | V2 ★ | 이번 커밋 | `legacy_sync`: 구 MySQL SELECT만, 5초 증분·30초 지문 대조, importer 규칙 재사용. 비밀번호는 구 해시가 바뀔 때만(+기기 토큰 삭제), 자리 삭제는 탈퇴·차단·전출·전근·행 삭제만, go_admin은 차이만. 리허설 36곳: 첫 실행 10.6초, 무변화 대조 0.32초. qa 통과·보안 필수 없음 |
 | V3 | 이번 커밋 | `LEGACY_READONLY`: 이관 학교의 일정·복무·게시판 쓰기 403(관리자 포함) + 안내·예전 고티처 링크, 열린 탭 htmx 403도 토스트. 동학년 공간·복무 입력 담당 지정은 열어 둠(리드). qa 통과 |
-| V5 | 구 저장소 `feat/troad-preview-button` 75efc6e·b2f948f | 헤더 '새 고티처 이용해 보기'(이관 학교 가입 회원만) + `bbs/troad_go.php` 입장권 발급. 설정은 커밋 안 하는 `data/troad_preview.php`. 배포 전 |
+| V5 | 구 저장소 PR #6 → 운영 7bd469f1(11/16 15:10) | 헤더 '새 고티처 이용해 보기'(이관 37곳 가입 회원만) + `bbs/troad_go.php`. 운영 `data/troad_preview.php`(640, 커밋 안 함, 키는 스테이징 .env와 같음 — 지문 확인). 운영 PHP 입장권 서명이 새 쪽에서 일치(가짜 회원 번호로 확인). **실제 계정으로 단추→입장 흐름은 확인 못 함**. 되돌리기: 운영 `git reset --hard ccb46cd7` 또는 설정 파일 삭제(단추 즉시 꺼짐) |
 | V6 | 이번 커밋 | 의견 보내기(모든 공간, 계정 회원), 동시 사용 띠 '예전 고티처로'(이유 고르기), 운영자 의견함 `/ops/feedback`·`manage.py feedback --since 7d`, 경로는 주소 모양만, 사람당 10분 5건, 처리방침 반영·`FEEDBACK_KEEP_DAYS` 지나면 purge 파기(1년, 11/16 사용자 확정). qa 통과·보안 필수 없음 |
 | V4 | 이번 커밋 | 스테이징: 백업 `var/backups/before-v4-20261116-1423.dump`·media tar, MySQL `gt_sync@172.19.0.0/16` SELECT만(동시 3), 서비스 `goteacher-legacy-sync`(구 첨부 `:ro`), 기존 이관 3곳·`[시연]`(공간 1·2) 삭제 → 11/16 14:27 덤프로 37곳 재적재(계정 2,891·자리 1,398·일정 61,011·복무 15,375·첨부 1,473·게시글 213, 106초) → 1초 뒤 동기화. 첫 대조 6,317행 실패 0, 이후 대조 1.2초·변화 0. 보고서 서버 `var/legacy-import-20261116-1427.txt`. 비밀 값 맥 `~/.config/troad/legacy_sso_key`·`legacy_db_ro` |
 | V7 | 이번 커밋 | 도움말 `/help`(로그인 없이, 사이드바 진입점) 10주제·캡처 17장, 가상 학교 `seed_help_demo`(DEBUG만), `ops/help/capture.py` 한 번으로 재촬영. qa 통과 |
