@@ -118,7 +118,7 @@
   </form>
   {% if filter_channels %}<div class="flt"><button type="button" class="btn sec flt-btn" aria-label="채널 필터" title="채널 필터" aria-expanded="false" aria-controls="fltCh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/></svg></button>
     <div class="pop flt-pop" id="fltCh" role="group" aria-label="보일 채널" hidden>{% for ch in filter_channels %}<label><input type="checkbox" data-flt="ch" value="{{ ch.k }}" checked>{{ ch.label }}</label>{% endfor %}</div></div>{% endif %}
-  {% if space.is_school %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ paste_w }}">표 붙여넣기</a>
+  {% if space.is_school %}{% if not space.legacy_readonly %}<a class="btn sec" href="/s/{{ space.token }}/schedule/paste?w={{ paste_w }}">표 붙여넣기</a>{% endif %}
   <a class="btn sec" href="/s/{{ space.token }}/schedule/print?view={{ print_view }}&amp;d={{ w }}">인쇄</a>{% endif %}
 </div>
 

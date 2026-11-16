@@ -1,5 +1,6 @@
 """School · Space(동학년·학교) · Member. 공간 소속 모델은 SpaceQuerySet.in_space()로만 조회한다."""
 import secrets
+from functools import cached_property
 from itertools import cycle
 
 from django.conf import settings
@@ -156,6 +157,16 @@ class Space(models.Model):
     @property
     def is_org(self):
         return self.kind == self.Kind.ORG
+
+    @property
+    def legacy_readonly(self):
+        """V3 동시 사용 중인 이관 학교(구 고티처에서 동기화되는 학교·기관 공간): 일정·복무·게시판은 보기만. LEGACY_READONLY로 켠다."""
+        return settings.LEGACY_READONLY and self.is_school and self._legacy_school
+
+    @cached_property
+    def _legacy_school(self):
+        from legacy.models import LegacyMap
+        return LegacyMap.objects.filter(kind="school", obj_id=self.school_id).exists()
 
     @property
     def is_free(self):

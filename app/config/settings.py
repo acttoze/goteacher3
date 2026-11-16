@@ -124,6 +124,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "collect.bell.unread",
                 "spaces.context.space_word",
+                "spaces.context.legacy_site",
             ],
         },
     },
@@ -151,6 +152,12 @@ PASSWORD_HASHERS = [
 RESERVED_IDS_FILE = os.environ.get("RESERVED_IDS_FILE", "")
 # V1 구 고티처 입장권(/auth/legacy) 서명 키. 구 사이트와 같은 값. 비우면 그 주소는 404
 LEGACY_SSO_KEY = os.environ.get("LEGACY_SSO_KEY", "")
+# V2 구 고티처 → 새 동기화(manage.py legacy_sync). 읽기 전용 계정 mysql://아이디:비밀번호@호스트:3306/goteacher. 비우면 동기화 꺼짐
+LEGACY_DB_URL = os.environ.get("LEGACY_DB_URL", "")
+LEGACY_FILES_DIR = os.environ.get("LEGACY_FILES_DIR", "")  # 구 첨부 폴더(아래에 goteacher/·free_school/), 읽기 전용 마운트
+# V3 동시 사용 기간: 이관 학교 공간의 일정·복무·게시판은 보기만(쓰기는 구 사이트에서). 기간이 끝나면 끈다
+LEGACY_READONLY = env_bool("LEGACY_READONLY")
+LEGACY_SITE_URL = os.environ.get("LEGACY_SITE_URL", "https://goteacher.xyz")
 LOGIN_URL = "/start"  # 시작 화면(구글·아이디로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"

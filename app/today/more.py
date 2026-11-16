@@ -21,6 +21,7 @@ from accounts.models import is_guest
 from collect.models import Notification
 from config.ratelimit import TOO_MANY, allow
 from notices.views import ACCEPT, KINDS_SHORT, MAX_FILE, MAX_FILES, MB, TYPES, _body_guard, _clean, _quota_error, _read_files
+from spaces.gates import legacy_locked
 
 from .models import ALL, BODY_MAX, COMMENT_MAX, ME, Event, EventComment, EventFile, reachable_q
 
@@ -52,9 +53,10 @@ def _store(e, got, comment=None):
 
 def _part(request, e, status=200, **extra):
     me = request.member
-    comments = [{"c": c, "can_del": me.is_manager or (c.by_id is not None and c.by_id == me.pk)}
+    ro = request.space.legacy_readonly  # V3 이관 학교: 본문·첨부·댓글 보기만
+    comments = [{"c": c, "can_del": not ro and (me.is_manager or (c.by_id is not None and c.by_id == me.pk))}
                 for c in e.comments.prefetch_related("files").order_by("at", "pk")]
-    ctx = {"space": request.space, "e": e, "can_write": e.writable_by(me), "files": _own(e).order_by("at", "pk"),
+    ctx = {"space": request.space, "e": e, "can_write": not ro and e.writable_by(me), "files": _own(e).order_by("at", "pk"),
            "comments": comments, "body_max": BODY_MAX, "comment_max": COMMENT_MAX, "max_files": MAX_FILES,
            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
            "comment_files": COMMENT_FILES, "can_attach": not is_guest(request.user), "comment_mb": COMMENT_FILES * MAX_FILE // MB,
@@ -70,6 +72,7 @@ def more(request, key):
 
 @never_cache
 @require_POST
+@legacy_locked
 def body(request, key):
     e = _event(request, key)
     if not e.writable_by(request.member):
@@ -86,6 +89,7 @@ def body(request, key):
 @never_cache
 @require_POST
 @_body_guard
+@legacy_locked
 def files(request, key):
     """첨부 올리기. 너무 크거나 깨진 요청은 _body_guard가 본문을 읽지 않고 안내만 남긴다."""
     e = _event(request, key)
@@ -114,6 +118,7 @@ def files(request, key):
 
 @never_cache
 @require_POST
+@legacy_locked
 def file_delete(request, key, file_key):
     e = _event(request, key)
     f = get_object_or_404(_own(e), key=file_key)  # 댓글 첨부는 댓글과 함께만 지운다
@@ -148,6 +153,7 @@ def _bell_link(space, e):
 @never_cache
 @require_POST
 @_body_guard
+@legacy_locked
 def comment(request, key):
     """댓글 쓰기(첨부 함께). 너무 크거나 깨진 요청은 _body_guard가 본문을 읽지 않고 안내만 남긴다."""
     e = _event(request, key)
@@ -186,6 +192,7 @@ def comment(request, key):
 
 @never_cache
 @require_POST
+@legacy_locked
 def comment_delete(request, key, comment_key):
     e = _event(request, key)
     c = get_object_or_404(e.comments, key=comment_key)

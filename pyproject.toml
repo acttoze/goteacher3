@@ -17,6 +17,7 @@ dependencies = [
     "pywebpush>=2.0,<3",
     "pillow>=11,<13",
     "xlwt>=1.3.0",
+    "pymysql>=1.1,<2",  # V2 구 고티처 MySQL 읽기(순수 파이썬)
 ]
 
 [tool.uv]

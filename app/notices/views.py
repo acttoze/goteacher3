@@ -34,7 +34,7 @@ from hwpfiles.models import storage_room
 from hwpfiles.views import _clean_name
 from collect.models import Notification
 from repairs.models import Repair
-from spaces.gates import manager_required, school_required, school_write_required
+from spaces.gates import legacy_locked, manager_required, school_required, school_write_required
 from spaces.models import Member
 from spaces.views import _space_ctx
 
@@ -224,7 +224,7 @@ def _must(request, current=False):
 def _form_ctx(request, form):
     """입력 칸 조각(_form_fields.html)이 쓰는 값. 쓰기 대화상자와 고치기 화면이 같다."""
     picked = set(form["groups"])
-    return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
+    return {"form": form, "writable": request.space.school.writable and not request.space.legacy_readonly, "max_files": MAX_FILES, "can_must": request.member.is_manager,
             "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
             "group_opts": [{"id": g, "label": label, "on": g in picked}
                            for g, label in (request.space.group_choices if request.space.is_org else Member.Group.choices)]}
@@ -270,6 +270,7 @@ def index(request):
 @school_required
 @school_write_required
 @_body_guard
+@legacy_locked
 def new(request):
     if request.upload_error:
         return _list_page(request, status=400, open_form=True, errors={"files": request.upload_error})
@@ -324,6 +325,7 @@ def _edit_page(request, n, form, base_v, status=200, removing=(), **extra):
 @school_required
 @school_write_required
 @_body_guard
+@legacy_locked
 def edit(request, key):
     n = _visible(request, key)
     if not _can_edit(request.member, n):
@@ -417,7 +419,7 @@ def detail(request, key):
                      latest_v=history[0]["v"], title=ver.fields.get(TITLE, n.title),
                      items=[{"name": k, "value": ver.fields[k]} for k in ITEMS if ver.fields.get(k)],
                      audience=ver.fields.get(AUDIENCE, n.audience_text), attach=attach,
-                     can_edit=_can_edit(request.member, n) and request.space.school.writable)
+                     can_edit=_can_edit(request.member, n) and request.space.school.writable and not request.space.legacy_readonly)
     if prev is not None:
         ctx["changes"] = _changes(prev.fields, ver.fields)
         ctx["body_changed"] = prev.body != ver.body
@@ -464,6 +466,7 @@ def ack(request, key):
 @require_POST
 @school_required
 @manager_required
+@legacy_locked
 def erase(request, key, v):
     """옛 판 내용 지우기(실수로 쓴 개인정보): 관리자만, 최신 판은 그냥 고치면 되니 대상 아님. 🔔 문구의 옛값·새값도 함께 지운다."""
     n = _visible(request, key)
@@ -500,6 +503,7 @@ def link(request, token):
 @require_POST
 @school_required
 @school_write_required
+@legacy_locked
 def delete(request, key):
     n = _visible(request, key)
     if not _can_edit(request.member, n):

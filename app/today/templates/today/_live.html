@@ -6,7 +6,7 @@
     <button type="button" class="sum-b" data-open="#dlgSent" aria-haspopup="dialog"><span>내가 걷는 것</span><b class="num">{{ sent|length }}</b></button>
   </div>
   <section class="card" aria-labelledby="dayH">
-    <div class="card-h"><h2 id="dayH">오늘 일과</h2><span class="n num">{{ n_items }}</span><span class="r">{{ label }} · 칸의 ＋를 누르면 일정을 더해요 <a class="tlink" href="/s/{{ space.token }}/schedule?mode=day">더보기</a></span></div>
+    <div class="card-h"><h2 id="dayH">오늘 일과</h2><span class="n num">{{ n_items }}</span><span class="r">{{ label }} · {% if space.legacy_readonly %}{% include "spaces/_legacy_ro.html" %}{% else %}칸의 ＋를 누르면 일정을 더해요{% endif %} <a class="tlink" href="/s/{{ space.token }}/schedule?mode=day">더보기</a></span></div>
     {# 일정 화면 일간과 같은 판(채널 줄 × 오늘 한 칸). 칸 안 카드는 가로로 늘어선다. data-*는 schedule.js가 칸 입력에 넘긴다. #}
     <div class="day" id="week" data-mode="day" data-w="{{ w }}" data-tab="{{ tab }}"><div class="dgrid" id="dgrid">
       {% for r in wrows %}<div class="lbl" data-ch="{{ r.ch }}">{{ r.label }}</div>

@@ -2,7 +2,7 @@
 (function () {
   // 알림 한 줄(design/assets/shell.js U.toast)
   var timer;
-  function toast(text, ms) {
+  function toast(text, ms, link) {
     var el = document.getElementById('toast');
     if (!el) {
       el = document.createElement('div'); el.id = 'toast'; el.className = 'toast';
@@ -10,6 +10,11 @@
       document.body.appendChild(el);
     }
     el.textContent = text;
+    if (link) {  // link: {href, text} — 새 탭으로 여는 링크 하나(V3 예전 고티처)
+      var a = document.createElement('a');
+      a.href = link.href; a.target = '_blank'; a.rel = 'noopener'; a.textContent = link.text;
+      el.appendChild(a);
+    }
     el.classList.add('show');
     clearTimeout(timer); timer = setTimeout(function () { el.classList.remove('show'); }, ms || 2800);
   }
@@ -53,7 +58,10 @@
   // 앱까지 오지 못한 거절: 앞단 본문 상한(413)·동시 업로드 상한(429). 자기 안내가 있는 화면은 stopPropagation으로 여기 오지 않는다.
   document.addEventListener('htmx:responseError', function (e) {
     var st = e.detail.xhr.status;
-    if (st === 413) toast('파일이 너무 커요. 크기를 줄여 다시 올려 주세요.');
+    if (st === 403 && e.detail.xhr.getResponseHeader('X-GT-Legacy-RO') === '1') {  // V3 이관 학교 보기 전용: 열려 있던 옛 탭에서 쓴 경우
+      var site = e.detail.xhr.getResponseHeader('X-GT-Legacy-Site') || '';
+      toast(e.detail.xhr.responseText, 8000, /^https?:\/\//.test(site) ? { href: site, text: '예전 고티처 열기' } : null);
+    } else if (st === 413) toast('파일이 너무 커요. 크기를 줄여 다시 올려 주세요.');
     else if (st === 429) toast('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
   });
   // 보내기 전 크기 검사: <input type="file" data-max-mb="n">의 파일 합이 n MB를 넘으면 보내지 않는다. 일반 폼은 앞단 거절이 브라우저 기본 화면으로 뜨기 때문이다.

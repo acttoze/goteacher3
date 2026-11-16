@@ -164,7 +164,7 @@ def _school_ctx(request, **extra):
     ctx["plan_left"] = space.school.days_left if me.is_manager else None
     ctx["attendance"] = list(Attendance.objects.in_space(space).filter(date=timezone.localdate()).select_related("member").order_by("pk"))
     ctx["n_attendance"] = len({a.name for a in ctx["attendance"]})
-    ctx["can_attend"] = (me.is_manager or me.can_duty) and space.school.writable
+    ctx["can_attend"] = (me.is_manager or me.can_duty) and space.school.writable and not space.legacy_readonly
     from .summary import figures  # 여기서 부른다: collect.recipients가 이 모듈을 import한다(순환)
     ctx["sum"] = figures(space)
     if tab == "duty":

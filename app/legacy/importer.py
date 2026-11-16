@@ -70,28 +70,29 @@ def _system(m):
 
 
 class Dump:
-    """덤프 폴더를 읽은 것. 일정은 필요한 칸만 남긴다(본문이 커서)."""
+    """구 데이터를 읽은 것. 일정은 필요한 칸만 남긴다(본문이 커서).
+    rows(표 이름) → 행 dict들(덤프 폴더의 JSON Lines 또는 V2 동기화의 구 DB 행), files: 첨부 폴더(아래에 <bo_table>/)."""
 
-    def __init__(self, folder):
-        self.folder = Path(folder)
-        self.members = list(_rows(folder, "g5_member"))
-        self.groups = {g["group_id"]: g for g in _rows(folder, "contact_group")}
-        self.schools = {s["id"]: s for s in _rows(folder, "school")}
-        self.channel_rows = {c["wr_id"]: (c["wr_3"], c["wr_subject"].strip()) for c in _rows(folder, "g5_write_channel")}
+    def __init__(self, rows, files):
+        self.files_root = Path(files)
+        self.members = list(rows("g5_member"))
+        self.groups = {g["group_id"]: g for g in rows("contact_group")}
+        self.schools = {s["id"]: s for s in rows("school")}
+        self.channel_rows = {c["wr_id"]: (c["wr_3"], c["wr_subject"].strip()) for c in rows("g5_write_channel")}
         self.channels = {k: name for k, (_, name) in self.channel_rows.items()}
         self.admins = defaultdict(set)
-        for a in _rows(folder, "g5_write_go_admin"):
+        for a in rows("g5_write_go_admin"):
             if not a["wr_is_comment"]:
                 self.admins[a["wr_3"]].add(a["mb_id"])
         self.events, self.comments = defaultdict(list), defaultdict(list)
-        for r in _rows(folder, "g5_write_goteacher"):
+        for r in rows("g5_write_goteacher"):
             r = {k: r[k] for k in KEEP}
             (self.comments[r["wr_parent"]] if r["wr_is_comment"] else self.events[r["wr_3"]]).append(r)
         self.board, self.board_comments = defaultdict(list), defaultdict(list)
-        for r in _rows(folder, "g5_write_free_school"):
+        for r in rows("g5_write_free_school"):
             (self.board_comments[r["wr_parent"]] if r["wr_is_comment"] else self.board[r["wr_3"]]).append(r)
         self.files = defaultdict(list)
-        for f in _rows(folder, "g5_board_file"):
+        for f in rows("g5_board_file"):
             self.files[(f["bo_table"], f["wr_id"])].append(f)
         for rows in (*self.events.values(), *self.board.values()):
             rows.sort(key=lambda r: r["wr_id"])
@@ -102,8 +103,8 @@ class Dump:
                        and m["mb_today_login"] >= ACTIVE_SINCE and m["mb_1"] in self.schools})
 
     def path(self, f):
-        """덤프의 files/<bo_table>/ 밖을 가리키면(../ 등) None."""
-        root = (self.folder / "files" / f["bo_table"]).resolve()
+        """첨부 폴더의 <bo_table>/ 밖을 가리키면(../ 등) None."""
+        root = (self.files_root / f["bo_table"]).resolve()
         p = (root / f["bf_file"].strip()).resolve()
         return p if p.is_relative_to(root) else None
 
@@ -293,15 +294,10 @@ class Importer:
             if lid not in self.done["user"]:
                 self.report.add(code, SEAT, drop("계정을 만들지 못함(아이디 겹침·규칙 밖)"), lid)
                 continue
-            g = self.dump.groups.get(int(m["mb_3"])) if m["mb_3"].strip().isdigit() else None
-            gname = g["group_name"] if g and g["school_id"] == code else None
-            fields = seat_fields(gname, m["mb_4"])
+            fields, gname = self._seat_of(code, m)
             if fields is None:
                 self.report.add(code, SEAT, drop("전출·휴직 그룹"), lid)
                 continue
-            if self.org:  # 기관: 관리자가 채널 화면에서 그룹에 배정한다
-                fields = {"group": "", "cls": ORG_NONE, "position": m["mb_4"].strip()[:40]}
-                gname = ""
             name = unique_name(m["mb_name"], fields["cls"], taken)
             note = "·".join(x for x in ("그룹 없음(기타/지원)" if gname is None else "",
                                         "같은 반·이름이라 번호 붙임" if name != (m["mb_name"].strip()[:40] or "이름 없음") else "") if x)
@@ -326,6 +322,15 @@ class Importer:
         elif any(s.is_manager for _, _, s in new):
             self.report.add(code, MANAGER, IN, n=sum(1 for _, _, s in new if s.is_manager))
         return seats
+
+    def _seat_of(self, code, m):
+        """회원 행 → (자리 칸들 또는 전출·휴직이면 None, 그룹 이름). 그룹 이름 None은 그룹 없음."""
+        g = self.dump.groups.get(int(m["mb_3"])) if m["mb_3"].strip().isdigit() else None
+        gname = g["group_name"] if g and g["school_id"] == code else None
+        fields = seat_fields(gname, m["mb_4"])
+        if fields is not None and self.org:  # 기관: 관리자가 채널 화면에서 그룹에 배정한다
+            return {"group": "", "cls": ORG_NONE, "position": m["mb_4"].strip()[:40]}, ""
+        return fields, gname
 
     # 일정·복무 --------------------------------------------------------------------------------------
     def _group_scope(self, wr_7, code):
@@ -445,6 +450,8 @@ class Importer:
             for a in rs:
                 a.created_at = at or a.created_at
             self._map("attendance", lid, rs[0].pk)
+            for i, a in enumerate(rs[1:], 1):  # 여러 날 복무의 나머지 날(V2 동기화가 고치거나 지울 때 함께 찾는다)
+                self._map("attendance", f"{lid}:{i}", a.pk)
             out[wr_id] = ("duty", rs[0].pk)
         Attendance.objects.bulk_update(all_rows, ["created_at"], batch_size=BATCH)
         return out
@@ -622,7 +629,7 @@ class Importer:
 
 def run(folder, schools=None, dry_run=False, report_path=None):
     """돌려주는 값: (Report, 학교 코드들, 보고서 항목 파일 경로)."""
-    dump = Dump(folder)
+    dump = Dump(lambda name: _rows(folder, name), Path(folder) / "files")
     report = Report()
     codes = schools or dump.targets()
     for r in dump.events.get("", []):

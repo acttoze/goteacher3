@@ -14,7 +14,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from collect.paste import FILLER, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, html_to_tsv, tsv_lines
-from spaces.gates import school_required
+from spaces.gates import legacy_locked, school_required
 from spaces.models import Space
 from spaces.views import _space_ctx
 
@@ -199,6 +199,7 @@ def _ctx(request, **extra):
 @never_cache
 @require_http_methods(["GET", "POST"])
 @school_required
+@legacy_locked
 def page(request):
     """붙여넣기 화면과 넣기. 값은 넣을 때 서버가 다시 읽는다."""
     space, me = request.space, request.member
@@ -228,6 +229,7 @@ def page(request):
 @never_cache
 @require_POST
 @school_required
+@legacy_locked
 def preview(request):
     """미리보기(htmx). 저장하지 않는다. html이 오면(한글·엑셀 클립보드) TSV로 바꿔 입력 칸에 넣도록 함께 돌려준다."""
     html, ctx = request.POST.get("html", ""), {}

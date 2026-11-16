@@ -26,6 +26,7 @@ from collect.views import _due_text
 from notices import seen as notice_seen
 from notices.models import Notice
 from spaces import neis
+from spaces.gates import legacy_locked
 from spaces.models import Attendance, Member
 from spaces.views import _josa, _space_ctx
 
@@ -304,6 +305,7 @@ def _conf_text(p, conf, me):
 
 @never_cache
 @require_POST
+@legacy_locked
 def preview(request):
     """한 줄 입력 미리보기: 칩(날짜·시간·대상·장소·참석)과 장소 충돌."""
     p, error = _read_line(request)
@@ -319,6 +321,7 @@ def preview(request):
 
 @never_cache
 @require_POST
+@legacy_locked
 def add(request):
     view = request.POST.get("view")
     week, board = view == "week", view in ("week", "today")  # board: 일정 판(일정 화면 주간·오늘 화면 하루)
@@ -365,6 +368,7 @@ def _writable_event(request, key):
 
 @never_cache
 @require_POST
+@legacy_locked
 def edit(request, key):
     """날짜·블록·장소 바꾸기(prototype setWhen). 이미 정한 값을 바꾸면 '바뀐 것'으로 남기고 바꾼 사람을 by에."""
     e, denied = _writable_event(request, key)
@@ -413,6 +417,7 @@ def edit(request, key):
 
 @never_cache
 @require_POST
+@legacy_locked
 def delete(request, key):
     e, denied = _writable_event(request, key)
     if denied:

@@ -30,7 +30,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from accounts.models import is_guest
 from collect.paste import FILLER, MAX_GRID_COLS, MAX_ROWS, MAX_TEXT, TOTAL, PasteError, html_to_tsv, tsv_lines
 
-from .gates import manager_required, no_org, school_required, school_write_required
+from .gates import legacy_locked, manager_required, no_org, school_required, school_write_required
 from .models import SCHOOL_GROUPS, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
 from .school import TOAST, _person, _school_ctx, school_body, split_people
 from .views import _space_ctx
@@ -338,6 +338,7 @@ def _days(space):
 @no_org
 @_writer_required
 @school_write_required
+@legacy_locked
 def page(request):
     """붙여넣기 화면과 바꾸기. 바꾸기가 받는 것은 미리보기가 서명한 값뿐이다."""
     if request.method == "GET":
@@ -366,6 +367,7 @@ def page(request):
 @no_org
 @_writer_required
 @school_write_required
+@legacy_locked
 def preview(request):
     """미리보기(htmx). 저장하지 않고, 원문을 돌려주지 않는다. html이 오면(한글·엑셀 클립보드) 그 안의 표를 읽는다."""
     html, today, space = request.POST.get("html", ""), timezone.localdate(), request.space
@@ -395,6 +397,7 @@ def preview(request):
 @no_org
 @_writer_required
 @school_write_required
+@legacy_locked
 def clear(request):
     """그날 복무 지우기(잘못 넣은 날짜 되돌리기). 확인은 화면의 hx-confirm."""
     try:

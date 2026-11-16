@@ -341,7 +341,8 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
   font: 600 16px/1.4 var(--font); max-width: min(560px, calc(100vw - 32px)); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80;
   box-shadow: 0 10px 30px rgba(13, 13, 13, .18); } /* taste-skill-ignore: 떠 있는 알림 */
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.toast button { margin-left: 12px; background: none; border: 0; color: #9db4ff; font-weight: 700; cursor: pointer; }
+.toast button, .toast a { margin-left: 12px; background: none; border: 0; color: #9db4ff; font-weight: 700; cursor: pointer; }
+.toast.show a { pointer-events: auto; } /* V3 예전 고티처 링크: 보일 때만 누를 수 있게 */
 
 /* ---------- 움직임: 되돌림만 ---------- */
 @keyframes gt-flash { from { background: var(--accent-soft); } to { background: transparent; } }

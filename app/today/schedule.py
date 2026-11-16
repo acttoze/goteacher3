@@ -30,7 +30,7 @@ from django.views.decorators.http import require_GET, require_POST
 from collect.lists import _colors
 from spaces import neis
 from spaces.attendance import DAYS_MAX, LINE_ERROR, _one, _roster, read_line
-from spaces.gates import no_org, school_required, school_write_required
+from spaces.gates import legacy_locked, no_org, school_required, school_write_required
 from spaces.models import Attendance, Member
 from spaces.views import _space_ctx
 
@@ -205,6 +205,7 @@ def board_ctx(request, mode, raw, today_view=False):
         at = next((i for i, c in enumerate(channels) if c["k"] == "duty"), len(channels))
         channels = channels[:at] + mine + channels[at:]
     shown_lines = {c["scope"] for c in channels}
+    ro = space.legacy_readonly  # V3 이관 학교: 칸 ＋·고치기·복무 지우기 없이 보기만
 
     def on_tab(e):
         if not space.is_school:
@@ -236,6 +237,7 @@ def board_ctx(request, mode, raw, today_view=False):
         x = _ev_item(e, me, today, hexes, names)
         ch = line_of(e) if channeled else ""
         x["kind"], x["ch"], x["scopes"] = "ev", ch, _dialog_scopes(me, e)
+        x["can_write"] = x["can_write"] and not ro
         x["g"] = e.by.group if e.by else ""  # U4 소속 필터: 쓴 사람 소속
         x["fresh"] = x["mine"] and not e.changed_from and now - e.created_at < timedelta(minutes=1)
         x["changes"] = [(w, a, b) for w, a, b in (e.changed_from or [])]
@@ -269,7 +271,7 @@ def board_ctx(request, mode, raw, today_view=False):
     # 남이 넣은 줄(넣은 사람 ≠ 당사자)에는 넣은 사람을 함께 보인다(이름 위조를 알아보게).
     if channeled and space.is_school and not space.is_org:
         for a in Attendance.objects.in_space(space).filter(date__range=(first, last)).select_related("by", "member").order_by("pk"):
-            x = {"kind": "duty", "a": a, "title": a.title, "time": a.time_text, "ch": "duty", "can_del": _duty_deletable(a, me),
+            x = {"kind": "duty", "a": a, "title": a.title, "time": a.time_text, "ch": "duty", "can_del": not ro and _duty_deletable(a, me),
                  "by_other": a.by.name if a.by_id and a.by_id != a.member_id else "", "mine": a.by_id == me.pk,
                  "who": a.group_label, "gc": hexes.get(a.member.group, "") if a.member else "",  # 당사자 소속(명부로 못 맞추면 비움)
                  "g": a.member.group if a.member else ""}  # U4 소속 필터: 당사자 소속
@@ -298,7 +300,7 @@ def board_ctx(request, mode, raw, today_view=False):
                     "items": lambda d, k=s["k"]: cells[(d, "", k)]} for s in SLOTS]]
 
     def cell(d, line):
-        scope = line.get("scope", tab_scope)
+        scope = "" if ro else line.get("scope", tab_scope)  # 칸 범위가 비면 ＋·칸 누르기가 없다
         name = line["label"] or "일정"
         return {"items": line["items"](d), "today": d == today, "date": d.isoformat(), "slot": line["slot"], "scope": scope,
                 "post": line.get("post", ""), "when": f"{_d(d)} · {name}",
@@ -405,6 +407,7 @@ def _done(request, toast):
 @school_required
 @no_org
 @school_write_required
+@legacy_locked
 def duty_add(request):
     """학교 탭 복무 칸: '이름 유형 [시간]' 한 줄(누구나). 날짜는 칸, 오늘 ±31일만. 못 읽으면 원문을 돌려 보이지 않고 짧은 안내만."""
     from .views import LINE_MAX, _clean, _read_cell
@@ -432,6 +435,7 @@ def duty_add(request):
 @school_required
 @no_org
 @school_write_required
+@legacy_locked
 def duty_delete(request, key):
     a = get_object_or_404(Attendance.objects.in_space(request.space), key=key)
     if not _duty_deletable(a, request.member):
