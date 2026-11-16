@@ -144,7 +144,7 @@ class GateTests(Base):
             self.assertNotIn(f'href="{base}{href}"', html)
         self.assertIn(">기</span>", html)
         self.assertIn("기관 공간", html)
-        self.assertNotIn("점심 12:20", html)
+        self.assertNotIn('점심<span class="num">12:20', html)
         self.assertNotIn("학사일정", html)
 
     def test_board_has_no_repair_tab(self):
@@ -374,7 +374,7 @@ class SchoolRegressionTests(TestCase):
         for href in ("/school", "/meals/screens", "/it"):
             self.assertIn(f'href="{base}{href}"', html)
         self.assertIn(">학</span>", html)
-        self.assertIn("점심 12:20", html)
+        self.assertIn('점심<span class="num">12:20', html)  # 오늘 하루 판의 점심 줄(2026-11-15)
         self.assertIn("학교 전체", c.get(base + "/schedule").content.decode())
 
 
