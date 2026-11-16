@@ -13,6 +13,7 @@ from collect import bell, export, lists, push, submit
 from collect import views as collect
 from community import views as community
 from feedback import views as feedback
+from library import help as help_page
 from library import views as library
 from meals import phone, tv
 from notices import views as notices
@@ -133,6 +134,7 @@ urlpatterns = [
     path("s/<str:space_token>/", include("notices.urls")),  # I1 공지
     path("s/<str:space_token>/", include("repairs.urls")),  # K1 수리 요청
     path("s/<str:space_token>/", include("meals.urls")),  # M1 급식 입력
+    path("help", help_page.page),  # V7 도움말(로그인 없이)
     path("forms", library.index),  # G4 양식 자료실(로그인 없이)
     path("forms/<str:slug>", library.index),
     path("forms/<str:slug>/download", library.download),

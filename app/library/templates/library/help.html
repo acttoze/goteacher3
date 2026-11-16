@@ -1,0 +1,55 @@
+{% extends frame %}{% load static %}
+{# V7 도움말. 왼쪽 주제 목록, 오른쪽 주제마다 단계 1~3줄 + 캡처(ops/help/capture.py). 영상(V8)은 파일이 있을 때만. #}
+{% block title %}도움말 · 고티처{% endblock %}
+{% block head %}
+<meta name="description" content="고티처 쓰는 법: 처음 들어오기, 오늘·일정, 취합 만들기·내기, 한글로 받기, 게시판, 급식, 설정.">
+<style>
+  .bare.wide { max-width: 1198px; padding-top: 32px; }
+  .help-nav { position: sticky; top: 24px; }
+  .has-shell .help-nav { top: calc(var(--topbar) + 24px); }
+  .help-nav ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .help-nav a { display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: var(--radius-in); color: var(--ink); text-decoration: none; }
+  .help-nav a:hover { background: var(--surface); }
+  .topics { display: grid; gap: var(--gap); }
+  .topic { scroll-margin-top: 24px; }
+  .has-shell .topic { scroll-margin-top: calc(var(--topbar) + 24px); }
+  .topic h2 { font-size: var(--fs-section); }
+  .topic .card-b { display: grid; gap: 16px; }
+  .steps { margin: 0; padding-left: 24px; display: grid; gap: 6px; }
+  .shots { display: grid; gap: 16px; margin: 0; }
+  .shots figure { margin: 0; }
+  .shots img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-in); }
+  .shots figcaption { margin-top: 6px; font-size: var(--fs-small); color: var(--muted); }
+  .topic video { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-in); background: var(--surface); }
+</style>
+{% endblock %}
+{% block ptitle %}도움말{% endblock %}
+{% block end %}{% if user.is_authenticated %}{{ block.super }}{% else %}<span class="end"><a class="btn sec sm" href="/start">시작하기</a></span>{% endif %}{% endblock %}
+{% block main %}
+<div class="title">
+  <div class="grow">
+    <h1>도움말</h1>
+    <p class="sub">주제를 고르면 화면 그림과 함께 순서대로 보여 드려요. 그림은 가상 학교로 찍었어요. 그림을 누르면 크게 보여요.</p>
+  </div>
+</div>
+<div class="grid">
+  <nav class="s3 help-nav" aria-label="도움말 주제">
+    <ol>{% for t in topics %}<li><a href="#{{ t.key }}">{{ t.title }}</a></li>{% endfor %}</ol>
+  </nav>
+  <div class="s9 topics">
+    {% for t in topics %}
+    <section class="card topic" id="{{ t.key }}" aria-labelledby="h-{{ t.key }}">
+      <div class="card-h"><h2 id="h-{{ t.key }}">{{ t.title }}</h2></div>
+      <div class="card-b">
+        <ol class="steps">{% for s in t.steps %}<li>{{ s }}</li>{% endfor %}</ol>
+        {% if t.note %}<p class="notice">{{ t.note }}</p>{% endif %}
+        {% if t.video %}<video controls preload="none" poster="{% static 'help/'|add:t.key|add:'.jpg' %}" src="{% static 'help/'|add:t.key|add:'.mp4' %}" aria-label="{{ t.title }} 영상(소리 없음, 자막)"></video>{% endif %}
+        <div class="shots">{% for name, alt in t.shots %}
+          <figure><a href="{% static 'help/'|add:name|add:'.png' %}" target="_blank" rel="noopener"><img src="{% static 'help/'|add:name|add:'.png' %}" alt="{{ alt }}" loading="lazy"></a><figcaption>{{ alt }}</figcaption></figure>
+        {% endfor %}</div>
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
