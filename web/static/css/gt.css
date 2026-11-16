@@ -404,3 +404,14 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
   .tabs { gap: 6px; }
   .pop { left: 8px !important; right: 8px !important; min-width: 0; }
 }
+
+/* ---------- V6 미리 써보기 윗띠·의견 보내기 ---------- */
+.preview-band { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 16px; margin: -12px 0 20px; }
+.preview-band p { flex: 1; }
+.fb fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.fb legend { padding: 0; margin-bottom: 8px; }
+.fb legend .hint, .fb .field .hint { margin-left: 6px; }
+label.pick { position: relative; display: inline-flex; align-items: center; }
+label.pick input { position: absolute; opacity: 0; pointer-events: none; }
+label.pick:has(input:checked) { background: var(--ink); color: #fff; }
+label.pick:has(input:focus-visible) { outline: 3px solid var(--accent); outline-offset: 2px; }

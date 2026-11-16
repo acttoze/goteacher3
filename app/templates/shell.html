@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
 {# design/assets/shell.js의 공통 틀. 아직 없는 기능(접속 중 표시)은 넣지 않는다. #}
 {% block html_attr %} class="has-shell"{% endblock %}
 {% block body %}
@@ -32,13 +32,16 @@
   <b class="ptitle">{% include "_mark.html" with size=20 %}{% block ptitle %}고티처{% endblock %}</b>
   {% block quick %}{% endblock %}
   <form class="online" method="post" action="/auth/logout" id="logoutForm" data-push-off="/s/{{ space.token }}/push/off">{% csrf_token %}<button class="btn ghost sm" type="submit">이 PC에서 로그아웃</button></form>
+  {% if can_feedback and not space.legacy_readonly %}<button class="btn ghost sm" type="button" data-open="#fbDlg">의견 보내기</button>{% endif %}
   <button class="bell" type="button" id="bellBtn" aria-haspopup="true" aria-expanded="false" aria-controls="bellPop" hx-get="/s/{{ space.token }}/bell" hx-target="#bellPop"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{% if bell_n %}<i class="dot-n" aria-hidden="true"></i>{% endif %}<span class="lbl">{% if bell_next %}다음 알림 <b class="num">{{ bell_next|time:"H:i" }}</b>{% else %}묶음 알림 꺼짐{% endif %}</span><span class="sr">안 읽은 알림 {{ bell_n }}건, 알림 묶음 열기</span></button>
   <div class="switch" aria-label="공간: {{ space.name }}"><span class="av sm" style="background:var(--ink)">{% if space.is_org %}기{% elif space.is_school %}학{% else %}{{ space.grade }}{% endif %}</span><span><b>{{ space.name }}</b><span>{{ space.word }} 공간 · {{ rows|length }}명</span></span></div>
 </header>
 <div class="pop" id="bellPop" hidden role="dialog" aria-label="알림" style="top:58px;right:220px;width:420px"><p class="pi muted">불러오는 중…</p></div>
 <main class="main narrow" id="main" tabindex="-1" style="outline:none">
+{% if can_feedback and space.legacy_readonly %}{% include "feedback/_band.html" %}{% endif %}
 {% if space.is_org and not space.school.writable %}<p class="notice" role="status" style="margin-bottom:20px">기관 공간 기간이 끝났어요. 새로 들어올 수 없고, 관리 기능은 읽기만 돼요. 취합·오늘·일정은 그대로 써요. <a class="tlink acc" href="/school-plan">기관 플랜 신청</a></p>
 {% elif space.is_school and not space.school.writable %}<p class="notice" role="status" style="margin-bottom:20px">학교 플랜 기간이 끝났어요. 새 선생님은 들어올 수 없고, 학교 화면은 읽기만 돼요. 취합·오늘·일정은 그대로 써요. <a class="tlink acc" href="/school-plan">학교 플랜 연장</a></p>{% endif %}
 {% block main %}{% endblock %}
 </main>
+{% if can_feedback %}{% include "feedback/_dialogs.html" %}<script src="{% static 'js/feedback.js' %}" defer></script>{% endif %}
 {% endblock %}

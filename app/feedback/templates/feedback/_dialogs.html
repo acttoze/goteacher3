@@ -1,0 +1,27 @@
+{# V6 의견 보내기·예전 고티처로 대화상자(shell.html, 계정 회원만). 경로·화면 크기는 보낼 때 feedback.js가 넣는다. 화면 내용은 넣지 않는다. #}
+<div class="scrim" id="fbDlg" hidden>
+  <form class="dialog fb" role="dialog" aria-modal="true" aria-labelledby="fbH" hx-post="/s/{{ space.token }}/feedback" hx-target="#fbMsg" data-err-swap data-fb>
+    {% csrf_token %}<input type="hidden" name="path"><input type="hidden" name="screen">
+    <div class="dh"><h2 id="fbH">의견 보내기</h2></div>
+    <div class="db">
+      <fieldset><legend class="lbl">종류 <span class="hint">안 골라도 돼요</span></legend>
+        <div class="picks"><label class="pick"><input type="radio" name="kind" value="bad">불편</label><label class="pick"><input type="radio" name="kind" value="bug">오류</label><label class="pick"><input type="radio" name="kind" value="wish">바라는 점</label><label class="pick"><input type="radio" name="kind" value="good">좋아요</label></div></fieldset>
+      <label class="field"><span>의견</span><textarea class="textarea" name="text" maxlength="1000" required placeholder="불편한 점, 오류, 바라는 점을 편하게 적어 주세요."></textarea></label>
+      <p class="small muted">지금 보고 있는 화면의 위치와 화면 크기가 함께 가요. 화면에 적힌 내용은 가지 않아요. 학생 이름·연락처는 적지 말아 주세요.</p>
+      <div id="fbMsg" aria-live="polite"></div>
+    </div>
+    <div class="df"><button class="btn ghost" type="button" data-close>닫기</button><button class="btn pri" type="submit">보내기</button></div>
+  </form>
+</div>
+{% if space.legacy_readonly %}<div class="scrim" id="backDlg" hidden>
+  <form class="dialog fb" role="dialog" aria-modal="true" aria-labelledby="backH" hx-post="/s/{{ space.token }}/feedback/back" hx-swap="none" data-fb data-site="{{ legacy_site_url }}">
+    {% csrf_token %}<input type="hidden" name="path"><input type="hidden" name="screen">
+    <div class="dh"><h2 id="backH">예전 고티처로 갈까요?</h2></div>
+    <div class="db">
+      <fieldset><legend class="lbl">돌아가는 까닭 하나를 골라 주시면 새 고티처를 고치는 데 써요.</legend>
+        <div class="picks"><label class="pick"><input type="radio" name="kind" value="back_missing">찾는 게 없어요</label><label class="pick"><input type="radio" name="kind" value="back_unfamiliar">익숙지 않아요</label><label class="pick"><input type="radio" name="kind" value="back_slow">느려요</label><label class="pick"><input type="radio" name="kind" value="back_data">데이터가 달라요</label><label class="pick"><input type="radio" name="kind" value="back_browse">그냥 둘러봤어요</label></div></fieldset>
+      <label class="field"><span>더 적을 말 <span class="hint">안 써도 돼요</span></span><input class="input" name="text" maxlength="1000" autocomplete="off"></label>
+    </div>
+    <div class="df"><button class="btn ghost" type="button" data-close>닫기</button><button class="btn sec" type="submit" name="skip" value="1">건너뛰기</button><button class="btn pri" type="submit">보내고 예전 고티처로</button></div>
+  </form>
+</div>{% endif %}

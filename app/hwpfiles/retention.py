@@ -14,6 +14,7 @@
 - 신청 정보(O1): spaces.PlanRequest. 처리한 날(대기 중이면 접수한 날)부터 1년.
 - 지난 알림(O2): 읽은 것은 90일, 안 읽은 것은 180일 지나면 지운다(만든 때 기준). 이름이 든 입장 알림은 그 회원이 나갈 때 먼저 지워진다(Notification.about).
 - 커뮤니티 신고(Q10): 신고한 지 1년. 글·댓글은 쓴 사람이 지우기 전까지 두되, 운영자가 내린 것은 내린 뒤 90일이면 지운다.
+- 의견(V6): 받은 날부터 settings.FEEDBACK_KEEP_DAYS(처리방침 2항이 같은 값을 쓴다).
 - 나간 회원의 '나' 일정(O1): 쓴 사람이 없어져 아무도 볼 수 없는 today.Event(scope=me). 나간 사람의 권한 변경 기록은 그대로 1년 규칙.
 - 안 쓴 올린 파일: 취합에 쓰이지 않은 채 24시간(다른 파일을 골라 버린 것, 만들다 그만둔 것).
 - 멈춘 작업: 대기·변환 중·만드는 중으로 RQ_JOB_TIMEOUT×2(600초)를 넘긴 것 → 실패 + 파일 정리(화면을 안 열어도).
@@ -27,6 +28,7 @@ import logging
 from datetime import timedelta
 
 from django.core.exceptions import SuspiciousFileOperation
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models.signals import post_delete
@@ -34,6 +36,7 @@ from django.utils import timezone
 
 from collect.models import Collection, Notification
 from community.models import Comment, Post, Report, remove
+from feedback.models import Feedback
 from meals.models import MealPhoto, PhotoLink
 from notices.models import Notice
 from partners.models import Review, ReviewAction, Suggestion
@@ -281,6 +284,11 @@ def purge(now, dry_run=False):
     n["notifications"] = old_bells.count()
     if not dry_run:
         old_bells.delete()
+    # 의견(V6)
+    old_feedback = Feedback.objects.filter(created_at__lt=now - timedelta(days=settings.FEEDBACK_KEEP_DAYS))
+    n["feedback"] = old_feedback.count()
+    if not dry_run:
+        old_feedback.delete()
     # 나간 회원의 '나' 일정(O1): 쓴 사람(by)이 비면 아무도 못 본다
     orphan_events = Event.objects.filter(scope=ME, by__isnull=True)
     n["my_events"] = orphan_events.count()

@@ -71,7 +71,7 @@ class ModalTests(VendorBase):
     def test_edit_keeps_page_and_category_choice(self):
         html = self.teacher.get(f"{self.base}/{self.info.key}/edit").content.decode()
         self.assertIn('type="radio" name="cat" value="info" checked', html)
-        self.assertNotIn('class="scrim"', html)
+        self.assertNotIn("repairDlg", html)  # 수리 요청 대화상자가 아니라 화면(셸의 V6 의견 대화상자는 있다)
         self.assertIn(f'href="{self.it}"', html)
 
     def test_expired_has_no_dialog(self):

@@ -1,0 +1,38 @@
+{% extends frame %}
+{# V6 운영자 의견함(is_staff만). 이름 대신 공간 이름·소속, 경로는 모양만. #}
+{% block title %}의견함 · 고티처{% endblock %}
+{% block head %}
+<style>
+  .fbx-tool { display: flex; align-items: flex-end; gap: 12px; margin: 20px 0 16px; }
+  .fbx-tool .field { width: 240px; }
+  .fbx td { height: auto; padding-top: 14px; padding-bottom: 14px; vertical-align: top; }
+  .fbx .when { white-space: nowrap; color: var(--muted); font-size: var(--fs-small); }
+  .fbx .txt { white-space: pre-line; min-width: 360px; }
+  .fbx .meta { display: block; margin-top: 4px; font-size: var(--fs-small); color: var(--faint); }
+</style>
+{% endblock %}
+{% block ptitle %}의견함{% endblock %}
+{% block main %}
+<h1>의견함</h1>
+<p class="muted">선생님들이 보낸 의견과 예전 고티처로 돌아간 까닭이에요. 최근 것부터 보여요. 모두 {{ page_obj.paginator.count }}건.</p>
+<form class="fbx-tool" method="get" action="/ops/feedback">
+  <label class="field"><span>종류</span><select class="select" name="k">{% for v, label in kinds %}<option value="{{ v }}"{% if v == k %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label class="field"><span>공간</span><select class="select" name="s"><option value="">전체</option>{% for name in spaces %}<option value="{{ name }}"{% if name == s %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  <button class="btn sec" type="submit">거르기</button>
+</form>
+{% if page_obj %}
+<table class="tbl fbx">
+  <thead><tr><th>보낸 때</th><th>종류</th><th>공간 · 소속</th><th>의견</th></tr></thead>
+  <tbody>{% for f in page_obj %}
+    <tr><td class="when num">{{ f.created_at|date:"n월 j일 H:i" }}</td>
+      <td><span class="pill{% if f.is_back %} warn{% elif f.kind == 'bug' %} neg{% elif f.kind == 'good' %} pos{% endif %}">{{ f.get_kind_display }}</span></td>
+      <td>{{ f.space.name }}<span class="meta">{{ f.group_text }}</span></td>
+      <td class="txt">{{ f.text|default:"(글 없음)" }}<span class="meta">{{ f.path|default:"경로 모름" }}{% if f.screen %} · {{ f.screen }}{% endif %}</span></td></tr>
+  {% endfor %}</tbody>
+</table>
+{% if page_obj.has_other_pages %}<p class="wrap-row" style="margin-top:20px">
+  {% if page_obj.has_previous %}<a class="btn sec sm" href="?k={{ k|urlencode }}&s={{ s|urlencode }}&p={{ page_obj.previous_page_number }}">더 최근</a>{% endif %}
+  <span class="muted">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<a class="btn sec sm" href="?k={{ k|urlencode }}&s={{ s|urlencode }}&p={{ page_obj.next_page_number }}">더 지난</a>{% endif %}</p>{% endif %}
+{% else %}<p class="well" style="margin-top:8px">아직 받은 의견이 없어요.</p>{% endif %}
+{% endblock %}

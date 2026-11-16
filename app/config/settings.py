@@ -91,6 +91,7 @@ INSTALLED_APPS = [
     "partners",
     "community",
     "legacy",
+    "feedback",
 ]
 
 MIDDLEWARE = [
@@ -125,6 +126,7 @@ TEMPLATES = [
                 "collect.bell.unread",
                 "spaces.context.space_word",
                 "spaces.context.legacy_site",
+                "feedback.context.can_feedback",
             ],
         },
     },
@@ -158,6 +160,8 @@ LEGACY_FILES_DIR = os.environ.get("LEGACY_FILES_DIR", "")  # 구 첨부 폴더(�
 # V3 동시 사용 기간: 이관 학교 공간의 일정·복무·게시판은 보기만(쓰기는 구 사이트에서). 기간이 끝나면 끈다
 LEGACY_READONLY = env_bool("LEGACY_READONLY")
 LEGACY_SITE_URL = os.environ.get("LEGACY_SITE_URL", "https://goteacher.xyz")
+# V6 의견 보관 일수(받은 날부터). 365는 리드 임시 값(사용자 확인 전). 처리방침 문구가 이 값을 따른다
+FEEDBACK_KEEP_DAYS = int(os.environ.get("FEEDBACK_KEEP_DAYS", "") or 365)
 LOGIN_URL = "/start"  # 시작 화면(구글·아이디로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"

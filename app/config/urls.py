@@ -12,6 +12,7 @@ from accounts import views as accounts
 from collect import bell, export, lists, push, submit
 from collect import views as collect
 from community import views as community
+from feedback import views as feedback
 from library import views as library
 from meals import phone, tv
 from notices import views as notices
@@ -83,6 +84,8 @@ urlpatterns = [
     path("s/<str:space_token>/push", push.subscribe),
     path("s/<str:space_token>/push/off", push.unsubscribe),
     path("s/<str:space_token>/push/mine", push.mine),
+    path("s/<str:space_token>/feedback", feedback.send),  # V6 의견 보내기
+    path("s/<str:space_token>/feedback/back", feedback.back),  # V6 예전 고티처로 돌아가는 이유
     path("s/<str:space_token>/c/", lists.index),
     path("s/<str:space_token>/c/new", collect.new),
     path("s/<str:space_token>/c/new/preview", collect.preview),
@@ -123,7 +126,7 @@ urlpatterns = [
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),
-    path("privacy", TemplateView.as_view(template_name="legal/privacy.html")),
+    path("privacy", TemplateView.as_view(template_name="legal/privacy.html", extra_context={"feedback_keep": feedback.keep_text()})),
     path("terms", TemplateView.as_view(template_name="legal/terms.html")),
     path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("s/<str:space_token>/", include("today.urls")),  # G1 간이 오늘
@@ -153,5 +156,6 @@ urlpatterns = [
     path("sitemap.xml", library.sitemap),
     path("robots.txt", robots),
     path("favicon.ico", RedirectView.as_view(url=static("favicon.ico"))),  # 링크 태그를 안 읽는 브라우저·검색 로봇
+    path("ops/feedback", feedback.inbox),  # V6 운영자 의견함(is_staff만)
     path("healthz", healthz),
 ]

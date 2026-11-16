@@ -756,7 +756,7 @@ class EligibilityTests(TestCase):
         self.assertNotContains(self.mc.get(self.url), TAKEN, status_code=403)
         r = self.post(text=f"{mate.name} 칭찬")
         self.assertEqual(r.status_code, 403)
-        self.assertNotContains(r, "이름", status_code=403)
+        self.assertNotIn("이름", r.content.decode().split('id="fbDlg"')[0])  # 셸의 V6 의견 대화상자 안내 줄은 빼고 본다
         self.assertNotContains(self.post(), TAKEN, status_code=403)
         self.assertEqual(self.mc.post(self.url + "/delete").status_code, 403)
         self.assertNotContains(self.mc.post(self.url + "/delete"), TAKEN, status_code=403)
@@ -768,7 +768,7 @@ class EligibilityTests(TestCase):
             self.assertEqual(self.post(text=f"{mate.name} 칭찬").status_code, 400)
         r = self.post(text=f"{mate.name} 칭찬")
         self.assertEqual(r.status_code, 429)
-        self.assertNotContains(r, "이름", status_code=429)
+        self.assertNotIn("이름", r.content.decode().split('id="fbDlg"')[0])  # 셸의 V6 의견 대화상자 안내 줄은 빼고 본다
         self.assertEqual(Review.objects.count(), 0)
 
     def test_edit_after_seat_moves_to_new_space_within_14_days(self):
