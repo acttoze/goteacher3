@@ -119,6 +119,7 @@ urlpatterns = [
     path("auth/login", accounts.id_login),  # P1 아이디 로그인
     path("signup", accounts.signup),  # P1 아이디 가입
     path("account/password", accounts.force_password),  # P1 임시 비밀번호 뒤 바꾸기
+    path("auth/legacy", accounts.legacy_login),  # V1 구 고티처 입장권
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),

@@ -1,9 +1,12 @@
 """구글 로그인(OAuth2 인가 코드 흐름, 표준 라이브러리만) + 아이디 로그인·가입(P1) + 기기 토큰 발급·해제."""
 import base64
 import hashlib
+import hmac
 import json
 import logging
+import re
 import secrets
+import time
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -11,14 +14,18 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import caches
+from django.core.cache.backends.redis import RedisCache
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
 from config.ratelimit import allow, client_ip
+from legacy.models import LegacyMap
 from spaces.models import INVITE, Member, absorb_guest
 
 from .models import (
@@ -261,6 +268,85 @@ def id_login(request):
         if error:
             return _fail(request, 409, error, **ctx)
     return _enter(request, user, remember, next_url)
+
+
+LEGACY_TICKET_MAX_AGE = 120  # 입장권 exp가 지금보다 이만큼 넘게 먼 것은 받지 않는다(구 사이트는 60초로 만든다, 시계 차 여유)
+LEGACY_KEY_MIN = 32  # 키가 이보다 짧으면(바이트) 입장권 로그인을 끈다
+_B64URL = re.compile(r"[A-Za-z0-9_-]+")
+_NONCE = re.compile(r"[0-9a-fA-F]{32,128}")
+_MB_NO = re.compile(r"[0-9]{1,18}")
+
+
+def _replay_cache():
+    """같은 입장권 다시 쓰기를 막을 캐시. 여러 gunicorn 프로세스가 같이 보는 Redis일 때만(아니면 None → 입장권 끔)."""
+    c = caches["ratelimit"]
+    return c if isinstance(c, RedisCache) else None
+
+
+def _legacy_ticket(t):
+    """V1 입장권 = base64url(JSON{u, m, exp, n}) + "." + base64url(HMAC-SHA256(LEGACY_SSO_KEY, 앞부분)).
+    서명·기한을 보고, 구 회원 번호(m)의 이관 기록으로 찾은 계정의 아이디가 u와 같을 때만 (계정, n, exp). 아니면 None.
+    난수는 아직 쓰지 않는다(_spend)."""
+    if len(t) > 1024 or t.count(".") != 1:
+        return None
+    payload, sig = t.split(".")
+    if not (_B64URL.fullmatch(payload) and _B64URL.fullmatch(sig)):
+        return None
+    mac = hmac.new(settings.LEGACY_SSO_KEY.encode(), payload.encode(), hashlib.sha256).digest()
+    if not hmac.compare_digest(base64.urlsafe_b64encode(mac).rstrip(b"=").decode(), sig):
+        return None
+    try:
+        data = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+        u, m, exp, n = data["u"], data["m"], data["exp"], data["n"]
+    except (ValueError, TypeError, KeyError):
+        return None
+    now = int(time.time())
+    if not (isinstance(u, str) and type(exp) is int and isinstance(n, str) and _NONCE.fullmatch(n)):
+        return None
+    if not ((type(m) is int and m >= 0) or (isinstance(m, str) and _MB_NO.fullmatch(m))):
+        return None
+    if not now < exp <= now + LEGACY_TICKET_MAX_AGE:
+        return None
+    link = LegacyMap.objects.filter(kind="user", legacy_id=str(int(m))).first()
+    user = link and get_user_model().objects.filter(pk=link.obj_id).first()
+    if not (user and user.is_active and not user.is_staff and not user.is_superuser
+            and user.username.lower() == u.lower()):
+        return None
+    return user, n, exp
+
+
+def _spend(n, exp):
+    """입장권 난수를 exp까지 캐시에 남긴다. 이미 있으면(다시 쓰기) 또는 캐시가 죽으면 False."""
+    try:
+        return bool(_replay_cache().add(f"legacy-sso:{n.lower()}", 1, exp - int(time.time()) + 1))
+    except Exception:
+        return False
+
+
+@never_cache
+@require_http_methods(["GET", "POST"])
+def legacy_login(request):
+    """V1 구 고티처의 '새 고티처 이용해 보기': 입장권 하나로 로그인하고 그 사람의 학교 공간으로.
+    이관 계정만(LegacyMap). 실패는 까닭을 말하지 않고 평소 시작 화면으로(지금 세션은 그대로).
+    다른 사람으로 들어와 있으면 GET은 바꿀지 묻는 화면만(입장권은 아직 안 씀), POST(CSRF)에서 검증·사용하고 바꾼다.
+    'PC 기억'은 아이디 로그인 기본(끔)과 같고, 시도 제한에 걸린 아이디는 받지 않는다.
+    키가 없거나 짧거나, 다시 쓰기를 막을 공용 캐시(Redis)가 없으면 주소 자체가 없다(404)."""
+    if len(settings.LEGACY_SSO_KEY.encode()) < LEGACY_KEY_MIN or _replay_cache() is None:
+        raise Http404
+    t = (request.POST if request.method == "POST" else request.GET).get("t", "")
+    found = _legacy_ticket(t)
+    if found is None or _locked(request, found[0].username):
+        return redirect(settings.LOGIN_URL)
+    user, n, exp = found
+    other = request.user.is_authenticated and request.user.pk != user.pk
+    if other and request.method == "GET":
+        return render(request, "accounts/legacy_switch.html", {"current": request.user, "to": user, "t": t})
+    if not _spend(n, exp):
+        return redirect(settings.LOGIN_URL)
+    if other:
+        logout(request)
+    school = Member.objects.filter(user=user, space__kind="school").select_related("space").order_by("-joined_at").first()
+    return _enter(request, user, False, f"/s/{school.space.token}/today" if school else "/")
 
 
 @never_cache

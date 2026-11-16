@@ -1,0 +1,21 @@
+{% extends "bare.html" %}
+{% block title %}계정 바꾸기 · 고티처{% endblock %}
+{% block head %}
+<style>
+  /* V1 입장권으로 왔는데 이 PC에 다른 사람이 들어와 있을 때: 바꿀지 묻는다(이름만). */
+  .bare.wide { max-width: 560px; padding-top: 40px; }
+  .ls-h { font-size: 32px; line-height: 1.25; letter-spacing: -0.04em; font-weight: 800; }
+  .ls-lead { margin-top: 12px; font-size: 18px; color: var(--muted); }
+  .ls { margin-top: 28px; display: flex; gap: 12px; }
+</style>
+{% endblock %}
+{% block main %}
+<h1 class="ls-h">지금 {{ current.first_name|default:"다른 선생님" }} 님으로 들어와 있어요.<br>{{ to.first_name|default:"새 계정" }} 님으로 바꿀까요?</h1>
+<p class="ls-lead">바꾸면 이 PC에서 {{ current.first_name|default:"다른 선생님" }} 님은 로그아웃돼요.</p>
+<form class="ls" method="post" action="/auth/legacy">
+  {% csrf_token %}
+  <input type="hidden" name="t" value="{{ t }}">
+  <button class="btn pri lg" type="submit">{{ to.first_name|default:"새 계정" }} 님으로 바꾸기</button>
+  <a class="btn sec lg" href="/">그대로 있기</a>
+</form>
+{% endblock %}

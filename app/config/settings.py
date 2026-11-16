@@ -149,6 +149,8 @@ PASSWORD_HASHERS = [
 ]
 # P1 이관 전 구 아이디 선점 막기: 저장소 밖 파일(한 줄에 아이디 하나). 비우거나 파일이 없으면 끔. P3 이관 뒤 지운다.
 RESERVED_IDS_FILE = os.environ.get("RESERVED_IDS_FILE", "")
+# V1 구 고티처 입장권(/auth/legacy) 서명 키. 구 사이트와 같은 값. 비우면 그 주소는 404
+LEGACY_SSO_KEY = os.environ.get("LEGACY_SSO_KEY", "")
 LOGIN_URL = "/start"  # 시작 화면(구글·아이디로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"
