@@ -215,7 +215,7 @@
         <div class="card-h"><h2 id="msgH">받는 선생님에게 갈 쪽지</h2></div>
         <div class="card-b"><div class="note-msg" id="msg">[고티처] <span data-title>{{ title|default:"(제목)" }}</span>
 
-아래 링크에서 {% if space.is_school %}<span id="msgWhere">{{ aud_where }}</span>{% else %}우리 반 칸{% endif %}만 채워 주세요. 로그인 없이 30초면 돼요.{% include "collect/_msg_fields.html" %}
+아래 링크에서 {% if space.is_school %}<span id="msgWhere">{{ aud_where }}</span>{% else %}우리 반 칸{% endif %}만 채워 주세요. 로그인 없이 링크에서 바로 낼 수 있어요.{% include "collect/_msg_fields.html" %}
 (링크는 만들면 생겨요)
 
 보낸 사람: {{ me.name }} ({{ me.cls }})</div>

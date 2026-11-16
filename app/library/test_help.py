@@ -63,6 +63,10 @@ class HelpPageTest(TestCase):
                 self.assertTrue((HELP_DIR / f"{name}.png").is_file(), name)
                 self.assertTrue(alt)
 
+    def test_schedule_step_says_legacy_schools_write_in_old_goteacher(self):  # T-003
+        steps = next(s for key, _, s, _, _ in help_page.TOPICS if key == "schedule")
+        self.assertTrue(steps[2].endswith("일정이 들어가요. (옮겨 온 학교는 예전 고티처에서 써요)"), steps[2])
+
     def test_video_only_when_file_exists(self):
         with mock.patch.object(help_page, "_video", lambda key: key == "today"):
             r = Client().get("/help")

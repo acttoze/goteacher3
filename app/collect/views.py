@@ -526,7 +526,7 @@ def _link_ctx(request, c):
     link = f"{settings.SITE_URL}/c/{c.link_token}"
     me = request.member
     where = _where(c) if request.space.is_school else "우리 반 칸"
-    msg = (f"[고티처] {c.title}\n\n아래 링크에서 {where}만 채워 주세요. 로그인 없이 30초면 돼요.\n"
+    msg = (f"[고티처] {c.title}\n\n아래 링크에서 {where}만 채워 주세요. 로그인 없이 링크에서 바로 낼 수 있어요.\n"
            f"받는 칸: {', '.join(f.name for f in c.fields.all())}\n{link}\n\n보낸 사람: {me.name} ({me.cls})")
     return {"link": link, "msg": msg, "can_relink": _owner(request, c)}
 

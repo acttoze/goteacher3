@@ -410,7 +410,7 @@ def _invite(space, me):
     elif space.is_school:
         room, how = f"{space.school.name} 학교 공간", "아래 링크를 누르고 구글이나 아이디로 로그인한 뒤 소속·직책·이름만 고르면 들어와요."
     else:
-        room, how = f"{space.school.name} {space.grade}학년 동학년방", "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음, 30초)"
+        room, how = f"{space.school.name} {space.grade}학년 동학년방", "아래 링크를 누르고 반·이름만 고르면 들어와요. (가입 없음)"
     msg = (f"[고티처] {room}이에요.\n"
            f"{how}\n{link}\n\n"
            f"— {me.name} ({me.cls_text})")
