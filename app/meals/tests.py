@@ -93,6 +93,7 @@ class AccessTests(Base):
         for c in (self.writer, self.manager):
             self.assertEqual(c.get(self.base).status_code, 200)
             self.assertEqual(c.get(f"{self.base}/screens").status_code, 200)
+        self.assertIn("<span>급식소</span></a>", self.writer.get(f"{self.base}/screens").content.decode())  # 사이드 메뉴 이름
         self.assertEqual(self.post_photo().status_code, 200)
         self.assertEqual(self.post_photo(client=self.manager).status_code, 200)
 
