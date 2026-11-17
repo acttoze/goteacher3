@@ -224,7 +224,7 @@ def _must(request, current=False):
 def _form_ctx(request, form):
     """입력 칸 조각(_form_fields.html)이 쓰는 값. 쓰기 대화상자와 고치기 화면이 같다."""
     picked = set(form["groups"])
-    return {"form": form, "writable": request.space.school.writable and not request.space.legacy_readonly, "max_files": MAX_FILES, "can_must": request.member.is_manager,
+    return {"form": form, "writable": request.space.school.writable, "max_files": MAX_FILES, "can_must": request.member.is_manager,
             "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
             "group_opts": [{"id": g, "label": label, "on": g in picked}
                            for g, label in (request.space.group_choices if request.space.is_org else Member.Group.choices)]}
@@ -419,7 +419,7 @@ def detail(request, key):
                      latest_v=history[0]["v"], title=ver.fields.get(TITLE, n.title),
                      items=[{"name": k, "value": ver.fields[k]} for k in ITEMS if ver.fields.get(k)],
                      audience=ver.fields.get(AUDIENCE, n.audience_text), attach=attach,
-                     can_edit=_can_edit(request.member, n) and request.space.school.writable and not request.space.legacy_readonly)
+                     can_edit=_can_edit(request.member, n) and request.space.school.writable)
     if prev is not None:
         ctx["changes"] = _changes(prev.fields, ver.fields)
         ctx["body_changed"] = prev.body != ver.body

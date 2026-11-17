@@ -408,6 +408,8 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 /* ---------- V6 미리 써보기 윗띠·의견 보내기 ---------- */
 .preview-band { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 16px; margin: -12px 0 20px; }
 .preview-band p { flex: 1; }
+.preview-band .btn.sec { background: var(--bg); box-shadow: inset 0 0 0 1px var(--control); } /* 파란 띠 위에서도 글자가 아닌 단추로 보이게 */
+.preview-band .btn.sec:hover { background: var(--hover); }
 .fb fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 .fb legend { padding: 0; margin-bottom: 8px; }
 .fb legend .hint, .fb .field .hint { margin-left: 6px; }

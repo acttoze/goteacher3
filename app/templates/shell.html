@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% load static %}
 {# design/assets/shell.js의 공통 틀. 아직 없는 기능(접속 중 표시)은 넣지 않는다. #}
 {% block html_attr %} class="has-shell"{% endblock %}
+{% block body_attr %}{% if space.legacy_readonly %} data-legacy-ro="{{ legacy_locked }}" data-legacy-site="{{ legacy_site_url }}"{% endif %}{% endblock %}
 {% block body %}
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <aside class="side" aria-label="고티처 메뉴">

@@ -18,7 +18,7 @@
           </form>
           <div class="s7">{% include "today/_ev_more_slot.html" %}</div>
         </div></div>
-        <div class="df"><button class="btn danger" type="button" style="margin-right:auto" hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-include="#evf-{{ x.e.key }}" hx-target="{{ tgt }}" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit" form="evf-{{ x.e.key }}">저장</button></div>
+        <div class="df"><button class="btn danger" type="button" style="margin-right:auto" data-ro-lock hx-post="/s/{{ space.token }}/today/e/{{ x.e.key }}/delete" hx-include="#evf-{{ x.e.key }}" hx-target="{{ tgt }}" hx-swap="outerHTML" hx-confirm="「{{ x.e.title }}」 일정을 지울까요?">지우기</button><button class="btn sec" type="button" data-close>닫기</button><button class="btn pri" type="submit" form="evf-{{ x.e.key }}" data-ro-lock>저장</button></div>
       </div>{% else %}{% include "today/_ev_read.html" %}{% endif %}
     </div>
     {% endfor %}
@@ -28,7 +28,7 @@
         {% csrf_token %}<input type="hidden" name="view" value="{{ view }}"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="w" value="{{ w }}"><input type="hidden" name="tab" value="{{ tab }}">
         <div class="dh"><h2 id="dyh-{{ x.a.key }}">복무 {{ x.title }}</h2></div>
         <div class="db"><p class="muted">{{ x.a.date|date:"n/j" }}{% if x.time %} · {{ x.time }}{% endif %} · 넣은 사람 {{ x.a.by.name|default:"알 수 없음" }}</p><p class="muted">지우면 모든 선생님 일정에서 사라져요.</p></div>
-        <div class="df"><button class="btn danger" type="submit" style="margin-right:auto">지우기</button><button class="btn sec" type="button" data-close>닫기</button></div>
+        <div class="df"><button class="btn danger" type="submit" style="margin-right:auto" data-ro-lock>지우기</button><button class="btn sec" type="button" data-close>닫기</button></div>
       </form>
     </div>
     {% endfor %}

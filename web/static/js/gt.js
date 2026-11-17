@@ -18,6 +18,18 @@
     el.classList.add('show');
     clearTimeout(timer); timer = setTimeout(function () { el.classList.remove('show'); }, ms || 2800);
   }
+  function legacyToast(text, site) { toast(text, 8000, /^https?:\/\//.test(site || '') ? { href: site, text: '예전 고티처 열기' } : null); }
+
+  // V3 이관 학교 보기 전용(body[data-legacy-ro]): 쓰기 단추([data-ro-lock])는 보통 공간처럼 보이되, 누르면 입력·대화상자를 열지 않고 안내만 띄운다.
+  // 캡처 단계에서 막아 htmx·data-open·링크 이동·파일 고르기까지 가지 않는다. 서버도 같은 주소를 403으로 막는다(gates.legacy_locked).
+  // 일정 칸의 ＋·빈 곳은 schedule.js가 gt:legacy-ro를 보낸다.
+  function legacyRo() { var b = document.body; legacyToast(b.dataset.legacyRo, b.dataset.legacySite); }
+  document.addEventListener('gt:legacy-ro', legacyRo);
+  document.addEventListener('click', function (e) {
+    if (!document.body.hasAttribute('data-legacy-ro') || !e.target.closest('[data-ro-lock]')) return;
+    e.preventDefault(); e.stopPropagation();
+    legacyRo();
+  }, true);
 
   // 대화상자(design .scrim): <button data-open="#id">로 열고, [data-close]·바깥·Esc로 닫는다.
   var opener;
@@ -59,8 +71,7 @@
   document.addEventListener('htmx:responseError', function (e) {
     var st = e.detail.xhr.status;
     if (st === 403 && e.detail.xhr.getResponseHeader('X-GT-Legacy-RO') === '1') {  // V3 이관 학교 보기 전용: 열려 있던 옛 탭에서 쓴 경우
-      var site = e.detail.xhr.getResponseHeader('X-GT-Legacy-Site') || '';
-      toast(e.detail.xhr.responseText, 8000, /^https?:\/\//.test(site) ? { href: site, text: '예전 고티처 열기' } : null);
+      legacyToast(e.detail.xhr.responseText, e.detail.xhr.getResponseHeader('X-GT-Legacy-Site'));
     } else if (st === 413) toast('파일이 너무 커요. 크기를 줄여 다시 올려 주세요.');
     else if (st === 429) toast('지금 올리는 사람이 많아요. 잠시 뒤 다시 올려 주세요.');
   });

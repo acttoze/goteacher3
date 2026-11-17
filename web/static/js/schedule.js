@@ -18,6 +18,7 @@
     return t.closest('.ev, a, button, input, select, textarea, label, .cell-card') ? null : cell;
   }
   function show(cell) {
+    if (document.body.hasAttribute('data-legacy-ro')) { document.dispatchEvent(new Event('gt:legacy-ro')); return; }  // V3 이관 학교: 입력 카드 대신 안내(gt.js)
     var week = document.getElementById('week');
     var form = document.getElementById('cellTpl').content.firstElementChild.cloneNode(true);
     form.elements.mode.value = week.dataset.mode;

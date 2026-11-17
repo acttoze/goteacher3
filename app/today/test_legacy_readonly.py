@@ -4,8 +4,9 @@
 - LEGACY_READONLY가 켜져 있고 공간이 이관 학교(LegacyMap kind=school의 학교·기관 공간)면 일정·복무·게시판 쓰기 주소가 모두 403
   (관리자도). 데이터는 바뀌지 않는다.
 - 읽기·첨부 내려받기·공지 '확인했어요'·취합은 그대로.
-- 화면에 쓰기 단추·입력(판 ＋, 고치기, 복무 지우기, 본문·첨부·댓글 입력, 표 붙여넣기, 공지 쓰기·고치기·지우기)이 없고
-  안내 한 줄 + 구 사이트 링크(새 탭)가 있다.
+- 화면의 쓰기 단추·입력(판 ＋, 고치기, 복무 지우기, 본문·첨부·댓글 입력, 표 붙여넣기, 공지 쓰기·고치기·지우기)은 보통 공간처럼
+  보인다(11/17 사용자 요청). 쓰기 단추에는 data-ro-lock이 있고 body에 data-legacy-ro(문구)·data-legacy-site가 있어
+  gt.js가 누를 때 입력을 열지 않고 안내 + 구 사이트 링크를 띄운다. 일정 판 머리에는 안내 한 줄이 그대로 있다.
 - 이관 아닌 공간, 또는 설정을 끄면 아무 변화 없음.
 """
 from django.test import override_settings
@@ -100,7 +101,7 @@ class BlockedTests(LegacyBase):
         LegacyMap.objects.create(kind="school", legacy_id="o1", obj_id=org.pk)
         r = self.as_(boss).post(f"/s/{hub.token}/today/events", {"line": "오늘 회의", "view": "week"}, headers=HX)
         self.assertEqual(r.status_code, 403)
-        self.assertNotContains(self.as_(boss).get(f"/s/{hub.token}/schedule"), 'class="cell-add"')
+        self.assertContains(self.as_(boss).get(f"/s/{hub.token}/schedule"), 'class="cell-add"')
 
     def test_reads_ack_and_new_features_still_work(self):
         c = self.as_(self.t42)
@@ -117,50 +118,73 @@ class BlockedTests(LegacyBase):
 
 @ON
 class ScreenTests(LegacyBase):
+    """쓰기 단추는 보통 공간과 같이 보이고, 누르면 gt.js가 안내한다(data-ro-lock + body data-legacy-ro). 서버 403은 BlockedTests."""
+    BODY = f'data-legacy-ro="{LINE}." data-legacy-site="{SITE}"'
+
+    def page(self, path, **q):
+        html = self.as_(self.boss).get(self.base + path, q).content.decode()
+        self.assertIn(self.BODY, html, path)
+        return html
+
     def assertLine(self, html):
         self.assertIn(LINE, html)
         self.assertIn(f'href="{SITE}" target="_blank" rel="noopener"', html)
 
-    def test_schedule_week_day_month_have_no_write_entry(self):
+    def test_schedule_week_day_month_show_write_entries(self):
         for mode in ("week", "day", "month"):
-            html = self.as_(self.boss).get(f"{self.base}/schedule", {"mode": mode}).content.decode()
-            self.assertNotIn('class="cell-add"', html, mode)
-            self.assertNotIn("data-cell data-date", html, mode)
-            self.assertNotIn("표 붙여넣기", html)
-            self.assertNotIn(f"/today/e/{self.e.key}/delete", html)  # 고치기 대화상자 대신 읽기
-            self.assertNotIn(f"/today/duty/{self.a.key}/delete", html)
-            self.assertIn(self.e.title, html)
-            self.assertLine(html)
+            html = self.page("/schedule", mode=mode)
+            self.assertIn('class="cell-add"', html, mode)
+            self.assertIn("data-cell data-date", html, mode)
+            self.assertIn(f'href="{self.base}/schedule/paste?', html)
+            self.assertIn('data-ro-lock>표 붙여넣기</a>', html)
+            self.assertIn(f'hx-post="{self.base}/today/e/{self.e.key}/delete"', html)  # 고치기 대화상자 그대로
+            self.assertIn(f"/today/duty/{self.a.key}/delete", html)
+            self.assertIn(f'form="evf-{self.e.key}" data-ro-lock>저장</button>', html)
+            self.assertIn('data-ro-lock>지우기</button>', html)
+            self.assertLine(html)  # 판 머리 안내 한 줄은 남긴다
 
-    def test_today_board_has_no_plus(self):
-        html = self.as_(self.boss).get(f"{self.base}/today").content.decode()
-        self.assertNotIn('class="cell-add"', html)
-        self.assertNotIn("칸의 ＋를 누르면", html)
+    def test_today_board_shows_plus(self):
+        html = self.page("/today")
+        self.assertIn('class="cell-add"', html)
+        self.assertIn('<template id="cellTpl">', html)
         self.assertLine(html)
 
-    def test_event_panel_reads_only(self):
+    def test_event_panel_shows_inputs_locked(self):
         html = self.as_(self.boss).get(self.url(self.e, "/more")).content.decode()
-        for gone in ("/body", "/files", "/comments", "/delete", "댓글 올리기", "본문 저장", "파일 올리기"):
-            self.assertNotIn(gone, html)
-        self.assertIn("비밀본문", html)
-        self.assertIn("비밀댓글", html)
-        self.assertIn(f"/f/{self.f.key}", html)  # 받기는 그대로
-        self.assertLine(html)
+        for lock in ('data-ro-lock>본문 저장', 'data-ro-lock>파일 올리기', 'data-ro-lock>댓글 올리기', 'data-ro-lock>파일 고르기'):
+            self.assertIn(lock, html)
+        self.assertEqual(html.count('type="submit" data-ro-lock>지우기</button>'), 2)  # 첨부·댓글 지우기
+        self.assertIn(f"/today/e/{self.e.key}/comments", html)
+        self.assertIn(f"/f/{self.f.key}", html)  # 받기는 그대로(잠그지 않음)
+        self.assertNotIn(LINE, html)  # 댓글 칸 대신 두던 안내는 단추 안내로 바뀌었다
 
     def test_notices_list_and_detail(self):
-        html = self.as_(self.boss).get(f"{self.base}/board").content.decode()
-        self.assertNotIn("공지 쓰기", html)
-        self.assertNotIn("/board/new", html)
-        self.assertLine(html)
-        html = self.as_(self.boss).get(f"{self.base}/board/{self.n.key}/").content.decode()
-        self.assertNotIn(f"/board/{self.n.key}/edit", html)
-        self.assertNotIn(f"/board/{self.n.key}/delete", html)
-        self.assertLine(html)
+        html = self.page("/board")
+        self.assertIn('data-open="#noticeDlg" data-ro-lock>공지 쓰기</button>', html)
+        html = self.page(f"/board/{self.n.key}/")
+        self.assertIn(f'href="{self.base}/board/{self.n.key}/edit" data-ro-lock>고치기</a>', html)
+        self.assertIn('data-open="#delDlg" data-ro-lock>지우기</button>', html)
 
-    def test_school_page_hides_attendance_input(self):
-        html = self.as_(self.boss).get(f"{self.base}/school").content.decode()
-        self.assertNotIn(f"{self.base}/school/attendance", html)
-        self.assertLine(html)
+    def test_school_page_shows_attendance_input(self):
+        html = self.page("/school")
+        self.assertIn(f'href="{self.base}/school/attendance" data-ro-lock>', html)
+
+    def test_shown_entries_still_403(self):
+        """단추가 보여도 서버는 막는다(역방향 동기화가 없다)."""
+        c = self.as_(self.boss)
+        for url, how in ((f"{self.base}/schedule/paste", "get"), (f"{self.base}/school/attendance", "get"),
+                         (f"{self.base}/board/{self.n.key}/edit", "get"), (f"{self.base}/today/events", "post")):
+            r = getattr(c, how)(url, {"line": "오늘 2블록 회의", "view": "week"} if how == "post" else {}, headers=HX)
+            self.assertEqual((r.status_code, r["X-GT-Legacy-RO"]), (403, "1"), url)
+
+    def test_new_features_have_no_lock(self):
+        """취합·급식·공지 확인 단추에는 data-ro-lock이 없다(gt.js가 막지 않게). QA 11/17."""
+        for path in ("/c/", "/c/new", "/meals", "/settings"):
+            html = self.page(path)
+            self.assertNotIn("data-ro-lock", html, path)
+        html = self.as_(self.t42).get(f"{self.base}/board/{self.n.key}/").content.decode()  # 받는 사람: 확인 단추만
+        self.assertIn("/ack", html)
+        self.assertNotIn("data-ro-lock", html)
 
 
 class UntouchedTests(LegacyBase):
@@ -173,6 +197,7 @@ class UntouchedTests(LegacyBase):
         self.assertNotIn(LINE, html)
         self.assertNotIn(LINE, self.as_(self.boss).get(f"{self.base}/board").content.decode())
         self.assertNotIn(LINE, self.as_(self.boss).get(f"{self.base}/today").content.decode())
+        self.assertNotIn("data-legacy-ro", html)  # 단추를 눌러도 안내 없이 그대로 연다
         self.assertIn("댓글 올리기", self.as_(self.boss).get(self.url(self.e, "/more")).content.decode())
         r = self.as_(self.t41).post(f"{self.base}/today/events", {"line": "오늘 2블록 회의", "view": "week"}, headers=HX)
         self.assertEqual(r.status_code, 200)

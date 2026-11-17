@@ -53,10 +53,9 @@ def _store(e, got, comment=None):
 
 def _part(request, e, status=200, **extra):
     me = request.member
-    ro = request.space.legacy_readonly  # V3 이관 학교: 본문·첨부·댓글 보기만
-    comments = [{"c": c, "can_del": not ro and (me.is_manager or (c.by_id is not None and c.by_id == me.pk))}
+    comments = [{"c": c, "can_del": me.is_manager or (c.by_id is not None and c.by_id == me.pk)}
                 for c in e.comments.prefetch_related("files").order_by("at", "pk")]
-    ctx = {"space": request.space, "e": e, "can_write": not ro and e.writable_by(me), "files": _own(e).order_by("at", "pk"),
+    ctx = {"space": request.space, "e": e, "can_write": e.writable_by(me), "files": _own(e).order_by("at", "pk"),
            "comments": comments, "body_max": BODY_MAX, "comment_max": COMMENT_MAX, "max_files": MAX_FILES,
            "max_mb": MAX_FILE // MB, "max_total_mb": MAX_FILES * MAX_FILE // MB, "accept": ACCEPT, "kinds_text": KINDS_SHORT,
            "comment_files": COMMENT_FILES, "can_attach": not is_guest(request.user), "comment_mb": COMMENT_FILES * MAX_FILE // MB,

@@ -15,7 +15,7 @@
       <li><b>담당자 지정</b><span>선생님이 들어오면 명부 줄의 '관리'에서 복무 입력·수리·급식 담당을 정해요.</span></li>
     </ol></div>{% endif %}
   <section class="card att" aria-labelledby="attH">
-    <div class="card-h"><h2 id="attH">오늘 복무 현황</h2><span class="n num">{{ n_attendance }}명</span><span class="r"><span>유형·시간만 보여요. 사유는 안 받아요</span>{% if space.legacy_readonly %}{% include "spaces/_legacy_ro.html" %}{% elif can_attend %}<a class="btn sec sm" href="/s/{{ space.token }}/school/attendance">나이스 복무현황 붙여넣기</a>{% endif %}</span></div>
+    <div class="card-h"><h2 id="attH">오늘 복무 현황</h2><span class="n num">{{ n_attendance }}명</span><span class="r"><span>유형·시간만 보여요. 사유는 안 받아요</span>{% if can_attend %}<a class="btn sec sm" href="/s/{{ space.token }}/school/attendance" data-ro-lock>나이스 복무현황 붙여넣기</a>{% endif %}</span></div>
     <div class="card-b">{% if attendance %}<ul class="att-row">{% for a in attendance %}<li><span class="pill">{{ a.kind }}</span><b>{{ a.name }}</b>{% if a.group_label %}<span class="muted">{{ a.group_label }}</span>{% endif %}{% if a.time_text %}<span class="muted num">{{ a.time_text }}</span>{% endif %}</li>{% endfor %}</ul>
       {% else %}<p class="muted">오늘 부재자가 없어요.</p>{% endif %}</div>
   </section>

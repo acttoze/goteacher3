@@ -201,6 +201,7 @@ class ShellTests(Base):
             self.assertContains(r, 'id="previewBand"')
             self.assertContains(r, "새 고티처 미리 써보기 중")
             self.assertContains(r, 'id="backDlg"')
+            self.assertContains(r, '<button class="btn sec sm" type="button" data-open="#backDlg">예전 고티처로</button>')  # 글자가 아닌 단추(11/17)
             for reason in ("찾는 게 없어요", "익숙지 않아요", "느려요", "데이터가 달라요", "그냥 둘러봤어요", "건너뛰기"):
                 self.assertContains(r, reason)
             self.assertContains(r, f'data-site="{SITE}"')
