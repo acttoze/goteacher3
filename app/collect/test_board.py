@@ -56,6 +56,13 @@ class BoardTests(TestCase):
             self.assertEqual(r.status_code, 200)
             self.assertIn("no-store", r.get("Cache-Control", ""))
 
+    def test_open_input_screen_button(self):
+        """받는 중 화면에서 '입력 화면' 단추로 받는 사람이 실제로 내는 화면(새 탭)을 연다."""
+        body = self.client.get(self.url()).content.decode()
+        self.assertIn(f'<a class="btn sec" href="/c/{self.c.link_token}" target="_blank" rel="noopener"', body)
+        self.assertIn(">입력 화면</a>", body)
+        self.assertEqual(Client().get(f"/c/{self.c.link_token}").status_code, 200)
+
     # ---- 공간 격리
     def test_anonymous_redirected(self):
         self.client.logout()
