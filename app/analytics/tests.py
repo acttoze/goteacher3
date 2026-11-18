@@ -218,6 +218,32 @@ class PageTests(TestCase):
         self.assertNotContains(r, "가2")  # 이름은 내지 않는다(소속만)
         self.assertContains(r, "교무실")
 
+    def test_org_space_members_are_counted(self):
+        """이관 기관(공간 종류 org)도 대상이다: 표에 나오고, 소속은 기관 그룹 이름으로."""
+        s = School.objects.create(neis_atpt="J10", neis_code="9000003", name="어느 교육지원청")
+        LegacyMap.objects.create(kind="school", legacy_id="9000003", obj_id=s.pk)
+        org = Space.objects.create(school=s, kind="org", grade=0, name="어느 교육지원청", org_groups=[{"k": "t1", "n": "학교혁신팀"}])
+        m = seat(org, "기관분", group="t1")
+        DailyUse.objects.create(day=timezone.localdate(), user=m.user, space=org, route="/s/<공간>/today", n=1)
+        data = build(7)
+        row = next(r for r in data["schools"] if r["name"] == "어느 교육지원청")
+        self.assertEqual((row["target"], row["entered"]), (1, 1))
+        self.assertIn(("학교혁신팀", 1, 1), [(g["label"], g["target"], g["active"]) for g in data["groups"]])
+
+    def test_internal_account_is_left_out(self):
+        """내부 시험 계정 moon: 숫자·의견·입장 기록에서 빠지고, 그 계정만 있는 학교는 표에 없다."""
+        lab = school("대아초", "7731021")
+        m = seat(lab, "시험", username="moon")
+        DailyUse.objects.create(day=timezone.localdate(), user=m.user, space=lab, route="/s/<공간>/today", n=1)
+        Entry.objects.create(user=m.user, ok=False, reason=Entry.Reason.LOCKED)
+        Feedback.objects.create(space=lab, member=m, kind="bad", text="시험")
+        Entry.objects.create(user=None, ok=False, reason=Entry.Reason.BAD_TICKET)  # 계정 모르는 실패는 그대로 센다
+        data = build(7)
+        tiles = {t[0]: t[1] for t in data["tiles"]}
+        self.assertEqual((tiles["대상 회원"], tiles["들어와 본 사람"], tiles["받은 의견"], tiles["입장 실패"]), (4, 0, 0, 1))
+        self.assertNotIn("대아초", [r["name"] for r in data["schools"]])
+        self.assertEqual(data["recent"], [])
+
     def test_query_count_is_bounded(self):
         DailyUse.objects.create(day=timezone.localdate(), user=self.a1.user, space=self.a, route="/help", n=1)
         c = Client()

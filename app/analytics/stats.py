@@ -1,6 +1,6 @@
 """V10 고객 분석 집계(화면 /analytics·manage.py analytics가 같이 쓴다).
 
-대상: 이관 학교(LegacyMap kind=school)의 학교 공간에 자리가 있는 계정 회원. 손님·운영자(is_staff)는 뺀다.
+대상: 이관 학교(LegacyMap kind=school)의 학교·기관 공간에 자리가 있는 계정 회원. 손님·운영자(is_staff)·내부 시험 계정은 뺀다.
 사람 이름은 내지 않는다(학교·소속까지만). 쿼리는 사람·날짜·화면별 집계로 스무 개 안팎.
 """
 from collections import Counter
@@ -13,7 +13,7 @@ from django.utils import timezone
 from accounts.models import GUEST_PREFIX
 from feedback.models import Feedback
 from legacy.models import LegacyMap
-from spaces.models import SCHOOL_GROUPS, Member, Space
+from spaces.models import Member, Space
 
 from .models import DailyUse, Entry
 
@@ -25,6 +25,7 @@ ROUTE_NAMES = {
     "/help": "도움말", "/forms": "양식 자료실", "/forms/<slug>": "양식 보기", "/partners": "협력업체", "/community": "커뮤니티",
     "/community/<key>": "커뮤니티 글",
 }
+INTERNAL_USERNAMES = ("moon",)  # 내부 시험 계정(대아초): 입장 시험을 하려고 운영자 권한 없이 두므로 아이디로 뺀다
 TOP_ROUTES = 15
 RECENT = 10
 
@@ -43,8 +44,8 @@ def build(days):
     start = today - timedelta(days=days - 1) if days else None
     since = timezone.make_aware(datetime.combine(start, time.min)) if start else None
 
-    spaces = list(Space.objects.filter(kind=Space.Kind.SCHOOL, school_id__in=LegacyMap.objects.filter(kind="school").values("obj_id")))
-    seat_qs = Member.objects.filter(space__in=spaces, user__isnull=False, user__is_staff=False).exclude(user__username__startswith=GUEST_PREFIX)
+    spaces = list(Space.objects.filter(kind__in=(Space.Kind.SCHOOL, Space.Kind.ORG), school_id__in=LegacyMap.objects.filter(kind="school").values("obj_id")))
+    seat_qs = Member.objects.filter(space__in=spaces, user__isnull=False, user__is_staff=False).exclude(user__username__startswith=GUEST_PREFIX).exclude(user__username__in=INTERNAL_USERNAMES)
     seats = list(seat_qs.values_list("space_id", "user_id", "group"))
     targets = {u for _, u, _ in seats}
     target_q = seat_qs.values("user_id")
@@ -56,14 +57,15 @@ def build(days):
     period = uses.filter(day__gte=start) if start else uses
     active = set(period.values_list("user_id", flat=True).distinct())
 
-    fb = Feedback.objects.filter(space__in=spaces)
+    fb = Feedback.objects.filter(space__in=spaces).exclude(member__user__username__in=INTERNAL_USERNAMES)
     fbp = fb.filter(created_at__gte=since) if since else fb
     by_space_kind = list(fbp.values("space_id", "kind").annotate(n=Count("id")))
     kinds = Counter()
     for r in by_space_kind:
         kinds[r["kind"]] += r["n"]
     said = set(fb.exclude(kind__startswith="back_").filter(member__user_id__in=target_q).values_list("member__user_id", flat=True).distinct())
-    ent = Entry.objects.filter(at__gte=since) if since else Entry.objects.all()
+    ent = Entry.objects.exclude(user__username__in=INTERNAL_USERNAMES)
+    ent = ent.filter(at__gte=since) if since else ent
     entry_n = Counter()
     for r in ent.values("ok", "reason").annotate(n=Count("id")):
         entry_n["ok" if r["ok"] else r["reason"]] += r["n"]
@@ -100,12 +102,15 @@ def build(days):
     for r in by_space_kind:
         (back_school if r["kind"].startswith("back_") else fb_school)[r["space_id"]] += r["n"]
     names = {s.pk: s.name for s in spaces}
+    by_pk = {s.pk: s for s in spaces}
     per = {pk: {"name": name, "target": set(), "entered": set(), "active": set(), "last": None} for pk, name in names.items()}
     groups = {}
     for space_id, u, g in seats:
         row = per[space_id]
         row["target"].add(u)
-        grow = groups.setdefault(g, {"label": SCHOOL_GROUPS.get(g, "소속 없음"), "target": 0, "active": 0})
+        sp, label = by_pk[space_id], by_pk[space_id].group_label(g)
+        key = "" if not label else f"org:{label}" if sp.is_org else g  # 기관 그룹은 키가 기관마다 달라 이름으로 묶는다
+        grow = groups.setdefault(key, {"label": label or "소속 없음", "target": 0, "active": 0})
         grow["target"] += 1
         if u in entered:
             row["entered"].add(u)
@@ -116,6 +121,8 @@ def build(days):
             grow["active"] += 1
     for pk, row in per.items():
         t, e = len(row["target"]), len(row["entered"])
+        if not t:  # 내부 계정만 있는 곳(대아초)은 표에 내지 않는다
+            continue
         school_rows.append({"name": row["name"], "target": t, "entered": e, "pct": _pct(e, t), "active": len(row["active"]),
                             "feedback": fb_school[pk], "back": back_school[pk], "last": row["last"]})
     school_rows.sort(key=lambda r: (-r["pct"], -r["entered"], r["name"]))

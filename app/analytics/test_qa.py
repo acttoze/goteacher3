@@ -8,22 +8,29 @@
 - purge: 보관 기간 안의 기록은 남고, 미리 보기(dry-run)는 안 지운다.
 """
 from datetime import timedelta
+from io import StringIO
 from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.cache import caches
+from django.core.management import call_command
+from django.db import connection, transaction
 from django.http import HttpResponse, JsonResponse
 from django.test import Client, RequestFactory, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.urls import resolve
 from django.utils import timezone
 
 from accounts.test_legacy_sso import KEY, MB_NO, REDIS_STANDIN, ticket
 from collect.models import Collection
+from feedback.models import Feedback
 from hwpfiles.retention import purge
 from legacy.models import LegacyMap
+from spaces.models import Member, School, Space
 
 from . import middleware
 from .models import DailyUse, Entry
+from .stats import build
 from .tests import school, seat
 
 User = get_user_model()
@@ -193,3 +200,189 @@ class PurgeEdgeTests(TestCase):
         with mock.patch("hwpfiles.retention.timezone.now", return_value=self.now):
             call_command("purge", "--dry-run", stdout=out)
         self.assertIn("지난 이용 기록 0건", out.getvalue())
+
+
+class OrgTargetTests(TestCase):
+    """V10 보정: 이관 기관(org)도 대상. 그룹 키는 기관마다 따로, 학교 소속 표시·순서는 그대로."""
+
+    def org(self, name, code, groups, legacy=True):
+        s = School.objects.create(neis_atpt="", neis_code="", name=name)
+        if legacy:
+            LegacyMap.objects.create(kind="school", legacy_id=code, obj_id=s.pk)
+        return Space.objects.create(school=s, kind="org", grade=0, name=name, org_groups=[{"k": k, "n": n} for k, n in groups])
+
+    def use(self, m, days_ago=0):
+        DailyUse.objects.create(day=timezone.localdate() - timedelta(days=days_ago), user=m.user, space=m.space, route="/s/<공간>/today", n=1)
+
+    def setUp(self):
+        # 기관을 먼저 만든다: 자리 순서가 앞서도 학교 소속 줄의 이름·순서가 흔들리면 안 된다
+        self.org_a = self.org("가기관", "9000003", [("t1", "혁신팀"), ("t2", "장학팀")])
+        self.org_b = self.org("나기관", "9000004", [("t1", "연수팀")])
+        self.a1 = seat(self.org_a, "기관일", "t1")
+        self.a2 = seat(self.org_a, "기관이", "t2")
+        self.b1 = seat(self.org_b, "기관삼", "t1")
+        self.school = school("가람초", "A1")
+        self.s1 = seat(self.school, "학교일", "office")
+        self.s2 = seat(self.school, "학교이", "g1")
+
+    def groups(self, data):
+        return [(g["label"], g["target"], g["active"]) for g in data["groups"]]
+
+    def tiles(self, data):
+        return {label: n for label, n, _ in data["tiles"]}
+
+    def test_org_member_on_every_surface(self):
+        self.use(self.a1)
+        self.use(self.a1, 1)
+        self.use(self.b1, 20)  # 들어와 봤지만 이 기간엔 안 씀
+        Feedback.objects.create(space=self.org_a, member=self.a1, kind="bad", text="기관 의견")
+        data = build(7)
+        t = self.tiles(data)
+        self.assertEqual((t["대상 회원"], t["들어와 본 사람"], t["기간 이용자"], t["다시 온 사람"], t["받은 의견"]), (5, 2, 1, 1, 1))
+        self.assertEqual([(label, n) for label, n, _ in data["funnel"]], [("대상 회원", 5), ("들어와 봄", 2), ("다시 옴", 1), ("의견 남김", 1)])
+        rows = {r["name"]: (r["target"], r["entered"], r["active"], r["feedback"]) for r in data["schools"]}
+        self.assertEqual(rows, {"가기관": (2, 1, 1, 1), "나기관": (1, 1, 0, 0), "가람초": (2, 0, 0, 0)})
+
+    def test_same_key_in_two_orgs_stays_apart(self):
+        self.use(self.a1)
+        got = self.groups(build(7))
+        self.assertIn(("혁신팀", 1, 1), got)
+        self.assertIn(("연수팀", 1, 0), got)
+        self.assertIn(("장학팀", 1, 0), got)
+
+    def test_school_groups_keep_label_and_order_first(self):
+        got = [g[0] for g in self.groups(build(7))]
+        self.assertEqual(got[:2], ["1학년", "교무실"])
+        self.assertCountEqual(got[2:], ["혁신팀", "장학팀", "연수팀"])
+
+    def test_unassigned_org_member_joins_one_no_group_row(self):
+        seat(self.org_a, "미배정", "")
+        seat(self.school, "무소속", "")
+        got = self.groups(build(7))
+        self.assertEqual([g for g in got if g[0] == "소속 없음"], [("소속 없음", 2, 0)])
+
+    def test_org_seat_with_school_shaped_key_stays_out_of_school_row(self):
+        """기관 자리의 group이 g4여도 학교 '4학년' 줄과 섞이지 않고, 그 기관엔 없는 키라 '소속 없음'이다. 자리 순서와 무관."""
+        seat(self.org_a, "키겹침", "g4")  # 학교 자리보다 먼저
+        seat(self.school, "사학년", "g4")
+        seat(self.org_b, "키겹침둘", "g4")  # 학교 자리보다 나중
+        got = self.groups(build(7))
+        self.assertIn(("4학년", 1, 0), got)
+        self.assertIn(("소속 없음", 2, 0), got)
+
+    def test_outsiders_stay_out(self):
+        before = self.tiles(build(7))["대상 회원"]
+        plain = self.org("새기관", "X", [("t1", "외부팀")], legacy=False)
+        LegacyMap.objects.filter(obj_id=plain.school_id).delete()
+        seat(plain, "외부")
+        other = self.org("유저맵기관", "Y", [("t1", "맵팀")], legacy=False)
+        LegacyMap.objects.create(kind="user", legacy_id="77", obj_id=other.school_id)  # kind가 school이 아니면 이관 학교가 아니다
+        seat(other, "맵", "t1")
+        grade = Space.objects.create(school=self.school.school, kind="grade", grade=4, name="4학년")
+        seat(grade, "동학년")
+        Member.objects.create(space=self.org_a, user=User.objects.create(username="guest:o"), name="손님", cls="미배정", group="t1")
+        seat(self.org_a, "운영", "t1", is_staff=True)
+        data = build(7)
+        self.assertEqual(self.tiles(data)["대상 회원"], before)
+        self.assertEqual({r["name"] for r in data["schools"]}, {"가기관", "나기관", "가람초"})
+        self.assertEqual(dict((g[0], g[1]) for g in self.groups(data))["혁신팀"], 1)
+        self.assertFalse({"외부팀", "맵팀"} & {g[0] for g in self.groups(data)})
+
+    def test_page_and_command_with_org_data(self):
+        self.use(self.a1)
+        Feedback.objects.create(space=self.org_a, member=self.a1, kind="bad", text="기관 의견")
+        staff = User.objects.create(username="google:ops", is_staff=True)
+        c = Client()
+        c.force_login(staff)
+        for d in ("1", "7", "30", "all"):
+            r = c.get("/analytics", {"d": d})
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, "혁신팀")
+            self.assertNotContains(r, "기관일")
+        out = StringIO()
+        call_command("analytics", "--since", "7d", stdout=out)
+        self.assertIn("대상 회원: 5", out.getvalue())
+        self.assertIn("가기관 | 2 | 1 | 50%", out.getvalue())
+
+    def test_queries_do_not_grow_with_orgs(self):
+        self.use(self.a1)
+        staff = User.objects.create(username="google:ops", is_staff=True)
+        c = Client()
+        c.force_login(staff)
+        with CaptureQueriesContext(connection) as few:
+            c.get("/analytics")
+        for i in range(5):
+            o = self.org(f"추가{i}", f"80{i}", [("t1", f"팀{i}")])
+            self.use(seat(o, f"추가회원{i}", "t1"))
+        with CaptureQueriesContext(connection) as many:
+            self.assertEqual(c.get("/analytics").status_code, 200)
+        self.assertEqual(len(many), len(few))
+        self.assertLess(len(many), 40)
+
+
+class InternalAccountTests(TestCase):
+    """내부 시험 계정 moon: 운영자 권한이 없어도 어떤 숫자에도 안 잡힌다. 넣기 전과 넣은 뒤 집계가 통째로 같아야 한다."""
+
+    def setUp(self):
+        self.a = school("가람초", "A1")
+        self.t = seat(self.a, "교사", "g1")
+        today = timezone.localdate()
+        DailyUse.objects.create(day=today, user=self.t.user, space=self.a, route="/s/<공간>/today", n=1)
+        Entry.objects.create(user=self.t.user, space=self.a, ok=True)
+        Feedback.objects.create(space=self.a, member=self.t, kind="bad", text="교사 의견")
+
+    def add_moon(self):
+        today = timezone.localdate()
+        lab = school("대아초", "7731021")
+        moon = seat(lab, "시험", "g4", username="moon")
+        shared = Member.objects.create(space=self.a, user=moon.user, name="시험", cls="5-1", group="g5")  # 다른 학교에 같이 있어도
+        for sp, m in ((lab, moon), (self.a, shared)):
+            for back in (0, 1):
+                DailyUse.objects.create(day=today - timedelta(days=back), user=m.user, space=sp, route="/s/<공간>/board", n=50)
+            Feedback.objects.create(space=sp, member=m, kind="bug", text="시험 의견")
+            Feedback.objects.create(space=sp, member=m, kind="back_slow")
+        Entry.objects.create(user=moon.user, space=lab, ok=True)
+        for reason in ("locked", "replayed", "switch_shown"):
+            Entry.objects.create(user=moon.user, ok=False, reason=reason)
+
+    def test_every_surface_is_unchanged_by_moon(self):
+        for days in (1, 7, None):
+            before = build(days)
+            with transaction.atomic():
+                self.add_moon()
+                self.assertEqual(build(days), before, days)
+                transaction.set_rollback(True)
+
+    def test_moon_only_school_hidden_on_page_and_command(self):
+        self.add_moon()
+        staff = User.objects.create(username="google:ops", is_staff=True)
+        c = Client()
+        c.force_login(staff)
+        r = c.get("/analytics")
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, "대아초")
+        self.assertNotContains(r, "시험 의견")
+        out = StringIO()
+        call_command("analytics", "--since", "7d", stdout=out)
+        self.assertNotIn("대아초", out.getvalue())
+        self.assertIn("대상 회원: 1", out.getvalue())
+
+    def test_unknown_account_failure_and_orphan_feedback_still_count(self):
+        self.add_moon()
+        Entry.objects.create(user=None, ok=False, reason="bad_ticket")
+        Entry.objects.create(user=None, ok=False, reason="replayed")
+        orphan = Feedback.objects.create(space=self.a, member=None, kind="wish", text="나간 분 의견")
+        back = Feedback.objects.create(space=self.a, member=None, kind="back_data")
+        data = build(7)
+        t = {label: n for label, n, _ in data["tiles"]}
+        self.assertEqual((t["입장 실패"], t["받은 의견"], t["예전 고티처로"]), (2, 2, 1))
+        self.assertIn(orphan, data["recent"])
+        self.assertIn(back, data["recent"])
+        row = next(r for r in data["schools"] if r["name"] == "가람초")
+        self.assertEqual((row["feedback"], row["back"]), (2, 1))
+
+    def test_similar_usernames_are_not_excluded(self):
+        seat(self.a, "비슷", "g1", username="moon2")
+        seat(self.a, "구글", "g1", username="google:moon")
+        self.add_moon()
+        self.assertEqual(build(7)["tiles"][0][1], 3)
