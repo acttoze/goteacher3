@@ -21,6 +21,7 @@ from notices import views as notices
 from partners import views as partners
 from repairs import vendor
 from spaces import attendance as attendance_page
+from spaces import bulk as school_bulk
 from spaces import entry as entry_codes
 from spaces import plan as school_plan
 from spaces import school as school_page
@@ -65,6 +66,8 @@ urlpatterns = [
     path("s/<str:space_token>/school/attendance/clear", attendance_page.clear),
     path("s/<str:space_token>/school/duties", school_page.duties),
     path("s/<str:space_token>/school/duties/preview", school_page.duties_preview),
+    path("s/<str:space_token>/school/bulk", school_bulk.page),  # W7 명단으로 한 번에 등록
+    path("s/<str:space_token>/school/bulk/preview", school_bulk.preview),
     path("s/<str:space_token>/school/arrange", school_page.arrange),  # Q2 순서·소속 바꾸기
     path("s/<str:space_token>/school/group-color", school_page.group_color),  # U1 소속 색
     path("s/<str:space_token>/channels", school_page.school),  # T2 기관 채널 화면(학교 화면 뷰가 기관이면 채널을 그린다)

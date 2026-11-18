@@ -1,0 +1,35 @@
+{# W7 미리보기(htmx). 저장 전이고 이름·소속·반·직책 4개 값만 그린다(다른 칸은 서버가 버렸다). 고르면(change) 다시 확인하고, 만들기는 보통 제출. #}
+{% if error and not lines %}<p class="field-err" role="alert" style="margin-top:12px">{{ error }}</p>
+{% elif lines %}
+<form id="bulkForm" method="post" action="/s/{{ space.token }}/school/bulk" hx-post="/s/{{ space.token }}/school/bulk/preview" hx-trigger="change" hx-target="#bulkOut">
+  {% csrf_token %}<input type="hidden" name="n" value="{{ lines|length }}">
+  {% if error %}<p class="notice" role="alert" style="margin-top:16px">{{ error }}</p>{% endif %}
+  <p class="sum"><span class="pill pos">만들 수 있음 <span class="num">{{ n_new }}</span></span>
+    {% if n.fix %}<span class="pill neg">고칠 것 <span class="num">{{ n.fix }}</span></span>{% endif %}
+    {% if n.exists %}<span class="pill">이미 있음 <span class="num">{{ n.exists }}</span></span>{% endif %}
+    {% if n.dup %}<span class="pill warn">동명이인 주의 <span class="num">{{ n.dup }}</span></span>{% endif %}
+    {% if n_off %}<span class="pill">뺀 줄 <span class="num">{{ n_off }}</span></span>{% endif %}</p>
+  {% if student %}<p class="notice" role="alert" style="margin-bottom:12px">학생 명단은 받지 않아요. 교직원 명단인지 확인해 주세요. 같은 반 담임으로 보이는 줄이 3명 이상이면 만들지 않아요.</p>{% endif %}
+  {% if full %}<p class="notice" style="margin-bottom:12px">학교 공간에는 {{ seats }}명까지 있을 수 있어요. 지금은 {{ room }}명까지 더 만들 수 있어요. 줄을 빼 주세요.</p>{% endif %}
+  <div class="acts"><button class="btn pri" type="submit"{% if not ready %} disabled{% endif %}>{{ n_new }}명 만들기</button>
+    <span class="muted">{% if n.fix %}「고칠 것」 줄의 소속·반을 고르거나 빼 주세요.{% elif n.exists %}이미 있는 자리는 건너뛰어요.{% else %}만든 뒤 입장 코드 쪽지를 인쇄해요.{% endif %}</span></div>
+  <table class="tbl"><colgroup><col style="width:22%"><col style="width:20%"><col style="width:22%"><col style="width:24%"><col style="width:12%"></colgroup>
+    <thead><tr><th>상태</th><th>이름</th><th>소속</th><th>반 · 직책</th><th>빼기</th></tr></thead><tbody>
+    {% for r in lines %}{% with i=forloop.counter0 %}<tr{% if r.off %} class="off"{% endif %}>
+      <td><span class="pill{% if r.status == 'fix' %} neg{% elif r.status == 'dup' %} warn{% elif r.status == 'ok' %} pos{% endif %}">{{ r.label }}</span>{% if r.bad %}<span class="sub2">전화번호 같은 값은 지웠어요</span>{% elif r.student %}<span class="sub2">학생 명단으로 보여요</span>{% elif r.twice %}<span class="sub2">목록에 두 번 있어요</span>{% elif r.status == 'dup' %}<span class="sub2">같은 이름이 다른 소속에 있어요</span>{% endif %}</td>
+      <td><input type="hidden" name="r{{ i }}-name" value="{{ r.name }}"><b>{{ r.name|default:"이름 없음" }}</b>{% if r.role and r.classes %}<input type="hidden" name="r{{ i }}-role" value="{{ r.role }}">{% endif %}</td>
+      <td><select class="select" name="r{{ i }}-group" aria-label="{{ r.name }} 소속">
+        {% if not r.group %}<option value="{{ r.raw_group }}" selected>{% if r.raw_group %}「{{ r.raw_group }}」 골라 주세요{% else %}소속 골라 주세요{% endif %}</option>{% endif %}
+        {% for g, label in space.group_choices %}<option value="{{ g }}"{% if g == r.group %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+      <td>{% if r.classes %}<select class="select" name="r{{ i }}-cls" aria-label="{{ r.name }} 반">
+          {% if not r.cls %}<option value="{{ r.raw_cls }}" selected>{% if r.raw_cls %}「{{ r.raw_cls }}」 골라 주세요{% else %}반 골라 주세요{% endif %}</option>{% endif %}
+          {% for c, label in r.classes %}<option value="{{ c }}"{% if c == r.cls %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        {% elif r.roles %}<select class="select" name="r{{ i }}-role" aria-label="{{ r.name }} 직책"><option value="">직책 없음</option>
+          {% for x in r.roles %}<option value="{{ x }}"{% if x == r.role %} selected{% endif %}>{{ x }}</option>{% endfor %}</select>
+        {% else %}<input type="hidden" name="r{{ i }}-cls" value="{{ r.raw_cls }}"><span class="muted">소속을 먼저 골라 주세요</span>{% endif %}</td>
+      <td><label class="chk"><input type="checkbox" name="r{{ i }}-off" value="1"{% if r.off %} checked{% endif %}>빼기</label></td>
+    </tr>{% endwith %}{% endfor %}
+  </tbody></table>
+  {% if lines|length > 10 %}<div class="acts"><button class="btn pri" type="submit"{% if not ready %} disabled{% endif %}>{{ n_new }}명 만들기</button></div>{% endif %}
+</form>
+{% endif %}

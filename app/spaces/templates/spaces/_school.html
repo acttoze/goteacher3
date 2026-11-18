@@ -6,6 +6,7 @@
     {% if writable %}<a class="btn sec" href="/s/{{ space.token }}/school/me">내 소속·직책 고치기</a>{% endif %}
     {% if is_creator and writable and not arrange %}{% if tab == "grade" %}<a class="btn sec" href="/s/{{ space.token }}/school?tab=grade&amp;arrange=1">순서·소속 바꾸기</a>{% elif dept_cards %}<a class="btn sec" href="/s/{{ space.token }}/school?tab=duty&amp;arrange=1">순서·부서 바꾸기</a>{% endif %}{% endif %}
     {% if tab == "duty" and is_creator and writable and dept_cards %}<a class="btn sec" href="/s/{{ space.token }}/school/duties">업무분장 다시 붙여넣기</a>{% endif %}
+    {% if is_creator and writable and not arrange and not space.legacy_readonly %}<a class="btn sec" href="/s/{{ space.token }}/school/bulk">명단으로 한 번에 등록</a>{% endif %}
     {% if link %}{% if writable %}<button class="btn pri" type="button" data-open="#inviteDlg">선생님 초대하기</button>{% else %}<button class="btn sec" type="button" data-open="#inviteDlg">초대 링크 재발급</button>{% endif %}{% endif %}</div>
   {% if error %}<p class="notice" role="alert" style="margin-bottom:20px">{{ error }}</p>{% endif %}
   {% if board %}{% include "spaces/_start_board.html" %}

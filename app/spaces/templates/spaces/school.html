@@ -47,9 +47,9 @@
   .sb-c { flex: none; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
   .sb[open] .sb-c { transform: rotate(180deg); }
   .sb-b { padding: 0 var(--pad) 20px; }
-  .sb-first { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-bottom: 16px; }
-  .sb-first p { margin: 0; min-width: 0; }
-  .sb-first .btn { flex: none; }
+  .sb-first, .sb-bulk { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-bottom: 16px; }
+  .sb-first p, .sb-bulk p { margin: 0; min-width: 0; }
+  .sb-first .btn, .sb-bulk .btn { flex: none; }
   .sb-lead { margin: 0 0 10px; }
   .sb-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
   .sb-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-in); }

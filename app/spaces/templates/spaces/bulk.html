@@ -1,0 +1,39 @@
+{% extends "shell.html" %}
+{% load static %}
+{% block title %}명단으로 한 번에 등록 · 고티처{% endblock %}
+{% block ptitle %}학교{% endblock %}
+{% block head %}<script src="{% static 'js/bulk_paste.js' %}" defer></script>
+<style>
+  .bk-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 20px; padding: 0; }
+  .bk-steps li { list-style: none; background: var(--surface); border-radius: var(--radius-in); padding: 12px 16px; }
+  .bk-steps span { color: var(--muted); }
+  #bulkPaste { min-height: 110px; tab-size: 16; white-space: pre; overflow-x: auto; }
+  #bulkDropped { margin-top: 12px; }
+  #bulkOut { overflow-wrap: anywhere; }
+  #bulkOut .sum { margin: 20px 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  #bulkOut .acts { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+  #bulkOut .tbl { table-layout: fixed; }
+  #bulkOut .tbl .select { height: var(--control-h-sm); }
+  #bulkOut tr.off td { color: var(--faint); }
+  #bulkOut tr.off .select { opacity: .5; }
+</style>{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>명단으로 한 번에 등록</h1><p class="sub">링크는 각자, 명단은 관리자가 한 번에. 교직원 명단을 붙여넣으면 자리를 만들고, 선생님마다 입장 코드 쪽지를 인쇄해요.</p></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/school">학교 화면으로</a></div>
+{% if nothing %}<p class="notice" role="status" style="margin-bottom:20px">새로 만든 자리가 없어요. 명단의 선생님이 모두 이미 있어요. 코드를 놓친 선생님은 학교 화면 명부에서 그 이름 줄의 「관리」를 눌러 입장 코드를 다시 만들어 주세요.</p>{% endif %}
+<ol class="bk-steps">
+  <li><b>1. 명단 붙여넣기</b> <span>엑셀·한글 표 그대로</span></li>
+  <li><b>2. 확인하기</b> <span>고칠 줄이 맨 위에 보여요</span></li>
+  <li><b>3. 만들고 쪽지 인쇄</b> <span>코드는 그때 한 번만 보여요</span></li>
+</ol>
+<div class="card"><div class="card-b" style="padding-top:var(--pad)">
+  <form id="bulkPasteForm">{% csrf_token %}
+    <label class="field"><span>교직원 명단 표</span>
+      <textarea class="textarea" id="bulkPaste" name="paste" spellcheck="false" placeholder="이름&#9;소속&#9;반 또는 직책"
+        hx-post="/s/{{ space.token }}/school/bulk/preview" hx-trigger="input changed delay:500ms, gt-pasted" hx-target="#bulkOut" hx-sync="this:replace"></textarea>
+      <span class="hint">이름·소속·반(또는 직책) 칸만 읽어요. 전화번호·생년월일·주민번호·메일로 보이는 칸은 이 PC에서 지우고 보내요.</span></label>
+  </form>
+  <p class="notice" id="bulkDropped" role="status" hidden></p>
+  <div id="bulkOut" aria-live="polite">{% if lines or error %}{% include "spaces/_bulk_out.html" %}{% endif %}</div>
+</div></div>
+{% endblock %}

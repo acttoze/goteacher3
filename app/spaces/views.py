@@ -813,7 +813,11 @@ def _join_school(request, space):
                 return _retired_invite(request, Space.objects.filter(pk=space.pk).first() or space)
             members = Member.objects.in_space(space)
             # 합칠 때 옮겨진 손님·주인 없는 자리와 겹치면 새 자리를 만들지 않는다(같은 사람이 둘로 갈리지 않게, 리드 결정)
-            if members.filter(Q(user__isnull=True) | Q(user__username__startswith="guest:"), cls=cls, name=name).exists():
+            same = members.filter(Q(user__isnull=True) | Q(user__username__startswith="guest:"), cls=cls, name=name).first()
+            if same and same.user_id is None:  # 관리자가 명단으로 미리 만든 빈 자리(W7): 입장 코드로만 잇는다
+                errors["name"] = (f"이 이름·소속으로 미리 만든 자리가 있어요. 본인이면 관리자에게 받은 입장 코드를 "
+                                  f"{settings.SITE_URL}/enter 에 넣어 주세요.")
+            elif same:
                 errors["name"] = ("이 이름으로 이미 들어온 선생님이 있어요. 본인이면 처음 들어온 PC에서 "
                                   "「구글 계정으로 이어 두기」나 「아이디로 이어 두기」를 눌러 주세요.")
             elif members.count() >= SCHOOL_SEATS:

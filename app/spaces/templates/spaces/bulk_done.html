@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load static %}
+{# W7 만든 뒤: 입장 코드 쪽지. 코드 원문은 이 응답에만 있다(no-store, 세션·DB에 없음). 인쇄는 A4 세로 8칸 절취형, 흑백. #}
+{% block title %}입장 코드 쪽지 · 고티처{% endblock %}
+{% block head %}
+<script src="{% static 'js/bulk_paste.js' %}" defer></script>
+<style>
+  /* 종이 위 글자는 pt(인쇄물 예외), 화면 안내는 16px 이상. */
+  @page { size: A4 portrait; margin: 10mm; }
+  body { background: var(--surface); }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 16px var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); }
+  .bar .grow { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .bar .grow b { font-size: var(--fs-section); }
+  .lead { max-width: 190mm; margin: 20px auto; display: grid; gap: 4px; }
+  .sheet { width: 190mm; height: 275mm; margin: 0 auto 24px; background: #fff; color: #000; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); box-sizing: border-box; }
+  .slip { border: 1px dashed #000; margin: -0.5px; padding: 5mm 6mm; display: flex; flex-direction: column; gap: 1.2mm; font-size: 10pt; line-height: 1.35; overflow: hidden; }
+  .slip .s-school { font-size: 9pt; }
+  .slip .s-who { font-size: 11pt; }
+  .slip .s-name { font-size: 17pt; font-weight: 800; letter-spacing: -0.02em; margin-right: 1mm; }
+  .slip .s-code { margin-top: 1mm; border: 1.5px solid #000; padding: 1.5mm 3mm; display: flex; align-items: baseline; gap: 3mm; }
+  .slip .s-code b { font: 800 17pt/1.2 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; letter-spacing: .06em; }
+  .slip ol { margin: 0; padding-left: 5mm; font-size: 9.5pt; }
+  .slip .s-until { margin-top: auto; font-size: 9pt; }
+  @media print {
+    body { background: #fff; }
+    .bar, .lead { display: none !important; }
+    .sheet { margin: 0; break-after: page; }
+    .sheet:last-child { break-after: auto; }
+  }
+</style>
+{% endblock %}
+{% block body %}
+<div class="bar" id="bulkDone" data-back="/s/{{ space.token }}/school">
+  <div class="grow" role="status"><b>{{ n }}명을 만들었어요. 입장 코드는 지금만 볼 수 있어요.</b><span>쪽지를 인쇄해 잘라서 선생님마다 나눠 주세요.</span></div>
+  <button class="btn sec" type="button" data-text="{{ msg }}" data-done="공통 안내문을 복사했어요. 메신저로 전 교직원에게 보내 주세요.">공통 안내문 복사</button>
+  <button class="btn pri" type="button" id="slipPrint">안내 쪽지 인쇄</button>
+</div>
+<div class="lead">
+  <p>A4 세로 한 장에 8명씩, 소속·반 순서로 나가요. 이 화면을 닫으면 코드를 다시 볼 수 없어요.</p>
+  <p class="muted">쪽지를 놓친 선생님은 학교 화면 명부에서 그 이름 줄의 「관리」를 눌러 입장 코드를 다시 만들어 주세요. 공통 안내문에는 코드가 없어요. <a class="tlink acc" href="/s/{{ space.token }}/school">학교 화면으로</a></p>
+</div>
+{% for sheet in sheets %}<section class="sheet">{% for s in sheet %}
+  <article class="slip">
+    <span class="s-school">{{ space.school.name }} · 고티처 학교 공간</span>
+    <span class="s-who"><b class="s-name">{{ s.m.name }}</b>선생님 · {{ s.m.cls_text }}</span>
+    <span class="s-code">입장 코드 <b>{{ s.code }}</b></span>
+    <ol><li>{{ enter_url }} 주소를 열어요.</li><li>위 입장 코드를 넣어요.</li><li>구글이나 아이디로 계속해요. 처음이면 가입하면 돼요.</li></ol>
+    <span class="s-until">{{ s.until|date:"n월 j일" }}까지 한 번만 쓸 수 있어요. 잃어버리면 관리자에게 새 코드를 받아 주세요.</span>
+  </article>{% endfor %}
+</section>{% endfor %}
+{% endblock %}

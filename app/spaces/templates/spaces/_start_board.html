@@ -6,6 +6,8 @@
   <div class="sb-b">
     <div class="well acc sb-first"><p>먼저 교무부장 선생님께 알려 주세요. 문구를 복사해 쿨메신저에 붙여넣으면 돼요.</p>
       <button class="btn pri lg" type="button" data-text="{{ board.head_msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 알리기</button></div>
+    <div class="well sb-bulk"><p><b>링크는 각자, 명단은 관리자가 한 번에.</b> 교직원 명단 표를 붙여넣으면 자리를 만들고 선생님마다 입장 코드 쪽지를 인쇄해요.</p>
+      <a class="btn sec" href="/s/{{ space.token }}/school/bulk">명단으로 한 번에 등록</a></div>
     <p class="sb-lead">학년과 부서마다 보낼 문구를 복사해 선생님들을 초대해 주세요.</p>
     <ul class="sb-grid">{% for c in board.cells %}
       <li class="sb-cell{% if c.n %} on{% endif %}"><div class="sb-top"><b>{{ c.label }}</b><span class="num">{% if c.total %}{{ c.filled }}/{{ c.total }}반{% if c.n %} · {{ c.n }}명{% endif %}{% else %}{{ c.n }}명{% endif %}</span></div>
