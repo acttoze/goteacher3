@@ -84,6 +84,26 @@ class O1DocumentTests(TestCase):
         self.assertNotRegex(self.terms, r"\d+\s*(만\s*)?원")
         self.assertNotRegex(self.terms, r"환불.{0,20}(\d+일|전액|일할)")
 
+    def test_w6_free_school_matches_code(self):
+        """W6: 직접 여는 1년 무료·합류·입장 코드를 지금 코드와 같은 값으로 말한다. 학교 확인·금액 혜택은 말하지 않는다."""
+        from datetime import date
+
+        from spaces.entry import CODE_DAYS
+        from spaces.merge import FREE_CUTOFF, FREE_CUTOFF_END, free_until
+        self.assertEqual((FREE_CUTOFF, FREE_CUTOFF_END), (date(2027, 2, 28), date(2028, 2, 29)))
+        self.assertEqual(free_until(date(2027, 3, 2)), date(2028, 3, 2))
+        for word in ("2027년 2월 28일까지 연 학교는 2028년 2월 29일까지", "그 뒤에 연 학교는 연 날부터 1년",
+                     "자동으로 결제되거나 연장되지 않습니다", "무료 기간이 끝난 뒤에도 같습니다", "연장과 정식 이용",
+                     "직접 연 회원이 학교 관리자가", "넘길 수 있습니다", "관리자를 새로 정하고", "학교 초대 링크·급식 TV 주소"):
+            self.assertIn(word, self.terms, word)
+        for word in ("그 동학년만 옮겨지고", "합류를 누를 때", "합쳐지지 않은 그 학교의 동학년 공간이 모두 합쳐집니다",
+                     "입장 코드", "코드 원문은 저장하지 않습니다", f"{CODE_DAYS}일", "자리가 지워질 때 함께 지웁니다"):
+            self.assertIn(word, self.privacy, word)
+        self.assertNotIn("학교 플랜을 켜면 그 학교의 동학년 공간이 학교 공간으로 합쳐집니다", self.privacy)
+        for doc in (self.terms, self.privacy):
+            for bad in ("상당", "인증된 학교", "확인된 학교"):
+                self.assertNotIn(bad, doc, bad)
+
 
 class GradeNewCollectLinkTests(TestCase):
     def test_grade_has_new_collect_link(self):
