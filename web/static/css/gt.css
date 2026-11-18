@@ -97,6 +97,12 @@ img, svg { display: block; }
 /* 교외는 연한 카드로 감싸고, 교내와 여백을 둔다 */
 .nav-out { display: flex; flex-direction: column; gap: 2px; padding: 2px 6px 6px; margin: 18px -6px 0; border-radius: 12px; background: var(--surface); }
 .nav-out a:hover { background: var(--hover); }
+/* W2 동학년 공간의 학교 이용 상시 버튼: 내 이름 바로 위 */
+.school-cta { margin-top: auto; flex: none; display: flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 60px; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); text-decoration: none; line-height: 1.25; word-break: keep-all; transition: background-color .15s; }
+.school-cta:hover { background: var(--hover); }
+.school-cta b { font-size: var(--fs-body); }
+.school-cta span { font-size: var(--fs-small); font-weight: 600; }
+.school-cta + .me { margin-top: 6px; }
 .me { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; text-decoration: none; transition: background-color .15s; }
 .me:hover { background: var(--surface); }
 .me b { display: block; font-size: 15px; }
@@ -369,6 +375,9 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
   .group, .nav.sub { display: none; }
   .nav-out { display: contents; }
   .me { justify-content: center; padding: 6px 0; }
+  .school-cta { padding: 8px 4px; text-align: center; }
+  .school-cta b { font-size: 13px; }
+  .school-cta span { display: none; }
   .me div { display: none; }
   .title { flex-wrap: wrap; }
   .title .grow { flex-basis: 100%; }
@@ -377,7 +386,7 @@ h1, .h1 { font-size: var(--fs-title); line-height: 1.25; letter-spacing: -0.03em
 @media (max-width: 760px) {
   :root { --gutter: 16px; --pad: 18px; --gap: 16px; --fs-title: 24px; }
   .side { inset: auto 0 0 0; width: auto; height: 64px; flex-direction: row; padding: 0 8px; border-right: 0; border-top: 1px solid var(--line); }
-  .side .brand, .group, .nav.sub, .me { display: none; }
+  .side .brand, .group, .nav.sub, .me, .school-cta { display: none; }
   .nav-out { display: contents; }
   .nav { flex-direction: row; margin: 0; width: 100%; justify-content: space-around; align-items: center; }
   .nav a { flex-direction: column; gap: 2px; height: 56px; justify-content: center; font-size: 13px; padding: 0 4px; flex: 1; }

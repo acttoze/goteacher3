@@ -1,4 +1,4 @@
-{# P1 학교 전체 사용 유도 카드(시작 3·4단계 오른쪽). 보낼 문구(pitch.msg)가 있으면 복사, 없으면 고른 학교로 플랜 신청. #}
+{# P1·W2 학교 전체 사용 유도 카드(시작 3·4단계 오른쪽). 3단계는 안내만(시작은 양식의 두 번째 버튼), 4단계는 대표에게 확인 화면 버튼. #}
 <aside class="card pitch-card" aria-labelledby="pitchH" style="margin-top:{{ top }}px">
   <div class="card-h"><h2 id="pitchH">학교 전체로 쓰면 더 편해요</h2></div>
   <div class="card-b">
@@ -8,17 +8,17 @@
       <li>복무 공유, 일정·주간계획 인쇄</li>
       <li>수리 요청, 급식 현황판</li>
     </ul>
-    <p class="small muted">동학년에서 쓰던 내용은 학교 공간으로 그대로 옮겨 와요.</p>
+    {% if pitch.opened %}<p class="well acc small"><b>우리 학교 공간이 열렸어요.</b> 동학년은 지금처럼 따로 쓸 수 있어요.</p>
+    {% else %}<p class="well acc small"><b>1년 무료로 시작해요.</b> 카드 등록과 자동 결제는 없고, 옮겨지는 건 우리 학년뿐이에요.</p>{% endif %}
     {% if pitch.peer_text or pitch.n_text or pitch.near_text %}<div class="pitch-proof small">
       {% if pitch.peer_text %}<b>{{ pitch.peer_text }}</b>{% endif %}
       {% if pitch.n_text %}<span>{{ pitch.n_text }}</span>{% endif %}
       {% if pitch.near_text %}<span>{{ pitch.near_text }}</span>{% endif %}
     </div>{% endif %}
-    {% if pitch.msg %}
-    <button class="btn sec block" type="button" style="height:auto;min-height:44px;padding:10px 16px;line-height:1.3" data-text="{{ pitch.msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 보낼 문구 복사</button>
-    <a class="tlink acc" href="/school-plan">학교 플랜 보기</a>
-    {% else %}
-    <a class="btn sec block" href="/school-plan?q={{ school.name|urlencode }}">학교 전체로 시작하기</a>
+    {% if space %}
+    {% if pitch.opened %}<a class="btn sec block" href="/s/{{ space.token }}/school-start">자세히 보기</a>
+    {% elif is_creator %}<a class="btn pri block" href="/s/{{ space.token }}/school-start">학교로 시작 · 1년 무료</a>{% endif %}
+    {% if pitch.msg %}<button class="btn sec block" type="button" style="height:auto;min-height:44px;padding:10px 16px;line-height:1.3" data-text="{{ pitch.msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 보낼 문구 복사</button>{% endif %}
     {% endif %}
   </div>
 </aside>

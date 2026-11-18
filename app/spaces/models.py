@@ -185,6 +185,11 @@ class Space(models.Model):
         """학교 전체 사용을 권할 동학년: 학교 플랜이 없거나, 누가 직접 연 학교에 아직 합쳐지지 않은 동학년(W1)."""
         return self.kind == self.Kind.GRADE and (not self.school.writable or self.school.self_opened_at is not None)
 
+    @cached_property
+    def school_open(self):
+        """이 학교에 학교 공간이 이미 있나(W2 상시 버튼·확인 화면)."""
+        return Space.objects.filter(school_id=self.school_id, grade=0).exists()
+
     @property
     def label(self):
         if self.is_org:

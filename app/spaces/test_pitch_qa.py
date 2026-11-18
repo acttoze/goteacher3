@@ -1,5 +1,4 @@
 """P1 QA: test_pitch.py가 다루지 않는 경계(이스케이프, 화면별 숨김 기준, 안내 화면의 POST·htmx, 약속 문구, 만들기 흐름)."""
-import re
 from html.parser import HTMLParser
 
 from django.contrib.auth import get_user_model
@@ -12,7 +11,7 @@ from .views import PICKED, PROOF_MIN, school_pitch
 
 User = get_user_model()
 NASTY = 'A"><script>alert(1)</script>\'&'
-FORBIDDEN = ("체험", "인증", "할인", "무료", "보장", "환불", "1위", "공문", "지원금", "약정")
+FORBIDDEN = ("체험", "인증", "할인", "보장", "환불", "1위", "공문", "지원금", "약정")
 
 
 class Attrs(HTMLParser):
@@ -75,13 +74,9 @@ class Escaping(Seated):
         self.assertNotIn("<script>alert(1)", html)
         self.assertEqual(Attrs(html).texts, [school_pitch(space=space, me=me)["msg"]])
 
-    def test_step3_school_name_is_escaped_and_url_encoded(self):
+    def test_step3_school_name_is_escaped(self):
         self.newcomer({**PICK, "code": "7000001", "name": f"학교{NASTY}"})
-        html = body(self.client.get("/new/class"))
-        self.assertNotIn("<script>alert(1)", html)
-        href = re.search(r'href="(/school-plan\?q=[^"]*)"', html).group(1)
-        self.assertNotRegex(href, r"[<>'\s]")
-        self.assertIn("%26", href)  # &가 다음 파라미터로 새지 않는다
+        self.assertNotIn("<script>alert(1)", body(self.client.get("/new/class")))
 
 
 class HiddenBelowThreshold(Seated):

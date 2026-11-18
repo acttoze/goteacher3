@@ -86,20 +86,32 @@ def _picked(request):
     return hits[int(raw)] if raw.isdecimal() and len(raw) < 4 and int(raw) < len(hits) else None
 
 
-def _pitch(request):
+def _seat(request):
+    if not request.user.is_authenticated:
+        return None
+    return Member.objects.filter(user=request.user).select_related("space__school").order_by("-joined_at").first()
+
+
+def _pitch(request, seat):
     """제목 아래 근거(P1). 기관 탭·기관 회원에게는 없고, 학교 플랜을 안 쓰는 동학년 회원에게는 같은 학교 수와 보낼 문구까지."""
-    if request.GET.get("kind", request.POST.get("kind")) == "org":
-        return {}
-    seat = None
-    if request.user.is_authenticated:
-        seat = Member.objects.filter(user=request.user).select_related("space__school").order_by("-joined_at").first()
-    if seat and seat.space.is_org:
+    if request.GET.get("kind", request.POST.get("kind")) == "org" or (seat and seat.space.is_org):
         return {}
     return (seat and space_pitch(seat.space, seat)) or school_pitch()
 
 
+def _start_href(request, seat):
+    """맨 위 "1년 무료로 시작"의 목적지(W2). 동학년 회원은 확인 화면, 공간이 없으면 시작 화면, 학교·기관 쪽과 이미 열린 학교는 없음."""
+    if request.GET.get("kind", request.POST.get("kind")) == "org":
+        return ""
+    if seat:
+        return f"/s/{seat.space.token}/school-start" if seat.space.can_go_school and not seat.space.school_open else ""
+    return "/" if request.user.is_authenticated else "/start"
+
+
 def _ctx(request, **extra):
-    user, ctx = request.user, {"price": _price(), "login_href": LOGIN_HREF, "pitch": _pitch(request), **extra}
+    seat = _seat(request)
+    user, ctx = request.user, {"price": _price(), "login_href": LOGIN_HREF, "pitch": _pitch(request, seat),
+                               "start_href": _start_href(request, seat), "free_until": free_until(timezone.localdate()), **extra}
     if not user.is_authenticated or is_guest(user):
         ctx["guest"] = user.is_authenticated
         return ctx
@@ -230,12 +242,12 @@ def school_start(request):
     space, me = request.space, request.member
     if space.is_school:
         return redirect(f"/s/{space.token}/")
-    if is_guest(request.user):
+    if space.school_open:  # 이미 열렸으면 손님·대표가 아닌 분에게도 같은 안내(합류는 W4)
+        state, status = "opened", 409
+    elif is_guest(request.user):
         state, status = "guest", 403
     elif not leads(space, me):
         state, status = "not_lead", 403
-    elif Space.objects.filter(school=space.school, grade=0).exists():
-        state, status = "opened", 409
     else:
         state, status = "ready", 400
     error = ""
@@ -252,6 +264,15 @@ def school_start(request):
                 if seat.space.is_school:
                     return _to_school(seat.space)
                 state, status = "opened", 409
-    ctx = _space_ctx(request, state=state, error=error, until=free_until(timezone.localdate()))
+    until = free_until(timezone.localdate())
+    ctx = _space_ctx(request, page="school_start", state=state, error=error, until=until, pitch=space_pitch(space, me),
+                     josa=_josa(space.school.name, "을", "를"))
     ctx["n_guests"] = sum(r["guest"] for r in ctx["rows"])
+    if state == "not_lead":
+        ctx["lead_msg"] = (
+            f"{ctx['creator'].name} 선생님, 우리 학년이 고티처 학교 공간을 1년 무료로 시작하면 어떨까요? "
+            f"{until.year}년 {until.month}월 {until.day}일까지 비용이 없고, 자동 결제도 없어요. "
+            "우리 학년만 옮겨지고 다른 학년은 그대로예요. 동학년 대표만 시작할 수 있어서 부탁드려요.\n\n"
+            f"{settings.SITE_URL}/s/{space.token}/school-start"
+        )
     return render(request, "spaces/school_start.html", ctx, status=status if request.method == "POST" else 200)

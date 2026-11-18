@@ -161,7 +161,7 @@ class StartPageTests(Base):
         r = client(self.lead.user).get(self.url)
         end = free_until(timezone.localdate())
         self.assertContains(r, f"{end.year}년 {end.month}월 {end.day}일")
-        for text in ("카드", "자동 결제", "우리 4학년", "다른 학년", "관리자", "넘길 수", "읽기만", 'name="agree"', "1년 무료로 열기"):
+        for text in ("카드", "자동 결제", "우리 4학년", "다른 학년", "관리자", "넘길 수", "읽기만", 'name="agree"', "1년 무료로 시작"):
             self.assertContains(r, text)
         self.assertFalse(Space.objects.filter(school=self.school, grade=0).exists())  # 여는 것만으로 바뀌지 않는다
 
@@ -312,8 +312,8 @@ class NoMonopolyTests(Base):
             self.assertEqual(c.get(base + path).status_code, code, path)
         for path in ("/school", "/board", "/school/duties", "/school/attendance", "/meals"):
             self.assertEqual(c.get(base + path).status_code, 404, path)  # 학교 플랜이 켜진 학교여도 동학년에는 없는 화면
-        self.assertContains(c.get(base + "/"), 'href="/school-plan"')  # 유도는 그대로
-        self.assertIn("msg", space_pitch(fresh, self.other_lead))
+        self.assertContains(c.get(base + "/"), f'href="{base}/school-start"')  # W2: 유도는 이미 열림 안내로
+        self.assertNotIn("msg", space_pitch(fresh, self.other_lead))
 
     def test_other_grade_invite_keeps_working(self):
         self.open()

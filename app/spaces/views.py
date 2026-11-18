@@ -27,7 +27,7 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
-from .merge import retry_once, vacate
+from .merge import free_until, retry_once, vacate
 from .models import (
     INVITE,
     Member,
@@ -269,6 +269,8 @@ def school_pitch(atpt=None, code=None, space=None, me=None):
         if near >= NEAR_MIN:
             pitch.update(near=near, office=office, near_text=f"{office}에서는 {near}개 학교가 쓰고 있어요.")
     if code:
+        if Space.objects.filter(school__neis_atpt=atpt, school__neis_code=code, grade=0).exists():
+            pitch["opened"] = True  # 이미 열린 학교에는 새로 시작하자고 권하지 않는다(W2)
         seats = Member.objects.filter(space__school__neis_atpt=atpt, space__school__neis_code=code,
                                       space__kind=Space.Kind.GRADE, space__merged_into__isnull=True)
         if space:
@@ -277,14 +279,16 @@ def school_pitch(atpt=None, code=None, space=None, me=None):
         if people:  # 사람이 있는 공간만 '쓰고 있다'고 센다
             peers = seats.values("space").distinct().count()
             pitch.update(peers=peers, peer_people=people, peer_text=f"우리 학교 다른 동학년 {peers}곳, 선생님 {people}명도 고티처를 쓰고 있어요.")
-    if space and me:
+    if space and me and "opened" not in pitch:
         proof = f" {pitch['n_text']}" if "n_text" in pitch else ""
+        end = free_until(timezone.localdate())
         pitch["msg"] = (
             f"안녕하세요. {space.school.name} {space.grade}학년 {me.name} 교사예요. "
-            "저희 동학년에서 고티처로 취합을 하고 있는데, 학교 전체가 함께 쓰면 좋겠다는 생각이 들어 소개드려요.\n\n"
-            "학교 전체로 쓰면 확인 필수 공지와 확인 현황, 전 교직원 명부로 하는 취합, 명부와 업무분장, 복무 공유, "
-            "일정과 주간계획 인쇄, 수리 요청, 급식 현황판을 한곳에서 쓸 수 있어요.\n\n"
-            f"동학년에서 쓰던 내용은 학교 공간으로 그대로 옮겨 와요.{proof} 견적서를 바로 받아 품의하실 수 있어요.\n\n"
+            "저희 동학년에서 고티처로 취합을 하고 있는데, 학교 공간을 1년 무료로 시작해도 될지 먼저 여쭤봐요.\n\n"
+            f"{end.year}년 {end.month}월 {end.day}일까지 비용이 없고, 카드 등록이나 자동 결제도 없어요. "
+            "시작하면 저희 학년만 학교 공간으로 옮겨지고, 다른 학년은 지금 쓰는 그대로예요.\n\n"
+            "학교 공간에서는 확인 필수 공지와 확인 현황, 전 교직원 명부로 하는 취합, 명부와 업무분장, 복무 공유, "
+            f"일정과 주간계획 인쇄, 수리 요청, 급식 현황판을 한곳에서 쓸 수 있어요.{proof}\n\n"
             f"{settings.SITE_URL}/school-plan"
         )
     return pitch
@@ -385,7 +389,8 @@ def new_class(request):
                 taken = True
             else:
                 request.session.pop(HITS, None)
-                return redirect(f"/s/{space.token}/made")
+                then = "school-start" if request.POST.get("then") == "school" else "made"  # W2 두 번째 제출
+                return redirect(f"/s/{space.token}/{then}")
     if request.method == "POST":
         request.session[PICKED] = school
 
@@ -394,11 +399,11 @@ def new_class(request):
         "school": school, "grade": grade, "grades": GRADES, "classes": classes, "from_neis": from_neis,
         "n_classes": len(classes) - 1, "cls": cls, "name": name, "errors": errors,
         "taken": (GRADE_MOVED if moved else GRADE_TAKEN) if taken else "", "moved": moved,
+        "pitch": school_pitch(school["atpt"], school["code"]),
     }
     if request.headers.get("HX-Request"):
         return render(request, "spaces/_class_form.html", ctx)
     status = 409 if taken and request.method == "POST" else 400 if errors else 200
-    ctx["pitch"] = school_pitch(school["atpt"], school["code"])
     return render(request, "spaces/start_class.html", ctx, status=status)
 
 

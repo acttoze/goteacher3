@@ -115,7 +115,8 @@ class Message(Base):
         msg = school_pitch(space=mine, me=me)["msg"]
         self.assertIn("새솔초등학교 4학년 이수빈", msg)
         self.assertIn(n_text(PROOF_MIN), msg)
-        self.assertIn("견적서", msg)
+        self.assertIn("1년 무료", msg)  # W2: 견적 안내 대신 1년 무료 기준
+        self.assertNotIn("견적", msg)
         self.assertTrue(msg.endswith(f"{SITE}/school-plan"))
         self.assertNotIn("비공개", msg)
         self.assertNotRegex(msg, r"\d[\d,]*\s*원")
@@ -157,7 +158,7 @@ class StartSteps(Base):
     def test_step2_line_with_and_without_number(self):
         r = self.client.get("/")
         self.assertContains(r, "학교 전체가 함께 쓰려면")
-        self.assertContains(r, "나중에 그대로 옮겨 와요")
+        self.assertContains(r, "1년 무료로 열려요")
         self.assertContains(r, LINK)
         self.assertNotContains(r, "개 학교가")
         self.proof()
@@ -176,8 +177,8 @@ class StartSteps(Base):
         r = self.client.get("/new/class")
         html = r.content.decode()
         self.assertContains(r, CARD)
-        self.assertContains(r, "학교 전체로 시작하기")
-        self.assertContains(r, "/school-plan?q=%EC%83%88%EC%86%94")
+        self.assertContains(r, "학교로 시작 · 1년 무료")  # W2: 카드 버튼 대신 양식의 두 번째 제출
+        self.assertNotContains(r, "/school-plan?q=")
         self.assertContains(r, "우리 학교 다른 동학년 1곳, 선생님 2명도")
         self.assertContains(r, n_text(PROOF_MIN))
         self.assertGreater(html.index(CARD), html.index("</form>", html.index('id="classForm"')))
@@ -215,19 +216,19 @@ class GradeScreens(Base):
         self.assertContains(r, "교무부장 선생님께 보낼 문구 복사")
         self.assertContains(r, "data-done=\"문구를 복사했어요. 쿨메신저에 붙여넣으세요.\"")
         self.assertContains(r, "data-text=\"안녕하세요.")
-        self.assertContains(r, LINK)
+        self.assertContains(r, f'href="{self.base}/school-start"')
 
     def test_grade_band_and_menu(self):
         r = self.client.get(f"{self.base}/")
         self.assertContains(r, BAND)
-        self.assertContains(r, "학교 전체로 쓰기")
+        self.assertContains(r, "학교 이용 시작")  # W2: 메뉴 항목 대신 상시 버튼
         self.assertContains(r, 'data-text="안녕하세요.')
 
     def test_today_band_only_with_peers_but_menu_always(self):
         self.proof()  # 전국 숫자가 있어도 같은 학교 근거가 없으면 띠는 없다
         r = self.client.get(f"{self.base}/today")
         self.assertNotContains(r, BAND)
-        self.assertContains(r, "학교 전체로 쓰기")
+        self.assertContains(r, "학교 이용 시작")
         grade_space(self.home, 5, "가", "나")
         r = self.client.get(f"{self.base}/today")
         self.assertContains(r, BAND)

@@ -34,8 +34,8 @@
 {% block main %}
 <div class="title"><div class="grow">
   <h1>학교 전체가 한 공간에서 쓰는 학교 플랜</h1>
-  <p class="sub">{% if price %}1년 <b class="num">{{ price }}</b> · 견적서로 품의하고, 계좌이체와 계산서는 담당자가 안내드려요.{% else %}가격은 견적서로 안내드려요. 계좌이체와 계산서도 담당자가 안내드려요.{% endif %}</p>
-</div></div>
+  <p class="sub">{% if start_href %}지금 시작하면 {{ free_until|date:"Y년 n월 j일" }}까지 무료예요. 카드·결제 정보를 받지 않고, 자동 결제도 없어요.{% elif price %}1년 <b class="num">{{ price }}</b> · 견적서로 품의하고, 계좌이체와 계산서는 담당자가 안내드려요.{% else %}가격은 견적서로 안내드려요. 계좌이체와 계산서도 담당자가 안내드려요.{% endif %}</p>
+</div>{% if start_href %}<a class="btn pri lg" href="{{ start_href }}">1년 무료로 시작</a>{% endif %}</div>
 {% if pitch.n_text or pitch.peer_text or pitch.msg %}<div class="wrap-row plan-proof">
   {% if pitch.n_text %}<b>{{ pitch.n_text }}</b>{% endif %}{% if pitch.peer_text %}<span>{{ pitch.peer_text }}</span>{% endif %}
   {% if pitch.msg %}<button class="btn sec sm" type="button" data-text="{{ pitch.msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 보낼 문구 복사</button>{% endif %}
@@ -68,12 +68,13 @@
       </section>
     </div>
     <div class="well plan-how">
-      <p><b>이렇게 진행돼요</b> 신청 → 견적서 인쇄 → 계좌이체 → 운영자가 학교로 확인 연락을 드려요 → 학교 공간이 열려요. 신청한 선생님이 첫 관리자가 되고, 동학년에서 쓰던 내용은 학교 공간으로 옮겨 와요.</p>
+      {% if start_href %}<p><b>1년 무료로 시작</b> 동학년 대표가 누르면 바로 열려요. 대표가 관리자가 되고, 우리 학년만 옮겨져요. 다른 학년은 그대로예요.</p>{% endif %}
+      <p><b>{% if start_href %}연장·정식 도입{% if price %} · 1년 <span class="num">{{ price }}</span>{% endif %}{% else %}이렇게 진행돼요{% endif %}</b> 신청 → 견적서 인쇄 → 계좌이체 → 운영자가 학교로 확인 연락을 드려요 → 학교 공간이 열려요. 신청한 선생님이 첫 관리자가 되고, 동학년에서 쓰던 내용은 학교 공간으로 옮겨 와요.</p>
       <p>기간이 끝나면 학교 화면은 읽기만 돼요. 취합·오늘·일정은 그대로 써요.</p>
     </div>
   </div>
   <section class="card plan-form" aria-labelledby="applyH">
-    <div class="card-h"><h2 id="applyH">{% if kind == "org" %}기관 플랜 신청{% else %}학교 플랜 신청{% endif %}</h2></div>
+    <div class="card-h"><h2 id="applyH">{% if kind == "org" %}기관 플랜 신청{% elif start_href %}연장·정식 도입 신청{% else %}학교 플랜 신청{% endif %}</h2></div>
     <div class="card-b">
     {% if pending %}<div class="plan-done"><b>신청했어요</b><span>{{ pending.school.name }} · 운영자가 학교로 확인 연락을 드려요. 입금과 재직을 확인하면 학교 공간이 열려요.</span><a class="btn pri" href="/school-plan/q/{{ pending.key }}">견적서 보기</a></div>{% endif %}
     {% if sent %}<ul class="plan-sent">{% for r in sent %}<li>{{ r.school.name }} · {{ r.get_status_display }} · <a href="/school-plan/q/{{ r.key }}">견적서 보기</a></li>{% endfor %}</ul>{% endif %}

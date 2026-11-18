@@ -19,7 +19,7 @@ class LandingTests(TestCase):
         r = self.client.get("/")
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, "landing.html")
-        for text in ("한글 양식", "교직원 정보만", "오라클 클라우드", "국내", "동학년판 무료", "12월 14일(월)"):
+        for text in ("한글 양식", "교직원 정보만", "오라클 클라우드", "국내", "동학년 무료", "12월 14일(월)"):
             self.assertContains(r, text)
 
     def test_start_buttons_go_to_start(self):

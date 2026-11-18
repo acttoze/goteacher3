@@ -1,32 +1,47 @@
 {% extends "shell.html" %}
-{% block title %}학교 공간 열기 · 고티처{% endblock %}
-{% block ptitle %}학교 공간 열기{% endblock %}
+{% block title %}학교 이용 시작 · 고티처{% endblock %}
+{% block ptitle %}학교 이용 시작{% endblock %}
+{% block head %}<style>
+  /* W2 확인 화면: 1536×750 한 장 */
+  .ss-rows { display: grid; grid-template-columns: 120px minmax(0, 1fr); margin: 0; }
+  .ss-rows dt, .ss-rows dd { margin: 0; padding: 13px 0; border-top: 1px solid var(--rule); line-height: 1.45; }
+  .ss-rows dt:first-of-type, .ss-rows dt:first-of-type + dd { border-top: 0; padding-top: 0; }
+  .ss-rows dt { font-weight: 700; }
+  .ss-go { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
+</style>{% endblock %}
 {% block main %}
-<div class="title"><div class="grow"><h1>학교 공간을 1년 무료로 열어요</h1><p class="sub">{{ space.school.name }} · {{ until|date:"Y년 n월 j일" }}까지 무료</p></div>
+<div class="title"><div class="grow"><h1>{% if state == "opened" %}우리 학교 공간이 열렸어요{% else %}{{ space.school.name }}{{ josa }} 1년 무료로 시작해요{% endif %}</h1></div>
   <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
-{% if state == "guest" %}
-<p class="notice" role="status" style="margin-bottom:20px">학교 공간은 계정 회원만 열 수 있어요. 구글 계정이나 아이디를 먼저 이어 주세요.</p>
-<section class="card" aria-label="계정 잇기"><div class="card-b stack-y" style="padding-top:var(--pad)">
-  <div class="wrap-row"><a class="btn pri lg" href="/auth/google/login?next=/s/{{ space.token }}/school-start">구글 계정으로 잇기</a>
-    <a class="btn sec lg" href="/signup?next=/s/{{ space.token }}/school-start">아이디로 잇기</a></div>
-</div></section>
-{% elif state == "not_lead" %}
-<p class="notice" role="status">학교 공간은 동학년 대표만 열 수 있어요. {{ creator.name }} 선생님께 제안해 주세요.</p>
-{% elif state == "opened" %}
-<p class="notice" role="status">이 학교에는 이미 학교 공간이 있어요. 우리 동학년은 지금처럼 그대로 쓰면 돼요.</p>
+{% if state == "opened" %}
+<p class="well acc" role="status">이 학교에는 이미 학교 공간이 있어요. 우리 동학년은 지금처럼 그대로 쓰면 돼요.</p>
 {% else %}
-<form class="card" method="post" action="/s/{{ space.token }}/school-start" aria-label="학교 공간 열기"><div class="card-b stack-y" style="padding-top:var(--pad)">
-  {% csrf_token %}
-  <dl class="kv">
-    <dt>무료 기간</dt><dd>{{ until|date:"Y년 n월 j일" }}까지예요. 카드 등록도 자동 결제도 없어요.</dd>
-    <dt>옮겨지는 것</dt><dd>우리 {{ space.grade }}학년의 선생님·취합·일정만 옮겨져요. 다른 학년 동학년은 그대로예요.</dd>
-    <dt>관리자</dt><dd>제가 학교 공간 관리자가 돼요. 학교 화면에서 다른 선생님께 넘길 수 있어요.</dd>
-    <dt>기간이 끝나면</dt><dd>학교 화면은 읽기만 돼요. 취합·오늘·일정은 계속 쓸 수 있어요.</dd>
-    {% if n_guests %}<dt>이름만 들어온 분</dt><dd>{{ n_guests }}명은 계정을 이어야 학교 공간에 들어와요. 받은 취합 링크로 내는 것은 그대로 돼요.</dd>{% endif %}
+<section class="card" aria-label="학교 이용 시작 안내"><div class="card-b stack-y" style="padding-top:var(--pad)">
+  <dl class="ss-rows">
+    <dt>기간</dt><dd>{{ until|date:"Y년 n월 j일" }}까지 무료예요. 카드·결제 정보를 받지 않고, 자동 결제도 없어요.</dd>
+    <dt>관리자</dt><dd>{% if is_creator %}{{ me.name }}{% else %}{{ creator.name }}{% endif %} 선생님이 관리자가 돼요. 나중에 다른 선생님께 넘길 수 있어요.</dd>
+    <dt>옮겨지는 것</dt><dd>우리 {{ space.grade }}학년 {{ rows|length }}명과 그 취합·일정만 옮겨져요. 다른 학년은 그대로이고, 원할 때 각자 합류해요.{% if n_guests %} 이름만 들어온 {{ n_guests }}명은 계정을 이어야 학교 공간에 들어와요.{% endif %}</dd>
+    <dt>끝난 뒤</dt><dd>자동 결제는 없어요. 연장하지 않으면 학교 화면은 읽기만 되고, 취합·오늘·일정은 계속 써요.</dd>
   </dl>
-  <label class="chk"><input type="checkbox" name="agree" value="1" required{% if error %} aria-invalid="true" aria-describedby="agreeErr"{% endif %}>위 내용을 확인했어요</label>
-  {% if error %}<p class="field-err" id="agreeErr" role="alert">{{ error }}</p>{% endif %}
-  <div><button class="btn pri lg" type="submit">1년 무료로 열기</button></div>
-</div></form>
+  {% if state == "guest" %}
+  <div class="ss-go">
+    <p>학교 공간은 계정 회원만 시작할 수 있어요. 구글 계정이나 아이디를 먼저 이어 주세요.</p>
+    <div class="wrap-row"><a class="btn pri lg" href="/auth/google/login?next=/s/{{ space.token }}/school-start">구글 계정으로 잇기</a>
+      <a class="btn sec lg" href="/signup?next=/s/{{ space.token }}/school-start">아이디로 잇기</a></div>
+  </div>
+  {% elif state == "not_lead" %}
+  <div class="ss-go">
+    <p>학교 이용은 동학년 대표가 시작해요. {{ creator.name }} 선생님께 제안해 주세요.</p>
+    <div><button class="btn pri lg" type="button" data-text="{{ lead_msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">대표 선생님께 보낼 문구 복사</button></div>
+  </div>
+  {% else %}
+  <form class="ss-go" method="post" action="/s/{{ space.token }}/school-start">
+    {% csrf_token %}
+    <label class="chk"><input type="checkbox" name="agree" value="1" required{% if error %} aria-invalid="true" aria-describedby="agreeErr"{% endif %}>이 학교 교직원이에요. 우리 학년이 학교 공간으로 옮겨지는 걸 확인했어요</label>
+    {% if error %}<p class="field-err" id="agreeErr" role="alert">{{ error }}</p>{% endif %}
+    <div class="wrap-row"><button class="btn pri lg" type="submit">1년 무료로 시작</button>
+      {% if pitch.msg %}<button class="btn sec lg" type="button" data-text="{{ pitch.msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 먼저 물어보기</button>{% endif %}</div>
+  </form>
+  {% endif %}
+</div></section>
 {% endif %}
 {% endblock %}
