@@ -23,7 +23,7 @@ from config.ratelimit import too_many
 
 from . import neis
 from .merge import free_until, open_free
-from .models import Member, PlanRequest, School, Space, leads
+from .models import Member, PlanRequest, School, leads
 from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, _space_ctx, read_org, school_pitch, space_pitch
 
 LOGIN_HREF = "/start?next=/school-plan"
