@@ -840,7 +840,7 @@ def update_me(request):
     me.name, me.cls = name, cls
     # 보낸 칸만 저장한다(이름 칸 change와 반 단추가 거의 같이 갈 때 늦게 처리된 쪽이 반을 되돌리지 않게)
     fields = [f for f in ("name", "cls") if f in request.POST]
-    if school and "cls" in fields and cls_group(cls):  # 학교 공간 학년 교사: 소속·직책이 반을 따라간다
+    if school and not request.space.is_org and "cls" in fields and cls_group(cls):  # 학교 공간 학년 교사: 소속·직책이 반을 따라간다(기관 그룹은 반과 무관)
         me.group, me.position = cls_group(cls), _cls_label(cls)
         fields += ["group", "position"]
     me.save(update_fields=fields)

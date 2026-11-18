@@ -340,6 +340,16 @@ class FixTests(Base):
         self.space.refresh_from_db()
         self.assertEqual(len(self.space.group_colors), 30)
 
+    def test_saving_my_info_keeps_org_group(self):
+        """기관 회원의 반 값이 학교 반 모양('4-1')이어도 내 정보 저장이 그룹·직책을 학교 값으로 덮지 않는다."""
+        self.space.org_groups = [{"k": "t1", "n": "혁신팀"}]
+        self.space.save(update_fields=["org_groups"])
+        Member.objects.filter(pk=self.kim.pk).update(cls="4-1", group="t1")
+        r = as_(self.kim.user).post(f"{self.base}/settings/me", {"cls": "4-1"})
+        self.assertEqual(r.status_code, 302)
+        self.kim.refresh_from_db()
+        self.assertEqual((self.kim.group, self.kim.position), ("t1", "주무관"))
+
     def test_no_open_school_or_grade_space_for_org(self):
         from .merge import open_school
         with self.assertRaises(ValueError):
