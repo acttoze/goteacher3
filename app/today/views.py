@@ -28,7 +28,7 @@ from notices.models import Notice
 from spaces import neis
 from spaces.gates import legacy_locked
 from spaces.models import Attendance, Member
-from spaces.views import _josa, _space_ctx
+from spaces.views import _josa, _space_ctx, space_pitch
 
 from . import schedule
 from .models import ALL, ME, Event, default_scope, my_range_q, org_lines, reachable_q, scope_choices
@@ -217,7 +217,7 @@ def _page_ctx(request):
     local = timezone.localtime(now)
     wide = request.space.is_school and request.GET.get("show") == "school"
     duty = wide and not request.space.is_org  # 기관은 복무가 없다(T1)
-    return _space_ctx(request, page="today", show_school=wide, school_wide=_school_wide(request, now) if wide else [],
+    return _space_ctx(request, page="today", pitch=space_pitch(request.space, request.member), show_school=wide, school_wide=_school_wide(request, now) if wide else [],
                       notices_wide=_notices_wide(request) if wide else [],
                       attendance_wide=list(Attendance.objects.in_space(request.space).filter(date=local.date()).select_related("member").order_by("pk")) if duty else [],
                       date_label=f"{local.month}월 {local.day}일 {WD[local.weekday()]}요일",

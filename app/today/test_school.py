@@ -280,7 +280,7 @@ class GradeSpaceTests(TestCase):
             r = cb.get(base + path)
             self.assertContains(r, "회의")
             self.assertNotContains(r, 'name="scope"')
-            self.assertNotContains(r, "학교 전체")
+            self.assertNotIn("학교 전체", r.content.decode().replace("학교 전체로 쓰기", ""))  # 메뉴의 학교 플랜 안내(P1)는 보기 전환이 아니다
             self.assertNotContains(r, "나에게 온 것")
         self.assertNotContains(cb.get(f"{base}/today?show=school"), "나에게 온 것")
         # 바꾸면 by가 바꾼 사람으로(지금 그대로), 지우기도 누구나

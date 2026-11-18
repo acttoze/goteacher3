@@ -6,6 +6,16 @@
 {% include "spaces/_steps.html" with n=3 label="내 학년 · 반" pct=75 %}
 <h1 class="st-h">{% if school_taken %}학교 공간이 열려 있어요{% else %}담임 학년과 반을 골라 주세요{% endif %}</h1>
 <p class="school-line" style="margin-top:12px"><b>{{ school.name }}</b><span class="muted">{{ school.office }}</span><a class="tlink acc" href="/">학교 바꾸기</a></p>
+{% if school_taken %}
 {% include "spaces/_class_form.html" %}
 <p class="back"><a class="tlink" href="/">이전 단계로</a></p>
+{% else %}
+<div class="st-cols">
+  <div>
+    {% include "spaces/_class_form.html" %}
+    <p class="back"><a class="tlink" href="/">이전 단계로</a></p>
+  </div>
+  {% include "spaces/_pitch_card.html" with top=28 %}
+</div>
+{% endif %}
 {% endblock %}

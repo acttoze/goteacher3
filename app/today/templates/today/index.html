@@ -101,6 +101,7 @@
   {% if space.is_school %}<form class="seg" role="group" aria-label="볼 범위" method="get" action="/s/{{ space.token }}/today"><button name="show" value="me" aria-pressed="{% if show_school %}false{% else %}true{% endif %}">나에게 온 것</button><button name="show" value="school" aria-pressed="{% if show_school %}true{% else %}false{% endif %}">{{ space_word }} 전체</button></form>{% endif %}
   {% if urgent %}<a class="btn pri" href="/c/{{ urgent.c.link_token }}/u/{{ urgent.row.key }}">{{ urgent.c.title|truncatechars:16 }} 내기</a>{% elif n_must %}<a class="btn pri" href="/s/{{ space.token }}/board/{{ must_list.0.key }}/">공지 확인하기</a>{% else %}<a class="btn pri" aria-disabled="true">오늘 마감 없음</a>{% endif %}
 </div>
+{% if pitch.peers %}{% include "spaces/_pitch_band.html" %}{% endif %}
 
 {% if show_school %}
 {% if not space.is_org %}<section class="card" aria-labelledby="wideAH" style="margin-bottom:var(--gap)">

@@ -21,5 +21,10 @@
   .back a { text-decoration: none; }
   /* T1 학교 / 기관 고르기 */
   .kind-tabs { max-width: 760px; margin-bottom: 32px; }
+  /* P1 양식 + 오른쪽 학교 전체 카드 */
+  .st-cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--gap); align-items: start; }
+  .pitch-card .card-b { display: flex; flex-direction: column; gap: 14px; }
+  .pitch-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .pitch-proof { display: flex; flex-direction: column; gap: 4px; }
   .org-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
 </style>

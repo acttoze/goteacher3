@@ -5,6 +5,7 @@
 <style>
   .bare.wide { max-width: 1320px; padding-top: 28px; padding-bottom: 48px; }
   .bare .title { margin-bottom: 20px; }
+  .plan-proof { margin: -6px 0 20px; }
   .plan { display: grid; grid-template-columns: minmax(0, 1fr) 480px; gap: var(--gap); align-items: start; }
   .plan-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
   .plan-list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
@@ -35,6 +36,10 @@
   <h1>학교 전체가 한 공간에서 쓰는 학교 플랜</h1>
   <p class="sub">{% if price %}1년 <b class="num">{{ price }}</b> · 견적서로 품의하고, 계좌이체와 계산서는 담당자가 안내드려요.{% else %}가격은 견적서로 안내드려요. 계좌이체와 계산서도 담당자가 안내드려요.{% endif %}</p>
 </div></div>
+{% if pitch.n_text or pitch.peer_text or pitch.msg %}<div class="wrap-row plan-proof">
+  {% if pitch.n_text %}<b>{{ pitch.n_text }}</b>{% endif %}{% if pitch.peer_text %}<span>{{ pitch.peer_text }}</span>{% endif %}
+  {% if pitch.msg %}<button class="btn sec sm" type="button" data-text="{{ pitch.msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 보낼 문구 복사</button>{% endif %}
+</div>{% endif %}
 <div class="plan">
   <div>
     <div class="plan-cols">

@@ -157,7 +157,7 @@ def home(request):
     if mine:  # design: 로그인 뒤 첫 화면은 오늘(brand → today.html)
         return redirect(f"/s/{mine.token}/today")
     if not request.user.is_authenticated:  # 로그인 전: 소개 페이지(G5). 시작 화면은 /start
-        return render(request, "landing.html", {"forms_n": FormDoc.objects.count()})
+        return render(request, "landing.html", {"forms_n": FormDoc.objects.count(), "pitch": school_pitch()})
     if is_guest(request.user):  # 동학년 만들기는 계정 회원만
         return login_home(request)
 
@@ -176,7 +176,10 @@ def home(request):
             request.session[HITS] = schools
             ctx.update(schools=schools, total=total, more=total > len(schools), josa=_josa(q, "으로", "로"),
                        error=NEIS_DOWN if neis.failed(schools) else "")
-    tpl = "spaces/_schools.html" if request.headers.get("HX-Request") else "spaces/start_school.html"
+    if request.headers.get("HX-Request"):
+        tpl = "spaces/_schools.html"
+    else:
+        tpl, ctx["pitch"] = "spaces/start_school.html", school_pitch()
     return render(request, tpl, ctx, status=429 if ctx.get("limited") else 200)
 
 
@@ -242,6 +245,54 @@ def new_org(request):
 
 GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
 SCHOOL_TAKEN = "이 학교는 학교 공간을 씁니다. 담당 선생님께 학교 링크를 받아 주세요."
+PROOF_MIN = 10  # 이보다 적으면 전국 학교 수를 말하지 않는다
+NEAR_MIN = 3  # 이보다 적으면 같은 시도교육청 학교 수를 말하지 않는다
+
+
+def school_pitch(atpt=None, code=None, space=None, me=None):
+    """학교 전체 사용 유도에 쓸 근거(P1). 전부 DB에서 센 수이고, 학교 이름·다른 사람 이름은 싣지 않는다. 기준 미달인 값은 키가 없다.
+    atpt·code: 고른 학교(공간이 있으면 그 공간의 학교). space·me가 있으면 교무부장·교감께 보낼 문구(msg)도 만든다."""
+    if space:
+        atpt, code = space.school.neis_atpt, space.school.neis_code
+    using = (Space.objects.filter(Q(school__paid_until__isnull=True) | Q(school__paid_until__gte=timezone.localdate()),
+                                  kind=Space.Kind.SCHOOL, merged_into__isnull=True, school__plan=School.Plan.SCHOOL)
+             .exclude(school__neis_code=""))
+    pitch = {}
+    n = using.values("school").distinct().count()
+    if n >= PROOF_MIN:
+        pitch.update(n=n, n_text=f"지금 {n}개 학교가 학교 전체로 쓰고 있어요.")
+    office = dict(OFFICES).get(atpt)
+    if office:
+        near = using.filter(school__neis_atpt=atpt).values("school").distinct().count()
+        if near >= NEAR_MIN:
+            pitch.update(near=near, office=office, near_text=f"{office}에서는 {near}개 학교가 쓰고 있어요.")
+    if code:
+        seats = Member.objects.filter(space__school__neis_atpt=atpt, space__school__neis_code=code,
+                                      space__kind=Space.Kind.GRADE, space__merged_into__isnull=True)
+        if space:
+            seats = seats.exclude(space=space)
+        people = seats.count()
+        if people:  # 사람이 있는 공간만 '쓰고 있다'고 센다
+            peers = seats.values("space").distinct().count()
+            pitch.update(peers=peers, peer_people=people, peer_text=f"우리 학교 다른 동학년 {peers}곳, 선생님 {people}명도 고티처를 쓰고 있어요.")
+    if space and me:
+        proof = f" {pitch['n_text']}" if "n_text" in pitch else ""
+        pitch["msg"] = (
+            f"안녕하세요. {space.school.name} {space.grade}학년 {me.name} 교사예요. "
+            "저희 동학년에서 고티처로 취합을 하고 있는데, 학교 전체가 함께 쓰면 좋겠다는 생각이 들어 소개드려요.\n\n"
+            "학교 전체로 쓰면 확인 필수 공지와 확인 현황, 전 교직원 명부로 하는 취합, 명부와 업무분장, 복무 공유, "
+            "일정과 주간계획 인쇄, 수리 요청, 급식 현황판을 한곳에서 쓸 수 있어요.\n\n"
+            f"동학년에서 쓰던 내용은 학교 공간으로 그대로 옮겨 와요.{proof} 견적서를 바로 받아 품의하실 수 있어요.\n\n"
+            f"{settings.SITE_URL}/school-plan"
+        )
+    return pitch
+
+
+def space_pitch(space, me):
+    """공간 화면의 유도. 학교 플랜을 안 쓰는 동학년에만 있고, 학교·기관 공간은 빈 값."""
+    if space.kind != Space.Kind.GRADE or space.school.writable:
+        return {}
+    return school_pitch(space=space, me=me)
 
 
 def _grade_taken(school, grade):
@@ -338,6 +389,7 @@ def new_class(request):
     if request.headers.get("HX-Request"):
         return render(request, "spaces/_class_form.html", ctx)
     status = 409 if taken and request.method == "POST" else 400 if errors else 200
+    ctx["pitch"] = school_pitch(school["atpt"], school["code"])
     return render(request, "spaces/start_class.html", ctx, status=status)
 
 
@@ -445,7 +497,7 @@ def grade(request):
     if request.space.is_school:
         return redirect(f"/s/{request.space.token}/school")
     ctx = _space_ctx(request)
-    ctx.update(_invite(request.space, request.member))
+    ctx.update(_invite(request.space, request.member), pitch=space_pitch(request.space, request.member))
     return render(request, "spaces/grade.html", ctx)
 
 
@@ -536,7 +588,7 @@ def made(request):
     if request.space.is_school:  # 합쳐지기 전에 받아 둔 주소
         return redirect(f"/s/{request.space.token}/")
     ctx = _space_ctx(request)
-    ctx.update(_invite(request.space, request.member))
+    ctx.update(_invite(request.space, request.member), pitch=space_pitch(request.space, request.member))
     return render(request, "spaces/made.html", ctx)
 
 

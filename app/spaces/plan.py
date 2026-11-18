@@ -21,7 +21,7 @@ from config.ratelimit import too_many
 
 from . import neis
 from .models import Member, PlanRequest, School
-from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, read_org
+from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, read_org, school_pitch, space_pitch
 
 LOGIN_HREF = "/start?next=/school-plan"
 RENEW_DAYS = 30  # 기한이 이만큼 남으면 다시 신청할 수 있다(만료 안내와 같은 날)
@@ -83,8 +83,20 @@ def _picked(request):
     return hits[int(raw)] if raw.isdecimal() and len(raw) < 4 and int(raw) < len(hits) else None
 
 
+def _pitch(request):
+    """제목 아래 근거(P1). 기관 탭·기관 회원에게는 없고, 학교 플랜을 안 쓰는 동학년 회원에게는 같은 학교 수와 보낼 문구까지."""
+    if request.GET.get("kind", request.POST.get("kind")) == "org":
+        return {}
+    seat = None
+    if request.user.is_authenticated:
+        seat = Member.objects.filter(user=request.user).select_related("space__school").order_by("-joined_at").first()
+    if seat and seat.space.is_org:
+        return {}
+    return (seat and space_pitch(seat.space, seat)) or school_pitch()
+
+
 def _ctx(request, **extra):
-    user, ctx = request.user, {"price": _price(), "login_href": LOGIN_HREF, **extra}
+    user, ctx = request.user, {"price": _price(), "login_href": LOGIN_HREF, "pitch": _pitch(request), **extra}
     if not user.is_authenticated or is_guest(user):
         ctx["guest"] = user.is_authenticated
         return ctx

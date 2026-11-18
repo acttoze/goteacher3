@@ -31,6 +31,7 @@
   </div>
   {% if link %}<button class="btn pri" type="button" data-copy="#msg" data-done="쪽지 문구를 복사했어요. 쿨메신저에 붙여넣으세요.">쪽지 문구 복사</button>{% endif %}
 </div>
+{% if pitch %}{% include "spaces/_pitch_band.html" %}{% endif %}
 
 <div class="grid stretch">
   {% include "spaces/_roster.html" %}

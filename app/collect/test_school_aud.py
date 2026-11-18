@@ -407,7 +407,8 @@ class ListTests(SchoolBase):
         s = School.objects.create(neis_atpt="C10", neis_code="2", name="옆초")
         g = Space.objects.create(school=s, grade=4, name="옆")
         m = Member.objects.create(space=g, user=User.objects.create(username="google:가"), name="가", cls="4-1", is_manager=True)
-        self.assertNotContains(self.login(m).get(f"/s/{g.token}/c/"), "학교 전체")
+        html = self.login(m).get(f"/s/{g.token}/c/").content.decode()
+        self.assertNotIn("학교 전체", html.replace("학교 전체로 쓰기", ""))  # 메뉴의 학교 플랜 안내(P1)는 보기 전환이 아니다
 
 
 class HwpRowTests(SchoolBase):
