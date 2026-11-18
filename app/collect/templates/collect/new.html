@@ -110,7 +110,8 @@
   .due-pick[data-empty] input:not(:focus) { color: transparent; }
   .due-row .tlink[hidden] { display: none; }
   /* S1 예산 품목 취합: 취합의 핵심 기능이라 맨 위 강조 카드. 칸 4개(제목·예산·단추)를 한 줄로 */
-  .presets .budget { border-color: var(--accent); background: var(--accent-soft); flex-wrap: wrap; }
+  .presets .budget { border: 1px solid var(--accent); border-radius: var(--radius-in); background: var(--accent-soft); flex-wrap: wrap; padding: 18px 20px; margin-bottom: 8px; }
+  .presets .budget + li { border-top: 0; } /* 색 박스 바로 아래 줄은 구분선 대신 위 여백으로 */
   .presets .budget .pill { background: var(--bg); margin-left: 8px; vertical-align: 2px; }
   .presets .unitbox { position: relative; width: 200px; }
   .presets .unitbox .input { padding-right: 40px; text-align: right; font-variant-numeric: tabular-nums; }
