@@ -1,0 +1,17 @@
+{# W3 학교 시작 보드(직접 연 학교의 관리자). 문구는 data-text에 담겨 자동 이스케이프되고, 링크를 새로 만들면 oob로 통째로 바뀐다. #}
+<details class="card sb" id="startBoard"{% if board.open %} open{% endif %}{% if oob %} hx-swap-oob="true"{% endif %}>
+  <summary><h2>{{ space.school.name }} · {{ board.end|date:"Y년 n월 j일" }}까지 무료</h2>
+    <span class="sb-n">교직원 <b class="num">{{ board.n }}</b>명 · 시작한 칸 <b class="num">{{ board.started }}</b>개</span>
+    <svg class="sb-c" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+  <div class="sb-b">
+    <div class="well acc sb-first"><p>먼저 교무부장 선생님께 알려 주세요. 문구를 복사해 쿨메신저에 붙여넣으면 돼요.</p>
+      <button class="btn pri lg" type="button" data-text="{{ board.head_msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">교무부장 선생님께 알리기</button></div>
+    <p class="sb-lead">학년과 부서마다 보낼 문구를 복사해 선생님들을 초대해 주세요.</p>
+    <ul class="sb-grid">{% for c in board.cells %}
+      <li class="sb-cell{% if c.n %} on{% endif %}"><div class="sb-top"><b>{{ c.label }}</b><span class="num">{% if c.total %}{{ c.filled }}/{{ c.total }}반{% if c.n %} · {{ c.n }}명{% endif %}{% else %}{{ c.n }}명{% endif %}</span></div>
+        {% if c.peers %}<span class="sb-peer">동학년 사용 중 {{ c.peers }}명</span>{% endif %}
+        <button class="btn sec" type="button" data-text="{{ c.msg }}" data-done="{{ c.label }}에 보낼 문구를 복사했어요. 쿨메신저에 붙여넣으세요." aria-label="{{ c.label }}에 보낼 문구 복사">이 칸에 보낼 문구 복사</button></li>{% endfor %}
+    </ul>
+    <p class="sb-next">관리자를 넘기려면 그 선생님이 들어온 뒤, 학년분장 · 소속 현황의 명부 줄에서 「관리」를 눌러 관리자로 세워 주세요.</p>
+  </div>
+</details>

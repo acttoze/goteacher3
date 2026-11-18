@@ -30,6 +30,7 @@ from . import neis
 from .merge import free_until, retry_once, vacate
 from .models import (
     INVITE,
+    INVITE_GROUP,
     Member,
     MemberLog,
     School,
@@ -535,6 +536,9 @@ def new_invite(request):
     if not request.headers.get("HX-Request"):
         return redirect(f"/s/{space.token}/")
     ctx.update(_invite(space, request.member), reissued=True)
+    if space.kind == Space.Kind.SCHOOL:  # 시작 보드의 복사 문구도 새 링크로(W3)
+        from .school import start_board  # school.py가 이 모듈을 읽는다
+        ctx["board_oob"] = start_board(space, request.member, ctx["rows"], ctx["link"])
     return render(request, "spaces/_invite.html", ctx)
 
 
@@ -641,6 +645,11 @@ def invite(request, invite_token):
     if space.merged_into_id:
         return _retired_invite(request, space)
     request.session[INVITE] = invite_token
+    group = request.GET.get("g")
+    if space.kind == Space.Kind.SCHOOL and group in Member.Group.values:
+        request.session[INVITE_GROUP] = group
+    else:
+        request.session.pop(INVITE_GROUP, None)
     return redirect("/join")
 
 
@@ -784,7 +793,7 @@ def _join_school(request, space):
         ctx["guest"] = user.is_authenticated
         return render(request, "spaces/join_school.html", ctx, status=403 if post else 200)
 
-    data = request.POST if post else request.GET
+    data = request.POST if post else {"group": request.session.get(INVITE_GROUP, ""), **request.GET.dict()}
     if space.is_org:  # 기관: 이름(+직위)만. 그룹은 관리자가 배정한다(T1, 가입자는 미배정)
         place, errors = {"position": _clean_name(data.get("position"))}, {}
     else:
@@ -813,6 +822,7 @@ def _join_school(request, space):
                 _welcome_alert(space, seat)
         if not errors:
             request.session.pop(INVITE, None)
+            request.session.pop(INVITE_GROUP, None)
             return redirect(f"/s/{space.token}/welcome")
 
     ctx.update(place, form=True, groups=Member.Group.choices, form_url="/join", name=name, errors=errors)

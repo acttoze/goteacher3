@@ -27,12 +27,13 @@ from .merge import remove_manager
 from today.models import ALL, ME, Event
 
 from .models import GROUP_PALETTE, SCHOOL_GROUPS, Attendance, Duty, Member, MemberLog, Space, get_in_space_or_404
-from .views import (GROUP_ROLES, ORG_NONE, _clean_name, _cls_label, _grade_choices, _invite, _josa, _space_ctx, log_place, place_values,
-                    read_place)
+from .views import (GROUP_ROLES, ORG_NONE, _clean_name, _cls_label, _grade_choices, _grade_slots, _invite, _josa, _space_ctx, log_place,
+                    place_values, read_place)
 
 LOG_N = 20  # 관리자에게 보이는 최근 이력
 NAMES = re.compile(r"[,，、/\n]+")  # 담당 칸 하나에 여러 이름
 TOAST = "school_toast"  # 세션: 화면을 옮긴 뒤 한 번 띄울 저장 결과
+BOARD_FOLD_AT = 3  # 시작한 칸이 이만큼이면 시작 보드를 접어 둔다(W3)
 TEMP_CHARS = "abcdefghjkmnpqrstuvwxyz23456789"  # 임시 비밀번호: 불러 주고 받아 적기 쉽게(l·o·0·1 뺌)
 DEMOTED_WAIT = timedelta(days=7)  # 관리자에서 해제된 뒤 이 기간에는 임시 비밀번호를 줄 수 없다(W1: 해제 후 곧바로 계정을 빼앗는 우회 차단)
 
@@ -151,6 +152,35 @@ def _org_ctx(request, **extra):
     return ctx
 
 
+def start_board(space, me, rows, link):
+    """W3 학교 시작 보드: 직접 연 학교가 쓸 수 있는 동안 관리자에게만. 소속 칸의 숫자와 복사 문구. rows: _roster의 줄.
+    동학년은 학교 공간에 합쳐지지 않은 곳의 인원만 센다(이름은 싣지 않는다)."""
+    school, end = space.school, space.school.paid_until
+    if not (school.self_opened_at and school.writable and me.is_manager and end):
+        return None
+    peers = dict(Space.objects.filter(school=school, kind=Space.Kind.GRADE, merged_into__isnull=True)
+                 .annotate(n=Count("members")).values_list("grade", "n"))
+    hello = f"안녕하세요. {school.name} {me.cls_text} {me.name}{_josa(me.name, '이에요', '예요')}."
+    cells = []
+    for g, label in space.group_choices:
+        mine = [r["m"] for r in rows if r["m"].group == g]
+        cell = {"g": g, "label": label, "n": len(mine), "total": 0, "filled": 0, "peers": 0, "msg": (
+            f"{hello} 우리 학교 고티처 학교 공간을 열었어요. {label} 선생님들도 아래 링크로 들어와 주세요.\n\n"
+            f"구글이나 아이디로 로그인한 뒤 소속에서 {label}{_josa(label, '을', '를')} 고르면 돼요. "
+            f"취합 제출은 지금처럼 로그인 없이 그대로 할 수 있어요.\n\n{link}?g={g}")}
+        if g[1:].isdigit():
+            classes = set(_grade_slots(school, int(g[1:]))[:-1])  # 끝의 전담은 반이 아니다
+            cell.update(total=len(classes), filled=len(classes & {m.cls for m in mine}), peers=peers.get(int(g[1:]), 0))
+        cells.append(cell)
+    started = sum(1 for c in cells if c["n"])
+    head_msg = (
+        f"{hello} 저희 동학년에서 쓰던 고티처를 학교 공간으로 1년 무료로 열어 뒀어요.\n\n"
+        f"{end.year}년 {end.month}월 {end.day}일까지 비용이 없고, 카드 등록이나 자동 결제도 없어요. "
+        "다른 학년은 아직 달라진 것이 없어요.\n\n"
+        f"괜찮으시면 관리자를 넘겨 드릴게요. 아래 링크로 들어와 살펴봐 주세요.\n\n{link}")
+    return {"end": end, "n": len(rows), "started": started, "open": started < BOARD_FOLD_AT, "head_msg": head_msg, "cells": cells}
+
+
 def _school_ctx(request, **extra):
     if request.space.is_org:
         return _org_ctx(request, **extra)
@@ -163,6 +193,7 @@ def _school_ctx(request, **extra):
     ctx.update(_invite(space, me))
     ctx["n_groups"] = len(Member.Group.choices)
     ctx["alone"] = me.is_manager and len(ctx["rows"]) == 1
+    ctx["board"] = start_board(space, me, ctx["rows"], ctx.get("link"))
     ctx["plan_left"] = space.school.days_left if me.is_manager else None
     ctx["attendance"] = list(Attendance.objects.in_space(space).filter(date=timezone.localdate()).select_related("member").order_by("pk"))
     ctx["n_attendance"] = len({a.name for a in ctx["attendance"]})

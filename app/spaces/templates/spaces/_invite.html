@@ -18,3 +18,4 @@
     <div class="well msg" id="msg">{{ msg }}</div>
   </div>
 </section>
+{% if board_oob %}{% include "spaces/_start_board.html" with board=board_oob oob=True %}{% endif %}

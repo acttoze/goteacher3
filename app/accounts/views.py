@@ -27,7 +27,7 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from analytics.models import Entry, record_entry
 from config.ratelimit import allow, client_ip
 from legacy.models import LegacyMap
-from spaces.models import INVITE, Member, absorb_guest
+from spaces.models import INVITE, INVITE_GROUP, Member, absorb_guest
 
 from .models import (
     DEVICE_AGE,
@@ -119,10 +119,12 @@ def _guest_becomes(user, username):
 def _enter(request, user, remember, next_url):
     """로그인하고 가려던 곳으로. 손님이 계정을 이으면 login이 세션을 비우므로 열어 둔 초대(학교 공간 입장)는 이어 간다.
     임시 비밀번호를 받은 회원이면 이 세션은 바꾸기 화면만 쓰고, 기기 토큰은 주지 않는다(바꾸기 전 세션만 표시를 들고 있게)."""
-    invite = request.session.get(INVITE)
+    invite, group = request.session.get(INVITE), request.session.get(INVITE_GROUP)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     if invite:
         request.session[INVITE] = invite
+        if group:
+            request.session[INVITE_GROUP] = group
     if PasswordChangeRequired.objects.filter(user=user).exists():
         request.session[MUST_CHANGE] = True
         remember = False

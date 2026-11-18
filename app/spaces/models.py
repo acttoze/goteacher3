@@ -11,6 +11,7 @@ from django.utils import timezone
 
 
 INVITE = "invite"  # 세션 키: 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
+INVITE_GROUP = "invite_group"  # 초대 문구의 ?g=로 입장 화면에서 미리 고를 소속(W3). 표시용일 뿐 권한 근거가 아니다
 
 
 def new_token():

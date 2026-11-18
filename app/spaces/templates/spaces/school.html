@@ -37,6 +37,28 @@
   .steps b::before { content: counter(st) ". "; }
   .steps span { color: var(--muted); font-size: 15px; }
   .steps .btn.sec { background: var(--bg); }
+  /* W3 학교 시작 보드 */
+  .sb { margin-bottom: 20px; }
+  .sb summary { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 8px var(--pad); cursor: pointer; list-style: none; }
+  .sb summary::-webkit-details-marker { display: none; }
+  .sb summary h2 { margin: 0; font-size: 18px; min-width: 0; }
+  .sb-n { margin-left: auto; flex: none; color: var(--muted); }
+  .sb-n b { color: var(--ink); }
+  .sb-c { flex: none; width: 18px; height: 18px; color: var(--muted); transition: transform .15s; }
+  .sb[open] .sb-c { transform: rotate(180deg); }
+  .sb-b { padding: 0 var(--pad) 20px; }
+  .sb-first { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; margin-bottom: 16px; }
+  .sb-first p { margin: 0; min-width: 0; }
+  .sb-first .btn { flex: none; }
+  .sb-lead { margin: 0 0 10px; }
+  .sb-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  .sb-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-in); }
+  .sb-cell.on { background: var(--accent-soft); border-color: var(--accent-track); }
+  .sb-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; }
+  .sb-cell .btn { margin-top: auto; padding: 0 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); }
+  .sb-peer { color: var(--muted); }
+  .sb-cell > .sb-peer { margin-bottom: 6px; }
+  .sb-next { margin: 14px 0 0; color: var(--muted); }
   .logs { margin-top: var(--gap); }
   /* prototype school() 오늘 복무 현황 */
   .att { margin-bottom: 20px; }
