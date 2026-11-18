@@ -1,5 +1,5 @@
 """C2·C3 새 취합 — 표 붙여넣기·직접 입력·자주 쓰는 양식. 동작은 prototype collectNew, 모습은 design/collect-new.html.
-C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 5초 폴링). 동작은 prototype collectDetail, 모습은 design/collect-detail.html.
+C6 합본 — detail(전체 화면)·live(표·진행·미제출만, htmx 4초 폴링). 동작은 prototype collectDetail, 모습은 design/collect-detail.html.
 
 붙여넣은 HTML은 미리보기 요청에서 한 번 TSV로 바꿔 돌려줄 뿐 저장·렌더하지 않는다(paste.py).
 만들 때는 TSV를 다시 읽어 Collection(source=paste) + Field + Row를 만든다. Cell은 만들지 않는다(낸 시각 계산).
@@ -140,7 +140,8 @@ def new(request):
                 c = _create_cols(request, spec["title"], Collection.Source.PRESET, spec["fields"],
                                  spec["unit_head"], spec["multi"], roster_rows(space, spec["roster"]))
                 return made(c)
-            errors["preset"] = "양식을 하나 골라 주세요."
+            else:
+                errors["preset"] = "양식을 하나 골라 주세요."
         elif src == "sheet":
             cols = _sheet_cols(request.POST)
             multi = request.POST.get("multi") == "on"
@@ -511,7 +512,7 @@ def _nudge(c, miss, vals, fields, per):
 @require_GET
 @owner_view(Collection)
 def detail(request, c):
-    """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 5초마다 다시 받는다."""
+    """합본 화면(design/collect-detail.html). 표·진행·미제출은 live로 4초마다 다시 받는다."""
     ctx = _space_ctx(request, page="collect", can_delete=_owner(request, c),
                      **_link_ctx(request, c), **_board(c), **_due_ctx(request, c),
                      hwp_result=result_ctx(request.space, c) if c.source == Collection.Source.HWP else None)
@@ -660,7 +661,7 @@ def delete(request, c):
 @require_GET
 @owner_view(Collection)
 def live(request, c):
-    """합본 카드만(htmx 5초 폴링). 공간 확인은 detail과 같다.
+    """합본 카드만(htmx 4초 폴링). 공간 확인은 detail과 같다.
     바뀐 것이 없으면 204(H4): 200줄 표를 4초마다 보내고 다시 그리지 않는다. 낸 값·잠금·마감·제목이 바뀌면 표시 값이 달라진다."""
     if request.GET.get("v") == _stamp(c):
         return HttpResponse(status=204)

@@ -2,6 +2,8 @@
 
 받는 사람 줄은 동학년 명부로 만든다(C4, test_recipients.py).
 """
+from unittest import mock
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -153,6 +155,14 @@ class SheetCalcAndEmptyRosterTests(TestCase):
         self.assertContains(r, "받을 반이 없어요", status_code=400)
         self.assertFalse(Collection.objects.exists())
         self.assertEqual(self.post(src="preset", preset="training").status_code, 302)  # 사람별은 전담 포함
+
+    def test_preset_empty_roster_shows_one_error(self):
+        """명부가 비면 받는 사람 안내 하나만. '양식을 하나 골라 주세요'가 함께 뜨지 않는다."""
+        with mock.patch("collect.views.roster_rows", return_value=[]):
+            r = self.post(src="preset", preset="training")
+        self.assertEqual(r.status_code, 400)
+        self.assertNotContains(r, "양식을 하나 골라 주세요", status_code=400)
+        self.assertFalse(Collection.objects.exists())
 
     def test_intro_copy_matches_roster_first(self):
         r = self.client.get(f"/s/{self.a.token}/c/new")

@@ -12,11 +12,11 @@
   |---|---|---|---|
   | `gt-staging` | GET·HEAD. 버퍼링 없음(buffering은 응답도 쌓는다) | — | — |
   | `gt-staging-body` | 그 밖의 메서드 | 3MB | — |
-  | `gt-staging-up101` | POST `/s/*/board/new`, `/s/*/board/*/edit` | 101MB | 8 |
+  | `gt-staging-up101` | POST `/s/*/board/new`, `/s/*/board/*/edit`, `/s/*/today/e/*/files`, `/s/*/today/e/*/comments` | 101MB | 8 |
   | `gt-staging-up31` | POST `/s/*/hwp/upload` | 31MB | 8 |
   | `gt-staging-up9` | POST `/s/*/repairs/new`, `/s/*/repairs/*/edit`, `/s/*/meals/*/upload`, `/m/*` | 9MB | 16 |
 
-  상한을 넘으면 Traefik의 413, 동시 건수를 넘으면 429(앱 화면이 아니라 Traefik 글자 응답). 파일을 받는 새 경로를 만들면 여기와 `compose.yml`에 추가한다(빠뜨리면 3MB에서 413).
+  상한을 넘으면 Traefik의 413, 동시 건수를 넘으면 429(앱 화면이 아니라 Traefik 글자 응답). 파일을 받는 새 경로를 만들면 여기와 `compose.yml`, `app/config/bodylimit.py`, `app/config/test_o2.py`의 경로 목록에 함께 추가한다(빠뜨리면 3MB에서 413).
   64KB를 넘는 본문은 **Traefik 컨테이너 `/tmp`, 곧 공용 호스트 디스크**에 쌓인다. 파일은 만들자마자 unlink되어 `ls`·`du`에 보이지 않고, 열린 동안만 공간을 쓴다(연결이 끊기면 수십 초 안에, Traefik이 재시작되면 바로 풀린다).
   인증 전에 받으므로 동시 건수로 최대량을 묶었다: 8×101MB + 8×31MB + 16×9MB = 약 1.2GB(그날 여유 59GB). 업로드 동시 건수가 차도 다른 요청은 영향이 없다. 건수를 올리면 이 합을 다시 계산한다.
   body 오류 시 공용 Traefik 로그에 라우터 이름만 있는 ERR 한 줄이 남는다(경로·토큰 없음).

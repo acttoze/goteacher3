@@ -67,14 +67,16 @@ def build(days):
     entry_n = Counter()
     for r in ent.values("ok", "reason").annotate(n=Count("id")):
         entry_n["ok" if r["ok"] else r["reason"]] += r["n"]
-    fails = sum(n for k, n in entry_n.items() if k not in ("ok", Entry.Reason.SWITCH_SHOWN))
+    fails = sum(n for k, n in entry_n.items() if k not in ("ok", Entry.Reason.SWITCH_SHOWN))  # 실패는 계정을 몰라 전체로 센다
+    ent_ok = ent.filter(ok=True, user_id__in=target_q)  # 성공·시간대는 다른 타일처럼 대상 회원만
+    ok_n = ent_ok.count()
 
     feedback_n = sum(n for k, n in kinds.items() if not k.startswith("back_"))
     back_n = sum(n for k, n in kinds.items() if k.startswith("back_"))
     tiles = [("대상 회원", len(targets), "이관 학교 계정 회원"), ("들어와 본 사람", len(entered), f"대상의 {_pct(len(entered), len(targets))}% · 누적"),
              ("기간 이용자", len(active), "이 기간에 한 번 이상"), ("다시 온 사람", len(again), "2일 이상 이용 · 누적"),
              ("받은 의견", feedback_n, "이 기간"), ("예전 고티처로", back_n, "돌아감 · 이 기간"),
-             ("입장 실패", fails, f"성공 {entry_n['ok']}번 · 이 기간")]
+             ("입장 실패", fails, f"전체 기준 · 대상 성공 {ok_n}번 · 이 기간")]
     funnel = [(label, n, _pct(n, len(targets))) for label, n in
               (("대상 회원", len(targets)), ("들어와 봄", len(entered)), ("다시 옴", len(again)), ("의견 남김", len(said)))]
 
@@ -87,7 +89,7 @@ def build(days):
     trend = [{"day": d, "n": daily.get(d, 0), "new": first_days.get(d, 0), "h": _bar(daily.get(d, 0), top),
               "hn": _bar(first_days.get(d, 0), top)} for d in day_list]
 
-    hours = dict(ent.filter(ok=True).annotate(h=ExtractHour("at")).values("h").annotate(n=Count("id")).values_list("h", "n"))
+    hours = dict(ent_ok.annotate(h=ExtractHour("at")).values("h").annotate(n=Count("id")).values_list("h", "n"))
     top_h = max(list(hours.values()) + [1])
     by_hour = [{"h": h, "n": hours.get(h, 0), "bar": _bar(hours.get(h, 0), top_h)} for h in range(24)]
 

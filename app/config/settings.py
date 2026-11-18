@@ -194,9 +194,9 @@ MAX_HWP_REQUEST_BYTES = HWP_MAX_UPLOAD + 1024 * 1024  # 한글 올리기
 MAX_PHOTO_REQUEST_BYTES = 9 * 1024 * 1024  # 수리·식판·폰 사진: 8MB + 머리 몫
 HWP_IN_FLIGHT = 2  # 회원 한 명이 동시에 맡길 수 있는 변환(대기·변환 중)
 HWP_SPACE_QUOTA = 500 * 1024 * 1024  # 동학년 공간 하나의 저장 총량(원본+변환한 HWPX)
-HWP_FREE_TOTAL_QUOTA = int(os.environ.get("HWP_FREE_TOTAL_QUOTA", 2 * 1024**3))  # 동학년 공간 합계. 무료 공간이 유료 학교 자리까지 쓰지 못하게(hwpfiles.models.storage_room)
-HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", 2 * 1024**3))  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
-HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", 5 * 1024**3))  # 서비스 전체(서버 디스크 보호). 미디어 백업 7벌을 감안(한글·공지 첨부·수리·식판 사진 합, SourceFile.used_bytes)
+HWP_FREE_TOTAL_QUOTA = int(os.environ.get("HWP_FREE_TOTAL_QUOTA", "") or 2 * 1024**3)  # 동학년 공간 합계. 무료 공간이 유료 학교 자리까지 쓰지 못하게(hwpfiles.models.storage_room)
+HWP_SCHOOL_QUOTA = int(os.environ.get("HWP_SCHOOL_QUOTA", "") or 2 * 1024**3)  # 학교 공간 하나(H4). 서비스 전체 한도가 디스크를 지킨다
+HWP_TOTAL_QUOTA = int(os.environ.get("HWP_TOTAL_QUOTA", "") or 5 * 1024**3)  # 서비스 전체(서버 디스크 보호). 미디어 백업 7벌을 감안(한글·공지 첨부·수리·식판 사진 합, SourceFile.used_bytes)
 PARTNER_REVIEW_MIN_DAYS = 14  # N2 후기 자격: 무료 공간은 가입 뒤 이 날수가 지나야
 PARTNER_REVIEW_MIN_GOOGLE = 2  # N2 후기 자격: 무료 공간은 구글 회원이 이만큼 있어야
 PARTNER_REVIEW_PER_DAY = 5  # N2 후기 제출 한도(사용자당 하루). 거부된 제출도 센다(명부 확인 통로 차단)
@@ -212,7 +212,7 @@ SESSION_COOKIE_SAMESITE = "Lax"
 # Traefik 뒤에서 HTTPS 판별
 if not DEBUG:
     # 스테이징은 짧게(기본 3600). 운영 도메인(G7)에서 31536000. 서브도메인 포함·preload는 쓰지 않는다(goteacher.xyz 구버전 보호)
-    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", 3600))
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "") or 3600)
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True

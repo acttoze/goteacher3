@@ -151,6 +151,15 @@ class WordingTests(Base):
         e.refresh_from_db()
         self.assertEqual((e.slot, e.slot_end), ("", ""))
 
+    def test_edit_moving_block_range_keeps_its_length(self):
+        """여러 블록 일정의 시작 블록을 옮기면 길이를 지킨다(넘쳐도 방과후로 늘지 않고 3블록까지)."""
+        for start, after in (("b2", ("b2", "b3")), ("b3", ("b3", "b3")), ("pm", ("pm", "pm"))):
+            e = self.ev(self.t4, f"옮김 {start}", slot="b1", slot_end="b2")
+            self.as_(self.t4).post(f"{self.base}/today/e/{e.key}", {"view": "week", "date": TODAY.isoformat(), "slot": start, "place": "", "scope": ALL},
+                                   headers=HX)
+            e.refresh_from_db()
+            self.assertEqual((e.slot, e.slot_end), after, msg=start)
+
     def test_edit_with_nothing_changed_is_still_a_noop(self):
         for slot, end in (("", ""), ("b1", "b3"), ("b2", "b2")):
             e = self.ev(self.t4, f"그대로 {slot}{end}", slot=slot, slot_end=end)

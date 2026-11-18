@@ -389,8 +389,11 @@ def edit(request, key):
     b_dates, b_slot, b_place = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else None, e.place
     b_blocks = (e.slot, e.slot_end)  # 1~3블록도 표기가 '종일'이라 글자로는 블록 없음과 나눌 수 없다
     e.date, e.end = d, end
-    if slot != e.slot:
-        e.slot, e.slot_end = slot, slot
+    if slot != e.slot:  # 여러 블록 일정은 길이를 지키며 옮긴다. 넘치면 3블록까지(원래 방과후까지였으면 방과후까지)
+        span = SLOT_KEYS.index(e.slot_end) - SLOT_KEYS.index(e.slot) if slot and e.slot and e.slot_end in SLOT_KEYS else 0
+        last = len(SLOT_KEYS) - 1 if "pm" in (slot, e.slot_end) else SLOT_KEYS.index("pm") - 1
+        e.slot = slot
+        e.slot_end = SLOT_KEYS[max(min(SLOT_KEYS.index(slot) + span, last), SLOT_KEYS.index(slot))] if slot else ""
     e.place = place
     a_dates, a_slot = _dates(e.date, e.end), slot_text(e.slot, e.slot_end) if e.slot else "종일"
     parts = []
