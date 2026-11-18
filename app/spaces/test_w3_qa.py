@@ -131,7 +131,8 @@ class NumberEdges(Base):
         for msg in copies(board_html(self.c.get(self.url))):
             self.assertNotIn("박오학", msg)
             self.assertNotIn("최오학", msg)
-            self.assertIn(SITE, msg)
+            if "합류해 주세요" not in msg:  # 동학년이 있는 칸은 링크 대신 합류 안내(W4)
+                self.assertIn(SITE, msg)
 
 
 class JoinEdges(Base):

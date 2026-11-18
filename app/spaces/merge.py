@@ -3,22 +3,24 @@
 공간을 가리키는 모델과 회원을 가리키는 모델은 Django 메타 정보로 찾는다(새 모델이 생겨도 빠지지 않게).
 저장된 파일 경로(hwp/<옛 공간 번호>/…)는 그대로 두어도 DB에 저장된 이름으로 열린다.
 W1 open_free: 동학년 대표가 직접 여는 1년 무료 학교 공간. 그 동학년 하나만 옮긴다.
+W4 join_free: 직접 연 학교에 다른 동학년 대표가 자기 학년만 합류시킨다.
 """
 from datetime import date
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import Value
+from django.db.models import Exists, OuterRef, Value
 from django.db.models.functions import Replace
 from django.utils import timezone
 
 from accounts.models import is_guest
+from analytics.models import DailyUse
 from collect.models import Collection, Notification
 from meals.models import MealSettings, PhotoLink, new_tv_token
 from repairs.models import VendorAccount
 from today.models import ALL, Event
 
-from .models import Member, PlanRequest, School, Space, is_last_manager, leads, new_token
+from .models import EntryCode, Member, PlanRequest, School, Space, is_last_manager, leads, new_token
 
 FREE_CUTOFF = date(2027, 2, 28)  # 이날까지 열면 FREE_CUTOFF_END까지 무료(사용자 결정 11/18)
 FREE_CUTOFF_END = date(2028, 2, 29)
@@ -29,6 +31,20 @@ def _fks_to(model):
     """model을 가리키는 FK 전부. related_name="+"(Event.by)도 빠지지 않게 숨은 것까지 본다."""
     return [f.field for f in model._meta.get_fields(include_hidden=True)
             if f.auto_created and not f.concrete and (f.one_to_many or f.one_to_one)]
+
+
+def _drop_seat(seat, keep):
+    """seat를 지우고 그 자리를 가리키던 값을 keep으로 옮긴다. 입장 코드는 옮기지 않는다(다른 사람 자리를 여는 열쇠가 되지 않게 함께 지운다)."""
+    for fk in _fks_to(Member):
+        if fk.model is not EntryCode:
+            fk.model._base_manager.filter(**{fk.name: seat}).update(**{fk.name: keep})
+    seat.delete()
+
+
+def drop_issued_codes(seat):
+    """이 사람이 이 공간에서 만든 안 쓴 입장 코드를 지운다(관리자 해제·내보내기·나가기 뒤 남지 않게, W4)."""
+    if seat.user_id:
+        EntryCode.objects.in_space(seat.space).filter(created_by_id=seat.user_id, used_at__isnull=True).delete()
 
 
 def _one_seat_per_user(school, hub):
@@ -42,10 +58,8 @@ def _one_seat_per_user(school, hub):
         first = keep.setdefault(seat.user_id, seat)
         if first is seat:
             continue
-        for fk in _fks_to(Member):
-            fk.model._base_manager.filter(**{fk.name: seat}).update(**{fk.name: first})
         pk = seat.pk
-        seat.delete()
+        _drop_seat(seat, first)
         gone[pk] = first.pk
     return gone
 
@@ -90,6 +104,7 @@ def _reset_self_opened(school, hub):
     seats = Member.objects.filter(space__school=school)
     seats.filter(is_manager=True).update(is_manager=False, demoted_at=timezone.now())
     seats.update(can_duty=False, can_repair=False, can_meal=False)
+    EntryCode.objects.filter(member__space__school=school, used_at__isnull=True).delete()
     hub.invite_token = new_token()
     hub.save(update_fields=["invite_token"])
     MealSettings.objects.in_space(hub).update(tv_token=new_tv_token())
@@ -178,6 +193,40 @@ def open_free(space, member):
     return hub
 
 
+def join_free(space, member):
+    """직접 연 학교에 이 동학년만 합류시킨다(W4, 한 트랜잭션). 동학년 대표(계정 회원)만, 합류해도 관리자가 되지 않는다.
+    같은 사람이 학교 공간에도 있으면 이 동학년 자리만 학교 쪽 자리로 합친다. 관리자와 옮겨진 회원에게 🔔.
+    이미 합쳐졌거나 자격이 없으면 ValueError."""
+    with transaction.atomic():
+        school = School.objects.select_for_update().get(pk=space.school_id)  # open_school·open_free와 직렬화
+        old = Space.objects.select_for_update(no_key=True).get(pk=space.pk)  # 입장·재발급과 직렬화
+        hub = Space.objects.select_for_update(no_key=True).filter(school=school, kind=Space.Kind.SCHOOL).first()
+        if hub is None or school.self_opened_at is None or not school.writable or old.kind != Space.Kind.GRADE or old.merged_into_id:
+            raise ValueError("직접 연 학교의 합쳐지지 않은 동학년만 합류할 수 있습니다.")
+        seat = Member.objects.in_space(old).filter(pk=member.pk).select_related("user").first()
+        if seat is None or seat.user_id is None or is_guest(seat.user) or not leads(old, seat):
+            raise ValueError("이 동학년의 대표(계정 회원)만 합류할 수 있습니다.")
+        managers = list(Member.objects.in_space(hub).filter(is_manager=True).exclude(user=seat.user))
+        in_hub = {m.user_id: m for m in Member.objects.in_space(hub).filter(user__isnull=False)}
+        moved = []
+        for m in Member.objects.in_space(old):
+            if m.user_id in in_hub:
+                _drop_seat(m, in_hub[m.user_id])
+            else:
+                moved.append(m)
+        same_day = DailyUse.objects.filter(space=hub, day=OuterRef("day"), user=OuterRef("user"), route=OuterRef("route"))
+        DailyUse.objects.filter(Exists(same_day), space=old).delete()  # 하루 집계는 공간마다 한 줄이라 옮기면 겹친다
+        _merge_one(old, hub)
+        day, label = timezone.localdate(), f"{old.grade}학년"
+        Notification.objects.bulk_create([
+            *(Notification(space=hub, member=m, kind=Notification.Kind.JOIN, day=day, pushed=True, link=f"/s/{hub.token}/school",
+                           text=f"{label} 동학년 {len(moved)}명이 학교 공간에 합류했어요") for m in managers),
+            *(Notification(space=hub, member=m, kind=Notification.Kind.JOIN, day=day, pushed=True, link=f"/s/{hub.token}/today",
+                           text=f"우리 {label}이 학교 공간으로 옮겨졌어요. 취합과 일정도 함께 옮겨졌어요") for m in moved if m.pk != seat.pk),
+        ])
+    return hub
+
+
 def remove_manager(member):
     """관리자 해제. 마지막 관리자는 해제하지 않는다(ValueError)."""
     with transaction.atomic():
@@ -185,6 +234,7 @@ def remove_manager(member):
         if is_last_manager(member):
             raise ValueError("마지막 관리자는 해제할 수 없습니다. 다른 관리자를 먼저 세워 주세요.")
         Member.objects.filter(pk=member.pk).update(is_manager=False, demoted_at=timezone.now())
+        drop_issued_codes(member)
 
 
 def vacate(seat):
@@ -192,6 +242,7 @@ def vacate(seat):
     동학년에서 그가 만든 취합은 가장 먼저 들어온 분이 넘겨받고(그분이 새 대표, lead_member), 학교 공간은 비워 둬 관리자가 넘겨받는다(collect.views._owner).
     자리를 지우므로 같은 반·이름으로 다시 들어와도 옛 자리의 대표 권한은 이어지지 않는다."""
     space = seat.space
+    drop_issued_codes(seat)
     heir = Member.objects.in_space(space).exclude(pk=seat.pk).order_by("joined_at", "pk").first()
     if heir is None:
         space.delete()  # 취합·알림·한글 파일까지 CASCADE(디스크 파일은 E3 post_delete가 지운다)

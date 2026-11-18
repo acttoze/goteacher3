@@ -223,7 +223,8 @@ class Messages(Base):
         self.assertIn('hx-swap-oob="true"', text)
         got = copies(text[text.index('id="startBoard"') - 200:])
         self.assertEqual(len(got), 11)
-        self.assertTrue(all(new in m and old not in m for m in got))
+        self.assertTrue(all(old not in m for m in got))
+        self.assertTrue(all(new in m for m in got if "합류해 주세요" not in m))  # 동학년이 있는 칸은 링크 대신 합류 안내(W4)
 
     def test_reissue_then_reload(self):
         self.c.post(f"/s/{self.hub.token}/invite")

@@ -1,0 +1,36 @@
+{% extends "bare.html" %}
+{# W4 입장 코드: 코드 넣기 → 로그인·가입 → 내 계정에 잇기. 코드 원문은 다시 그리지 않는다. #}
+{% block title %}입장 코드 · 고티처{% endblock %}
+{% block head %}{% include "spaces/_join_style.html" %}<style>.card.form .lg-or { display: none; } /* 좁은 카드에서 줄이 바뀌면 「또는」만 남는다 */</style>{% endblock %}
+{% block main %}
+{% if stage == "code" %}
+<h1 class="inv-h">입장 코드를 넣어 주세요</h1>
+<p class="by">학교 관리자 선생님께 받은 코드로 내 자리를 계정에 이어요.</p>
+<form class="card form" method="post" action="/enter">
+  {% csrf_token %}
+  <label class="field"><span>입장 코드 <span class="hint">예: ABCD-EFGH-JKMN</span></span>
+    <input class="input lg" name="code" required autofocus autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30"{% if error %} aria-invalid="true" aria-describedby="codeErr"{% endif %}>
+    {% if error %}<span class="field-err" id="codeErr" role="alert">{{ error }}</span>{% endif %}</label>
+  <div><button class="btn pri lg" type="submit">다음</button></div>
+  <p class="note">코드가 없으면 학교 관리자 선생님께 부탁해 주세요. 명부의 내 이름 줄에서 만들 수 있어요.</p>
+</form>
+{% else %}
+<h1 class="inv-h">{{ m.name }} 선생님 자리예요</h1>
+<p class="by"><b>{{ m.space.school.name }}</b> {{ m.cls_text }}</p>
+{% if stage == "login" %}
+<div class="card form">
+  <h2>로그인하거나 가입하면 이 자리로 이어져요</h2>
+  {% include "accounts/_login_form.html" %}
+</div>
+{% else %}
+<form class="card form" method="post" action="/enter">
+  {% csrf_token %}
+  {% if error %}<p class="field-err" role="alert">{{ error }}</p>
+  <p class="note">다른 계정으로 이으려면 이 PC에서 로그아웃한 뒤 코드를 다시 넣어 주세요.</p>
+  {% else %}<h2>이 자리를 내 계정에 연결할까요?</h2>
+  <p>연결하면 <b>{{ user.first_name|default:user.username }}</b> 계정으로 학교 공간에 들어와요. 이 코드는 다시 쓸 수 없어요.</p>
+  <div><button class="btn pri lg" type="submit" name="claim" value="1">내 계정에 연결</button></div>{% endif %}
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

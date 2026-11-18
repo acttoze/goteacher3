@@ -1,0 +1,7 @@
+{# W4 입장 코드(관리자 명부 창). 한 번만 보인다. 저장하지 않는다. #}
+{% if error %}<p class="field-err" role="alert">{{ error }}</p>
+{% else %}<div class="stack-y" style="gap:8px" role="status">
+  <p>입장 코드 <b class="num" style="font-size:20px;letter-spacing:.06em">{{ code }}</b></p>
+  <p class="small muted">{{ until|date:"n월 j일" }}까지 한 번만 쓸 수 있어요. 이 창을 닫으면 다시 볼 수 없으니 {{ m.name }} 선생님께 직접 전해 주세요. 넣는 곳은 {{ enter_url }} 이에요.</p>
+  <div><button class="btn sec sm" type="button" data-text="{{ msg }}" data-done="입장 코드 안내를 복사했어요.">안내 문구 복사</button></div>
+</div>{% endif %}

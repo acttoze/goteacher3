@@ -207,6 +207,7 @@ class StartPageTests(Base):
 
     def test_other_grade_when_school_already_open(self):
         self.open()
+        School.objects.filter(pk=self.school.pk).update(self_opened_at=None)  # 직접 연 학교는 합류 화면이다(W4)
         c = client(self.other_lead.user)
         url = f"/s/{self.g5.token}/school-start"
         r = c.get(url)

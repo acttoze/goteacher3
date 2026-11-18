@@ -21,6 +21,7 @@ from notices import views as notices
 from partners import views as partners
 from repairs import vendor
 from spaces import attendance as attendance_page
+from spaces import entry as entry_codes
 from spaces import plan as school_plan
 from spaces import school as school_page
 from spaces import summary as school_summary
@@ -57,6 +58,7 @@ urlpatterns = [
     path("s/<str:space_token>/school/me", school_page.edit_me),
     path("s/<str:space_token>/school/members/<str:key>/manager", school_page.set_manager),
     path("s/<str:space_token>/school/members/<str:key>/password", school_page.temp_password),  # P1 임시 비밀번호
+    path("s/<str:space_token>/school/members/<str:key>/entry-code", entry_codes.issue_code),  # W4 자리 입장 코드
     path("s/<str:space_token>/school/members/<str:key>/attendance", attendance_page.set_writer),
     path("s/<str:space_token>/school/attendance", attendance_page.page),
     path("s/<str:space_token>/school/attendance/preview", attendance_page.preview),
@@ -121,6 +123,7 @@ urlpatterns = [
     path("m/<str:token>", phone.page),  # M3 폰으로 식판 사진 올리기(로그인 없음)
     path("j/<str:invite_token>", spaces.invite),
     path("join", spaces.join),
+    path("enter", entry_codes.enter),  # W4 입장 코드로 자리 잇기
     path("start", accounts.home),  # 시작 화면(구글·아이디로 시작하기). 로그인 전 / 는 소개 페이지
     path("auth/login", accounts.id_login),  # P1 아이디 로그인
     path("signup", accounts.signup),  # P1 아이디 가입

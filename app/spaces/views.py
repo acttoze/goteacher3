@@ -27,7 +27,7 @@ from config.ratelimit import allow, client_ip, too_many
 from library.models import FormDoc
 
 from . import neis
-from .merge import free_until, retry_once, vacate
+from .merge import drop_issued_codes, free_until, retry_once, vacate
 from .models import (
     INVITE,
     INVITE_GROUP,
@@ -567,6 +567,7 @@ def remove_member(request, key):
         user = seat.user
         # 내보낸 회원이 만든 취합은 내보낸 사람(대표)이 넘겨받는다(마감·잠그기·링크 재발급·지우기)
         Collection.objects.in_space(request.space).filter(created_by=seat).update(created_by=request.member)
+        drop_issued_codes(seat)
         seat.delete()
         if user and is_guest(user) and not Member.objects.filter(user=user).exists():
             user.delete()  # 기기 토큰 CASCADE, 세션은 사용자가 없어 무효

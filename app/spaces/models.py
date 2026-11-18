@@ -12,6 +12,7 @@ from django.utils import timezone
 
 INVITE = "invite"  # 세션 키: 초대 링크로 연 공간의 invite_token(주소에서 빼서 세션에만)
 INVITE_GROUP = "invite_group"  # 초대 문구의 ?g=로 입장 화면에서 미리 고를 소속(W3). 표시용일 뿐 권한 근거가 아니다
+ENTRY = "entry_code"  # 세션 키: /enter에서 확인한 입장 코드의 해시와 만료(W4, spaces.entry.hold). 로그인·가입을 지나도 이어진다. 원문은 두지 않는다
 
 
 def new_token():
@@ -192,6 +193,12 @@ class Space(models.Model):
         return Space.objects.filter(school_id=self.school_id, grade=0).exists()
 
     @property
+    def can_join_school(self):
+        """직접 연 학교의 학교 공간에 합류할 수 있는 동학년(W4). 일반 유료 학교에는 이 길이 없다."""
+        school = self.school
+        return self.kind == self.Kind.GRADE and school.self_opened_at is not None and school.writable and self.school_open
+
+    @property
     def label(self):
         if self.is_org:
             return self.name
@@ -346,6 +353,32 @@ def leads(space, member):
         return member.is_manager
     lead = lead_member(space)
     return lead is not None and lead.pk == member.pk
+
+
+class EntryCodeQuerySet(SpaceQuerySet):
+    space_lookup = "member__space"
+
+
+class EntryCode(models.Model):
+    """자리 입장 코드(W4): 주인 없는 자리를 계정에 잇는 1회용 코드. 원문은 발급 화면에 한 번만 보이고 키 해시만 둔다(spaces.entry).
+    자리당 안 쓴 코드는 하나. 쓴 코드는 기록으로 남는다."""
+
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="+")
+    code_hash = models.CharField(max_length=64, unique=True)
+    expires_at = models.DateTimeField("만료")
+    used_at = models.DateTimeField("쓴 때", null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = EntryCodeQuerySet.as_manager()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["member"], condition=Q(used_at__isnull=True), name="uniq_entry_code_live"),
+        ]
+
+    def __str__(self):
+        return f"입장 코드 {self.pk}"
 
 
 class Duty(models.Model):

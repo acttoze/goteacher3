@@ -1,4 +1,4 @@
-{# 명부 줄의 관리 창(관리자에게만): 관리자 지정·해제, 임시 비밀번호(P1, 아이디 회원), 내보내기. #}
+{# 명부 줄의 관리 창(관리자에게만): 관리자 지정·해제, 임시 비밀번호(P1, 아이디 회원), 입장 코드(W4, 주인 없는 자리), 내보내기. #}
 <div class="scrim" id="p-{{ r.m.key }}" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="p-{{ r.m.key }}-h">
   <div class="dh"><h2 id="p-{{ r.m.key }}-h">{{ r.label }} {{ r.m.name }} 선생님</h2></div>
   <div class="db">
@@ -17,6 +17,8 @@
       <p>급식 담당자는 식판 사진을 올리고 TV 화면을 정해요. 급식소 소속이어도 지정해야 맡아요.</p><div><button class="btn sec sm" type="submit">{% if r.m.can_meal %}급식 담당자 해제{% else %}급식 담당자로 지정{% endif %}</button></div></form>{% endif %}
     {% if r.id_member and not r.m.is_manager and space.school.temp_password_ok %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/password" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/password" hx-target="#pw-{{ r.m.key }}" hx-confirm="{{ r.m.name }} 선생님의 비밀번호를 임시 비밀번호로 바꿀까요? 지금 쓰던 비밀번호와 다른 PC 로그인은 끊겨요.">{% csrf_token %}
       <p>비밀번호를 잊었으면 임시 비밀번호를 줄 수 있어요. 한 번만 보여요.</p><div><button class="btn sec sm" type="submit">임시 비밀번호 주기</button></div><div id="pw-{{ r.m.key }}" aria-live="polite"></div></form>{% endif %}
+    {% if writable and not r.m.user_id and not r.m.is_manager and not space.is_org and not space.legacy_readonly %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/school/members/{{ r.m.key }}/entry-code" hx-post="/s/{{ space.token }}/school/members/{{ r.m.key }}/entry-code" hx-target="#ec-{{ r.m.key }}">{% csrf_token %}
+      <p>아직 주인이 없는 자리예요. 입장 코드를 주면 받은 선생님이 이 자리를 계정에 이어요. 14일 동안 한 번만 쓸 수 있고, 다시 만들면 전 코드는 닫혀요.</p><div><button class="btn sec sm" type="submit">입장 코드 만들기</button></div><div id="ec-{{ r.m.key }}" aria-live="polite"></div></form>{% endif %}
     {% if not r.me %}<form class="stack-y" style="gap:10px" method="post" action="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-post="/s/{{ space.token }}/members/{{ r.m.key }}/out" hx-target="#schoolMain" hx-swap="outerHTML">{% csrf_token %}
       <p>내보내면 이 {{ space_word }}에서 빠지고, 다음 취합부터 명단에 없어요. 이미 낸 칸은 합본에 그대로 남아요.{% if r.guest %} 이름만 들어온 선생님이라 그 PC들의 로그인도 바로 끊겨요.{% endif %}{% if r.made %} 이 선생님이 만든 취합 {{ r.made }}개는 내가 넘겨받아요.{% endif %}</p>
       <div><button class="btn danger sm" type="submit">내보내기</button></div></form>{% endif %}

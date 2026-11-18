@@ -10,7 +10,7 @@
     <ul class="sb-grid">{% for c in board.cells %}
       <li class="sb-cell{% if c.n %} on{% endif %}"><div class="sb-top"><b>{{ c.label }}</b><span class="num">{% if c.total %}{{ c.filled }}/{{ c.total }}반{% if c.n %} · {{ c.n }}명{% endif %}{% else %}{{ c.n }}명{% endif %}</span></div>
         {% if c.peers %}<span class="sb-peer">동학년 사용 중 {{ c.peers }}명</span>{% endif %}
-        <button class="btn sec" type="button" data-text="{{ c.msg }}" data-done="{{ c.label }}에 보낼 문구를 복사했어요. 쿨메신저에 붙여넣으세요." aria-label="{{ c.label }}에 보낼 문구 복사">이 칸에 보낼 문구 복사</button></li>{% endfor %}
+        <button class="btn sec" type="button" data-text="{{ c.msg }}" data-done="{{ c.label }}에 보낼 문구를 복사했어요. 쿨메신저에 붙여넣으세요." aria-label="{{ c.label }}에 보낼 {% if c.peers %}합류 안내{% else %}문구{% endif %} 복사">{% if c.peers %}합류 안내 문구 복사{% else %}이 칸에 보낼 문구 복사{% endif %}</button></li>{% endfor %}
     </ul>
     <p class="sb-next">관리자를 넘기려면 그 선생님이 들어온 뒤, 학년분장 · 소속 현황의 명부 줄에서 「관리」를 눌러 관리자로 세워 주세요.</p>
   </div>

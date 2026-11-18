@@ -10,10 +10,37 @@
   .ss-go { display: flex; flex-direction: column; gap: 14px; padding-top: 16px; border-top: 1px solid var(--rule); }
 </style>{% endblock %}
 {% block main %}
-<div class="title"><div class="grow"><h1>{% if state == "opened" %}우리 학교 공간이 열렸어요{% else %}{{ space.school.name }}{{ josa }} 1년 무료로 시작해요{% endif %}</h1></div>
+<div class="title"><div class="grow"><h1>{% if state == "opened" or join %}우리 학교 공간이 열렸어요{% else %}{{ space.school.name }}{{ josa }} 1년 무료로 시작해요{% endif %}</h1></div>
   <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
 {% if state == "opened" %}
 <p class="well acc" role="status">이 학교에는 이미 학교 공간이 있어요. 우리 동학년은 지금처럼 그대로 쓰면 돼요.</p>
+{% elif join %}
+<section class="card" aria-label="우리 학년 합류 안내"><div class="card-b stack-y" style="padding-top:var(--pad)">
+  <dl class="ss-rows">
+    <dt>옮겨지는 것</dt><dd>우리 {{ space.grade }}학년 <b class="num">{{ rows|length }}</b>명과 취합 <b class="num">{{ n_collections }}</b>건, 일정 <b class="num">{{ n_events }}</b>건이 학교 공간으로 옮겨져요. 다른 학년은 그대로예요.{% if n_guests %} 이름만 들어온 {{ n_guests }}명은 계정을 이어야 학교 공간에 들어와요.{% endif %}</dd>
+    <dt>학교 관리자</dt><dd>{% if school_manager %}지금 <b class="num">{{ n_managers }}</b>명이에요({{ school_manager.name }} 선생님, {{ school_manager.cls_text }}{% if n_managers > 1 %} 외{% endif %}). {% endif %}우리 학년 취합과 낸 값을 보고, 선생님을 내보내고, 내보낸 분의 취합을 넘겨받거나 지울 수 있어요. 모르는 분이면 합류 전에 확인해 주세요.</dd>
+    <dt>합류 뒤</dt><dd>같은 학년이어도 다른 선생님이 만든 취합의 합본은 못 열 수 있어요. 동학년 초대 링크는 닫혀요. 합류해도 관리자가 되지 않아요. 합류는 되돌릴 수 없어요.</dd>
+  </dl>
+  {% if state == "guest" %}
+  <div class="ss-go">
+    <p>합류는 계정이 있는 동학년 대표만 할 수 있어요. 구글 계정이나 아이디를 먼저 이어 주세요.</p>
+    <div class="wrap-row"><a class="btn pri lg" href="/auth/google/login?next=/s/{{ space.token }}/school-start">구글 계정으로 잇기</a>
+      <a class="btn sec lg" href="/signup?next=/s/{{ space.token }}/school-start">아이디로 잇기</a></div>
+  </div>
+  {% elif state == "not_lead" %}
+  <div class="ss-go">
+    <p>합류는 동학년 대표가 해요. {{ creator.name }} 선생님께 부탁해 주세요.</p>
+    <div><button class="btn pri lg" type="button" data-text="{{ lead_msg }}" data-done="문구를 복사했어요. 쿨메신저에 붙여넣으세요.">대표 선생님께 보낼 문구 복사</button></div>
+  </div>
+  {% else %}
+  <form class="ss-go" method="post" action="/s/{{ space.token }}/school-start">
+    {% csrf_token %}
+    <label class="chk"><input type="checkbox" name="agree" value="1" required{% if error %} aria-invalid="true" aria-describedby="agreeErr"{% endif %}>이 학교 교직원이에요. 위 내용을 확인했고, 동학년 선생님들과 합류하기로 했어요</label>
+    {% if error %}<p class="field-err" id="agreeErr" role="alert">{{ error }}</p>{% endif %}
+    <div><button class="btn pri lg" type="submit">우리 학년 합류</button></div>
+  </form>
+  {% endif %}
+</div></section>
 {% else %}
 <section class="card" aria-label="학교 이용 시작 안내"><div class="card-b stack-y" style="padding-top:var(--pad)">
   <dl class="ss-rows">

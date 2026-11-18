@@ -3,6 +3,7 @@
 신청에는 공간이 없을 수 있어 신청자(user)로 좁혀 찾는다(남의 견적서는 404). 가격·공급자 값은 설정에서만 읽고 없으면 손으로 적을 빈칸으로 둔다.
 학교 값은 내 공간 또는 서버가 받은 NEIS 검색 결과에서만 가져온다(브라우저가 보낸 이름은 믿지 않는다). 받은 값은 로그에 남기지 않는다.
 W1 school_start: 동학년 대표가 학교 공간을 1년 무료로 직접 연다. 신청·견적과 별개이고, 직접 연 학교도 위 신청은 그대로 할 수 있다.
+W4: 이미 직접 열린 학교면 같은 화면에서 이 동학년 대표가 합류한다.
 """
 import hashlib
 from datetime import timedelta
@@ -19,11 +20,14 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 
 from accounts.models import is_guest
+from collect.models import Collection
 from config.ratelimit import too_many
+from today.models import ME, Event
 
 from . import neis
-from .merge import free_until, open_free
-from .models import Member, PlanRequest, School, leads
+from .merge import free_until, join_free, open_free
+from .models import Member, PlanRequest, School, Space, lead_member, leads
+from .school import TOAST
 from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, _space_ctx, read_org, school_pitch, space_pitch
 
 LOGIN_HREF = "/start?next=/school-plan"
@@ -237,12 +241,13 @@ def _to_school(hub):
 @never_cache
 @require_http_methods(["GET", "HEAD", "POST"])
 def school_start(request):
-    """학교 공간 1년 무료로 열기(W1): 확인 화면 → 체크 → 이 동학년만 옮긴다. 자격은 open_free가 잠근 뒤 다시 본다.
+    """학교 공간 1년 무료로 열기(W1)·직접 열린 학교에 합류(W4): 확인 화면 → 체크 → 이 동학년만 옮긴다. 자격은 open_free·join_free가 잠근 뒤 다시 본다.
     이미 옮겨진 뒤의 두 번째 POST는 SpaceMiddleware가 학교 공간으로 넘긴다."""
     space, me = request.space, request.member
     if space.is_school:
         return redirect(f"/s/{space.token}/")
-    if space.school_open:  # 이미 열렸으면 손님·대표가 아닌 분에게도 같은 안내(합류는 W4)
+    join = space.can_join_school
+    if space.school_open and not join:  # 일반 유료 학교·기한이 끝난 학교: 합류 없이 안내만
         state, status = "opened", 409
     elif is_guest(request.user):
         state, status = "guest", 403
@@ -256,23 +261,36 @@ def school_start(request):
             error = "내용을 확인했다고 체크해 주세요."
         else:
             try:
-                return _to_school(open_free(space, me))
+                hub = (join_free if join else open_free)(space, me)
+                if join:
+                    request.session[TOAST] = f"우리 {space.grade}학년이 학교 공간에 합류했어요."
+                return _to_school(hub)
             except ValueError:  # 같이 누른 요청이나 다른 학년 대표가 먼저 열었다
                 seat = Member.objects.filter(pk=me.pk).select_related("space").first()
                 if seat is None:
                     raise Http404
                 if seat.space.is_school:
                     return _to_school(seat.space)
-                state, status = "opened", 409
+                state, status, join = "opened", 409, False
     until = free_until(timezone.localdate())
-    ctx = _space_ctx(request, page="school_start", state=state, error=error, until=until, pitch=space_pitch(space, me),
+    ctx = _space_ctx(request, page="school_start", state=state, error=error, until=until, pitch=space_pitch(space, me), join=join,
                      josa=_josa(space.school.name, "을", "를"))
     ctx["n_guests"] = sum(r["guest"] for r in ctx["rows"])
+    if join:
+        ctx["n_collections"] = Collection.objects.in_space(space).count()
+        ctx["n_events"] = Event.objects.in_space(space).exclude(scope=ME).count()
+        if state == "ready":  # 누구에게 넘기는지 알고 고르게(재직 확인이 없는 학교다)
+            hub = Space.objects.get(school=space.school, grade=0)
+            ctx["school_manager"] = lead_member(hub)
+            ctx["n_managers"] = Member.objects.in_space(hub).filter(is_manager=True).count()
     if state == "not_lead":
+        link = f"{settings.SITE_URL}/s/{space.token}/school-start"
         ctx["lead_msg"] = (
+            f"{ctx['creator'].name} 선생님, 우리 학교 고티처 학교 공간이 열렸어요. 우리 {space.grade}학년도 합류하면 어떨까요? "
+            f"합류하면 우리 학년의 취합과 일정이 함께 옮겨지고, 동학년 대표만 합류할 수 있어서 부탁드려요.\n\n{link}"
+        ) if join else (
             f"{ctx['creator'].name} 선생님, 우리 학년이 고티처 학교 공간을 1년 무료로 시작하면 어떨까요? "
             f"{until.year}년 {until.month}월 {until.day}일까지 비용이 없고, 자동 결제도 없어요. "
-            "우리 학년만 옮겨지고 다른 학년은 그대로예요. 동학년 대표만 시작할 수 있어서 부탁드려요.\n\n"
-            f"{settings.SITE_URL}/s/{space.token}/school-start"
+            f"우리 학년만 옮겨지고 다른 학년은 그대로예요. 동학년 대표만 시작할 수 있어서 부탁드려요.\n\n{link}"
         )
     return render(request, "spaces/school_start.html", ctx, status=status if request.method == "POST" else 200)

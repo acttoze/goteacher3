@@ -171,6 +171,9 @@ def start_board(space, me, rows, link):
         if g[1:].isdigit():
             classes = set(_grade_slots(school, int(g[1:]))[:-1])  # 끝의 전담은 반이 아니다
             cell.update(total=len(classes), filled=len(classes & {m.cls for m in mine}), peers=peers.get(int(g[1:]), 0))
+            if cell["peers"]:  # 이미 동학년에 있는 분은 초대 링크로 들어올 수 없다(W4)
+                cell["msg"] = (f"{hello} 우리 학교 고티처 학교 공간을 열었어요. {label} 대표 선생님은 동학년 화면 왼쪽 아래에서 합류해 주세요. "
+                               "합류하면 동학년의 취합과 일정이 함께 옮겨져요.")
         cells.append(cell)
     started = sum(1 for c in cells if c["n"])
     head_msg = (

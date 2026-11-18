@@ -35,6 +35,13 @@ def open_hub(school):
     return Space.objects.create(school=school, kind=Space.Kind.SCHOOL, grade=0, name=school.name)
 
 
+def paid_hub(school):
+    """일반 유료 학교의 학교 공간(합류 경로가 없다, W4)."""
+    hub = open_hub(school)
+    School.objects.filter(pk=school.pk).update(self_opened_at=None)
+    return hub
+
+
 class Seated(Base):
     def setUp(self):
         super().setUp()
@@ -126,7 +133,7 @@ class ConfirmPage(Seated):
         self.assertNotContains(r, 'name="agree"')
 
     def test_opened_state(self):
-        open_hub(self.home)
+        paid_hub(self.home)
         r = self.c.get(self.url)
         self.assertContains(r, "우리 학교 공간이 열렸어요")
         self.assertContains(r, "이미 학교 공간")

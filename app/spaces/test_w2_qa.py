@@ -12,7 +12,7 @@ from accounts.models import new_guest
 from .merge import open_free
 from .models import Member, PlanRequest, School, Space
 from .test_pitch import PICK, Base, User, grade_space, using_school
-from .test_w2_entry import CTA_CLASS, day, login, open_hub, start_url
+from .test_w2_entry import CTA_CLASS, day, login, open_hub, paid_hub, start_url
 from .views import PICKED, PROOF_MIN, school_pitch
 
 AMOUNT = r"\d[\d,]*\s*(만\s*)?원"
@@ -44,7 +44,7 @@ class Seated(Base):
 
 class OpenedForEveryone(Seated):
     def test_peer_and_guest_see_opened_and_cannot_post(self):
-        open_hub(self.home)
+        paid_hub(self.home)
         for user in (self.lead.user, self.peer.user, self.guest.user):
             c = login(user)
             r = c.get(self.url)
@@ -77,8 +77,9 @@ class OpenedForEveryone(Seated):
         c = login(lead5.user)
         self.assertContains(c.get(f"/s/{other.token}/today"), "우리 학교 공간이 열렸어요")
         r = c.get(start_url(other))
-        self.assertNotContains(r, 'name="agree"')
-        self.assertEqual(Member.objects.filter(space=other).count(), 1)  # 다른 학년은 그대로
+        self.assertContains(r, "우리 학년 합류")  # W4: 시작 대신 합류 확인
+        self.assertNotContains(r, "1년 무료로 시작해요")
+        self.assertEqual(Member.objects.filter(space=other).count(), 1)  # 누르기 전까지 다른 학년은 그대로
 
 
 class EndDate(Seated):
@@ -183,12 +184,12 @@ class Step3Edges(Base):
         r = self.client.post("/new/class", {**self.FORM, "then": "x"})
         self.assertTrue(r["Location"].endswith("/made"))
 
-    def test_then_school_on_opened_school_lands_on_opened_notice(self):
+    def test_then_school_on_opened_school_lands_on_join_confirm(self):
         open_hub(self.home)
         r = self.client.post("/new/class", {**self.FORM, "then": "school"}, follow=True)
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "이미 학교 공간")
-        self.assertNotContains(r, 'name="agree"')
+        self.assertContains(r, "우리 학년 합류")  # W4: 직접 연 학교면 시작 대신 합류 확인
+        self.assertNotContains(r, "1년 무료로 시작해요")
 
     def test_error_redraw_keeps_second_submit_and_school(self):
         r = self.client.post("/new/class", {"grade": "4", "cls": "4-1", "name": "", "then": "school"})
