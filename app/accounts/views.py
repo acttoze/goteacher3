@@ -446,6 +446,8 @@ def force_password(request):
             validate_password(new, request.user)
         except ValidationError:
             errors["password"] = PASSWORD_RULE
+        if not errors and request.user.check_password(new):
+            errors["password"] = "임시 비밀번호와 다른 비밀번호를 써 주세요."
         if not errors and new != new2:
             errors["password2"] = "새 비밀번호가 서로 달라요. 다시 써 주세요."
         if not errors:

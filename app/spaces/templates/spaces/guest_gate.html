@@ -1,0 +1,13 @@
+{% extends "bare.html" %}
+{% block title %}계정 잇기 · 고티처{% endblock %}
+{% block ctx %}<span class="ctx">{{ gate_space.name }}</span>{% endblock %}
+{% block main %}
+<h1 class="h1">계정을 이으면 학교 공간에 들어올 수 있어요</h1>
+<p class="sub" style="margin-top:8px">우리 동학년이 학교 공간으로 옮겼어요. 학교 공간은 구글 계정이나 아이디가 있어야 들어와요.</p>
+<section class="card" style="margin-top:24px" aria-label="계정 잇기"><div class="card-b stack-y" style="padding-top:var(--pad)">
+  <p>처음 들어왔던 PC에서 이어 주세요. 쓰던 자리와 낸 값은 그대로예요.</p>
+  <div class="wrap-row"><a class="btn pri lg" href="/auth/google/login?next={{ home|urlencode }}">구글 계정으로 잇기</a>
+    <a class="btn sec lg" href="/signup?next={{ home|urlencode }}">아이디로 잇기</a></div>
+  <p class="small muted">메신저로 받은 취합 링크는 계정 없이도 그대로 낼 수 있어요.</p>
+</div></section>
+{% endblock %}

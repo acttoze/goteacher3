@@ -244,6 +244,7 @@ def new_org(request):
 
 
 GRADE_TAKEN = "이 학년 동학년이 이미 있어요. 학년 대표 선생님께 초대 링크를 받아 들어오세요."
+GRADE_MOVED = "이 학년은 이미 학교 공간으로 옮겨졌어요."
 SCHOOL_TAKEN = "이 학교는 학교 공간을 씁니다. 담당 선생님께 학교 링크를 받아 주세요."
 PROOF_MIN = 10  # 이보다 적으면 전국 학교 수를 말하지 않는다
 NEAR_MIN = 3  # 이보다 적으면 같은 시도교육청 학교 수를 말하지 않는다
@@ -255,7 +256,8 @@ def school_pitch(atpt=None, code=None, space=None, me=None):
     if space:
         atpt, code = space.school.neis_atpt, space.school.neis_code
     using = (Space.objects.filter(Q(school__paid_until__isnull=True) | Q(school__paid_until__gte=timezone.localdate()),
-                                  kind=Space.Kind.SCHOOL, merged_into__isnull=True, school__plan=School.Plan.SCHOOL)
+                                  kind=Space.Kind.SCHOOL, merged_into__isnull=True, school__plan=School.Plan.SCHOOL,
+                                  school__self_opened_at__isnull=True)  # 직접 연 학교는 세지 않는다(W1)
              .exclude(school__neis_code=""))
     pitch = {}
     n = using.values("school").distinct().count()
@@ -290,7 +292,7 @@ def school_pitch(atpt=None, code=None, space=None, me=None):
 
 def space_pitch(space, me):
     """공간 화면의 유도. 학교 플랜을 안 쓰는 동학년에만 있고, 학교·기관 공간은 빈 값."""
-    if space.kind != Space.Kind.GRADE or space.school.writable:
+    if not space.can_go_school:
         return {}
     return school_pitch(space=space, me=me)
 
@@ -300,10 +302,16 @@ def _grade_taken(school, grade):
     return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"], grade=grade).exists()
 
 
+def _grade_moved(school, grade):
+    """이 학년 동학년이 학교 공간으로 옮겨졌나(직접 연 학교에서만 만들기 화면까지 온다, W1)."""
+    return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"], grade=grade,
+                                merged_into__isnull=False).exists()
+
+
 def _school_open(school):
-    """이 학교에 학교 공간이 있나(플랜을 끈 뒤에도 합친 공간은 남으니 새 동학년을 만들지 않는다)."""
+    """새 동학년을 막는 학교 공간이 있나(플랜을 끈 뒤에도 합친 공간은 남으니 만들지 않는다). 직접 연 학교는 막지 않는다(W1)."""
     return Space.objects.filter(school__neis_atpt=school["atpt"], school__neis_code=school["code"],
-                                kind=Space.Kind.SCHOOL).exists()
+                                kind=Space.Kind.SCHOOL, school__self_opened_at__isnull=True).exists()
 
 
 def _school_notice(request, school):
@@ -381,10 +389,11 @@ def new_class(request):
     if request.method == "POST":
         request.session[PICKED] = school
 
+    moved = taken and _grade_moved(school, grade)
     ctx = {
         "school": school, "grade": grade, "grades": GRADES, "classes": classes, "from_neis": from_neis,
         "n_classes": len(classes) - 1, "cls": cls, "name": name, "errors": errors,
-        "taken": GRADE_TAKEN if taken else "",
+        "taken": (GRADE_MOVED if moved else GRADE_TAKEN) if taken else "", "moved": moved,
     }
     if request.headers.get("HX-Request"):
         return render(request, "spaces/_class_form.html", ctx)

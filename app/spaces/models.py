@@ -55,6 +55,8 @@ class School(models.Model):
     trial_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     # T1 운영자가 org_plan --on으로 켠 때(공문·전화·입금 확인). 비어 있는 기관은 체험 중이거나 체험이 끝난 '운영자 미확인 기관'
     org_checked_at = models.DateTimeField("운영자 확인", null=True, blank=True)
+    # W1 동학년 대표가 버튼으로 직접 연 때(1년 무료). 운영자가 학교 플랜을 켜면(open_school) 비운다
+    self_opened_at = models.DateTimeField("직접 연 때", null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -75,6 +77,11 @@ class School(models.Model):
         """운영자가 켜지 않은 기관(체험 중·체험 끝남). 무료 공간처럼 다룬다(저장 한도·업체 후기), 화면에 '운영자 미확인' 표시.
         쿼리로 묻는 곳은 free_space_q를 쓴다(같은 기준)."""
         return self.is_org and self.org_checked_at is None
+
+    @property
+    def temp_password_ok(self):
+        """관리자가 임시 비밀번호를 줄 수 있나. 운영자가 확인하지 않은 기관·직접 연 학교(W1)는 안 된다(회원 계정을 빼앗지 못하게)."""
+        return not self.org_unconfirmed and self.self_opened_at is None
 
     @property
     def writable(self):
@@ -174,6 +181,11 @@ class Space(models.Model):
         return not self.is_school or self.school.org_unconfirmed
 
     @property
+    def can_go_school(self):
+        """학교 전체 사용을 권할 동학년: 학교 플랜이 없거나, 누가 직접 연 학교에 아직 합쳐지지 않은 동학년(W1)."""
+        return self.kind == self.Kind.GRADE and (not self.school.writable or self.school.self_opened_at is not None)
+
+    @property
     def label(self):
         if self.is_org:
             return self.name
@@ -268,6 +280,8 @@ class Member(models.Model):
     lines_off = models.CharField("끈 그룹 줄", max_length=320, blank=True, default="", db_default="")
     # Q2 소속 안 순서(관리자가 끌어서 정함). 비면 직책 순(school._order).
     order = models.PositiveIntegerField("소속 안 순서", null=True, blank=True)
+    # W1 관리자에서 해제된 때(merge.remove_manager). 해제 직후에는 임시 비밀번호를 줄 수 없다
+    demoted_at = models.DateTimeField("관리자 해제", null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     objects = SpaceQuerySet.as_manager()

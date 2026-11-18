@@ -7,6 +7,8 @@ school_plan <NEIS 학교 코드> --on --until YYYY-MM-DD [--manager=<회원 key>
       --manager-request: 신청자를 관리자로. 회원 0명 학교도 켤 수 있다(경고를 낸다). 신청자가 다른 공간에 있으면 오류.
       회원이 있는 학교에 회원이 아닌 신청자를 세우려면 --identity-checked(운영자가 공문·전화로 재직을 확인했다는 뜻).
       끊겼던 플랜을 다시 켜면 옛 업체 링크는 해제한다(TV 주소는 유지).
+      직접 연 학교(W1)는 --manager 또는 --manager-request와 --identity-checked가 필수다(그 학교 회원이어도 재직 근거가 아니다).
+      기존 관리자·담당자 지정을 모두 지우고 업체 링크·초대 링크·TV 주소·폰 사진 링크를 끊은 뒤, 지정한 사람만 관리자로 세운다.
 --off: 플랜만 끈다(기한도 오늘로 앞당겨 보관 기간을 시작한다). 합친 것은 되돌리지 않는다.
 --remove-manager: 관리자 해제. 마지막 관리자는 해제하지 않는다.
 회원 key는 -로 시작할 수 있어 --manager=<key>처럼 등호로 붙여 쓴다.
@@ -34,7 +36,7 @@ class Command(BaseCommand):
         mode.add_argument("--remove-manager", help="관리자 해제할 회원 key(--remove-manager=<key>처럼 등호로)")
         parser.add_argument("--until", help="결제 기한 YYYY-MM-DD(--on에 필수)")
         parser.add_argument("--identity-checked", action="store_true",
-                            help="운영자가 공문·전화로 신청자의 재직을 확인했다는 뜻. 회원이 있는 학교에 회원이 아닌 신청자를 --manager-request로 세울 때 필요")
+                            help="운영자가 공문·전화로 재직을 확인했다는 뜻. 회원이 있는 학교에 회원이 아닌 신청자를 세울 때와, 직접 연 학교의 관리자를 정할 때 필요")
         who = parser.add_mutually_exclusive_group()
         who.add_argument("--manager", help="첫 관리자의 회원 key(--manager=<key>처럼 등호로)")
         who.add_argument("--manager-request", type=int, help="첫 관리자로 세울 신청 ID(school_plan requests의 #번호)")
@@ -45,7 +47,8 @@ class Command(BaseCommand):
         self.stdout.write(f"대기 {len(rows)}건")
         for r in rows:
             size = " ".join(x for x in (f"학생 {r.students}" if r.students else "", f"학급 {r.classes}" if r.classes else "") if x)
-            seat = "이 학교 회원" if r.member_id else "공간 없음" if r.user_id and not Member.objects.filter(user_id=r.user_id).exists() else "다른 공간 또는 계정 없음"
+            here = "직접 연 학교 회원(재직 근거 아님)" if r.school.self_opened_at else "이 학교 회원"
+            seat = here if r.member_id else "공간 없음" if r.user_id and not Member.objects.filter(user_id=r.user_id).exists() else "다른 공간 또는 계정 없음"
             self.stdout.write(f"#{r.pk} {r.school.name} {r.school.neis_atpt}/{r.school.neis_code} · {timezone.localtime(r.created_at):%Y-%m-%d} · "
                               f"{r.by_name}({r.position}) {r.email} · {size or '규모 안 씀'} · {seat}")
 

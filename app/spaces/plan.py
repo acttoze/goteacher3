@@ -2,6 +2,7 @@
 
 신청에는 공간이 없을 수 있어 신청자(user)로 좁혀 찾는다(남의 견적서는 404). 가격·공급자 값은 설정에서만 읽고 없으면 손으로 적을 빈칸으로 둔다.
 학교 값은 내 공간 또는 서버가 받은 NEIS 검색 결과에서만 가져온다(브라우저가 보낸 이름은 믿지 않는다). 받은 값은 로그에 남기지 않는다.
+W1 school_start: 동학년 대표가 학교 공간을 1년 무료로 직접 연다. 신청·견적과 별개이고, 직접 연 학교도 위 신청은 그대로 할 수 있다.
 """
 import hashlib
 from datetime import timedelta
@@ -11,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -20,8 +22,9 @@ from accounts.models import is_guest
 from config.ratelimit import too_many
 
 from . import neis
-from .models import Member, PlanRequest, School
-from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, read_org, school_pitch, space_pitch
+from .merge import free_until, open_free
+from .models import Member, PlanRequest, School, Space, leads
+from .views import HITS, NEIS_DOWN, NEIS_PER_MIN, OFFICES, _clean_name, _josa, _my_space, _space_ctx, read_org, school_pitch, space_pitch
 
 LOGIN_HREF = "/start?next=/school-plan"
 RENEW_DAYS = 30  # 기한이 이만큼 남으면 다시 신청할 수 있다(만료 안내와 같은 날)
@@ -40,7 +43,7 @@ def _price():
 
 
 def _already_on(school):
-    if not school.writable:
+    if not school.writable or school.self_opened_at:  # 직접 연 학교는 정식 신청을 막지 않는다(W1)
         return False
     return school.days_left is None or school.days_left > RENEW_DAYS
 
@@ -211,3 +214,44 @@ def _quote_ctx(req):
            "supplier_address": settings.SUPPLIER_ADDRESS, "supplier_account": settings.SUPPLIER_ACCOUNT}
     return {**ctx, "r": req, "has_blank": not all(ctx.values()),
             "doc_no": f"GT-{timezone.localtime(req.created_at):%Y%m%d}-{hashlib.sha256(req.key.encode()).hexdigest()[:6].upper()}"}
+
+
+def _to_school(hub):
+    resp = redirect(f"/s/{hub.token}/school")
+    resp.status_code = 303
+    return resp
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD", "POST"])
+def school_start(request):
+    """학교 공간 1년 무료로 열기(W1): 확인 화면 → 체크 → 이 동학년만 옮긴다. 자격은 open_free가 잠근 뒤 다시 본다.
+    이미 옮겨진 뒤의 두 번째 POST는 SpaceMiddleware가 학교 공간으로 넘긴다."""
+    space, me = request.space, request.member
+    if space.is_school:
+        return redirect(f"/s/{space.token}/")
+    if is_guest(request.user):
+        state, status = "guest", 403
+    elif not leads(space, me):
+        state, status = "not_lead", 403
+    elif Space.objects.filter(school=space.school, grade=0).exists():
+        state, status = "opened", 409
+    else:
+        state, status = "ready", 400
+    error = ""
+    if request.method == "POST" and state == "ready":
+        if request.POST.get("agree") != "1":
+            error = "내용을 확인했다고 체크해 주세요."
+        else:
+            try:
+                return _to_school(open_free(space, me))
+            except ValueError:  # 같이 누른 요청이나 다른 학년 대표가 먼저 열었다
+                seat = Member.objects.filter(pk=me.pk).select_related("space").first()
+                if seat is None:
+                    raise Http404
+                if seat.space.is_school:
+                    return _to_school(seat.space)
+                state, status = "opened", 409
+    ctx = _space_ctx(request, state=state, error=error, until=free_until(timezone.localdate()))
+    ctx["n_guests"] = sum(r["guest"] for r in ctx["rows"])
+    return render(request, "spaces/school_start.html", ctx, status=status if request.method == "POST" else 200)

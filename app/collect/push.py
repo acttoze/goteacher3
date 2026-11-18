@@ -25,7 +25,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from pywebpush import WebPushException, webpush
 
-from accounts.models import DEVICE_COOKIE, DeviceToken, hash_token
+from accounts.models import DEVICE_COOKIE, GUEST_PREFIX, DeviceToken, hash_token
 from notices.models import Notice
 from spaces import neis
 
@@ -75,7 +75,9 @@ def digest(now=None):
     off = {}
     sent = 0
     # 사용자와 끊긴 회원(손님 합치기·탈퇴)·막힌 사용자에게는 보내지 않는다
+    # 직접 연 학교의 손님 자리는 계정을 잇기 전에 학교 공간을 못 보므로 보내지 않는다(W1, 쌓인 것은 이은 뒤에)
     subs = (PushSubscription.objects.filter(member__user__isnull=False, member__user__is_active=True)
+            .exclude(member__user__username__startswith=GUEST_PREFIX, space__kind="school", space__school__self_opened_at__isnull=False)
             .select_related("space__school", "member").order_by("member_id", "pk"))
     for member_id, group in groupby(subs, key=lambda s: s.member_id):
         group = list(group)

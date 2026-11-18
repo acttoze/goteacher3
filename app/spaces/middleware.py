@@ -1,7 +1,9 @@
 from urllib.parse import urlencode
 
 from django.http import Http404, HttpResponse, HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
+
+from accounts.models import is_guest
 
 from .models import Member, Space
 
@@ -22,6 +24,16 @@ def _forward(request, old):
     return r
 
 
+def _guest_gate(request, space):
+    """직접 연 학교 공간의 손님 자리(W1): 계정을 잇기 전에는 공간 화면을 열지 않는다. 받는 링크(/c/)는 /s/ 밖이라 그대로."""
+    home = f"/s/{space.token}/school"
+    if request.headers.get("HX-Request"):  # 열려 있던 탭의 폴링: 조각 대신 안내 화면으로
+        r = HttpResponse(status=204)
+        r["HX-Redirect"] = home
+        return r
+    return render(request, "spaces/guest_gate.html", {"gate_space": space, "home": home}, status=403)
+
+
 class SpaceMiddleware:
     """URL에 <space_token>이 있으면 공간과 내 회원 정보를 request.space·request.member에 둔다.
 
@@ -29,6 +41,7 @@ class SpaceMiddleware:
     - 없는 토큰이거나 그 공간 회원이 아니면 404.
     space_token은 뷰 인자에서 빼므로, 공간 주소의 뷰는 request.space만 쓴다.
     - 학교 공간으로 합쳐진 옛 공간(H1)이면 새 공간 회원에게만 넘겨 준다(아니면 404).
+    - 직접 연 학교 공간(W1)의 손님 자리는 계정 잇기 안내만 본다.
     초대(B7: /j/<invite_token> → /join)·받는 사람 제출(C5)은 /s/ 밖의 자기 토큰 주소를 쓴다.
     """
 
@@ -58,5 +71,7 @@ class SpaceMiddleware:
         member = Member.objects.in_space(space).filter(user=request.user).first()
         if member is None:
             raise Http404
+        if space.is_school and is_guest(request.user) and space.school.self_opened_at:
+            return _guest_gate(request, space)
         request.space, request.member = space, member
         return None

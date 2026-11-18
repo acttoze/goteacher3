@@ -67,6 +67,7 @@ urlpatterns = [
     path("s/<str:space_token>/school/group-color", school_page.group_color),  # U1 소속 색
     path("s/<str:space_token>/channels", school_page.school),  # T2 기관 채널 화면(학교 화면 뷰가 기관이면 채널을 그린다)
     path("s/<str:space_token>/school/groups", school_page.org_group),  # T2 기관 그룹 만들기·이름·지우기
+    path("s/<str:space_token>/school-start", school_plan.school_start),  # W1 1년 무료로 학교 공간 열기
     path("s/<str:space_token>/members", spaces.members),
     path("s/<str:space_token>/members/<str:key>/out", spaces.remove_member),
     path("s/<str:space_token>/settings", device.settings_page),

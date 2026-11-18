@@ -12,7 +12,7 @@
   </div>
   {% if taken %}
   <div class="well acc stack-y" role="alert" style="gap:6px"><b>{{ taken }}</b>
-    <p>한 학년에는 동학년이 하나예요. 초대 링크를 연 뒤 반과 이름만 고르면 바로 들어와요. 다른 학년이면 위에서 학년을 바꿔 주세요.</p></div>
+    <p>{% if moved %}같은 학교 선생님께 학교 초대 링크를 받거나, <a class="tlink acc" href="/school-plan">학교 플랜을 신청</a>하거나 <a class="tlink acc" href="mailto:admin@goteacher.xyz">admin@goteacher.xyz</a>로 문의해 주세요. 다른 학년이면 위에서 학년을 바꿔 주세요.{% else %}한 학년에는 동학년이 하나예요. 초대 링크를 연 뒤 반과 이름만 고르면 바로 들어와요. 다른 학년이면 위에서 학년을 바꿔 주세요.{% endif %}</p></div>
   {% else %}
   <div class="field"><span>반</span>
     <div class="picks" id="cp" role="group" aria-label="반" data-pick="cls"{% if errors.cls %} aria-invalid="true" aria-describedby="cp-err"{% endif %}>

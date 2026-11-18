@@ -7,6 +7,7 @@ U1 소속 색(group_color): 바꾸기 화면의 소속 카드에서 관리자가
 import json
 import re
 import secrets
+from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import Count
@@ -33,6 +34,7 @@ LOG_N = 20  # 관리자에게 보이는 최근 이력
 NAMES = re.compile(r"[,，、/\n]+")  # 담당 칸 하나에 여러 이름
 TOAST = "school_toast"  # 세션: 화면을 옮긴 뒤 한 번 띄울 저장 결과
 TEMP_CHARS = "abcdefghjkmnpqrstuvwxyz23456789"  # 임시 비밀번호: 불러 주고 받아 적기 쉽게(l·o·0·1 뺌)
+DEMOTED_WAIT = timedelta(days=7)  # 관리자에서 해제된 뒤 이 기간에는 임시 비밀번호를 줄 수 없다(W1: 해제 후 곧바로 계정을 빼앗는 우회 차단)
 
 
 def _order(m):
@@ -422,11 +424,13 @@ def temp_password(request, key):
     화면에 한 번만 보이고 저장하지 않는다. 받은 회원은 다음 로그인 때 바꾸기를 강제하고(PasswordChangeRequired), 🔔로 알린다. 그 회원의 기기 토큰을 모두 지우고(세션은 비밀번호 해시가 바뀌어 끊긴다) 이력에 남긴다.
     학교 플랜이 끝나도 막지 않는다(학교 자료 쓰기가 아니라 계정 되찾기)."""
     m = get_in_space_or_404(Member, request, key=key)
-    if request.space.school.org_unconfirmed:  # 가짜 체험 기관으로 초대한 아이디 회원의 계정을 빼앗지 못하게(T2 보안)
+    if not request.space.school.temp_password_ok:  # 가짜 체험 기관·직접 연 학교로 초대한 아이디 회원의 계정을 빼앗지 못하게(T2 보안, W1)
         return HttpResponseForbidden("운영자 확인 뒤 쓸 수 있어요.")
     ctx = {"space": request.space, "m": m}
     if m.is_manager or m.user_id is None or not is_id_member(m.user):
         ctx["error"] = "아이디로 가입한 선생님(관리자 제외)만 임시 비밀번호를 줄 수 있어요."
+    elif m.demoted_at and m.demoted_at > timezone.now() - DEMOTED_WAIT:
+        ctx["error"] = f"관리자에서 해제된 선생님은 {DEMOTED_WAIT.days}일이 지나야 임시 비밀번호를 줄 수 있어요."
     else:
         ctx.update(username=m.user.username, temp="".join(secrets.choice(TEMP_CHARS) for _ in range(10)))
         with transaction.atomic():

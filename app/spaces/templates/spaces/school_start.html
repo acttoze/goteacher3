@@ -1,0 +1,32 @@
+{% extends "shell.html" %}
+{% block title %}학교 공간 열기 · 고티처{% endblock %}
+{% block ptitle %}학교 공간 열기{% endblock %}
+{% block main %}
+<div class="title"><div class="grow"><h1>학교 공간을 1년 무료로 열어요</h1><p class="sub">{{ space.school.name }} · {{ until|date:"Y년 n월 j일" }}까지 무료</p></div>
+  <a class="btn ghost" href="/s/{{ space.token }}/">동학년 화면으로</a></div>
+{% if state == "guest" %}
+<p class="notice" role="status" style="margin-bottom:20px">학교 공간은 계정 회원만 열 수 있어요. 구글 계정이나 아이디를 먼저 이어 주세요.</p>
+<section class="card" aria-label="계정 잇기"><div class="card-b stack-y" style="padding-top:var(--pad)">
+  <div class="wrap-row"><a class="btn pri lg" href="/auth/google/login?next=/s/{{ space.token }}/school-start">구글 계정으로 잇기</a>
+    <a class="btn sec lg" href="/signup?next=/s/{{ space.token }}/school-start">아이디로 잇기</a></div>
+</div></section>
+{% elif state == "not_lead" %}
+<p class="notice" role="status">학교 공간은 동학년 대표만 열 수 있어요. {{ creator.name }} 선생님께 제안해 주세요.</p>
+{% elif state == "opened" %}
+<p class="notice" role="status">이 학교에는 이미 학교 공간이 있어요. 우리 동학년은 지금처럼 그대로 쓰면 돼요.</p>
+{% else %}
+<form class="card" method="post" action="/s/{{ space.token }}/school-start" aria-label="학교 공간 열기"><div class="card-b stack-y" style="padding-top:var(--pad)">
+  {% csrf_token %}
+  <dl class="kv">
+    <dt>무료 기간</dt><dd>{{ until|date:"Y년 n월 j일" }}까지예요. 카드 등록도 자동 결제도 없어요.</dd>
+    <dt>옮겨지는 것</dt><dd>우리 {{ space.grade }}학년의 선생님·취합·일정만 옮겨져요. 다른 학년 동학년은 그대로예요.</dd>
+    <dt>관리자</dt><dd>제가 학교 공간 관리자가 돼요. 학교 화면에서 다른 선생님께 넘길 수 있어요.</dd>
+    <dt>기간이 끝나면</dt><dd>학교 화면은 읽기만 돼요. 취합·오늘·일정은 계속 쓸 수 있어요.</dd>
+    {% if n_guests %}<dt>이름만 들어온 분</dt><dd>{{ n_guests }}명은 계정을 이어야 학교 공간에 들어와요. 받은 취합 링크로 내는 것은 그대로 돼요.</dd>{% endif %}
+  </dl>
+  <label class="chk"><input type="checkbox" name="agree" value="1" required{% if error %} aria-invalid="true" aria-describedby="agreeErr"{% endif %}>위 내용을 확인했어요</label>
+  {% if error %}<p class="field-err" id="agreeErr" role="alert">{{ error }}</p>{% endif %}
+  <div><button class="btn pri lg" type="submit">1년 무료로 열기</button></div>
+</div></form>
+{% endif %}
+{% endblock %}
