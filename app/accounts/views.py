@@ -24,6 +24,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods, require_POST, require_safe
 
+from analytics.models import Entry, record_entry
 from config.ratelimit import allow, client_ip
 from legacy.models import LegacyMap
 from spaces.models import INVITE, Member, absorb_guest
@@ -323,6 +324,12 @@ def _spend(n, exp):
         return False
 
 
+def _entry_fail(request, user, reason):
+    """V10 실패·확인 화면 입장 기록은 IP당 1시간 20건까지(같은 입장권 되풀이로 기록이 불어나지 않게)."""
+    if allow("legacy-bad-log", client_ip(request), 20, 3600, fallback=True):
+        record_entry(user, False, reason)
+
+
 @never_cache
 @require_http_methods(["GET", "POST"])
 def legacy_login(request):
@@ -335,17 +342,24 @@ def legacy_login(request):
         raise Http404
     t = (request.POST if request.method == "POST" else request.GET).get("t", "")
     found = _legacy_ticket(t)
-    if found is None or _locked(request, found[0].username):
+    if found is None:
+        _entry_fail(request, None, Entry.Reason.BAD_TICKET)
         return redirect(settings.LOGIN_URL)
     user, n, exp = found
+    if _locked(request, user.username):
+        _entry_fail(request, user, Entry.Reason.LOCKED)
+        return redirect(settings.LOGIN_URL)
     other = request.user.is_authenticated and request.user.pk != user.pk
     if other and request.method == "GET":
+        _entry_fail(request, user, Entry.Reason.SWITCH_SHOWN)
         return render(request, "accounts/legacy_switch.html", {"current": request.user, "to": user, "t": t})
     if not _spend(n, exp):
+        _entry_fail(request, user, Entry.Reason.REPLAYED)
         return redirect(settings.LOGIN_URL)
     if other:
         logout(request)
     school = Member.objects.filter(user=user, space__kind="school").select_related("space").order_by("-joined_at").first()
+    record_entry(user, True, space=school.space if school else None)
     return _enter(request, user, False, f"/s/{school.space.token}/today" if school else "/")
 
 

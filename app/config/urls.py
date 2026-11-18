@@ -8,6 +8,7 @@ from django.views.decorators.http import require_safe
 from django.views.generic import RedirectView, TemplateView
 
 from accounts import device
+from analytics import views as analytics
 from accounts import views as accounts
 from collect import bell, export, lists, push, submit
 from collect import views as collect
@@ -127,7 +128,8 @@ urlpatterns = [
     path("auth/google/login", accounts.google_login),
     path("auth/google/callback", accounts.google_callback),
     path("auth/logout", accounts.logout_view),
-    path("privacy", TemplateView.as_view(template_name="legal/privacy.html", extra_context={"feedback_keep": feedback.keep_text()})),
+    path("privacy", TemplateView.as_view(template_name="legal/privacy.html", extra_context={"feedback_keep": feedback.keep_text(),
+                                                                                      "analytics_keep": feedback.keep_text(settings.ANALYTICS_KEEP_DAYS)})),
     path("terms", TemplateView.as_view(template_name="legal/terms.html")),
     path("s/<str:space_token>/", include("hwpfiles.urls")),  # E2 한글 파일 올리기·상태
     path("s/<str:space_token>/", include("today.urls")),  # G1 간이 오늘
@@ -159,5 +161,6 @@ urlpatterns = [
     path("robots.txt", robots),
     path("favicon.ico", RedirectView.as_view(url=static("favicon.ico"))),  # 링크 태그를 안 읽는 브라우저·검색 로봇
     path("ops/feedback", feedback.inbox),  # V6 운영자 의견함(is_staff만)
+    path("analytics", analytics.page),  # V10 운영자 고객 분석(is_staff만)
     path("healthz", healthz),
 ]

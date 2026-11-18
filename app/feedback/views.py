@@ -33,9 +33,9 @@ PARAM = re.compile(r"<(?:\w+:)?(\w+)>")
 PAGE = 50
 
 
-def keep_text():
-    """처리방침의 의견 보관 기간 글자: 365의 배수면 'n년', 아니면 'n일'."""
-    days = settings.FEEDBACK_KEEP_DAYS
+def keep_text(days=None):
+    """처리방침의 보관 기간 글자(기본 의견, V10 이용 기록도): 365의 배수면 'n년', 아니면 'n일'."""
+    days = days or settings.FEEDBACK_KEEP_DAYS
     return f"{days // 365}년" if days % 365 == 0 else f"{days}일"
 
 
@@ -45,11 +45,14 @@ def path_shape(raw):
     if not path.startswith("/"):
         return ""
     try:
-        route = resolve(path).route
+        return route_shape(resolve(path).route)
     except Resolver404:
         return ""
-    route = PARAM.sub(lambda m: "<공간>" if m.group(1) == "space_token" else f"<{m.group(1)}>", route)
-    return ("/" + route)[:200]
+
+
+def route_shape(route):
+    """주소 규칙('s/<str:space_token>/c/<str:key>/') → 화면에 보일 모양('/s/<공간>/c/<key>/'). V10 이용 기록도 같이 쓴다."""
+    return ("/" + PARAM.sub(lambda m: "<공간>" if m.group(1) == "space_token" else f"<{m.group(1)}>", route))[:200]
 
 
 def _text(request):

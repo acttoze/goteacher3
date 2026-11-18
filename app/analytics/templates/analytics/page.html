@@ -1,0 +1,154 @@
+{% extends frame %}
+{# V10 운영자 고객 분석(is_staff만). 이름 대신 학교·소속, 경로는 모양만. 차트는 서버가 계산한 CSS 막대(외부 JS 없음). #}
+{% block title %}고객 분석 · 고티처{% endblock %}
+{% block head %}
+<style>
+  .an-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; }
+  .an-head .seg { margin-left: auto; }
+  .an-tiles { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin-bottom: var(--gap); }
+  .an-tiles > div { padding: 16px 18px; border-left: 1px solid var(--rule); min-width: 0; }
+  .an-tiles > div:first-child { border-left: 0; }
+  .an-tiles dt { font-size: var(--fs-small); color: var(--muted); }
+  .an-tiles dd { margin: 6px 0 0; font-size: var(--fs-title); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .an-tiles small { display: block; margin-top: 4px; font-size: var(--fs-small); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .an-cols { display: flex; align-items: flex-end; gap: 2px; height: 170px; border-bottom: 1px solid var(--line); }
+  .an-cols > div { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; min-width: 2px; position: relative; }
+  .an-cols i { display: block; background: var(--accent-track); border-radius: 3px 3px 0 0; min-height: 0; position: relative; }
+  .an-cols i b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--accent); border-radius: 3px 3px 0 0; }
+  .an-cols.hours i { background: var(--accent); }
+  .an-axis { display: flex; gap: 2px; margin-top: 6px; font-size: var(--fs-small); color: var(--faint); }
+  .an-axis span { flex: 1; text-align: center; min-width: 2px; white-space: nowrap; overflow: visible; }
+  .an-legend { display: flex; gap: 16px; font-size: var(--fs-small); color: var(--muted); }
+  .an-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--accent-track); }
+  .an-legend i.new { background: var(--accent); }
+  .an-funnel { display: grid; gap: 14px; }
+  .an-step { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .an-step b { font-size: var(--fs-lead); font-weight: 700; }
+  .an-step .lb { margin-right: auto; color: var(--ink); font-size: var(--fs-body); text-align: left; }
+  .an-step span { color: var(--muted); font-size: var(--fs-small); min-width: 40px; text-align: right; }
+  .an .tbl td { height: 48px; }
+  .an .tbl .route { display: block; font-size: var(--fs-small); color: var(--faint); }
+  .an .tbl .bar { width: 30%; }
+  .an .fbtxt { white-space: pre-line; }
+  .an .meta { display: block; margin-top: 2px; font-size: var(--fs-small); color: var(--faint); }
+  .an .tbl.fbl td { height: auto; padding-top: 12px; padding-bottom: 12px; vertical-align: top; }
+</style>
+{% endblock %}
+{% block ptitle %}고객 분석{% endblock %}
+{% block main %}
+<div class="an">
+<div class="an-head">
+  <div>
+    <h1>고객 분석</h1>
+    <p class="muted">이관 학교 계정 회원이 새 고티처를 얼마나 쓰는지예요. {% if start %}{{ start|date:"n월 j일" }}부터 {% else %}기록 시작부터 {% endif %}{{ today|date:"n월 j일" }}까지. 이름은 보이지 않아요.</p>
+  </div>
+  <form class="seg" method="get" action="/analytics" role="group" aria-label="기간">
+    {% for v, label, _ in periods %}<button type="submit" name="d" value="{{ v }}" aria-pressed="{% if v == d %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+  </form>
+</div>
+
+<dl class="card an-tiles">
+  {% for label, n, note in tiles %}<div><dt>{{ label }}</dt><dd class="num">{{ n }}</dd><small>{{ note }}</small></div>{% endfor %}
+</dl>
+
+<div class="grid">
+  <section class="card s8" aria-labelledby="an-trend">
+    <div class="card-h"><h2 id="an-trend">날짜별 이용</h2>
+      <div class="r an-legend"><span><i></i>하루 이용자</span><span><i class="new"></i>그날 처음 온 사람</span></div></div>
+    <div class="card-b">
+      {% if has_use %}
+      <div class="an-cols" role="img" aria-label="날짜별 하루 이용자와 처음 온 사람">
+        {% for t in trend %}<div title="{{ t.day|date:'n월 j일' }} · 이용 {{ t.n }}명 · 처음 {{ t.new }}명"><i style="height:{{ t.h }}%"><b style="height:{% if t.h %}{% widthratio t.hn t.h 100 %}{% else %}0{% endif %}%"></b></i></div>{% endfor %}
+      </div>
+      <div class="an-axis" aria-hidden="true">{% for t in trend %}<span>{% if trend|length <= 14 or forloop.counter0|divisibleby:axis_step %}{{ t.day|date:"n/j" }}{% endif %}</span>{% endfor %}</div>
+      {% else %}<p class="empty">아직 이용 기록이 없어요. 선생님들이 새 고티처 화면을 열면 여기에 쌓여요.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="card s4" aria-labelledby="an-funnel">
+    <div class="card-h"><h2 id="an-funnel">깔때기</h2><span class="r">기록 시작부터</span></div>
+    <div class="card-b an-funnel">
+      {% for label, n, pct in funnel %}<div>
+        <div class="an-step"><span class="lb">{{ label }}</span><b class="num">{{ n }}</b><span class="num">{{ pct }}%</span></div>
+        <div class="track{% if forloop.first %} grey{% endif %}"><i style="width:{{ pct }}%"></i></div>
+      </div>{% endfor %}
+    </div>
+  </section>
+
+  <section class="card s12" aria-labelledby="an-schools">
+    <div class="card-h"><h2 id="an-schools">학교별</h2><span class="n">{{ schools|length }}곳</span><span class="r">들어와 본 비율이 높은 순 · 의견·돌아감은 이 기간</span></div>
+    <div class="card-b">
+      {% if schools %}
+      <table class="tbl">
+        <thead><tr><th>학교</th><th class="r">대상 회원</th><th class="r">들어와 본 사람</th><th class="bar">비율</th><th class="r">기간 이용자</th><th class="r">의견</th><th class="r">돌아감</th><th class="r">마지막 이용</th></tr></thead>
+        <tbody>{% for r in schools %}<tr><td class="id">{{ r.name }}</td><td class="r num">{{ r.target }}</td><td class="r num">{{ r.entered }}</td>
+          <td class="bar"><div style="display:flex;align-items:center;gap:10px"><div class="track thin" style="flex:1"><i style="width:{{ r.pct }}%"></i></div><span class="num" style="width:44px;text-align:right">{{ r.pct }}%</span></div></td>
+          <td class="r num">{{ r.active }}</td><td class="r num">{{ r.feedback }}</td><td class="r num">{{ r.back }}</td>
+          <td class="r num">{% if r.last %}{{ r.last|date:"n월 j일" }}{% else %}<span class="dash">—</span>{% endif %}</td></tr>{% endfor %}</tbody>
+      </table>
+      {% else %}<p class="empty">이관한 학교가 아직 없어요.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="card s5" aria-labelledby="an-hours">
+    <div class="card-h"><h2 id="an-hours">시간대별 입장</h2><span class="r">'새 고티처 이용해 보기'로 들어온 때</span></div>
+    <div class="card-b">
+      <div class="an-cols hours" role="img" aria-label="0시부터 23시까지 입장 수">
+        {% for h in by_hour %}<div title="{{ h.h }}시 · {{ h.n }}번"><i style="height:{{ h.bar }}%"></i></div>{% endfor %}
+      </div>
+      <div class="an-axis" aria-hidden="true">{% for h in by_hour %}<span>{% if h.h|divisibleby:3 %}{{ h.h }}{% endif %}</span>{% endfor %}</div>
+    </div>
+  </section>
+
+  <section class="card s7" aria-labelledby="an-groups">
+    <div class="card-h"><h2 id="an-groups">소속별 이용자</h2><span class="r">이 기간</span></div>
+    <div class="card-b">
+      {% if groups %}
+      <table class="tbl">
+        <thead><tr><th>소속</th><th class="r">대상 회원</th><th class="r">기간 이용자</th><th class="bar">비율</th></tr></thead>
+        <tbody>{% for g in groups %}<tr><td>{{ g.label }}</td><td class="r num">{{ g.target }}</td><td class="r num">{{ g.active }}</td>
+          <td class="bar"><div style="display:flex;align-items:center;gap:10px"><div class="track thin" style="flex:1"><i style="width:{{ g.pct }}%"></i></div><span class="num" style="width:44px;text-align:right">{{ g.pct }}%</span></div></td></tr>{% endfor %}</tbody>
+      </table>
+      {% else %}<p class="empty">아직 대상 회원이 없어요.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="card s7" aria-labelledby="an-routes">
+    <div class="card-h"><h2 id="an-routes">많이 연 화면</h2><span class="r">이 기간 · 상위 15개</span></div>
+    <div class="card-b">
+      {% if routes %}
+      <table class="tbl">
+        <thead><tr><th>화면</th><th class="bar"></th><th class="r">연 횟수</th><th class="r">사람</th></tr></thead>
+        <tbody>{% for r in routes %}<tr><td>{{ r.name }}{% if r.name != r.route %}<span class="route">{{ r.route }}</span>{% endif %}</td>
+          <td class="bar"><div class="track thin"><i style="width:{{ r.bar }}%"></i></div></td><td class="r num">{{ r.n }}</td><td class="r num">{{ r.people }}</td></tr>{% endfor %}</tbody>
+      </table>
+      {% else %}<p class="empty">아직 기록이 없어요.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="card s5" aria-labelledby="an-kinds">
+    <div class="card-h"><h2 id="an-kinds">의견 종류</h2><span class="r">이 기간</span></div>
+    <div class="card-b">
+      {% if kind_rows %}
+      <table class="tbl"><tbody>{% for label, n in kind_rows %}<tr><td>{{ label }}</td><td class="r num">{{ n }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}<p class="empty">이 기간에 받은 의견이 없어요.</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="card s12" aria-labelledby="an-recent">
+    <div class="card-h"><h2 id="an-recent">최근 의견</h2><span class="r"><a class="btn sec sm" href="/ops/feedback">의견함 전체 보기</a></span></div>
+    <div class="card-b">
+      {% if recent %}
+      <table class="tbl fbl">
+        <thead><tr><th>보낸 때</th><th>종류</th><th>학교 · 소속</th><th>의견</th></tr></thead>
+        <tbody>{% for f in recent %}<tr><td class="num" style="white-space:nowrap">{{ f.created_at|date:"n월 j일 H:i" }}</td>
+          <td><span class="pill{% if f.is_back %} warn{% elif f.kind == 'bug' %} neg{% elif f.kind == 'good' %} pos{% endif %}">{{ f.get_kind_display }}</span></td>
+          <td>{{ f.space.name }}<span class="meta">{{ f.group_text }}</span></td>
+          <td class="fbtxt">{{ f.text|default:"(글 없음)" }}<span class="meta">{{ f.path|default:"경로 모름" }}</span></td></tr>{% endfor %}</tbody>
+      </table>
+      {% else %}<p class="empty">이 기간에 받은 의견이 없어요.</p>{% endif %}
+    </div>
+  </section>
+</div>
+</div>
+{% endblock %}

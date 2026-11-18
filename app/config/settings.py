@@ -92,6 +92,7 @@ INSTALLED_APPS = [
     "community",
     "legacy",
     "feedback",
+    "analytics",
 ]
 
 MIDDLEWARE = [
@@ -106,6 +107,7 @@ MIDDLEWARE = [
     "accounts.middleware.DeviceTokenMiddleware",
     "accounts.middleware.PasswordChangeMiddleware",  # P1: 임시 비밀번호로 들어온 세션은 바꾸기 화면만
     "spaces.middleware.SpaceMiddleware",
+    "analytics.middleware.UsageMiddleware",  # V10 화면 연 횟수(응답 단계, 실패해도 응답은 그대로)
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -162,6 +164,8 @@ LEGACY_READONLY = env_bool("LEGACY_READONLY")
 LEGACY_SITE_URL = os.environ.get("LEGACY_SITE_URL", "https://goteacher.xyz")
 # V6 의견 보관 일수(받은 날부터). 1년은 사용자 확정(11월 16일). 처리방침 문구가 이 값을 따른다
 FEEDBACK_KEEP_DAYS = int(os.environ.get("FEEDBACK_KEEP_DAYS", "") or 365)
+# V10 새 고티처 이용 기록(입장·날짜별 화면 연 횟수) 보관 일수. 처리방침 문구가 이 값을 따른다
+ANALYTICS_KEEP_DAYS = int(os.environ.get("ANALYTICS_KEEP_DAYS", "") or 365)
 LOGIN_URL = "/start"  # 시작 화면(구글·아이디로 시작하기). / 는 로그인 전 소개 페이지
 
 LANGUAGE_CODE = "ko-kr"
