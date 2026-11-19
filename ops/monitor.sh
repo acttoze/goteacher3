@@ -14,7 +14,9 @@ export PATH=/usr/local/bin:/usr/bin:/bin
 
 dir="${GT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 var="$dir/var"
-host=t.goteacher.xyz
+# 확인할 주소는 ops/.env의 SITE_URL 호스트(G7 전환 때 .env만 바꾸면 따라간다). 읽지 못하면 스테이징
+host=$(sed -n 's#^SITE_URL=https://\([^/:]*\).*#\1#p' "$dir/ops/.env" 2>/dev/null | tail -1)
+host=${host:-t.goteacher.xyz}
 disk_min_gb="${GT_DISK_MIN_GB:-20}"  # 안전 여유 15GB + 다음 미디어 백업 1벌 최대 5GB(HWP_TOTAL_QUOTA). 근거는 README
 remind_sec=21600
 cd "$dir/ops" || exit 1

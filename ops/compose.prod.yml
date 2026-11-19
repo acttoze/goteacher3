@@ -1,0 +1,88 @@
+# G7 운영 도메인(goteacher.xyz) 라우터. 저장소에 두기만 하면 아무 영향이 없다.
+# 켜기(전환 때 ops/cutover.sh): 서버 ops/에 compose.override.yml → compose.prod.yml 링크를 만들면
+#   docker compose가 자동으로 겹쳐 읽는다(deploy·rollout·backup·cron 명령 그대로). 링크는 .gitignore라 reset --hard에도 남는다.
+# 끄기: 링크를 지우고 bash ops/rollout.sh(라벨이 바뀌는 교체라 수 초 끊김).
+#
+# 라우터(우선순위가 높은 것이 먼저):
+#   2000 gt-t       t.goteacher.xyz 전부 → https://goteacher.xyz 같은 경로로 308. SITE_URL이 바뀌면 앱이 t 호스트를 받지 않고
+#                   (ALLOWED_HOSTS·구글 콜백) 업로드 동시 건수 합도 그대로 1.2GB로 두기 위해 t의 스테이징 라우터 6개는 쓰지 않게 된다
+#   1000 gt-prod-up101·up31·up9  파일 POST(경로·상한·동시 건수는 compose.yml 스테이징과 같음, 미들웨어도 같은 것을 쓴다)
+#    100 gt-prod(GET·HEAD) · gt-prod-body(그 밖, 3MB) · gt-prod-http(80 → https)
+#        구버전 라우터 goteacher-xyz·goteacher-xyz-web은 Host(`goteacher.xyz`)라 기본 우선순위 21 → 이 라우터들이 이긴다.
+#        구버전 컨테이너·라벨은 바꾸지 않는다(가려질 뿐, 링크를 지우면 바로 다시 구버전이 받는다).
+#     —  gt-old·gt-old-http  old.goteacher.xyz → 구버전 컨테이너의 서비스 goteacher-xyz@docker(D9 읽기 전용 보관).
+#        구버전 컨테이너를 고치지 않고 이쪽 라벨로만 잇는다. 인증서는 처음 요청 때 letsencrypt(TLS-ALPN)가 새로 받는다.
+# 모든 라우터 접근 로그 끔(처리방침, ops/README.md G7). 2026-11-19 서버 traefik inspect·구버전 라벨을 읽고 정함.
+services:
+  goteacher-app:
+    labels:
+      traefik.http.routers.gt-t.rule: Host(`t.goteacher.xyz`)
+      traefik.http.routers.gt-t.priority: "2000"
+      traefik.http.routers.gt-t.entrypoints: websecure
+      traefik.http.routers.gt-t.tls: "true"
+      traefik.http.routers.gt-t.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-t.service: gt-staging
+      traefik.http.routers.gt-t.middlewares: gt-to-prod
+      traefik.http.middlewares.gt-to-prod.redirectregex.regex: ^https?://t\.goteacher\.xyz(:[0-9]+)?/(.*)
+      traefik.http.middlewares.gt-to-prod.redirectregex.replacement: https://goteacher.xyz/$${2}
+      traefik.http.middlewares.gt-to-prod.redirectregex.permanent: "true"
+
+      traefik.http.routers.gt-prod.rule: Host(`goteacher.xyz`) && (Method(`GET`) || Method(`HEAD`))
+      traefik.http.routers.gt-prod.priority: "100"
+      traefik.http.routers.gt-prod.entrypoints: websecure
+      traefik.http.routers.gt-prod.tls: "true"
+      traefik.http.routers.gt-prod.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-prod.service: gt-staging
+      traefik.http.routers.gt-prod-body.rule: Host(`goteacher.xyz`) && !Method(`GET`) && !Method(`HEAD`)
+      traefik.http.routers.gt-prod-body.priority: "100"
+      traefik.http.routers.gt-prod-body.entrypoints: websecure
+      traefik.http.routers.gt-prod-body.tls: "true"
+      traefik.http.routers.gt-prod-body.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-prod-body.service: gt-staging
+      traefik.http.routers.gt-prod-body.middlewares: gt-staging-buf3
+      traefik.http.routers.gt-prod-up101.rule: Host(`goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/(board/(new|[^/]+/edit)|today/e/[^/]+/(files|comments))$$`)
+      traefik.http.routers.gt-prod-up101.priority: "1000"
+      traefik.http.routers.gt-prod-up101.entrypoints: websecure
+      traefik.http.routers.gt-prod-up101.tls: "true"
+      traefik.http.routers.gt-prod-up101.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-prod-up101.service: gt-staging
+      traefik.http.routers.gt-prod-up101.middlewares: gt-staging-in8,gt-staging-buf101
+      traefik.http.routers.gt-prod-up31.rule: Host(`goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/hwp/upload$$`)
+      traefik.http.routers.gt-prod-up31.priority: "1000"
+      traefik.http.routers.gt-prod-up31.entrypoints: websecure
+      traefik.http.routers.gt-prod-up31.tls: "true"
+      traefik.http.routers.gt-prod-up31.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-prod-up31.service: gt-staging
+      traefik.http.routers.gt-prod-up31.middlewares: gt-staging-in8b,gt-staging-buf31
+      traefik.http.routers.gt-prod-up9.rule: Host(`goteacher.xyz`) && Method(`POST`) && PathRegexp(`^/s/[^/]+/(repairs/new|repairs/[^/]+/edit|meals/[^/]+/upload)$$|^/m/[^/]+$$`)
+      traefik.http.routers.gt-prod-up9.priority: "1000"
+      traefik.http.routers.gt-prod-up9.entrypoints: websecure
+      traefik.http.routers.gt-prod-up9.tls: "true"
+      traefik.http.routers.gt-prod-up9.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-prod-up9.service: gt-staging
+      traefik.http.routers.gt-prod-up9.middlewares: gt-staging-in16,gt-staging-buf9
+      traefik.http.routers.gt-prod-http.rule: Host(`goteacher.xyz`)
+      traefik.http.routers.gt-prod-http.priority: "100"
+      traefik.http.routers.gt-prod-http.entrypoints: web
+      traefik.http.routers.gt-prod-http.middlewares: gt-staging-redirect
+      traefik.http.routers.gt-prod-http.service: gt-staging
+
+      traefik.http.routers.gt-old.rule: Host(`old.goteacher.xyz`)
+      traefik.http.routers.gt-old.entrypoints: websecure
+      traefik.http.routers.gt-old.tls: "true"
+      traefik.http.routers.gt-old.tls.certresolver: letsencrypt
+      traefik.http.routers.gt-old.service: goteacher-xyz@docker
+      traefik.http.routers.gt-old-http.rule: Host(`old.goteacher.xyz`)
+      traefik.http.routers.gt-old-http.entrypoints: web
+      traefik.http.routers.gt-old-http.middlewares: gt-staging-redirect
+      traefik.http.routers.gt-old-http.service: goteacher-xyz@docker
+
+      traefik.http.routers.gt-t.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod-body.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod-up101.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod-up31.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod-up9.observability.accesslogs: "false"
+      traefik.http.routers.gt-prod-http.observability.accesslogs: "false"
+      traefik.http.routers.gt-old.observability.accesslogs: "false"
+      traefik.http.routers.gt-old-http.observability.accesslogs: "false"

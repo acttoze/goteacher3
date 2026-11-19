@@ -20,6 +20,9 @@ staticfiles/
 # 서버 운영 산출물(백업·배포 기록). 서버 clone 안 /var/
 /var/
 
+# G7 운영 라우터 켜기 링크(서버에서만 compose.override.yml → compose.prod.yml, ops/cutover.sh)
+/ops/compose.override.yml
+
 # P1 구 아이디 예약 목록(서버 ops/reserved/ids.txt, 구버전 회원 아이디)
 /ops/reserved/
 

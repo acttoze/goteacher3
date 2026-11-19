@@ -142,6 +142,14 @@ Redis 메모리 80% 이하·gunicorn 워커 강제 종료(줄 수)·앱 `oom_kil
   (`bash ops/rollout.sh`, 이때 동기화는 다시 뜨지 않는다). compose의 서비스 정의는 지우는 커밋이 나갈 때까지 둬도 된다(돌지 않음).
   구 MySQL 계정은 root로 `DROP USER 'gt_sync'@'172.19.0.0/255.255.0.0'`(공용 DB 변경이므로 승인 뒤).
 
+도메인 전환(G7) 준비물. 순서·사람 할 일·되돌리기는 `meeting/39_cutover_runbook.md`:
+- `compose.prod.yml` — 운영 라우터(goteacher.xyz 6개 + t → goteacher.xyz 308 + old.goteacher.xyz → 구 서비스 `goteacher-xyz@docker`). 저장소에 있기만 하면 영향 없음.
+  켜기는 서버 `ops/compose.override.yml` 링크(compose가 자동으로 겹쳐 읽음, .gitignore), 끄기는 링크 삭제 + `rollout.sh`.
+- `cutover.sh` — 기본 마른 실행(읽기 전용 점검). `--execute`(확인 문구) · `--rollback <.env 백업>`.
+- `legacy_gap.py` — 동기화가 안 보는 이관 밖 회원 계정 차이(읽기 전용, `GAP_TOTAL=0`이면 재적재 불필요).
+- `g7/old_site_readonly.patch` — 구 저장소용 쓰기 중지(`extend/` 파일 하나, 구 서버 `data/readonly.on`이 있을 때만 동작). 시험 `g7/old_site_readonly_test.php`.
+- `monitor.sh`는 `.env`의 `SITE_URL` 호스트를 본다(전환 때 따로 고치지 않음).
+
 도메인 전환 체크리스트(G7). 실행은 승인 뒤, 구버전 처리는 사용자 결정:
 - [ ] **운영 라우터 6개 모두 접근 로그 끄기 라벨** — 라우터가 `gt-staging`·`-body`·`-up101`·`-up31`·`-up9`·`-http` 6개다. 운영용으로 같은 구성을 만들 때 하나도 빠짐없이
   `traefik.http.routers.<이름>.observability.accesslogs: "false"`를 붙인다. 처리방침이 "요청 주소가 담긴 접속 기록은 남기지 않습니다"이고

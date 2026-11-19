@@ -1,0 +1,36 @@
+diff --git a/extend/zz_readonly.extend.php b/extend/zz_readonly.extend.php
+new file mode 100644
+index 0000000..6e91d71
+--- /dev/null
++++ b/extend/zz_readonly.extend.php
+@@ -0,0 +1,30 @@
++<?php
++// G7 구 사이트 읽기 전용(old.goteacher.xyz 보관, 3개월). data/readonly.on 파일이 있을 때만 켜진다.
++// 이 파일을 배포해도 플래그가 없으면 아무것도 바뀌지 않는다. 켜기: touch data/readonly.on / 끄기: rm data/readonly.on (배포 불필요)
++// 막는 것: GET·HEAD가 아닌 요청 전부(로그인·로그아웃·비밀글 확인만 예외) + GET으로 쓰는 파일(글쓰기 화면·삭제·추천 등).
++// 명령줄(cron)은 막지 않는다.
++if (!defined('_GNUBOARD_')) exit;
++
++define('G7_NEW_URL', 'https://goteacher.xyz');
++
++function g7_readonly_blocked($script, $method)
++{
++    $allow = array('login_check.php', 'logout.php', 'password_check.php', 'school_login.check.php', 'ajax.check_session.php');
++    if (in_array($script, $allow, true)) return false;
++    if (!in_array($method, array('GET', 'HEAD'), true)) return true;
++    return (bool) preg_match('/^(write|go_write|register|register_form|member_leave|member_confirm|delete|delete_all|delete_comment'
++        . '|go_delete_comment|move|go_move|good|scrap_popin|email_stop|email_certify|password_lost|password_reset|school_sign|db'
++        . '|ajax\.work|ajax\.(add|delete|edit|update|register|reset|temp|singo|autosave)[a-z_]*)\.php$/', $script);
++}
++
++if (PHP_SAPI !== 'cli' && is_file(G5_DATA_PATH . '/readonly.on')
++    && g7_readonly_blocked(basename(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : ''),
++                           strtoupper(isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET'))) {
++    $g7_msg = '예전 고티처는 읽기 전용 보관 사이트입니다. 새 글·수정은 새 고티처(' . G7_NEW_URL . ')에서 같은 아이디로 해 주세요.';
++    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
++        http_response_code(403);
++        header('Content-Type: text/plain; charset=utf-8');
++        exit($g7_msg);
++    }
++    alert($g7_msg, G7_NEW_URL);
++}
