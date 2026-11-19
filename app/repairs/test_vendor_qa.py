@@ -308,6 +308,8 @@ class ConcurrentIssueTests(TransactionTestCase):
             t.join(30)
         self.assertEqual([r[0] for r in results], [200] * 6)
         self.assertEqual(VendorAccount.objects.filter(space=hub, revoked_at__isnull=True).count(), 1)
-        links = [re.search(r"(/v/[\w-]{40,})", r[1]).group(1) for r in results]
+        # 발급 응답에는 링크 원문이 없다(복사 단추가 /repairs/vendor/link로 받는다, 615f870). 발급된 계정마다 링크를 다시 만들어 본다.
+        self.assertFalse(any(re.search(r"/v/[\w-]{40,}", r[1]) for r in results))
+        links = [f"/v/{a.link_token()}" for a in VendorAccount.objects.filter(space=hub)]
         self.assertEqual(sorted(Client().get(link).status_code for link in links), [302] + [404] * 5)
         apps.get_model("spaces", "Space").objects.filter(pk=hub.pk).delete()

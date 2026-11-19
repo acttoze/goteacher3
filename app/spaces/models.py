@@ -278,7 +278,7 @@ class Member(models.Model):
     )
     key = models.CharField(max_length=64, unique=True, default=new_token, editable=False)
     name = models.CharField("이름", max_length=40)
-    cls = models.CharField("반", max_length=20, help_text="예: 4-1, 4-전담")
+    cls = models.CharField("반", max_length=30, help_text="예: 4-1, 4-전담")  # 기관은 그룹 이름(GROUP_NAME_MAX)
     position = models.CharField("직위", max_length=40, blank=True)
     group = models.CharField("소속", max_length=10, blank=True, default="")  # 학교: Group 값, 기관: org_groups 키(T2). 이름은 space.group_label
     is_manager = models.BooleanField("학교 관리자", default=False)
